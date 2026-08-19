@@ -45,7 +45,7 @@ An `architecture.spec.md` covering the rest of the CDK stack (VPC/ECS/ALB/SQS/La
 
 ### Core Module Specs (`spec/core-modules/`)
 
-Cross-cutting capabilities used across webapp, backend, and workers — most importantly **auth/tenancy** (Clerk + multi-tenant resolution) and shared data models. Note there are two different shared-model submodules with different scopes: **`pb-shared-deps`** is shared across *all* OBS products (D2C mobile + website + this B2B platform), vendored as four separate, currently-drifted checkouts; **`core`** (`overboard-b2b-shared-deps`) is scoped to just the B2B frontend and backend, though today only the frontend actually consumes it. See [`documents/POC-baseline/README.md`](documents/POC-baseline/README.md#shared-components-across-both-repos) for detail. These should be specced early since drift here propagates everywhere. Only read specs in `3-active/` (or `2-approved/` if implementing something not yet built) for implementation.
+Cross-cutting capabilities used across webapp, backend, and workers — most importantly **auth/tenancy** (Clerk + multi-tenant resolution) and shared data models. Note there are two different shared-model submodules with different scopes: **`pb-shared-deps`** is shared across *all* OBS products (D2C mobile + website + this B2B platform), vendored as four separate, currently-drifted checkouts; **`core`** (`overboard-b2b-shared-deps`) is scoped to just the B2B frontend and backend, though today only the frontend actually consumes it — **slated for retirement** (merge into `overboard-b2b-template`, drop the submodule) since it isn't actually shared across repos in practice; see the "Retire the `core` Submodule" decision in [`known-issues.md`](documents/POC-baseline/known-issues.md). See [`documents/POC-baseline/README.md`](documents/POC-baseline/README.md#shared-components-across-both-repos) for detail. These should be specced early since drift here propagates everywhere. Only read specs in `3-active/` (or `2-approved/` if implementing something not yet built) for implementation.
 
 ### Feature Specs (`spec/features/`)
 
@@ -57,6 +57,7 @@ Per-feature behavior. Only read specs in `2-approved/` or `3-active/` for implem
 2. **Prefer configuration over per-tenant code** (PRD `TEN-C1`) — except set-once branding (`BRAND-01`) and per-sponsor prize fulfillment logic (`PRIZE-05`), which are explicit exceptions.
 3. **Security and reliability are first-class, not deferred.** This effort exists specifically to take the platform from POC to production-grade (PRD Section 13 Security, Section 14 Observability). Flag gaps against those sections as they're found.
 4. **Requirement IDs are stable.** When writing specs, tickets, or tests, reference PRD IDs (e.g. `OPT-04`) rather than re-describing the requirement.
+5. **Never generate changes inside the `pb-shared-deps` or `core` submodule directories**, and never suggest connecting to or running scripts against the production MongoDB database (it also serves the live D2C mobile app — see `known-issues.md`). If a task seems to require either, stop and flag it instead of proceeding — see [`SETUP.md`](SETUP.md#boundaries--read-this-before-your-first-pr) for the full contributor-boundaries list this applies to.
 
 ## Related Repositories
 

@@ -139,6 +139,15 @@ npx cdk deploy
 
 See the backend repo's own `README.md` for full CDK deploy options (`mongodbSecretArn`, `dlqAlertPhoneNumber` context flags, etc.) — this workspace guide only covers getting things running locally.
 
+## Boundaries — Read This Before Your First PR
+
+A few things are off-limits for new contributors (interns especially) by default, because the blast radius extends outside what you can see or test from this workspace:
+
+- **Don't edit inside the `pb-shared-deps` or `core` submodule directories.** `pb-shared-deps` is shared across the D2C mobile app, the website, and every B2B service — a change there can silently break products that aren't part of this workspace and that you have no way to test. `core` is lower-risk (B2B-only, and slated to be merged directly into `overboard-b2b-template` anyway — see [`known-issues.md`](documents/POC-baseline/known-issues.md)) but still shared with the backend today. If a task seems to need a change inside either, **stop and ask** rather than fixing it inline as part of an unrelated ticket — it should go through whoever owns that repo, not through a PR to the app repo that happens to touch the submodule.
+- **Never point your local environment at the production MongoDB database.** The same database that stores B2B data also stores live data for the D2C mobile app (`Contest`, `User`, `Board`, `Prop`, and other non-`B2B`-prefixed collections — see `known-issues.md`) — these are serving real users right now. Only use connection strings/credentials you've been explicitly told are for dev/local use. If you're not sure whether what you were given points at production, **ask before running anything against it** — including read-only exploration, since it's easy to fat-finger a write.
+- **Don't run tenant/org provisioning steps, migrations, or one-off scripts against shared infrastructure** without a teammate reviewing them first, even if they look small and scoped only to B2B collections — provisioning today is manual, direct database writes (see `known-issues.md`), which means there's no safety net catching a mistake.
+- If a task assigned to you seems to require touching any of the above, that's a signal it's not actually a good first task — flag it rather than pushing through.
+
 ## 5. Sanity Check
 
 - Frontend dev server loads at `http://localhost:5173` (or whatever Vite reports) without the "missing environment variables" error screen.

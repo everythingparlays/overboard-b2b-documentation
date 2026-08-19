@@ -78,6 +78,12 @@ Both auth paths described in [`infra.md`](infra.md) are currently live in produc
 
 `Contest`, `User`, `Board`, `Prop`, and related non-`B2B`-prefixed models (see [`backend.md`](backend.md)) are actively serving the live D2C mobile app in production, on the same database the B2B platform reads from. **Confirmed (2026-08): these cannot be changed.** Any B2B-driven schema work must be additive (new `B2B*` models/fields) rather than touching these directly — this is a hard constraint on how the tenant-isolation, indexing, and data-model fixes above get implemented, not just a note.
 
+## Decision: Retire the `core` Submodule — Merge Into `overboard-b2b-template`
+
+`core` (`overboard-b2b-shared-deps`) is vendored as a submodule but, per the original audit, is only consumed by the frontend today — nothing in the backend imports from it. Keeping it as a separate repo adds submodule-auth overhead (the `GITHUB_PAT` rewrite in `vercel-install.sh`) and another sync-drift surface, for no actual cross-repo sharing benefit.
+
+**Decision (2026-08): retire it.** Fold `core`'s contents (`PageContainer`, `PageHeader`, `BackButton`, `StickyFooter`, the contest/event helper utils in `core/utils/`, and the currently-unused `homePageSchema`) directly into `overboard-b2b-template/src/`, remove the `core` submodule entry from `.gitmodules`, and update the `@core` Vite/tsconfig path alias accordingly (or drop it in favor of `@/`). Not yet implemented. Once this lands, `pb-shared-deps` becomes the only shared-deps submodule in the frontend.
+
 ## Shared Data Model Submodule Drift
 
 `pb-shared-deps` is vendored as four separate checkouts (frontend + backend's `lambdas/`, `node-server/`, `prize-worker/`), each pinned to a different commit. The backend's own `TODO` flags this as known and unresolved. A schema change to a shared model (e.g. `B2BBoard`) isn't guaranteed to be in sync across all four consumers today.
