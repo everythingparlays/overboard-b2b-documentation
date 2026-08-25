@@ -78,6 +78,12 @@ Both auth paths described in [`infra.md`](infra.md) are currently live in produc
 
 `Contest`, `User`, `Board`, `Prop`, and related non-`B2B`-prefixed models (see [`backend.md`](backend.md)) are actively serving the live D2C mobile app in production, on the same database the B2B platform reads from. **Confirmed (2026-08): these cannot be changed.** Any B2B-driven schema work must be additive (new `B2B*` models/fields) rather than touching these directly — this is a hard constraint on how the tenant-isolation, indexing, and data-model fixes above get implemented, not just a note.
 
+## Production Workloads Run in the AWS Organization's Management Account
+
+**Confirmed (2026-08):** the AWS account currently hosting the backend infra (`769696051685`) is not just "the current account" — it's the **management/payer account of the AWS Organization itself** (`aws organizations describe-organization` confirms `MasterAccountId` == this account), with `FeatureSet: ALL` and no other member accounts created yet. The `parlaybingo-admin` IAM user has full `AdministratorAccess` on it.
+
+AWS's own guidance is to keep the management account workload-free — it controls billing, SCPs, and every future member account, so anything running in it has a larger blast radius than the same thing running in a dedicated account. This isn't a new problem introduced by the personal-dev-stack work in [`environments.spec.md`](../../spec/infra/environments.spec.md), but that spec's `obs-b2b-prod`/`obs-b2b-dev` member-account split is the direct fix for it, for the B2B platform specifically. Lower priority than the tenant-isolation/consent-persistence gaps above, but worth tracking since it also affects whatever D2C infra currently shares this same management account.
+
 ## Decision: Retire the `core` Submodule — Merge Into `overboard-b2b-template`
 
 `core` (`overboard-b2b-shared-deps`) is vendored as a submodule but, per the original audit, is only consumed by the frontend today — nothing in the backend imports from it. Keeping it as a separate repo adds submodule-auth overhead (the `GITHUB_PAT` rewrite in `vercel-install.sh`) and another sync-drift surface, for no actual cross-repo sharing benefit.
