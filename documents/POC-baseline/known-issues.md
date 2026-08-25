@@ -62,6 +62,10 @@ No `express-rate-limit` or equivalent anywhere; this is ALB+Fargate, not API Gat
 
 No error tracking service (Sentry or equivalent) in either repo. No structured logging (raw `console.log`/`console.error` throughout, gated only by always-on debug flags in the Lambdas). The only proactive alerting anywhere in the system is "an SQS dead-letter queue has ≥1 message" — no alarms on ALB error rate, ECS health, Lambda errors, ORmongo connectivity; no per-tenant error attribution; no live-game-window alerting; no pre-game health view. This is essentially the entirety of PRD Section 14 unbuilt.
 
+## Dev-Account Access Is Full Admin, Not Scoped to CDK Needs (Lower Priority)
+
+The Identity Center permission set granting `obs-b2b-dev-deployers` access to `obs-b2b-dev` (`AdministratorAccess-for-b2b-dev`) is full administrator access within that account, not narrowed to what a CDK deploy actually needs. The account boundary itself is the real backstop — it's a fully separate account from `obs-b2b-prod`, so this can't reach production — but within `obs-b2b-dev`, nothing currently limits the blast radius of a mistake. Worth replacing with a scoped permission set once there's time; not urgent given the account-level isolation already in place. See [`SETUP.md`](../../SETUP.md#aws-access-setup-identity-center).
+
 ## MongoDB Auth Should Standardize on IAM (Lower Priority)
 
 Both auth paths described in [`infra.md`](infra.md) are currently live in production: ECS tasks (main API, prize-evaluator) authenticate to Atlas via AWS IAM; Lambdas instead use a plain connection-string secret (`MONGODB_SECRET_ARN`).

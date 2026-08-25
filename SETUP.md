@@ -38,7 +38,7 @@ Before you start, make sure you have:
 - **A GitHub Personal Access Token (PAT)** with repo access — the submodules (`pb-shared-deps`, `overboard-b2b-shared-deps`) are private, and cloning/updating them requires authenticated access. Ask a teammate to generate one for you if you don't have one.
 - **Node.js 20+** and npm
 - **Docker**, installed and running — required for backend CDK asset builds
-- **AWS CLI**, configured with credentials — only needed if you'll be deploying/inspecting the backend infra. Ask for access.
+- **AWS CLI** — only needed if you'll be deploying/inspecting the backend infra. Access goes through IAM Identity Center, not static credentials — ask Nick to add you to the `obs-b2b-dev-deployers` group, then see "AWS Access Setup" under step 4 below.
 - **CDK CLI** (`npm install -g aws-cdk`, or use `npx cdk`) — backend only
 - **A Clerk Dashboard invite** — ask for access to get a publishable key (frontend) and secret key (backend)
 - **MongoDB Atlas access / connection string** — ask for this; there's no self-serve way to get it from the repos alone
@@ -128,14 +128,70 @@ npm run build && npm start
 
 Point your local frontend's `VITE_API_BASE_URL` at `http://localhost:3000` to talk to this.
 
-### Deploying backend infra (only if you're working on infra)
+### AWS Access Setup (Identity Center)
 
-You'll need AWS credentials with access to the target account, then:
+Backend infra access goes through **IAM Identity Center**, not individual IAM users or long-lived access keys — this keeps offboarding clean (removing someone from one group cuts off access everywhere, instead of hunting down keys someone was handed once and forgot about). See [`known-issues.md`](documents/POC-baseline/known-issues.md) for why this was chosen over plain IAM users.
+
+**Prerequisite:** ask Nick to add you to the `obs-b2b-dev-deployers` group in Identity Center. Nothing below works until that's done.
+
+**One-time setup, per laptop:**
 
 ```bash
-npx cdk bootstrap   # first time only
-npx cdk deploy
+aws configure sso
 ```
+
+Answer the prompts:
+- **SSO session name** — anything you want (e.g. your own name) — purely a local label in your own config, doesn't need to match anyone else's.
+- **SSO start URL** — `https://ssoins-7223c5fccd56e92b.portal.us-east-1.app.aws`
+- **SSO region** — `us-east-1`
+- **SSO registration scopes** — leave the default, just hit enter.
+
+This opens a browser to log into the Identity Center portal — approve it there. Back in the terminal:
+- **Account** — `obs-b2b-dev`
+- **Role** — `AdministratorAccess-for-b2b-dev`
+- **CLI default region** — `us-east-2` (matches where the backend infra actually deploys)
+- **CLI default output format** — `json` is fine
+- **CLI profile name** — `obs-b2b-dev` — **type this explicitly**, don't just hit enter on the suggested default. If you accept the default, the CLI auto-generates a name like `AdministratorAccess-for-b2b-dev-667523684851` instead, and every command below that references `obs-b2b-dev` will fail with "The config profile (obs-b2b-dev) could not be found."
+
+**If you already did this and ended up with the long auto-generated name:** no need to redo the wizard — just open `~/.aws/config` and rename that profile's `[profile ...]` header line to `[profile obs-b2b-dev]`. Everything else in the block stays the same.
+
+**Checking what profiles you actually have**, if you're ever unsure:
+
+```bash
+aws configure list-profiles                 # lists every profile name
+grep -B1 sso_session ~/.aws/config           # shows just the SSO-based ones
+aws sso list-accounts --profile obs-b2b-dev  # confirms this profile is actually logged in (vs. expired)
+```
+
+**Using it:**
+
+```bash
+aws sso login --profile obs-b2b-dev     # re-run whenever your session expires (2 hours)
+export AWS_PROFILE=obs-b2b-dev          # or pass --profile obs-b2b-dev on every command instead
+```
+
+> **Scope heads-up:** `AdministratorAccess-for-b2b-dev` is full admin *within* `obs-b2b-dev` — not narrowed down to just what CDK needs. The account boundary is what actually keeps this from being able to touch `obs-b2b-prod` (a fully separate account, fully separate access) — but inside `obs-b2b-dev` itself, nothing currently stops a mistake from being bigger than it needs to be. Worth tightening later; not a blocker for now.
+
+**Troubleshooting — `Permission denied: '/Users/you/.aws/sso'`:** usually means `~/.aws` got left owned by `root` from a stray `sudo aws configure` at some point in the past. Fix:
+
+```bash
+sudo chown -R $(whoami):staff ~/.aws
+chmod 700 ~/.aws
+chmod 600 ~/.aws/config ~/.aws/credentials
+```
+
+Then retry `aws configure sso`.
+
+### Deploying backend infra (only if you're working on infra)
+
+With the above configured:
+
+```bash
+npx cdk bootstrap --profile obs-b2b-dev   # first time only, per account
+npx cdk deploy --profile obs-b2b-dev
+```
+
+**Important — this is not yet a personal, isolated stack.** The plan ([`spec/infra/environments.spec.md`](spec/infra/environments.spec.md)) is for everyone to deploy their own `-c stage=<name>`-namespaced stack that coexists with everyone else's in `obs-b2b-dev` without collisions — but that parameterization hasn't been built into the CDK app yet. Today, `cdk deploy` deploys **the one existing shared stack** in that account, so don't assume it's safe to deploy freely — check with whoever else might be using it first. **Never** run this against `obs-b2b-prod` without explicit sign-off.
 
 See the backend repo's own `README.md` for full CDK deploy options (`mongodbSecretArn`, `dlqAlertPhoneNumber` context flags, etc.) — this workspace guide only covers getting things running locally.
 
@@ -162,5 +218,5 @@ These aren't setup mistakes — they're pre-existing gaps documented in [`docume
 
 - No `.env.example` in either app repo — variable names above were reverse-engineered from source, not documented by the original authors.
 - The four `pb-shared-deps`/`core` submodule checkouts across the two repos are pinned to different commits — if you see a type error that looks like it shouldn't exist, this drift is a likely cause.
-- There's only one AWS environment (no dev/staging split) — be careful with `cdk deploy` if you're not sure which account/stack you're pointed at.
+- Two AWS accounts now exist (`obs-b2b-prod`, `obs-b2b-dev`), but the CDK app itself doesn't yet support per-developer namespaced stacks within `obs-b2b-dev` (see `spec/infra/environments.spec.md`) — today `cdk deploy` targets one shared stack per account. Coordinate before deploying to dev; never deploy to prod without explicit sign-off.
 - `SignUp.tsx` in the frontend has a known bug sending the wrong tenant slug to the backend on account creation (see `known-issues.md`).
