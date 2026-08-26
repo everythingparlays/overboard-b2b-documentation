@@ -184,14 +184,21 @@ Then retry `aws configure sso`.
 
 ### Deploying backend infra (only if you're working on infra)
 
-With the above configured:
+Per-developer stage isolation ([`spec/infra/environments.spec.md`](spec/infra/environments.spec.md)) is now implemented — `-c stage=<name>` is **required** on every `cdk deploy`/`cdk destroy`, there's no default, and a bare `cdk deploy` fails loudly on purpose rather than deploying somewhere ambiguous:
 
 ```bash
-npx cdk bootstrap --profile obs-b2b-dev   # first time only, per account
-npx cdk deploy --profile obs-b2b-dev
+npx cdk bootstrap --profile obs-b2b-dev -c stage=<yourname>   # first time only, per account
+npx cdk deploy --profile obs-b2b-dev -c stage=<yourname>
+npx cdk destroy --profile obs-b2b-dev -c stage=<yourname>     # tear it down when you're done — no auto-cleanup exists
 ```
 
-**Important — this is not yet a personal, isolated stack.** The plan ([`spec/infra/environments.spec.md`](spec/infra/environments.spec.md)) is for everyone to deploy their own `-c stage=<name>`-namespaced stack that coexists with everyone else's in `obs-b2b-dev` without collisions — but that parameterization hasn't been built into the CDK app yet. Today, `cdk deploy` deploys **the one existing shared stack** in that account, so don't assume it's safe to deploy freely — check with whoever else might be using it first. **Never** run this against `obs-b2b-prod` without explicit sign-off.
+Use your own name as the stage (e.g. `-c stage=nick`) — this gives you an isolated `OverboardSportsBackendStack-<yourname>` stack, safe to deploy alongside anyone else's in the same account. **Never** pass `-c stage=prod` yourself — that's a separate account (`obs-b2b-prod`) with its own access, not something to deploy to casually. See the spec for the full design.
+
+**Not yet functional end-to-end, even with the above:** two real prerequisites don't exist yet —
+- A dev-scoped MongoDB secret in `obs-b2b-dev`. Without it, the async pipeline (board-evaluator / prop-update-evaluator Lambdas) will throw at runtime — they require `MONGODB_SECRET_ARN`, with no IAM fallback. (The main API / node-server doesn't need this — it uses Atlas IAM auth via its task role instead.)
+- A non-production Clerk instance. Without it, node-server comes up with no auth configured.
+
+Both are tracked in [`known-issues.md`](documents/POC-baseline/known-issues.md). Until they're resolved, a personal stack will deploy successfully but won't be fully usable — check there before assuming something you did wrong.
 
 See the backend repo's own `README.md` for full CDK deploy options (`mongodbSecretArn`, `dlqAlertPhoneNumber` context flags, etc.) — this workspace guide only covers getting things running locally.
 
@@ -218,5 +225,6 @@ These aren't setup mistakes — they're pre-existing gaps documented in [`docume
 
 - No `.env.example` in either app repo — variable names above were reverse-engineered from source, not documented by the original authors.
 - The four `pb-shared-deps`/`core` submodule checkouts across the two repos are pinned to different commits — if you see a type error that looks like it shouldn't exist, this drift is a likely cause.
-- Two AWS accounts now exist (`obs-b2b-prod`, `obs-b2b-dev`), but the CDK app itself doesn't yet support per-developer namespaced stacks within `obs-b2b-dev` (see `spec/infra/environments.spec.md`) — today `cdk deploy` targets one shared stack per account. Coordinate before deploying to dev; never deploy to prod without explicit sign-off.
+- Two AWS accounts exist (`obs-b2b-prod`, `obs-b2b-dev`) and the CDK app now supports per-developer namespaced stacks via required `-c stage=<name>` context (see `spec/infra/environments.spec.md`). `obs-b2b-prod` is a brand-new, empty account — it is **not** the account currently running the live system (see `known-issues.md`); migrating there is a separate, not-yet-done task.
+- A personal dev stack deploys successfully but isn't fully functional yet — no dev-scoped Mongo secret or non-prod Clerk instance exists, so the async Lambda pipeline and auth won't work until those are created (see `known-issues.md`).
 - `SignUp.tsx` in the frontend has a known bug sending the wrong tenant slug to the backend on account creation (see `known-issues.md`).

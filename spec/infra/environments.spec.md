@@ -104,7 +104,7 @@ new sqs.Queue(this, 'PropHitQueue', { queueName: 'prop-hit-queue', ... });
 If a resource genuinely needs a human-meaningful explicit name — this comes up for things that aren't CloudFormation-managed physical names, like the Mongo database name below — derive it from `stage` explicitly rather than hardcoding a single value:
 
 ```ts
-const databaseName = stage === 'prod' ? 'PBingo-fullappdev-database' : `PBingo-dev-shared`;
+const databaseName = stage === 'prod' ? 'obs-b2b-prod' : 'obs-b2b-dev';
 ```
 
 ### Pattern 3: Config lives in one place
@@ -117,12 +117,11 @@ Every value that's currently hardcoded directly in `bin/overboard-sports-backend
 
 This is the one place personal stacks are **not** fully isolated, and it's a deliberate constraint, not an oversight: live prop/event data (players, bet events, stat thresholds) is written by the external stats pipeline ([`PbCdkMonoRepo`](https://github.com/everythingparlays/PbCdkMonoRepo)) into one database. The B2B board-generation flow needs to read that real data to be useful at all — a personal, empty database per developer would have no players to draft from.
 
-**So: all personal dev stacks connect to one shared, non-prod MongoDB database** — not the prod database, and not one database per developer either. Isolation between developers happens at the **tenant/org level**, not the database level:
+**So: all personal dev stacks connect to one shared, non-prod MongoDB database** — not the prod database, and not one database per developer either. Isolation between developers happens at the **tenant/org level**, not the database level: each developer works under their own `B2BOrganization` (their own tenant slug, e.g. `dev-nick`), so their B2B writes don't collide with anyone else's.
 
-- Each developer works under their own `B2BOrganization` (their own tenant slug, e.g. `dev-nick`), so their B2B writes (users, boards, contests, prize tiers) don't collide with anyone else's.
-- Everyone reads the same shared `Prop`/`BetEvent`/`Contest` collections, since that's the real live data feed those need to come from.
+**Superseded — see [`spec/core-modules/2-approved/mongodb-access-isolation.spec.md`](../core-modules/2-approved/mongodb-access-isolation.spec.md) for the current design.** The mechanism described above is now implemented as `obs-b2b-dev`: a dedicated database containing dev's own B2B collections plus a continuously-replicated, read-only mirror of `BetEvent`/`Prop`/`Entity`, fed by Atlas Database Triggers. Personal dev stacks connect only to that database.
 
-**Open risk — not resolved by this spec:** nothing today would stop a personal stack's database user from writing to the shared, non-B2B collections it should only be reading. A scoped/read-only Atlas custom role for dev database users is the likely fix; not attempted here. This matters beyond convenience once less-experienced contributors (e.g. interns) are working in the codebase — see [`SETUP.md`](../../SETUP.md#boundaries--read-this-before-your-first-pr), which currently relies on a documented rule rather than a technical guardrail for keeping anyone off the production database.
+This **resolves** the open risk previously noted here (that nothing stopped a dev credential from writing to shared non-B2B collections): a dev stack has no credential for the source database at all, so the guardrail is structural rather than a documented rule. See [`SETUP.md`](../../SETUP.md#boundaries--read-this-before-your-first-pr).
 
 ---
 
@@ -150,7 +149,7 @@ Personal dev stacks must **never** point at the production Clerk instance.
 
 ## Open Questions
 
-1. **Read-only scoping** for dev database users on the shared, non-B2B collections — not solved here.
+1. ~~**Read-only scoping** for dev database users on the shared, non-B2B collections.~~ **Resolved** by [`mongodb-access-isolation.spec.md`](../core-modules/2-approved/mongodb-access-isolation.spec.md) — dev stacks connect only to `obs-b2b-dev` and have no credential for the source database.
 2. **Per-tenant auth-method configuration** (PRD `AUTH-04`) and how it maps onto Clerk setup — deferred to a future auth/tenancy core-module spec.
 3. **The `prop-hit` message contract** with `PbCdkMonoRepo` isn't formalized as a shared interface yet — related but separate from this spec; see [`known-issues.md`](../../documents/POC-baseline/known-issues.md).
 4. **Prod release process** — who deploys `stage=prod`, from where (a person's machine vs. CI) — not defined by this spec.

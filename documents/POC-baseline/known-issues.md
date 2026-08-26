@@ -72,6 +72,20 @@ Both auth paths described in [`infra.md`](infra.md) are currently live in produc
 
 **Decision (2026-08):** standardize all services on IAM auth — it's more traceable and consistent than a shared connection-string secret. Confirmed as a real target, but explicitly **lower priority** than the tenant-isolation and consent-persistence gaps above.
 
+## Stale Duplicate Legacy Collections (`test_*`)
+
+**Found (2026-08) while verifying collection names for [`mongodb-access-isolation.spec.md`](../../spec/core-modules/2-approved/mongodb-access-isolation.spec.md):** the shared database contains a full parallel set of legacy collections prefixed `test_*` (`test_betevents`, `test_props`, `test_entities`, `test_users`, `test_contests`, `test_boards`, and others) alongside the live `cdk_test_*` set. These are **not** a live mirror — `test_betevents` has 3000 documents vs. `cdk_test_betevents`'s 2943, confirming divergence, not sync. The `stageName` constant in `pb-shared-deps/models.ts` is hardcoded to `"cdk_test"` today, meaning `test_*` was written under an earlier value of that constant and abandoned when it changed. Low priority — dead data taking up space, not a functional or security issue — but worth cleaning up eventually, and worth knowing about so it doesn't get mistaken for a second live environment.
+
+## Personal Dev Stacks: Infra Isolation Is Built, Two Prerequisites Still Missing
+
+**Update (2026-08): the CDK stage-parameterization from [`environments.spec.md`](../../spec/infra/environments.spec.md) is implemented.** `bin/overboard-sports-backend.ts` now requires `-c stage=<name>` (no default; a bare `cdk deploy` fails loudly), config moved into the new `lib/config/environments.ts`, and — found while implementing this — **all six SQS queues in `prize-delivery.ts` had hardcoded `queueName`s**, which would have collided the moment a second developer's stack deployed into the same account. Removed, so CDK now derives unique names per stack as the spec's Pattern 2 requires. `obs-b2b-prod` in this config is a brand-new, empty account, not the currently-running production system — see "Production Workloads Run in the AWS Organization's Management Account" below.
+
+**Still blocking a personal stack from being actually usable, not just deployable** — deploying with `-c stage=<name>` today will succeed, but:
+- **No dev-scoped MongoDB secret exists.** The board-evaluator and prop-update-evaluator Lambdas hard-require `MONGODB_SECRET_ARN` (confirmed in `pb-shared-deps/utils/lambda/db_connector_from_uri.ts` — throws if unset, no IAM fallback on the Lambda side). The existing secret lives in the management account (`769696051685`) and isn't cross-account accessible from `obs-b2b-dev` without a resource policy that doesn't exist. A new secret needs to be created in `obs-b2b-dev` itself. (Main API / node-server doesn't have this problem — it uses Atlas IAM auth via its task role.)
+- **No non-production Clerk instance exists** — see "Auth (Clerk) Strategy" in `environments.spec.md`. Without it, node-server comes up with no auth configured.
+
+Until both exist, treat a personal dev stack as "infrastructure deploys, but auth and the async prize pipeline don't work yet."
+
 ## External Dependency: `prop-hit` Queue Producer Lives in Another Repo
 
 **Confirmed (2026-08): the producer is [`PbCdkMonoRepo`](https://github.com/everythingparlays/PbCdkMonoRepo)** (added to `AGENTS.md`'s Related Repositories table). The `prop-hit` SQS queue (consumed by the `prop-update-evaluator` Lambda, see [`workers.md`](workers.md)) is published to from code in that repo, not present in this workspace. This is a real, unformalized cross-repo dependency — the message contract (`{propId, type, timestamp}`, inferred from the consumer side only) isn't specified anywhere as a shared interface; it just happens to match what the Lambda expects today.
