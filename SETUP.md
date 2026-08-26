@@ -40,7 +40,7 @@ Before you start, make sure you have:
 - **Docker**, installed and running — required for backend CDK asset builds
 - **AWS CLI** — only needed if you'll be deploying/inspecting the backend infra. Access goes through IAM Identity Center, not static credentials — ask Nick to add you to the `obs-b2b-dev-deployers` group, then see "AWS Access Setup" under step 4 below.
 - **CDK CLI** (`npm install -g aws-cdk`, or use `npx cdk`) — backend only
-- **A Clerk Dashboard invite** — ask for access to get a publishable key (frontend) and secret key (backend)
+- **A Clerk Dashboard invite** — only needed if you're changing auth configuration. For normal local work the non-production instance's publishable key is in step 3 below, and the backend reads its secret key from Secrets Manager. **Never use the production Clerk instance locally.**
 - **MongoDB Atlas access / connection string** — ask for this; there's no self-serve way to get it from the repos alone
 
 No `.env.example` file exists in either app repo today, so the variable names below are taken directly from the source — you'll still need to get actual values (keys, connection strings) from a teammate.
@@ -79,10 +79,15 @@ git submodule update --init --recursive
 **Environment variables** — create `.env` in the repo root:
 
 ```bash
-VITE_CLERK_PUBLISHABLE_KEY=   # from Clerk Dashboard
+# Non-production Clerk instance (natural-macaw-97.clerk.accounts.dev).
+# Publishable keys are public by design — they ship in the browser bundle — so this
+# is safe to have here. The matching SECRET key is not: it lives in Secrets Manager.
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_bmF0dXJhbC1tYWNhdy05Ny5jbGVyay5hY2NvdW50cy5kZXYk
 VITE_API_BASE_URL=            # e.g. http://localhost:3000 to point at a local backend
 VITE_TENANT_SLUG=             # which tenant to simulate locally — defaults to "test" if unset; see src/config/tenants/
 ```
+
+> Note the `VITE_` prefix. Clerk's own docs often show `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (Next.js); this app is Vite, and any variable without the `VITE_` prefix is silently ignored at build time — you'd get the missing-environment-variables error screen with no other clue why.
 
 **Install and run:**
 
@@ -118,7 +123,7 @@ npm run build
 
 ```bash
 cd node-server
-export CLERK_SECRET_KEY=sk_test_...              # from Clerk Dashboard
+export CLERK_SECRET_KEY=sk_test_...              # non-prod instance; pull from Secrets Manager (obs-b2b-dev/clerk), never paste a prod key
 export MONGODB_CONNECTION_STRING=...              # ask a teammate
 export MONGODB_DATABASE_NAME=...                  # ask a teammate
 export FRONTEND_ORIGIN=http://localhost:5173      # optional; comma-separated allowlist, matches your local Vite dev server port
@@ -132,7 +137,12 @@ Point your local frontend's `VITE_API_BASE_URL` at `http://localhost:3000` to ta
 
 Backend infra access goes through **IAM Identity Center**, not individual IAM users or long-lived access keys — this keeps offboarding clean (removing someone from one group cuts off access everywhere, instead of hunting down keys someone was handed once and forgot about). See [`known-issues.md`](documents/POC-baseline/known-issues.md) for why this was chosen over plain IAM users.
 
-**Prerequisite:** ask Nick to add you to the `obs-b2b-dev-deployers` group in Identity Center. Nothing below works until that's done.
+**Two prerequisites, both requiring someone with admin access — ask for both at once:**
+
+1. **Identity Center**: add you to the `obs-b2b-dev-deployers` group. Nothing below works without it.
+2. **MongoDB Atlas**: register your personal stack's two IAM role ARNs as Atlas database users (see [`environments.spec.md`](spec/infra/environments.spec.md#onboarding-a-new-developer--required-atlas-step)). Only needed if you'll deploy backend infra.
+
+The second one is easy to overlook because it isn't needed until *after* a successful deploy — your stack will deploy cleanly and then fail to reach MongoDB at runtime. If you see database connection errors from a stack that otherwise came up fine, this is almost certainly why; it is not something you misconfigured.
 
 **One-time setup, per laptop:**
 

@@ -41,6 +41,8 @@ Renaming is not free — it is a change in `pb-shared-deps`, which is shared wit
 
 This follows a pattern the codebase already uses — `prize-redemption-model.ts` is env-driven today.
 
+Separately, creating Atlas database users by hand (see "No Atlas API key lives in an AWS account") removes `CfnDatabaseUser` and the `awscdk-resources-mongodbatlas` dependency from `lib/constructs/main-api-service.ts` and `lib/constructs/prize-delivery.ts`. ECS tasks keep authenticating via Atlas IAM exactly as they do today — only the *provisioning* of the database user moves out of CDK, not the auth mechanism.
+
 **Caveat worth knowing:** setting `LEGACY_COLLECTION_PREFIX=readonly` renames *every* collection in `models.ts` for B2B services, not just the three replicated ones — so `models.User` would resolve to `readonly_users`, which will not exist in the B2B databases. That is harmless because B2B never queries those models (verified: B2B touches only `Prop`, `BetEvent`, `Entity`), but the failure mode if that ever changed is a query returning empty rather than erroring loudly. If that becomes a concern, give the three replicated models explicit `collection:` values instead of a shared prefix.
 
 ---
@@ -131,17 +133,29 @@ exports = async function (changeEvent) {
 
 ## Atlas Roles and Users
 
-Three custom roles, defined in Atlas directly (not CDK — Atlas Triggers and their identity are an Atlas-managed surface):
+All created by hand in the Atlas console. Two custom roles, plus one database user per IAM role that needs access.
 
-| Role | Grants | Bound to |
+| Custom role | Grants | Bound to |
 |---|---|---|
-| `b2b-replicator` | **read** on the three source collections in `PBingo-fullappdev-database`; **readWrite** on `obs-b2b-prod` and `obs-b2b-dev` | the trigger identity only |
-| `b2b-app-readwrite` | **readWrite** on the seven B2B collections; **read only** on the three `readonly_*` collections. One role instance per environment database. | B2B service credentials for that environment |
-| existing D2C / Notification roles | scoped to `PBingo-fullappdev-database` only | unchanged consumers |
+| `b2b-replicator` | **read** on the three source collections in `PBingo-fullappdev-database`; **readWrite** on `obs-b2b-prod` and `obs-b2b-dev` | the Atlas Trigger identity only |
+| `b2b-app-prod` | **readWrite** on the seven B2B collections in `obs-b2b-prod`; **read** on its three `readonly_*` collections | prod IAM role ARNs |
+| `b2b-app-dev` | same shape, scoped to `obs-b2b-dev` | every developer's IAM role ARNs |
+| existing D2C / Notification roles | scoped to `PBingo-fullappdev-database` only | unchanged |
 
-The trigger identity is the sole credential that touches both sides. Everything else lives entirely on one side of the boundary.
+Database users are **AWS IAM Role** type — the username *is* the IAM role ARN, and no password exists. One database user per role ARN:
 
-`b2b-app-readwrite` grants per-collection privileges rather than a blanket database-level `readWrite`, so the `readonly_` naming is backed by an actual permission — a B2B service attempting to write a replica gets an authorization error, not a silently-overwritten document. This costs one thing worth knowing: **a newly added B2B collection needs an explicit grant**, since the role enumerates collections rather than covering the whole database. That is deliberate friction, consistent with the "enumerate, never pattern-match" rule below.
+| Environment | Role ARNs to register | Custom role to assign |
+|---|---|---|
+| Prod (`189750306402`) | `obs-b2b-prod-main-api-task`, `obs-b2b-prod-prize-evaluator-task` | `b2b-app-prod` |
+| Dev (`667523684851`) | `obs-b2b-dev-<developer>-main-api-task`, `obs-b2b-dev-<developer>-prize-evaluator-task` | `b2b-app-dev` |
+
+Prod is registered once. Dev requires **two ARNs per developer** — the accepted cost of dev and prod using the same auth path. See [`environments.spec.md`](../../infra/environments.spec.md#onboarding-a-new-developer--required-atlas-step).
+
+The trigger identity is the sole credential that touches both sides of the boundary. Everything else lives entirely on one side.
+
+`b2b-app-*` grants per-collection privileges rather than a blanket database-level `readWrite`, so the `readonly_` naming is backed by an actual permission — a B2B service attempting to write a replica gets an authorization error, not a silently-overwritten document. This costs one thing worth knowing: **a newly added B2B collection needs an explicit grant**, since the role enumerates collections rather than covering the whole database. Deliberate friction, consistent with the "enumerate, never pattern-match" rule below.
+
+> **Not yet true as of 2026-08.** The roles were initially created with database-level `readWrite` to get them stood up quickly, so `readonly_` is currently convention rather than enforcement — a write to a replica succeeds and is then silently overwritten by the next trigger sync. Tracked in [`known-issues.md`](../../../documents/POC-baseline/known-issues.md); tightening the roles to match this section is a later cleanup, not a blocker for the cutover.
 
 ---
 
@@ -156,12 +170,27 @@ What does need creating, and where:
 | Databases / collections | *nothing to do* | Implicit on first write |
 | Atlas Triggers (×6) + their identity | **Atlas UI** | Atlas App Services resources; not modelled by the CDK library at all |
 | `b2b-replicator` custom role | **Atlas UI** | Belongs with the triggers it exists for — one system owning one concern |
-| `b2b-app-readwrite` custom role | **Atlas UI** | Atlas custom roles are *project*-scoped, not database-scoped. A role created from a dev deploy could grant access to the source database, which is exactly the escalation path the `obs-b2b-dev` Atlas API key must be scoped to prevent — so a dev stack should not be able to create roles in the first place |
-| `CfnDatabaseUser` (per service) | **CDK** — already is | Binds to the IAM task-role ARN that CDK itself generates; can't be known outside CDK. Only *references* role names as strings |
+| `b2b-app-prod` / `b2b-app-dev` custom roles | **Atlas UI** | See below |
+| Database users (AWS IAM Role type) | **Atlas UI** | Registered against IAM role ARNs; no password to store anywhere |
+| The IAM roles themselves | **CDK** | Explicit stage-namespaced `roleName`s so the ARNs are deterministic and can be pre-registered |
 
-**Recommendation: create all of it by hand in Atlas.** It is one-time setup, the triggers can't be CDK-managed regardless, and splitting the replication mechanism across two management systems is worse than keeping it whole in one. CDK keeps doing what it already does — creating database users bound to role names.
+### Database users are created by hand, in both environments
 
-The one thing that will drift is `b2b-app-readwrite`, since it enumerates collections and so needs an edit whenever a B2B collection is added. That is a deliberate trade (see "Atlas Roles and Users"), and the failure mode is a loud authorization error, not silent breakage.
+**Decision (2026-08): keep Atlas IAM auth in dev and prod alike**, so a personal dev stack exercises the same authentication path production does. Database users are created manually in the Atlas console, bound to deterministic IAM role ARNs — *not* via `CfnDatabaseUser`.
+
+Per-developer role ARNs are the accepted cost of that parity: onboarding a new developer requires registering two ARNs in Atlas. Documented as a required step in [`environments.spec.md`](../../infra/environments.spec.md#onboarding-a-new-developer--required-atlas-step) and surfaced to developers in [`SETUP.md`](../../../SETUP.md).
+
+Sharing one IAM role across all dev stages was considered and rejected: a named IAM role is a CloudFormation-owned resource, so two stage stacks declaring the same name collide on deploy. Sharing would require creating the role outside the stage stacks and importing it via `Role.fromRoleArn` — more plumbing than the per-developer registration it would save.
+
+### No Atlas API key lives in an AWS account
+
+**Confirmed (2026-08): Atlas API keys cannot be scoped to a database.** They carry project-level roles only. That makes an API key stored in `obs-b2b-dev` a standing privilege-escalation path — anything able to use it could create a database user with access to the source database, regardless of how carefully the CDK code is written.
+
+So: **no Atlas API key is provisioned into either AWS account, and CDK creates no Atlas resources at all.** This means dropping `CfnDatabaseUser` — and with it the `awscdk-resources-mongodbatlas` dependency, its `cfn/atlas/profile/default` secret, and the CloudFormation third-party extension activation (an execution role trusting `resources.cloudformation.amazonaws.com`) that each account would otherwise need.
+
+Creating the database users by hand is what makes this possible while **keeping** IAM auth: the API key was only ever needed to create the user, not to authenticate as it. Registering the same IAM role ARN manually in the console produces an identical database user with none of the standing privilege.
+
+**Still outstanding:** the `board-evaluator` and `prop-update-evaluator` Lambdas cannot use IAM auth — their connector (`pb-shared-deps/utils/lambda/db_connector_from_uri.ts`) only supports a connection-string secret, so registering their execution roles in Atlas achieves nothing until it is extended to support the `MONGODB-AWS` mechanism. Until then a personal dev stack's ECS services connect while its async prize pipeline does not. Tracked in [`known-issues.md`](../../../documents/POC-baseline/known-issues.md).
 
 ---
 
@@ -170,7 +199,7 @@ The one thing that will drift is `b2b-app-readwrite`, since it enumerates collec
 Dev first — it has no data to lose and validates the whole mechanism before prod is touched.
 
 1. Create the `b2b-replicator` role and the trigger identity bound to it. (No database-creation step — see above.)
-2. Create the two `b2b-app-readwrite` roles, one per B2B database.
+2. Create the `b2b-app-prod` and `b2b-app-dev` roles, their database users, and a Secrets Manager secret per environment holding each user's connection credentials.
 3. **Backfill** the three source collections into both targets under their `readonly_*` names (`mongodump` + `mongorestore` with `--nsFrom`/`--nsTo` to rename during restore, preserving `_id`). Triggers do **not** backfill — they only fire on changes occurring after they are enabled, so without this step the mirrors would start nearly empty and fill in only as documents happen to be touched.
 4. Enable the six triggers. Steps 3 and 4 are safe in either order thanks to `_id`-keyed upserts; enabling triggers first is marginally safer (no gap between backfill completing and triggers starting).
 5. Verify: document counts converge; the `{ betEventId: 1, entityInfo: 1 }` index exists on both `readonly_props` copies (see "Indexes on the Replicas"); and a test write to a source document appears in both mirrors.

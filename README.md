@@ -30,6 +30,10 @@ overboardb2b-documentation/
     └── LLDs/                   # Low-level designs — component-level "how"
 ```
 
+## Working Notes
+
+`sessions/<name>/` holds per-person working notes — `NEXT-SESSION.md` (where to pick up) and `HISTORY.md` (what changed, high level). These are personal scratch context, not shared source of truth: decisions live in `spec/` and `documents/`. See [`sessions/README.md`](sessions/README.md).
+
 ## Specs vs. Documents
 
 **Specs** (`spec/`) are instructions for AI to generate code from. Prescriptive, always current: "do it this way."

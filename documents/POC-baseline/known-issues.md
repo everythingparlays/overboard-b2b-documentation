@@ -66,11 +66,23 @@ No error tracking service (Sentry or equivalent) in either repo. No structured l
 
 The Identity Center permission set granting `obs-b2b-dev-deployers` access to `obs-b2b-dev` (`AdministratorAccess-for-b2b-dev`) is full administrator access within that account, not narrowed to what a CDK deploy actually needs. The account boundary itself is the real backstop — it's a fully separate account from `obs-b2b-prod`, so this can't reach production — but within `obs-b2b-dev`, nothing currently limits the blast radius of a mistake. Worth replacing with a scoped permission set once there's time; not urgent given the account-level isolation already in place. See [`SETUP.md`](../../SETUP.md#aws-access-setup-identity-center).
 
+## Atlas App Roles Grant Database-Wide readWrite, Not Per-Collection (Lower Priority)
+
+**Current state (2026-08):** the `b2b-app-prod` / `b2b-app-dev` Atlas custom roles were created with **database-level `readWrite`** on their respective B2B database, rather than the per-collection scoping [`mongodb-access-isolation.spec.md`](../../spec/core-modules/2-approved/mongodb-access-isolation.spec.md) calls for (readWrite on the seven B2B collections, read-only on the three `readonly_*` replicas). Deliberate shortcut to get the roles stood up.
+
+**Consequence:** the `readonly_` prefix is currently a **naming convention only, not an enforced permission**. A B2B service can write to a replica collection; nothing rejects it. The write isn't catastrophic — the next Atlas Trigger sync overwrites it from the source — but it fails *silently*, so a bug that writes to `readonly_props` would look like data mysteriously reverting rather than an obvious authorization error.
+
+**To close:** edit each role to enumerate per-collection privileges as the spec describes. Note the tradeoff that comes with it — an enumerated role means every newly added B2B collection needs an explicit grant, or the app can't write to it (a loud failure, by design).
+
 ## MongoDB Auth Should Standardize on IAM (Lower Priority)
 
 Both auth paths described in [`infra.md`](infra.md) are currently live in production: ECS tasks (main API, prize-evaluator) authenticate to Atlas via AWS IAM; Lambdas instead use a plain connection-string secret (`MONGODB_SECRET_ARN`).
 
-**Decision (2026-08):** standardize all services on IAM auth — it's more traceable and consistent than a shared connection-string secret. Confirmed as a real target, but explicitly **lower priority** than the tenant-isolation and consent-persistence gaps above.
+**Decision (2026-08): standardize all services on IAM auth — confirmed and kept**, in dev and prod alike, so personal dev stacks exercise the same auth path as production. See [`mongodb-access-isolation.spec.md`](../../spec/core-modules/2-approved/mongodb-access-isolation.spec.md).
+
+**How it is provisioned changed, though.** Atlas IAM database users were being created via `CfnDatabaseUser`, which requires an Atlas API key in the deploying AWS account — and **Atlas API keys cannot be scoped to a database**, only to a project, making such a key a standing escalation path from `obs-b2b-dev` to the source database. The fix: create the database users **by hand in the Atlas console**, bound to deterministic IAM role ARNs. The API key was only ever needed to *create* the user, never to authenticate as it — so removing it costs nothing but a manual onboarding step (registering two ARNs per new developer, documented in [`environments.spec.md`](../../spec/infra/environments.spec.md#onboarding-a-new-developer--required-atlas-step)).
+
+**The Lambda gap below is not closed by this** — `board-evaluator` and `prop-update-evaluator` still cannot use IAM auth at all until their connector supports the `MONGODB-AWS` mechanism.
 
 ## Stale Duplicate Legacy Collections (`test_*`)
 
@@ -82,7 +94,7 @@ Both auth paths described in [`infra.md`](infra.md) are currently live in produc
 
 **Still blocking a personal stack from being actually usable, not just deployable** — deploying with `-c stage=<name>` today will succeed, but:
 - **No dev-scoped MongoDB secret exists.** The board-evaluator and prop-update-evaluator Lambdas hard-require `MONGODB_SECRET_ARN` (confirmed in `pb-shared-deps/utils/lambda/db_connector_from_uri.ts` — throws if unset, no IAM fallback on the Lambda side). The existing secret lives in the management account (`769696051685`) and isn't cross-account accessible from `obs-b2b-dev` without a resource policy that doesn't exist. A new secret needs to be created in `obs-b2b-dev` itself. (Main API / node-server doesn't have this problem — it uses Atlas IAM auth via its task role.)
-- **No non-production Clerk instance exists** — see "Auth (Clerk) Strategy" in `environments.spec.md`. Without it, node-server comes up with no auth configured.
+- ~~**No non-production Clerk instance exists.**~~ **Resolved (2026-08):** created — `natural-macaw-97.clerk.accounts.dev`. Its publishable key is documented in [`SETUP.md`](../../SETUP.md) (publishable keys are public by design). **Still to do:** store its *secret* key in a Secrets Manager secret named `obs-b2b-dev/clerk` in the `obs-b2b-dev` account, and set `clerkSecretArn` in `lib/config/environments.ts` — until then node-server still starts with no auth configured.
 
 Until both exist, treat a personal dev stack as "infrastructure deploys, but auth and the async prize pipeline don't work yet."
 

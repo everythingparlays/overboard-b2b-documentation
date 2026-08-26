@@ -27,9 +27,10 @@ AWS Account: prod                       AWS Account: dev
              │                                              │
              └─────────────────────┬────────────────────────┘
                                     ▼
-                    MongoDB Atlas — one shared cluster
-              (prod database vs. one shared non-prod database
-               — see "MongoDB Strategy" below, NOT one DB per developer)
+                    MongoDB Atlas — one shared cluster (PBingo-dev)
+         obs-b2b-prod database          obs-b2b-dev database (shared by all
+         (production only)              personal stacks — NOT one per developer)
+         See mongodb-access-isolation.spec.md for what's in each.
 ```
 
 Within the `dev` account, `stage` is **required** context on every deploy. There is no default — a bare `cdk deploy` must fail loudly rather than silently deploying somewhere ambiguous.
@@ -73,7 +74,7 @@ if (!stage) {
 const config = getEnvironmentConfig(stage); // "prod" -> prod account config; anything else -> dev account config, namespaced
 
 new OverboardSportsBackendStack(app, `OverboardSportsBackendStack-${stage}`, {
-  stage,
+  resourcePrefix: config.resourcePrefix, // 'obs-b2b-prod' | 'obs-b2b-dev-<stage>'
   env: { account: config.account, region: config.region },
   ...config,
 });
@@ -101,11 +102,14 @@ new sqs.Queue(this, 'PropHitQueue', { ... });
 new sqs.Queue(this, 'PropHitQueue', { queueName: 'prop-hit-queue', ... });
 ```
 
-If a resource genuinely needs a human-meaningful explicit name — this comes up for things that aren't CloudFormation-managed physical names, like the Mongo database name below — derive it from `stage` explicitly rather than hardcoding a single value:
+**The one deliberate exception: the two ECS task IAM roles.** Their ARNs are registered by hand as MongoDB Atlas database users, so an auto-generated name — which changes whenever the stack is recreated — would silently break database auth. They use `config.resourcePrefix`, which already encodes both environment and stage:
 
 ```ts
-const databaseName = stage === 'prod' ? 'obs-b2b-prod' : 'obs-b2b-dev';
+// obs-b2b-prod-main-api-task  |  obs-b2b-dev-nick-main-api-task
+roleName: `${resourcePrefix}-main-api-task`,
 ```
+
+Anything else needing a human-meaningful name should derive it from `resourcePrefix` the same way, never from a bare literal. Note this applies to real CloudFormation resource names only — values that merely *look* like names, such as the Mongo database, come from config (`config.atlasCredentials.databaseName`).
 
 ### Pattern 3: Config lives in one place
 
@@ -129,14 +133,40 @@ This **resolves** the open risk previously noted here (that nothing stopped a de
 
 Personal dev stacks must **never** point at the production Clerk instance.
 
-**Prerequisite, not yet done: a non-production Clerk instance needs to be created.** Once it exists, its keys are shared, read-only config across all personal dev stacks (the same pattern as the shared dev Mongo database above) — not a separate Clerk instance per developer.
+**Done (2026-08): the non-production Clerk instance exists** — `natural-macaw-97.clerk.accounts.dev`. Its keys are shared config across all personal dev stacks (same pattern as the shared dev Mongo database above) — not a separate Clerk instance per developer. The publishable key is in [`SETUP.md`](../../SETUP.md); the secret key belongs in Secrets Manager (`obs-b2b-dev/clerk`), wired into `lib/config/environments.ts` as `clerkSecretArn`.
 
 **Explicitly out of scope for this spec:** PRD `AUTH-04` (future) anticipates per-tenant choice of auth method/provider — how that maps onto Clerk configuration (multiple Clerk instances? Clerk Organizations? per-tenant settings within one instance?) is undecided. That belongs in a future `spec/core-modules/` auth/tenancy spec, not here.
 
 ---
 
+## Onboarding a New Developer — Required Atlas Step
+
+**A new developer's stack cannot connect to MongoDB until someone with Atlas access registers their IAM role ARNs as Atlas database users.** This is manual and easy to forget: everything else about a personal stack self-provisions on `cdk deploy`, so the failure shows up as a runtime connection error after an otherwise-successful deploy, not as a deploy failure.
+
+Database access uses Atlas IAM auth in **both** dev and prod, deliberately — so a personal dev stack exercises the same authentication path production does. The cost of that parity is this per-developer step.
+
+For a new stage `<name>` in the dev account (`667523684851`), register **both** of these ARNs:
+
+```
+arn:aws:iam::667523684851:role/obs-b2b-dev-<name>-main-api-task
+arn:aws:iam::667523684851:role/obs-b2b-dev-<name>-prize-evaluator-task
+```
+
+In Atlas: **Database Access → Add New Database User → AWS IAM → IAM Role**, paste the ARN as the username, assign the dev-scoped custom role (see [`mongodb-access-isolation.spec.md`](../core-modules/2-approved/mongodb-access-isolation.spec.md)), Add User.
+
+These can be created **before** the developer's first deploy — Atlas does not verify that the role exists yet. Doing it during onboarding avoids a blocked first deploy.
+
+The ARNs are deterministic by design: `main-api-service.ts` and `prize-delivery.ts` set explicit `roleName` values built from `config.resourcePrefix` (`obs-b2b-dev-<stage>` / `obs-b2b-prod`) rather than letting CDK auto-generate them, so a stack teardown and redeploy does not orphan the Atlas user. **Do not remove those `roleName` props** — an auto-generated name would silently break auth on the next stack recreation.
+
+The `dev`/`prod` segment is in the role name deliberately: it means every dev role sorts together in the IAM console, and a production role can never be mistaken for a personal one at a glance.
+
+**Not yet covered by this:** the `board-evaluator` and `prop-update-evaluator` Lambdas cannot use IAM auth — their connector (`pb-shared-deps/utils/lambda/db_connector_from_uri.ts`) only supports a connection-string secret. Registering their execution roles in Atlas does nothing until that connector is extended. Until then, a personal dev stack's ECS services work while its async prize pipeline does not. Tracked in [`known-issues.md`](../../documents/POC-baseline/known-issues.md).
+
+---
+
 ## Rules
 
+- **Always** register a new developer's two IAM role ARNs as Atlas database users before their first deploy — see "Onboarding a New Developer" above. Nothing else about a personal stack requires manual provisioning, which is exactly why this step gets forgotten.
 - **Always** pass `-c stage=<name>` explicitly on every `cdk deploy`/`cdk destroy` — there is no default.
 - **Always** deploy personal stacks to the dedicated `dev` AWS account. **Never** the `prod` account.
 - **Never** set an explicit CloudFormation physical resource name (`queueName`, `functionName`, table names, etc.) unless there's a hard requirement to — let CDK derive it from the stack ID.
