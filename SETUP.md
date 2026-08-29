@@ -59,7 +59,7 @@ Before you start, make sure you have:
 - **A Clerk Dashboard invite** — only needed if you're changing auth configuration. For normal local work the non-production instance's publishable key is in step 3 below, and the backend reads its secret key from Secrets Manager. **Never use the production Clerk instance locally.**
 - **MongoDB Atlas access / connection string** — ask for this; there's no self-serve way to get it from the repos alone
 
-No `.env.example` file exists in either app repo today, so the variable names below are taken directly from the source — you'll still need to get actual values (keys, connection strings) from a teammate.
+The frontend now ships a committed `.env.example` with working dev values — copy it and you're done (step 3). The backend has no equivalent yet; its variable names below were read out of the source, and you'll need actual values from a teammate.
 
 ## 1. Create the Workspace Folder
 
@@ -91,16 +91,23 @@ git submodule update --init --recursive
 
 (Same pattern the repo's own `vercel-install.sh` uses for CI — with SSH access configured instead, a plain `git submodule update --init --recursive` works without the URL rewrite.)
 
-**Environment variables** — create `.env` in the repo root:
+**Environment variables** — copy the committed template:
 
 ```bash
-# Non-production Clerk instance (natural-macaw-97.clerk.accounts.dev).
-# Publishable keys are public by design — they ship in the browser bundle — so this
-# is safe to have here. The matching SECRET key is not: it lives in Secrets Manager.
-VITE_CLERK_PUBLISHABLE_KEY=pk_test_bmF0dXJhbC1tYWNhdy05Ny5jbGVyay5hY2NvdW50cy5kZXYk
-VITE_API_BASE_URL=            # e.g. http://localhost:3000 to point at a local backend
-VITE_TENANT_SLUG=             # which tenant to simulate locally — defaults to "test" if unset; see src/config/tenants/
+cp .env.example .env.local
 ```
+
+The three required variables come pre-filled and work as-is against the shared dev stack:
+
+| Variable | Notes |
+|---|---|
+| `VITE_CLERK_PUBLISHABLE_KEY` | Non-production Clerk instance (`natural-macaw-97.clerk.accounts.dev`). Publishable keys are public by design — they ship in the browser bundle — so committing this is safe. The matching **secret** key is not, and lives in Secrets Manager. |
+| `VITE_API_BASE_URL` | A dev-stack ALB. **Check it's still current** — personal dev stacks get torn down and redeployed at new addresses. Use `http://localhost:3000` to point at a backend you're running yourself. |
+| `VITE_TENANT_SLUG` | Which tenant to render. Must match both a `slug` in `src/config/tenants/` and an organization in the dev database. Valid: `test`, `fightinghawks`, `bears`, `bbgs`, `warriors`; defaults to `test` if unset. |
+
+All three are required — miss one and the app renders a missing-environment-variables error screen instead of the UI.
+
+> A mismatch here is the single most common first-day failure: `VITE_TENANT_SLUG` must match the database record exactly. `fighting-hawks` (hyphenated) is *not* the same as `fightinghawks`, and the backend currently answers a missing organization with a 500 rather than a 404 — so a typo looks like a server crash. See [`known-issues.md`](documents/POC-baseline/known-issues.md).
 
 > Note the `VITE_` prefix. Clerk's own docs often show `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (Next.js); this app is Vite, and any variable without the `VITE_` prefix is silently ignored at build time — you'd get the missing-environment-variables error screen with no other clue why.
 
@@ -248,7 +255,7 @@ If any of this doesn't work and the cause isn't obvious, check [`documents/POC-b
 
 These aren't setup mistakes — they're pre-existing gaps documented in [`documents/POC-baseline/known-issues.md`](documents/POC-baseline/known-issues.md):
 
-- No `.env.example` in either app repo — variable names above were reverse-engineered from source, not documented by the original authors.
+- No `.env.example` in the **backend** repo — its variable names above were reverse-engineered from source, not documented by the original authors. The frontend has one as of 2026-08.
 - `obs-b2b-shared` is vendored in four places and each can be pinned independently — if you see a type error that looks like it shouldn't exist, check that all four pins match (`git submodule status` in each repo).
 - Two AWS accounts exist (`obs-b2b-prod`, `obs-b2b-dev`) and the CDK app now supports per-developer namespaced stacks via required `-c stage=<name>` context (see `spec/infra/environments.spec.md`). `obs-b2b-prod` is a brand-new, empty account — it is **not** the account currently running the live system (see `known-issues.md`); migrating there is a separate, not-yet-done task.
 - A personal dev stack deploys successfully but isn't fully functional yet — no dev-scoped Mongo secret or non-prod Clerk instance exists, so the async Lambda pipeline and auth won't work until those are created (see `known-issues.md`).
