@@ -66,6 +66,19 @@ No error tracking service (Sentry or equivalent) in either repo. No structured l
 
 The Identity Center permission set granting `obs-b2b-dev-deployers` access to `obs-b2b-dev` (`AdministratorAccess-for-b2b-dev`) is full administrator access within that account, not narrowed to what a CDK deploy actually needs. The account boundary itself is the real backstop — it's a fully separate account from `obs-b2b-prod`, so this can't reach production — but within `obs-b2b-dev`, nothing currently limits the blast radius of a mistake. Worth replacing with a scoped permission set once there's time; not urgent given the account-level isolation already in place. See [`SETUP.md`](../../SETUP.md#aws-access-setup-identity-center).
 
+## Decision: Collection Naming — Per-Developer Prefix and `bingo_` Game-Type Prefix
+
+**Decided (2026-08), implemented in code, not yet applied to any live data.** Two naming changes land together in `pb-shared-deps/b2b_models.ts` and `prize-worker/src/prize-redemption-model.ts`:
+
+- **`B2B_COLLECTION_PREFIX`** — each personal dev stack prefixes its own B2B collections with its stage (`nick_bingo_boards`); production uses no prefix. This gives developers *schema* isolation, which the earlier tenant/org-level plan did not: two devs sharing a collection on different code versions collide as soon as one adds a required field or unique index.
+- **`bingo_` on game-specific collections** — `bingo_boards`, `bingo_prize_tiers`, `bingo_prize_redemptions`. Per PRD `GAME-F1`, additional game types (scratch-off, pick-3, over/under) are anticipated alongside bingo for a single tenant, so these three needed disambiguating. `organizations`, `contests`, and `users` stay unprefixed — they are platform-level and shared across game types.
+
+Both also drop the misleading `cdk_test_` prefix. Cheap now while the target collections are empty; expensive once production migrates. See [`mongodb-access-isolation.spec.md`](../../spec/core-modules/2-approved/mongodb-access-isolation.spec.md).
+
+## Removed: `B2BTestObject` / `PUT /api/test-object`
+
+**Removed (2026-08).** The auth-verification scratch endpoint, its handler, Zod schemas, interface, and Mongoose model are deleted from `node-server` and `pb-shared-deps`. The frontend's `pages/Test.tsx` still calls it and that section is now dead — relevant because that page is the one exposing a live Clerk session token in production builds (see below); removing the page entirely would close both at once.
+
 ## Atlas App Roles Grant Database-Wide readWrite, Not Per-Collection (Lower Priority)
 
 **Current state (2026-08):** the `b2b-app-prod` / `b2b-app-dev` Atlas custom roles were created with **database-level `readWrite`** on their respective B2B database, rather than the per-collection scoping [`mongodb-access-isolation.spec.md`](../../spec/core-modules/2-approved/mongodb-access-isolation.spec.md) calls for (readWrite on the seven B2B collections, read-only on the three `readonly_*` replicas). Deliberate shortcut to get the roles stood up.
@@ -118,9 +131,27 @@ AWS's own guidance is to keep the management account workload-free — it contro
 
 `core` (`overboard-b2b-shared-deps`) is vendored as a submodule but, per the original audit, is only consumed by the frontend today — nothing in the backend imports from it. Keeping it as a separate repo adds submodule-auth overhead (the `GITHUB_PAT` rewrite in `vercel-install.sh`) and another sync-drift surface, for no actual cross-repo sharing benefit.
 
-**Decision (2026-08): retire it.** Fold `core`'s contents (`PageContainer`, `PageHeader`, `BackButton`, `StickyFooter`, the contest/event helper utils in `core/utils/`, and the currently-unused `homePageSchema`) directly into `overboard-b2b-template/src/`, remove the `core` submodule entry from `.gitmodules`, and update the `@core` Vite/tsconfig path alias accordingly (or drop it in favor of `@/`). Not yet implemented. Once this lands, `pb-shared-deps` becomes the only shared-deps submodule in the frontend.
+**Done (2026-08).** `core` was absorbed into `overboard-b2b-template/src/` and removed, along with `pb-shared-deps` — the frontend now has exactly one submodule, `obs-b2b-shared`.
 
-## Shared Data Model Submodule Drift
+Landing spots: layout components → `src/components/layout/`, `schemas/auth.ts` → `src/schemas/`, `utils/eventHelpers.ts` → `src/lib/`, type shims merged into `src/types/*` and repointed at `@b2b-shared`. Two files were dropped rather than moved: `utils/cn.ts` (duplicate of `src/lib/utils.ts`) and `utils/contest.ts` (no consumers).
+
+Removing `pb-shared-deps` from the frontend turned out to be possible only because its apparent dependency on the D2C `Contest` type was illusory — those re-exports were consumed solely by `src/lib/mock/`, which is dead code nothing imports. The types the app actually uses (`BetEvent`, `TeamBetEvent`, `Entity`, `BettingProp`) all exist in `obs-b2b-shared`.
+
+## Decision: Split B2B Models Into Their Own Repo (`obs-b2b-shared`)
+
+**Decided (2026-08).** B2B stops depending on `pb-shared-deps` — the repo shared with the D2C mobile app and website — and gets its own: `obs-b2b-shared`, consumed by `node-server`, both Lambdas, `prize-worker`, and the frontend. Design in [`documents/HLDs/b2b-shared-deps.md`](../HLDs/b2b-shared-deps.md); not yet implemented.
+
+**What forced it:** B2B work lives on a long-lived `ecs-branch` of `pb-shared-deps` which is simultaneously 14 commits ahead of and 8 behind `main`, so merging is required in both directions and conflicts on `b2b_models.ts`. Two B2B commits (`updated B2B prize tier`, `Updated B2B Contest Response`) landed on `main` and never reached the branch the backend actually runs. B2B also carries 25 interfaces while importing only 9.
+
+**Scope:** the repo holds only `interfaces/`, `api/` (Zod HTTP contract), and `models/` — **no runtime code**. Board-generation logic and response/connection helpers move into the services that use them, which also means B2B's board generation becomes a deliberate fork of D2C's (PRD `GAME-F1` expects B2B to grow game types D2C won't have).
+
+**Accepted costs:** reference definitions (`BettingProp`/`BetEvent`/`Entity`) and board-generation logic get copied rather than shared, and can diverge with nothing detecting it. Reference models are **full copies for now** — narrowing was attempted and deferred because the required field list cannot be determined by text search (every field name reads as "used"); it needs compiler feedback after the consumers are cut over.
+
+## ~~Shared Data Model Submodule Drift~~ — Resolved (2026-08)
+
+`pb-shared-deps` and `core` are gone from both B2B repos, replaced by `obs-b2b-shared` (see the decision entry above). All four checkouts are pinned to the same commit. Drift is still *possible* — they remain separate checkouts — but there is now one repo instead of two, and the `ecs-branch`/`main` divergence that made B2B changes conflict with D2C work no longer applies.
+
+Original problem, for context:
 
 `pb-shared-deps` is vendored as four separate checkouts (frontend + backend's `lambdas/`, `node-server/`, `prize-worker/`), each pinned to a different commit. The backend's own `TODO` flags this as known and unresolved. A schema change to a shared model (e.g. `B2BBoard`) isn't guaranteed to be in sync across all four consumers today.
 

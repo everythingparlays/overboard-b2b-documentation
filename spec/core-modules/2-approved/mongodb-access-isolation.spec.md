@@ -20,7 +20,8 @@ B2B gets its own database per environment. Each contains B2B's own collections p
 | Atlas project | unchanged | `PB-dev` (existing — no new project) |
 | B2B databases | match the AWS account name they serve, so there is one vocabulary across AWS and Atlas | `obs-b2b-prod`, `obs-b2b-dev` |
 | Source database | unchanged | `PBingo-fullappdev-database` |
-| B2B's own collections | bare plural noun — the database name already says "B2B", so a `b2b_` infix would be redundant | `organizations`, `contests`, `boards`, `users`, `prize_tiers`, `prize_redemptions`, `test_objects` |
+| B2B's own collections | bare plural noun — the database name already says "B2B", so a `b2b_` infix would be redundant. Bingo-specific ones carry a `bingo_` prefix (see below) | `organizations`, `contests`, `users`, `bingo_boards`, `bingo_prize_tiers`, `bingo_prize_redemptions` |
+| Per-developer prefix | every personal dev stack prefixes **its own** B2B collections with its stage; production uses no prefix | `nick_bingo_boards`, `arthur_users`, … |
 | Replicated collections | `readonly_` prefix — self-documenting at a glance in any client, and sorts the replicas together in a collection listing | `readonly_betevents`, `readonly_props`, `readonly_entities` |
 | Atlas trigger | `replicate-<collection>-<target>` | `replicate-props-prod`, `replicate-props-dev`, … |
 | Atlas custom roles | `<consumer>-<scope>` | `b2b-app-readwrite`, `b2b-replicator` |
@@ -36,8 +37,9 @@ Renaming is not free — it is a change in `pb-shared-deps`, which is shared wit
 | File | Change | Risk to D2C |
 |---|---|---|
 | `pb-shared-deps/models.ts` | `const stageName = process.env.LEGACY_COLLECTION_PREFIX ?? "cdk_test"` | **None** — D2C leaves the variable unset and keeps `cdk_test_*` exactly as today. B2B services set it to `readonly`. |
-| `pb-shared-deps/b2b_models.ts` | Replace `` `${stageName}_b2b_organizations` `` with `'organizations'`, etc. | **None** — D2C does not use this file. |
-| `prize-worker/src/prize-redemption-model.ts` | Already `process.env.STAGE_NAME ?? 'cdk_test'`; set collection to `'prize_redemptions'` | **None** |
+| `pb-shared-deps/b2b_models.ts` | Replace the hardcoded `stageName` with `process.env.B2B_COLLECTION_PREFIX ?? ""`, and rename collections (`` `${prefix}bingo_boards` `` etc.) | **None** — D2C does not use this file. |
+| `prize-worker/src/prize-redemption-model.ts` | Same prefix variable; collection becomes `` `${prefix}bingo_prize_redemptions` `` | **None** |
+| `lib/config/environments.ts` + constructs | New `collectionPrefix` config value, passed to all four services as `B2B_COLLECTION_PREFIX` | n/a |
 
 This follows a pattern the codebase already uses — `prize-redemption-model.ts` is env-driven today.
 
@@ -47,23 +49,46 @@ Separately, creating Atlas database users by hand (see "No Atlas API key lives i
 
 ---
 
+## Per-Developer Isolation
+
+**Decision (2026-08):** every personal dev stack writes to its **own copy of the B2B collections**, prefixed with its stage — `nick_bingo_boards`, `arthur_users`, and so on. Production uses no prefix. Driven by one environment variable, `B2B_COLLECTION_PREFIX`, set from `collectionPrefix` in `lib/config/environments.ts`.
+
+**Why, specifically:** tenant/org-level separation — the earlier plan — isolates *data* (my boards vs. yours) but not *schema*. Two developers sharing a collection while running different code versions is a real collision: adding a required field, a unique index, or a new sub-document shape in one stack immediately affects the other, and Mongoose strict mode silently drops fields the other developer's older code doesn't know about. Separate collections make that impossible.
+
+It also avoids inventing per-developer `B2BOrganization` records, which would have diverged from production — dev stacks use the same real orgs (`fightinghawks`, `test`, …) and need no matching entries in the frontend's hardcoded `src/config/tenants/`.
+
+**What is *not* prefixed:** the three `readonly_*` replicas. They are read-only mirrors, byte-identical for everyone, and their schema is driven by the source system rather than by any developer. All dev stacks share one copy — which also keeps `readonly_props` (~136 MB) from being duplicated per developer, and keeps the trigger count fixed at two targets regardless of team size.
+
+**The limitation, stated plainly:** this is isolation by naming convention plus one environment variable, not a hard database boundary. A misconfigured prefix means two developers collide with each other. It cannot reach production — that is a separate database the dev credentials have no access to at all — so the failure mode is confusion, not data loss.
+
+Onboarding cost: nothing. `collectionPrefix` derives from the stage automatically, so a new developer's collections appear on first write.
+
+---
+
 ## Collection Placement
 
 ### `obs-b2b-prod` and `obs-b2b-dev` (new — identical structure)
 
-**B2B's own collections** — read-write by B2B services. Migrated from the source database for prod; start empty for dev (then seeded, see cutover step 7).
+**B2B's own collections** — read-write by B2B services. Migrated from the source database for prod; start empty for dev (then seeded, see cutover step 7). In a dev stack every name below is additionally prefixed with the stage (`nick_bingo_boards`) — see "Per-Developer Isolation".
 
 | New name | Migrated from | Model | Prod rows |
 |---|---|---|---|
 | `organizations` | `cdk_test_b2b_organizations` | `B2BOrganization` | small |
 | `contests` | `cdk_test_b2b_contests` | `B2BContest` | small |
-| `prize_tiers` | `cdk_test_b2b_prize_tiers` | `B2BPrizeTier` | small |
-| `boards` | `cdk_test_b2b_boards` | `B2BBoard` | 24 |
 | `users` | `cdk_test_b2b_users` | `B2BUser` | 16 |
-| `prize_redemptions` | `cdk_test_prize_redemptions` | `PrizeRedemption` | small |
-| `test_objects` | `cdk_test_b2b_test_objects` | `B2BTestObject` | dev/test scratch |
+| `bingo_prize_tiers` | `cdk_test_b2b_prize_tiers` | `B2BPrizeTier` | small |
+| `bingo_boards` | `cdk_test_b2b_boards` | `B2BBoard` | 24 |
+| `bingo_prize_redemptions` | `cdk_test_prize_redemptions` | `PrizeRedemption` | small |
 
 > `cdk_test_prize_redemptions` is B2B-owned despite lacking the `b2b_` infix — it is defined in `prize-worker/src/prize-redemption-model.ts`, not the shared submodule. Enumerate collections explicitly; never pattern-match on `b2b`.
+
+> `B2BTestObject` / `cdk_test_b2b_test_objects` is gone — the `PUT /api/test-object` endpoint and its model were removed (2026-08).
+
+### Why `bingo_` on three of them
+
+PRD `GAME-F1` requires that game type not be modelled as a per-tenant setting, and anticipates several game types (scratch-off, pick-3, over/under) running side by side for one tenant. Boards, prize tiers, and prize redemptions are all bingo-specific concepts — a scratch-off game would need its own. `organizations`, `contests`, and `users` are platform-level and shared across game types, so prefixing those would be actively wrong.
+
+Doing this now is close to free; doing it after production migrates means renaming live collections.
 
 **Replicated collections** — written *only* by the replication triggers.
 
@@ -200,8 +225,25 @@ Dev first — it has no data to lose and validates the whole mechanism before pr
 
 1. Create the `b2b-replicator` role and the trigger identity bound to it. (No database-creation step — see above.)
 2. Create the `b2b-app-prod` and `b2b-app-dev` roles, their database users, and a Secrets Manager secret per environment holding each user's connection credentials.
-3. **Backfill** the three source collections into both targets under their `readonly_*` names (`mongodump` + `mongorestore` with `--nsFrom`/`--nsTo` to rename during restore, preserving `_id`). Triggers do **not** backfill — they only fire on changes occurring after they are enabled, so without this step the mirrors would start nearly empty and fill in only as documents happen to be touched.
-4. Enable the six triggers. Steps 3 and 4 are safe in either order thanks to `_id`-keyed upserts; enabling triggers first is marginally safer (no gap between backfill completing and triggers starting).
+3. Enable the six triggers **first**, so no source change is missed during the backfill that follows.
+4. **Backfill** the three source collections into both targets under their `readonly_*` names, using a server-side `$merge` — the data never leaves the cluster, and the upsert is keyed on `_id`, so it is idempotent and composes with the already-running triggers rather than fighting them:
+
+   ```javascript
+   use("PBingo-fullappdev-database")
+
+   db.cdk_test_props.aggregate([
+     { $merge: { into: { db: "obs-b2b-dev", coll: "readonly_props" },
+                 on: "_id", whenMatched: "replace", whenNotMatched: "insert" } }
+   ])
+   ```
+
+   Repeat for `cdk_test_betevents` → `readonly_betevents` and `cdk_test_entities` → `readonly_entities`, and again with `db: "obs-b2b-prod"` — six runs.
+
+   **Use `$merge`, not `$out`.** `$out` drops and replaces the entire target collection, discarding anything the triggers have already written. `mongodump`/`mongorestore` also works but round-trips ~136 MB through a laptop for no benefit.
+
+   Triggers do **not** backfill — they only fire on changes occurring after they are enabled, so without this step the mirrors would start nearly empty and fill in only as documents happen to be touched.
+
+   *Edge case:* a source document deleted mid-backfill could be re-inserted by `$merge` after the trigger deleted it. Self-corrects on that document's next update; re-run `$merge` and compare counts if you want certainty.
 5. Verify: document counts converge; the `{ betEventId: 1, entityInfo: 1 }` index exists on both `readonly_props` copies (see "Indexes on the Replicas"); and a test write to a source document appears in both mirrors.
 6. **Land the `pb-shared-deps` rename** (see "Code changes this requires") and re-pin all four submodule checkouts to the same commit. Deploy nothing yet — D2C is unaffected because it leaves `LEGACY_COLLECTION_PREFIX` unset.
 7. **Seed `obs-b2b-dev`** with realistic B2B configuration data under a dev tenant — see "Dev Seed Data" below.
@@ -215,11 +257,11 @@ Rollback for prod is reverting the two environment variables — the original co
 
 Personal dev stacks need realistic B2B data to work against — an empty `obs-b2b-dev` has no organization, so tenant resolution fails and no contests render. Seed it by copying B2B's **configuration** collections from production and rewriting them to a dev tenant:
 
-- Copy `organizations`, `contests`, and `prize_tiers`.
+- Copy `organizations`, `contests`, and `bingo_prize_tiers` — applying the developer's `B2B_COLLECTION_PREFIX` to the target names (`nick_organizations`, …), since each dev stack reads its own copies.
 - Rewrite the seeded organization's `subdomain` to a dev slug (e.g. `dev-nick`) so it does not collide with a real client's tenant, and so `VITE_TENANT_SLUG=dev-nick` resolves locally.
 - Additional developers get their own `B2BOrganization` in the same database — this is the per-developer isolation model from [`environments.spec.md`](../../infra/environments.spec.md), and it is why one shared dev database works.
 
-**Do not copy `users`, `boards`, or `prize_redemptions`.** These contain real fan data — `B2BUser` holds email addresses and display names for actual fans of a live client, and `boards`/`prize_redemptions` link back to them via `clerkUserId`. Copying them would put production fan PII into a database every developer and intern can read, which contradicts the boundaries in [`SETUP.md`](../../../SETUP.md#boundaries--read-this-before-your-first-pr) and adds a second location that would need to honor a deletion request (PRD `SEC-07`).
+**Do not copy `users`, `bingo_boards`, or `bingo_prize_redemptions`.** These contain real fan data — `B2BUser` holds email addresses and display names for actual fans of a live client, and `boards`/`prize_redemptions` link back to them via `clerkUserId`. Copying them would put production fan PII into a database every developer and intern can read, which contradicts the boundaries in [`SETUP.md`](../../../SETUP.md#boundaries--read-this-before-your-first-pr) and adds a second location that would need to honor a deletion request (PRD `SEC-07`).
 
 They are also unnecessary: a developer signs up through their own dev stack against the non-production Clerk instance and generates their own board in seconds. Config data is the part that is tedious to recreate by hand; fan data is not.
 
@@ -230,7 +272,7 @@ They are also unnecessary: a developer signs up through their own dev stack agai
 - **Never write to a `readonly_*` collection.** They are replicas — a write is rejected by `b2b-app-readwrite`, and would be overwritten by the next source change even if it succeeded.
 - **Never grant a role by pattern-matching a collection name.** Enumerate explicitly — `cdk_test_prize_redemptions` is the proof this goes wrong.
 - **Never point a personal dev stack at any database other than `obs-b2b-dev`.**
-- **Never copy fan data (`users`, `boards`, `prize_redemptions`) into `obs-b2b-dev`** — see "Dev Seed Data".
+- **Never copy fan data (`users`, `bingo_boards`, `bingo_prize_redemptions`) into `obs-b2b-dev`** — see "Dev Seed Data".
 - **A new non-B2B collection dependency requires a new trigger pair and a role change** — a deliberate change to this spec, not something an application PR can introduce on its own. Intentional friction.
 - **A new B2B collection requires adding it to `b2b-app-readwrite`** in both environments. Without the grant, the application cannot write to it — a loud, immediate failure rather than a silent one.
 
@@ -257,7 +299,7 @@ Source indexes, confirmed against the live cluster:
 
 So exactly **one** index matters: `{ betEventId: 1, entityInfo: 1 }` on `readonly_props`. It backs the board-generation query (`Prop.find({ betEventId: { $in: [...] }, showProp: true })`) — without it, every board generation collection-scans ~362k documents.
 
-**This does not happen automatically.** `autoIndex: false` is set in both DB connectors (see [`known-issues.md`](../../../documents/POC-baseline/known-issues.md)), so the application will not create it, and Atlas Triggers only write documents — they never create indexes. `mongorestore` does restore index definitions by default, so the step-3 backfill should carry it across; **verify explicitly after backfill** rather than assume, and create it by hand if missing:
+**Nothing creates this index for you.** `autoIndex: false` is set in both DB connectors (see [`known-issues.md`](../../../documents/POC-baseline/known-issues.md)), so the application will not create it; Atlas Triggers only write documents; and **`$merge` does not copy indexes** — it moves documents only. So after the backfill it must be created by hand, on both `obs-b2b-prod` and `obs-b2b-dev`:
 
 ```js
 db.readonly_props.createIndex({ betEventId: 1, entityInfo: 1 })

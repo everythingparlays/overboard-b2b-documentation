@@ -19,23 +19,39 @@ Three repos, cloned as siblings in one folder:
 ```
 obs-b2b-workspace/                     <- pick any name for this folder
 ├── overboardb2b-documentation/
+├── obs-b2b-shared/                    <- edit/publish copy (see note below)
 ├── overboard-b2b-template/
-│   ├── core/                          <- git submodule
-│   └── pb-shared-deps/                <- git submodule
+│   └── obs-b2b-shared/                <- git submodule
 └── overboard_sports_backend/
-    ├── lambdas/pb-shared-deps/            <- git submodule
-    ├── node-server/src/pb-shared-deps/    <- git submodule
-    └── prize-worker/pb-shared-deps/       <- git submodule
+    ├── lambdas/obs-b2b-shared/            <- git submodule
+    ├── node-server/src/obs-b2b-shared/    <- git submodule
+    └── prize-worker/obs-b2b-shared/       <- git submodule
 ```
 
-Both app repos depend on a shared `pb-shared-deps` repo (TypeScript interfaces + Mongoose schemas shared between frontend and backend), pulled in as a git submodule — the frontend also pulls in a second submodule, `core` (shared UI/layout components), from `overboard-b2b-shared-deps`. These submodules are vendored **separately in four places** across the two repos and are not currently kept in lockstep — see [`known-issues.md`](documents/POC-baseline/known-issues.md) if you hit confusing type mismatches.
+Both app repos depend on **`obs-b2b-shared`** — B2B's own repo of TypeScript types, the Zod HTTP contract, and Mongoose models — vendored as a git submodule in four places (frontend, `node-server`, `lambdas`, `prize-worker`). Keep all four pinned to the same commit; they are separate checkouts and can drift. Design: [`documents/HLDs/b2b-shared-deps.md`](documents/HLDs/b2b-shared-deps.md).
+
+**Why there's a fifth copy at the workspace root.** No build reads it — every project resolves the package from its own submodule. It exists because submodule checkouts are pinned and therefore sit in *detached HEAD*: committing inside one leaves the commit on no branch, unreachable by the other three pins. The root clone is the one checkout on `main`, so it is where you edit and publish:
+
+```bash
+# 1. change the shared package
+cd obs-b2b-shared && git commit -am "..." && git push
+
+# 2. move each consumer's pin to the new commit
+cd ../overboard_sports_backend
+for p in node-server/src/obs-b2b-shared lambdas/obs-b2b-shared prize-worker/obs-b2b-shared; do
+  (cd $p && git fetch origin && git checkout origin/main)
+done
+cd ../overboard-b2b-template/obs-b2b-shared && git fetch origin && git checkout origin/main
+```
+
+Then commit the updated pins in each consuming repo. Skipping step 2 leaves consumers on the old commit — the drift this layout is meant to make visible rather than prevent.
 
 ## Prerequisites
 
 Before you start, make sure you have:
 
 - **Git**, with access to the `everythingparlays` GitHub org (and the backend repo above)
-- **A GitHub Personal Access Token (PAT)** with repo access — the submodules (`pb-shared-deps`, `overboard-b2b-shared-deps`) are private, and cloning/updating them requires authenticated access. Ask a teammate to generate one for you if you don't have one.
+- **A GitHub Personal Access Token (PAT)** with repo access — `obs-b2b-shared` is private, and cloning/updating the submodule requires authenticated access. Ask a teammate to generate one for you if you don't have one.
 - **Node.js 20+** and npm
 - **Docker**, installed and running — required for backend CDK asset builds
 - **AWS CLI** — only needed if you'll be deploying/inspecting the backend infra. Access goes through IAM Identity Center, not static credentials — ask Nick to add you to the `obs-b2b-dev-deployers` group, then see "AWS Access Setup" under step 4 below.
@@ -66,15 +82,14 @@ git clone https://github.com/everythingparlays/overboard-b2b-template.git
 cd overboard-b2b-template
 ```
 
-**Initialize submodules** (`core`, `pb-shared-deps`). Since they're private, use your PAT:
+**Initialize the submodule** (`obs-b2b-shared`). Since it's private, use your PAT:
 
 ```bash
-git submodule set-url core https://<YOUR_GITHUB_PAT>@github.com/everythingparlays/overboard-b2b-shared-deps.git
-git submodule set-url pb-shared-deps https://<YOUR_GITHUB_PAT>@github.com/everythingparlays/pb-shared-deps.git
+git submodule set-url obs-b2b-shared https://<YOUR_GITHUB_PAT>@github.com/everythingparlays/obs-b2b-shared.git
 git submodule update --init --recursive
 ```
 
-(This is the same pattern the repo's own `vercel-install.sh` uses for CI — if you have SSH access to these repos configured instead, a plain `git submodule update --init --recursive` will work without the URL rewrite.)
+(Same pattern the repo's own `vercel-install.sh` uses for CI — with SSH access configured instead, a plain `git submodule update --init --recursive` works without the URL rewrite.)
 
 **Environment variables** — create `.env` in the repo root:
 
@@ -104,7 +119,7 @@ git clone https://github.com/nickdep217/overboard_sports_backend.git
 cd overboard_sports_backend
 ```
 
-**Initialize submodules** — there are three separate `pb-shared-deps` checkouts in this repo:
+**Initialize submodules** — there are three separate `obs-b2b-shared` checkouts in this repo (one per service):
 
 ```bash
 git submodule update --init --recursive
@@ -216,7 +231,7 @@ See the backend repo's own `README.md` for full CDK deploy options (`mongodbSecr
 
 A few things are off-limits for new contributors (interns especially) by default, because the blast radius extends outside what you can see or test from this workspace:
 
-- **Don't edit inside the `pb-shared-deps` or `core` submodule directories.** `pb-shared-deps` is shared across the D2C mobile app, the website, and every B2B service — a change there can silently break products that aren't part of this workspace and that you have no way to test. `core` is lower-risk (B2B-only, and slated to be merged directly into `overboard-b2b-template` anyway — see [`known-issues.md`](documents/POC-baseline/known-issues.md)) but still shared with the backend today. If a task seems to need a change inside either, **stop and ask** rather than fixing it inline as part of an unrelated ticket — it should go through whoever owns that repo, not through a PR to the app repo that happens to touch the submodule.
+- **Don't edit inside the `obs-b2b-shared` submodule directory.** It is one repo vendored into four places — an inline edit changes types and models for the frontend *and* all three backend services, and is easy to lose when the submodule is next updated. Changes go through the `obs-b2b-shared` repo itself, then all four pins move together. If a task seems to need a change there, **stop and ask** rather than fixing it inline as part of an unrelated ticket.
 - **Never point your local environment at the production MongoDB database.** The same database that stores B2B data also stores live data for the D2C mobile app (`Contest`, `User`, `Board`, `Prop`, and other non-`B2B`-prefixed collections — see `known-issues.md`) — these are serving real users right now. Only use connection strings/credentials you've been explicitly told are for dev/local use. If you're not sure whether what you were given points at production, **ask before running anything against it** — including read-only exploration, since it's easy to fat-finger a write.
 - **Don't run tenant/org provisioning steps, migrations, or one-off scripts against shared infrastructure** without a teammate reviewing them first, even if they look small and scoped only to B2B collections — provisioning today is manual, direct database writes (see `known-issues.md`), which means there's no safety net catching a mistake.
 - If a task assigned to you seems to require touching any of the above, that's a signal it's not actually a good first task — flag it rather than pushing through.
@@ -234,7 +249,7 @@ If any of this doesn't work and the cause isn't obvious, check [`documents/POC-b
 These aren't setup mistakes — they're pre-existing gaps documented in [`documents/POC-baseline/known-issues.md`](documents/POC-baseline/known-issues.md):
 
 - No `.env.example` in either app repo — variable names above were reverse-engineered from source, not documented by the original authors.
-- The four `pb-shared-deps`/`core` submodule checkouts across the two repos are pinned to different commits — if you see a type error that looks like it shouldn't exist, this drift is a likely cause.
+- `obs-b2b-shared` is vendored in four places and each can be pinned independently — if you see a type error that looks like it shouldn't exist, check that all four pins match (`git submodule status` in each repo).
 - Two AWS accounts exist (`obs-b2b-prod`, `obs-b2b-dev`) and the CDK app now supports per-developer namespaced stacks via required `-c stage=<name>` context (see `spec/infra/environments.spec.md`). `obs-b2b-prod` is a brand-new, empty account — it is **not** the account currently running the live system (see `known-issues.md`); migrating there is a separate, not-yet-done task.
 - A personal dev stack deploys successfully but isn't fully functional yet — no dev-scoped Mongo secret or non-prod Clerk instance exists, so the async Lambda pipeline and auth won't work until those are created (see `known-issues.md`).
 - `SignUp.tsx` in the frontend has a known bug sending the wrong tenant slug to the backend on account creation (see `known-issues.md`).
