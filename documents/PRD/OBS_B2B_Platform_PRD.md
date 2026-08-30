@@ -174,6 +174,12 @@ Not built in V1, but the auth approach must not foreclose:
 - Per-tenant selection of which methods are offered and which is primary (one tenant may want email primary, another phone-number-based auth)
 - Credential/session passthrough from the D2C OverBoard Sports mobile app, so an already-signed-in fan doesn't re-authenticate
 
+**Design note (2026-08) — per-tenant method selection is not free.** Per-tenant sign-in method selection is satisfied by **two fan Clerk instances sold as product variants** (email-primary, phone-primary), a tenant's choice fixed for a season — not by a per-tenant config lookup. See [`documents/HLDs/multi-tenant-identity-auth.md`](../HLDs/multi-tenant-identity-auth.md) `IDN-09`.
+
+Two instances exist regardless of tenant count, so `TEN-03` and `TEN-C1` hold: onboarding *selects* a variant, it does not provision infrastructure. The cost is paid elsewhere: **Clerk enforces identity uniqueness per instance, so the two variants are separate identity namespaces.** A fan of a phone-primary team *and* an email-primary team has two accounts that cannot be linked — no shared profile, no shared prize history, and they count as two people in any cross-tenant figure.
+
+This is accepted while phone-primary is a niche sale, and is invisible to any fan whose teams sit on one variant. **Revisit if phone-primary becomes the majority variant, or if a material number of fans are expected to follow teams across both** — at that point the trade inverts and a single instance supporting both methods is worth the added complexity.
+
 ### 6.2 Acceptance Criteria
 
 - [ ] A fan can complete signup using email, and separately using Google sign-in.
