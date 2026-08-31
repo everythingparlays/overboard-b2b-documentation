@@ -88,10 +88,26 @@ Embedded rather than a separate collection: consents are always read with their 
 | Field | Type | Notes |
 |---|---|---|
 | `optIns` | `[OptInDefinition]` | `{ optInId, kind, text, textVersion, blocking, sponsorId? }` — `OPT-01`, `OPT-03`, `OPT-05` |
-| `signupFields` | Mixed | `AUTH-02` per-field `required \| optional \| hidden`. Email is forced required (`AUTH-03`, `IDN-02`) and not configurable |
+| `signupFields` | `[FieldDefinition]` | `{ fieldId, requirement, label?, order? }` — `AUTH-02`. See below |
 | `authVariant` | `"email" \| "phone"` | `IDN-09` [P2]. Add the field now, default `"email"`; the second instance is later work |
 
 `textVersion` increments on any change to `text`. That increment is the entire re-consent trigger — treat it as the write that must never be skipped when editing consent copy.
+
+**`FieldDefinition`** — `AUTH-02`'s configurable signup fields, deliberately the **same shape as opt-ins**: the tenant defines a set, the membership stores the fan's answers, and the server validates answers against definitions at the boundary. They differ only in that consents are versioned and re-evaluated every entry, while field values are collected once at join.
+
+| Field | Type | Notes |
+|---|---|---|
+| `fieldId` | enum | From a **closed platform catalog** — not free-form. See below |
+| `requirement` | `"required" \| "optional"` | |
+| `label` / `order` | String / Number, optional | Copy override and render order |
+
+Three details make three of `AUTH-02`'s acceptance criteria structurally true rather than something to enforce:
+
+- **"Not shown" is absence, not a third state.** A field the tenant does not want simply is not in the array, so there is nowhere for the value to come from. A tenant collecting nothing extra has `signupFields: []`.
+- **The catalog is closed.** `fieldId` is a fixed platform enum — `firstName`, `lastName`, `phone`, `birthday`, `zip`, `address`, `favoritePlayers`. A tenant configures *which* of these to collect; it cannot invent new ones. This is a privacy control, not a typing convenience: the platform decides what may ever be collected about a fan, the tenant decides what is. Adding to the catalog is a platform change with a privacy review.
+- **Email is not in the catalog at all.** `AUTH-03` makes it mandatory, and it lives on `B2BFan` as the identity key (`IDN-02`) rather than on the membership — so "email cannot be set to optional or not shown" holds because the setting does not exist.
+
+Values are stored in `B2BFanMembership.profileFields` as `Mixed` (decision, 2026-08): a `fieldId → value` map, validated at the boundary rather than by a Mongoose schema. A dynamically-built per-tenant schema was considered and is not worth it at this size.
 
 ### There is no migration
 
@@ -185,7 +201,7 @@ If any pending opt-in has `blocking: true`, the server **also rejects gameplay w
 
 1. Upsert `B2BFan` on `clerkUserId` — the fan may already exist from another tenant. This is the `IDN-01` moment: an existing identity is reused, never duplicated.
 2. Reject with `409` if a membership already exists for `(fan, tenant)` — idempotency, and it stops a double-submit creating two memberships.
-3. Validate submitted `profileFields` against `organization.signupFields`: every `required` field present, no `hidden` field accepted. Email is always required (`AUTH-03`, `IDN-02`).
+3. Validate submitted `profileFields` against `organization.signupFields`: reject any `fieldId` the tenant did not configure (including catalog-valid ones), reject when a `required` field is absent or empty, accept an absent `optional` field, and apply the catalog's per-field format check. A no-op when the tenant configures no extra fields.
 4. Validate and record consents as above. If any `blocking` opt-in is declined or missing, **fail the join** — do not create a partial membership.
 5. Create the membership. Steps 4 and 5 must be atomic; a membership without its blocking consents is exactly the state the model exists to prevent.
 
@@ -245,12 +261,7 @@ Standing constraints for anyone touching this area afterwards.
 4. **Consent text edits increment `textVersion`.** Editing `text` without incrementing silently leaves every fan consented to copy they never saw.
 5. **Consents never transfer between memberships** (`IDN-06`), including for the same sponsor.
 6. **`agreedAt` is stamped server-side.** Never accepted from a client.
-
----
-
-## Open Questions
-
-- **`profileFields` typing.** `Mixed` is the pragmatic choice for `AUTH-02`'s tenant-configurable field set, but gives up schema validation on fan PII. A per-tenant Zod schema built from `signupFields` at request time would validate without a fixed schema. Worth deciding before the field config ships.
+7. **`fieldId` comes from the closed platform catalog, and unconfigured fields are rejected rather than ignored.** Silently dropping an unexpected field hides a client bug; rejecting surfaces it. Several catalog fields (`address`, `birthday`, `phone`) are PII under `SEC-05`/`SEC-06`, and live on the membership so `IDN-08` deletion removes them.
 
 ---
 
