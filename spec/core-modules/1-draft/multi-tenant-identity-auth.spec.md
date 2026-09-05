@@ -113,7 +113,11 @@ Values are stored in `B2BFanMembership.profileFields` as `Mixed` (decision, 2026
 
 **Decision (2026-08): existing `B2BUser` and board records are disposable** — dev data is worthless and production is a handful of POC-era records. Create the new collections, point the code at them, drop `B2BUser`. No backfill, no dual-write, no hold period. Any individual board worth keeping is moved by hand, case by case, outside this plan.
 
-One setup task remains, and it is authoring rather than migration: **populate `B2BOrganization.optIns`** from the frontend's hardcoded `optInMessages` arrays, with stable `optInId`s and `textVersion: 1`.
+One setup task remains, and it is authoring rather than migration — but **not from the frontend.** An earlier draft of this spec said to populate `B2BOrganization.optIns` from the frontend's hardcoded `optInMessages` arrays. **Those no longer exist**: `TenantConfig` in `src/types/tenant.ts` has no such field, and no tenant config file defines one. There is no consent copy anywhere in the codebase to migrate.
+
+So every tenant starts at `optIns: []`, and the real opt-in text has to be **authored with product and legal** before the consent gate does anything. That is not an engineering task: consent copy is a legal artifact tied to each tenant's sponsor DPAs (`OPT-05`), and inventing placeholder wording would produce exactly the "fans consented to something nobody approved" state the gate exists to prevent.
+
+What *is* mechanical is backfilling the field **structure** onto existing organization documents (`optIns: []`, `signupFields: []`, `authVariant: "email"`), because Mongoose applies defaults on write and the read path uses `.lean()` — so pre-existing documents return `undefined` for fields the interface declares as required. [`mongodb_queries/backfill_org_tenant_config.js`](../../../mongodb_queries/backfill_org_tenant_config.js) does this — a MongoDB Playground script, idempotent, dev-only, discovering each developer's prefixed `*_organizations` collection rather than hardcoding them.
 
 Consequence: existing fans have no recorded consent — it was never persisted — and will be asked on next entry. Nobody is grandfathered into an agreement they never gave.
 
@@ -239,10 +243,12 @@ Do not resolve the slug inside `query()` as a way to avoid touching call sites. 
 
 Ordered so no step leaves the system in a worse state than it started.
 
-1. **Schema.** Add `B2BFan`, `B2BFanMembership`, `B2BOrganization.optIns` / `signupFields` / `authVariant`. Author each tenant's `optIns` from the frontend's hardcoded arrays.
+1. **Schema.** Add `B2BFan`, `B2BFanMembership`, `B2BOrganization.optIns` / `signupFields` / `authVariant`, then run `mongodb_queries/backfill_org_tenant_config.js` so existing organization documents carry the new fields. Authoring actual opt-in *content* is a separate product/legal task and does not block the cutover — an empty `optIns` array means the consent gate finds nothing pending and passes.
 2. **Middleware, unenforced.** Land `resolveTenant` + `requireMembership`, and have the frontend send `?tenant=`. Log-only: record what *would* have been rejected. This catches a stale frontend deploy before it becomes an outage — the deploys are separate (Vercel and ECS), so they will not land simultaneously.
 3. **Enforce.** Flip `requireMembership` on, route by route, starting with `list-contests` (closes the known IDOR) and `board/:boardId` (closes the unauthenticated board read). Drop `organizationId` and `clerkUserId` from the schemas as each flips.
-4. **Join flow + consent gate** on the frontend, with the server-side blocking rejection landing first.
+4. **Join flow** on the frontend, backed by `GET /b2b/membership` (`requireTenant`). That endpoint answers `200 { member: false }` rather than `403` for a non-member — it is a status query, not a protected resource, and discovering that a join is needed is the whole reason the route guard calls it. Protected resources still `403`; that stays `requireMembership`'s job.
+
+   Sign-up stops creating the membership. Credentials are collected at sign-up; the tenant profile and consents at join — including `displayName`, which is per-tenant by definition. The old flow called the backend "non-blocking on failure" from inside sign-up, so a failed enrollment silently left a Clerk account with no membership and no recorded consent. The route guard gains its third state here; the consent gate's own UI lands with the blocking rejection already enforced server-side.
 5. **Drop `B2BUser`.** No hold period — the records are disposable.
 
 Steps 1–3 are independently valuable: 3 alone closes two live vulnerabilities regardless of whether the consent work ships in the same cycle.

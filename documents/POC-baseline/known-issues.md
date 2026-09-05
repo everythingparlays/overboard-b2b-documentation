@@ -166,6 +166,17 @@ These are gaps the original author already flagged, not new findings — useful 
 - Frontend `TODO.md`: `SignUp.tsx` sends `VITE_TENANT_SLUG` (an env var) as `tenantSlug` instead of the subdomain-resolved `tenant?.slug` — since production tenant resolution is subdomain-based, this can tag a new user with the wrong tenant. **Decision (2026-08): deferred — not being worked on right now.** If it does get fixed, do it as a complete fix (using `tenant?.slug` consistently, not a partial patch), not a quick patch.
 - Backend `TODO`: "Get Database Access Configured for the Task" (manual provisioning), "fix submodules" (drift above), "Figure out how to test the functions" (no test strategy).
 
+## Styling System Doesn't Consistently Use Its Own Tenant-Theming Tokens
+
+Found (2026-08) while writing [`spec/webapp/styling.spec.md`](../../spec/webapp/styling.spec.md), a reference catalog of the app's actual visual conventions. Two live pages bypass the semantic color tokens the tenant-theming system (`tenant-color-system.md`) depends on, so their copy/badges don't actually re-skin per tenant the way the rest of the app does:
+
+- `PageHeader.tsx` and `BackButton.tsx` — live on `/board/:boardId` and `/dashboard` — hardcode `text-gray-400`/`text-gray-500`/`text-white` instead of `text-muted-foreground`/`text-foreground`. Any tenant's configured text colors are silently ignored on both routes.
+- `ContestCard.tsx` — live on `/contests` — hardcodes `bg-blue-600`/`bg-emerald-600`/`bg-rose-600` on its status badge instead of using `StatusBadge`'s own token-based `variantStyles` (`bg-info/15`, `bg-success/15`, `bg-destructive/15`, …), which every other status pill in the app already uses. The same contest status renders with two different color treatments depending on which code path draws it.
+
+## Declared Brand Font Never Loads
+
+`index.css` sets `--font-sans: 'Satoshi', ui-sans-serif, system-ui, sans-serif`, but no `@font-face` for Satoshi exists anywhere in the repo, and no hosted font `<link>` is present. Every environment — every tenant, dev and prod alike — has been silently rendering in the system sans-serif fallback the whole time. Not broken behavior (the fallback stack works), but the brand typeface has effectively never shipped.
+
 ## Dead / Leftover Code Worth Cleaning Up
 
-Not security issues, but noted since they'll cause confusion if picked up as "existing patterns" while writing specs: frontend `lib/mock/*` (~800 lines, entirely unused), `HomePage.tsx` (unrouted), `BingoProgress.tsx` (unused, has a Tailwind syntax bug), a commented-out "anonymous board claim" flow spread across three files, an unused `mongoose` frontend devDependency; backend's `send-three-in-a-row-email.ts` (dead code, never called).
+Not security issues, but noted since they'll cause confusion if picked up as "existing patterns" while writing specs: frontend `lib/mock/*` (~800 lines, entirely unused), `HomePage.tsx` (unrouted — also the only place in the codebase implementing the gradient CTA pattern documented in `tenant-color-system.md`; every live primary button is a solid `bg-primary`, see `styling.spec.md`), `BingoProgress.tsx` (unrouted; its fill-bar and achieved-milestone classes also carry malformed Tailwind arbitrary-value syntax — `bg-(--tenant-primary)]`, a stray trailing bracket — so the tenant color wouldn't apply even if it were wired up), a commented-out "anonymous board claim" flow spread across three files, an unused `mongoose` frontend devDependency; backend's `send-three-in-a-row-email.ts` (dead code, never called).

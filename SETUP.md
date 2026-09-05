@@ -143,15 +143,32 @@ npm run build
 
 ### Running `node-server` locally (the API)
 
+**One-time Atlas step first.** MongoDB auth is AWS IAM (`authMechanism=MONGODB-AWS` — see `db.ts`), in dev and prod alike. There is no username/password path, so running locally requires **your own AWS identity registered as an Atlas database user**:
+
+```bash
+aws sts get-caller-identity     # note the Arn
+```
+
+In Atlas: **Database Access → Add New Database User → AWS IAM**, paste that ARN as the username, assign `b2b-app-dev`, Add User. Without this the server starts and then fails to authenticate — the deployed task roles are registered, your laptop is not.
+
 ```bash
 cd node-server
-export CLERK_SECRET_KEY=sk_test_...              # non-prod instance; pull from Secrets Manager (obs-b2b-dev/clerk), never paste a prod key
-export MONGODB_CONNECTION_STRING=...              # ask a teammate
-export MONGODB_DATABASE_NAME=...                  # ask a teammate
-export FRONTEND_ORIGIN=http://localhost:5173      # optional; comma-separated allowlist, matches your local Vite dev server port
-npm run build && npm start
+cp .env.example .env      # then fill it in — .env is gitignored, it holds a Clerk secret
+npm run dev               # builds, then runs with .env loaded
 # Server on http://localhost:3000 by default (PORT env var to override)
 ```
+
+`npm run dev` and `npm run start:local` read `.env` natively (Node ≥ 20.6 `--env-file`); there is no `dotenv` dependency. Plain `npm start` does **not** read it — that is what deployed environments use, where real environment variables are injected.
+
+Required in `.env`: `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `MONGODB_CONNECTION_STRING`, `MONGODB_DATABASE_NAME`, `B2B_COLLECTION_PREFIX`, `FRONTEND_ORIGIN`. Add `AWS_PROFILE` if your default AWS profile is not the identity you registered in Atlas, and `PORT` if 3000 is taken.
+
+Four variables are easy to get wrong:
+
+- **`CLERK_PUBLISHABLE_KEY` is required, not optional.** `clerkMiddleware()` needs both keys and throws without it, so *every* request 500s inside Clerk before reaching any route — including `/health`, which has no auth. The error names the missing publishable key but the symptom (everything 500s) looks like a much bigger problem. It is not a secret; it is the same `pk_test_...` value the frontend uses. Deployed services get both keys from Secrets Manager via `main-api-service.ts`, so this gap is local-only.
+- **`AWS_PROFILE`** — MongoDB auth is AWS IAM, and the driver uses whichever identity the AWS chain resolves. If your `[default]` profile is not the ARN registered in Atlas, auth fails with `MongoServerError: Authentication failed` (code 18). Note the driver does **not** read `~/.aws/credentials` on its own — that resolution comes from the `@aws-sdk/credential-providers` devDependency; without it the driver falls through to the EC2 metadata endpoint and times out against `169.254.169.254`.
+
+- `MONGODB_CONNECTION_STRING` is the cluster **host** (`pbingo-dev.3yne0.mongodb.net`), not a credential. `db.ts` interpolates it into the `mongodb+srv://` URI; the credentials come from your AWS chain.
+- `B2B_COLLECTION_PREFIX` must be your stage (`nick_`). Omitting it reads empty, unprefixed collections, and every tenant looks unknown — a confusing failure, not an obvious one.
 
 Point your local frontend's `VITE_API_BASE_URL` at `http://localhost:3000` to talk to this.
 

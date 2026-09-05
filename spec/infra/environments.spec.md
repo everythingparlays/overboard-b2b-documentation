@@ -127,6 +127,8 @@ This is the one place personal stacks are **not** fully isolated, and it's a del
 
 **Superseded — see [`spec/core-modules/2-approved/mongodb-access-isolation.spec.md`](../core-modules/2-approved/mongodb-access-isolation.spec.md) for the current design.** The mechanism described above is now implemented as `obs-b2b-dev`: a dedicated database containing dev's own B2B collections plus a continuously-replicated, read-only mirror of `BetEvent`/`Prop`/`Entity`, fed by Atlas Database Triggers. Personal dev stacks connect only to that database.
 
+**`obs-b2b-dev` exists as of 2026-08.** Earlier drafts of this spec, and a comment in `lib/config/environments.ts`, described it as not-yet-created; both were stale and are corrected. This matters for contributor safety rather than as a detail: while it did not exist, any B2B data work necessarily targeted `PBingo-fullappdev-database` — the shared database that also serves the live D2C app — which the [contributor boundaries](../../SETUP.md#boundaries--read-this-before-your-first-pr) forbid touching. **Dev-database work is now unblocked and prod remains off-limits.**
+
 This **resolves** the open risk previously noted here (that nothing stopped a dev credential from writing to shared non-B2B collections): a dev stack has no credential for the source database at all, so the guardrail is structural rather than a documented rule. See [`SETUP.md`](../../SETUP.md#boundaries--read-this-before-your-first-pr).
 
 ---
@@ -137,7 +139,12 @@ Personal dev stacks must **never** point at the production Clerk instance.
 
 **Done (2026-08): the non-production Clerk instance exists** — `natural-macaw-97.clerk.accounts.dev`. Its keys are shared config across all personal dev stacks (same pattern as the shared dev Mongo database above) — not a separate Clerk instance per developer. The publishable key is in [`SETUP.md`](../../SETUP.md); the secret key belongs in Secrets Manager (`obs-b2b-dev/clerk`), wired into `lib/config/environments.ts` as `clerkSecretArn`.
 
-**Explicitly out of scope for this spec:** PRD `AUTH-04` (future) anticipates per-tenant choice of auth method/provider — how that maps onto Clerk configuration (multiple Clerk instances? Clerk Organizations? per-tenant settings within one instance?) is undecided. That belongs in a future `spec/core-modules/` auth/tenancy spec, not here.
+**Decided elsewhere (2026-08), previously open here.** PRD `AUTH-04`'s per-tenant choice of auth method now has an answer, and it lives in [`documents/HLDs/multi-tenant-identity-auth.md`](../../documents/HLDs/multi-tenant-identity-auth.md) rather than in this spec. In short:
+
+- **Fans:** one shared Clerk instance per *sign-in variant* (`IDN-09`) — two platform-wide, not one per tenant. Tenant membership is a database join, not a Clerk Organization.
+- **Admin surface:** its own Clerk instance with MFA required (`IDN-10`), using Clerk Organizations for staff and team users. MFA is an instance-wide toggle in Clerk, which is why it cannot share an instance with fans.
+
+The consequence for *this* spec is unchanged: a personal dev stack points at the non-production fan instance above and never at a production one. The admin instance is not yet built.
 
 ---
 
