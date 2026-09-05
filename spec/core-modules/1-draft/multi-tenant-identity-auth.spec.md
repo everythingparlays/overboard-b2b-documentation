@@ -93,7 +93,7 @@ Embedded rather than a separate collection: consents are always read with their 
 
 `textVersion` increments on any change to `text`. That increment is the entire re-consent trigger — treat it as the write that must never be skipped when editing consent copy.
 
-**`FieldDefinition`** — `AUTH-02`'s configurable signup fields, deliberately the **same shape as opt-ins**: the tenant defines a set, the membership stores the fan's answers, and the server validates answers against definitions at the boundary. They differ only in that consents are versioned and re-evaluated every entry, while field values are collected once at join.
+**`FieldDefinition`** — `AUTH-02`'s configurable signup fields, deliberately the **same shape as opt-ins**: the tenant defines a set, the membership stores the fan's answers, and the server validates answers against definitions at the boundary. Both are also evaluated the same way — outstanding items are computed when a fan arrives, not only when they first join, so a tenant can add a required field mid-season and existing fans are asked on next entry (decision, 2026-09). The only difference is versioning: an opt-in's wording is versioned so a rewording re-asks it, while a field value is simply present or absent.
 
 | Field | Type | Notes |
 |---|---|---|

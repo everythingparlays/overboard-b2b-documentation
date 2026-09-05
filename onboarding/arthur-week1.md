@@ -52,3 +52,24 @@ Where things landed, in case you need to find them:
 | `@pb-shared-deps/interfaces/*` | `@b2b-shared/interfaces/{b2b,reference}/*` |
 
 Ask for a replacement third task if you finish the side menu with time to spare.
+
+---
+
+## Phase 4: Entry Gate — Opt-Ins and Configurable Signup Fields
+
+**Spec:** [`spec/webapp/entry-gate.spec.md`](../spec/webapp/entry-gate.spec.md) — read it first; it has the acceptance criteria and the open questions. The spec's "Mocks" section links to screen mocks for the states it leaves visually undecided (blocking vs non-blocking, returning-fan copy) — look at those before you start on layout, since they're a proposed starting point, not a spec you're re-deriving from scratch.
+
+One screen collects everything a fan owes a tenant before they can play: opt-ins they have not answered, and required profile fields they are missing. It serves both a first join and a returning fan whose tenant changed what it asks.
+
+The screen already exists in skeleton form (`src/pages/auth/JoinTenant.tsx`) and is already wired into the route guard. Missing: rendering fields from tenant config, recording consent, and the returning-fan copy.
+
+**Context you need but should not re-derive:** the backend for this is built and tested. `GET /b2b/membership` tells you whether the fan is a member and what is outstanding; `POST /b2b/join` creates a membership; `POST /b2b/consent` records answers. Contracts are in [`multi-tenant-identity-auth.spec.md`](../spec/core-modules/1-draft/multi-tenant-identity-auth.spec.md). You should not need to change backend code — if you think you do, ask first, because that spec is the security boundary for tenant isolation.
+
+**Two rules from the spec worth repeating**, because getting them wrong is not a cosmetic bug:
+
+1. **The client is never the enforcement.** The server rejects a blocked fan independently (`409` on board generation, and the join endpoint refuses a membership without its blocking consents). Disabling a button explains the state early; it does not create it.
+2. **Send the `textVersion` that was displayed**, not the current one. If a tenant edits consent copy while a fan has the page open, sending the current version would record agreement to wording they never saw. The server rejects stale versions — re-fetch and re-ask.
+
+**Three open questions in the spec are yours to raise, not to decide alone:** the visual treatment of blocking vs non-blocking, the returning-fan copy, and whether a fan can revisit a declined non-blocking opt-in. All are product calls. Flag them early rather than picking silently.
+
+**Done when:** every acceptance criterion in the spec is checked off, tested against at least two tenants with different field configs, PR opened and merged.

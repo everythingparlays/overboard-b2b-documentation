@@ -163,7 +163,11 @@ Each tenant configures which fan data fields appear at signup and how each behav
 - **Optional** — shown, but signup can complete without it
 - **Not shown** — omitted from the form entirely and not collected
 
-The available field set includes: first name, last name, email, phone number, birthday, zip code, full address, favorite players.
+The available field set includes: first name, last name, email, phone number, birthday, zip code, full address, favorite players. The set is closed — a tenant chooses which of these to collect and cannot introduce new ones, so what may ever be collected about a fan is a platform decision subject to review rather than a per-tenant one.
+
+**Fields may be added mid-season** (decision, 2026-09). A tenant is not limited to what it configured before launch. A fan who already joined and is missing a newly-required field is asked for it on their next entry, on the same screen that surfaces changed opt-ins (see `OPT-05`) — not on a separate flow and not at signup, which has already happened for them. A newly-added *optional* field is collected the same way but never blocks.
+
+This makes required fields behave like blocking opt-ins: outstanding items are evaluated when a fan arrives, not only when they first sign up.
 
 **AUTH-03 [V1] — Email is always collected and required.**
 Email is mandatory for every tenant and cannot be disabled — it is the delivery channel for prizes and the core asset sponsors are paying for. All other fields are tenant-configurable.
@@ -188,6 +192,8 @@ This is accepted while phone-primary is a niche sale, and is invisible to any fa
 - [ ] A field set to optional allows signup completion when empty.
 - [ ] A field set to not shown does not render on the form and is not stored for that tenant's fans.
 - [ ] Email cannot be set to optional or not shown for any tenant.
+- [ ] A tenant adding a required field mid-season causes existing fans to be asked for it on their next entry, and to be unable to play until they provide it.
+- [ ] A tenant adding an optional field mid-season causes existing fans to be asked for it without being blocked.
 
 ### 6.3 Note for Product
 
@@ -211,8 +217,8 @@ Each opt-in is independently configured with its own label, description, and req
 
 **OPT-03 [V1] — Per-opt-in enforcement behavior.**
 Each opt-in has its own configurable enforcement behavior, selected from:
-- **Blocking** — declining prevents the fan from playing
-- **Non-blocking** — declining allows play but excludes the fan from whatever that opt-in covers (e.g. that sponsor's data export)
+- **Blocking** — declining prevents the fan from playing. The fan stays on the opt-in screen; there is no skip, no deferral, and no partial-access state. This is what makes it blocking (decision, 2026-09).
+- **Non-blocking** — declining allows play but excludes the fan from whatever that opt-in covers (e.g. that sponsor's data export). The decline is recorded, and the fan is not asked again unless the opt-in's text changes.
 
 Enforcement is never hardcoded for a given opt-in. Different tenants and sponsors will want different behavior, and this must be changeable via configuration.
 
