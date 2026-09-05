@@ -249,7 +249,9 @@ Ordered so no step leaves the system in a worse state than it started.
 4. **Join flow** on the frontend, backed by `GET /b2b/membership` (`requireTenant`). That endpoint answers `200 { member: false }` rather than `403` for a non-member — it is a status query, not a protected resource, and discovering that a join is needed is the whole reason the route guard calls it. Protected resources still `403`; that stays `requireMembership`'s job.
 
    Sign-up stops creating the membership. Credentials are collected at sign-up; the tenant profile and consents at join — including `displayName`, which is per-tenant by definition. The old flow called the backend "non-blocking on failure" from inside sign-up, so a failed enrollment silently left a Clerk account with no membership and no recorded consent. The route guard gains its third state here; the consent gate's own UI lands with the blocking rejection already enforced server-side.
-5. **Drop `B2BUser`.** No hold period — the records are disposable.
+5. **Drop `B2BUser`.** No hold period — the records are disposable. Also renames the join contract, since `createB2BUser*` referred to a model that no longer exists and the endpoint has not created a "user" since authentication and enrollment were separated: `api/b2b/user.ts` → `join.ts`, and `POST /b2b/user/b2b-create-user` → `POST /b2b/join`.
+
+   **Check `prize-worker` before removing the model.** `get-user-email.ts` used `B2BUserModel` as the fallback when a Clerk lookup fails during prize delivery — dropping the model without migrating it would have broken prize sends silently, at the worst possible moment. It now reads `B2BFanModel`, which is the more correct source anyway: email belongs to the platform identity, not to a tenant membership. Collections are dropped by [`mongodb_queries/drop_legacy_b2buser_collections.js`](../../../mongodb_queries/drop_legacy_b2buser_collections.js), which is destructive and dry-runs by default.
 
 Steps 1–3 are independently valuable: 3 alone closes two live vulnerabilities regardless of whether the consent work ships in the same cycle.
 

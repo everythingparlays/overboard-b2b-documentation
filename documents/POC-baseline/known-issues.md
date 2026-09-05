@@ -2,6 +2,17 @@
 
 > Part of [POC Baseline](README.md). This is a factual gap list, not a prioritized roadmap — prioritization is a product/eng decision to make once specs are being written. Each item links back to the layer doc it came from and, where applicable, the PRD requirement it bears on.
 
+## Board Reads Threw on Every Populated Board — Resolved (2026-09)
+
+`propSchema` in `obs-b2b-shared/src/models/reference.ts` was declared with an **empty definition** and `strict: false`. Mongoose therefore had no known path for `entityInfo` or `betEventId`, and `strictPopulate` (on by default) refused to populate them — so **any board read that returned at least one document threw `StrictPopulateError`**. This hit both `getB2BBoard` and `listB2BBoards`, meaning the board page and the dashboard were both broken.
+
+It stayed invisible because the failure needs data: with zero boards for the querying user there is nothing to populate and the request succeeds. It surfaced during multi-tenant testing only because a fan finally had boards — the bug predates that work entirely.
+
+**Resolved** by declaring the two reference fields on the schema (`obs-b2b-shared@2bce1ac`). `strict: false` is retained: B2B does not own this shape and must tolerate whatever the D2C stats pipeline writes; declaring two paths does not restrict the rest.
+
+**Worth taking from this:** a schema defined as `{}` with `strict: false` silently disables `populate` for every path. Any other model declared that way has the same latent failure — `entitySchema` and `betEventSchema` are both empty too, and are safe only because nothing populates *through* them today.
+
+
 ## Cross-Tenant Data Isolation — No Enforcement (`SEC-08`)
 
 The backend's authorization model (`node-server/src/middleware/auth.ts`) only ever checks "is this the same Clerk user as the one in the request" — it never checks organization/tenant membership. Concretely:
