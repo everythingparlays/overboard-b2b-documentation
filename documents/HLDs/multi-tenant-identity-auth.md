@@ -85,7 +85,9 @@ Two consequences to hold explicitly:
 Scoping MFA to only those routes that export or delete fan PII was considered and rejected on a mechanism detail: Clerk's reverification (step-up auth) **silently downgrades a requested `multi_factor` check to `first_factor` when the user has no second factor enrolled**. Gating PII routes therefore does not deliver MFA unless second-factor enrollment is separately enforced — which is the instance-wide toggle again. Since only a small number of designated people ever hold admin accounts, requiring MFA of all of them is the simpler and more defensible position.
 
 **`IDN-11` [P0] — Sponsors are data relationships, not authenticated actors, in V1.**
-Sponsor↔tenant is a many-to-many relationship in the database carrying the DPA field scope (`RPT-04`). Sponsors receive exports; they do not sign in. PRD `TEN-04` is satisfied by a single shared sponsor record linked to many tenants — it requires **no revision**, and per-tenant duplication of sponsor records is what it exists to prevent.
+A sponsor belongs to exactly one tenant and carries that sponsor's DPA field scope (`RPT-04`). Sponsors receive exports; they do not sign in.
+
+PRD `TEN-04` was revised in 2026-09 to drop cross-tenant sponsor sharing. An earlier draft of this HLD argued for a shared record; that is superseded. One brand sponsoring two teams is two records, which keeps sponsor configuration inside a single tenant's boundary and removes the shared-entity editing question entirely.
 
 **`IDN-12` [P0] — Admin scope is derived from organization membership, never supplied by the client.**
 The same principle as `IDN-04`, applied to the admin surface.
@@ -135,15 +137,15 @@ flowchart TB
         M2["Membership — Hawks<br/>profile fields, consents"]
         T1["Tenant: bears<br/>opt-ins, fields, variant"]
         T2["Tenant: fightinghawks<br/>opt-ins, fields, variant"]
-        SP["Sponsors<br/>shared records"]
+        SP["Sponsors<br/>one tenant each"]
     end
 
     ID --> M1
     ID --> M2
     M1 --> T1
     M2 --> T2
-    SP -. "many-to-many, DPA field scope" .-> T1
-    SP -. "many-to-many, DPA field scope" .-> T2
+    SP -. "one tenant each, DPA field scope" .-> T1
+    SP -. "one tenant each, DPA field scope" .-> T2
 ```
 
 One identity, many memberships. The identity lives in Clerk; everything tenant-scoped lives in the database next to the tenant config it depends on.
@@ -194,6 +196,8 @@ Clerk Organizations remain correct for the admin surface, where volumes are smal
 
 ## Admin Surface
 
+**Specified in [`spec/core-modules/1-draft/admin-surface.spec.md`](../../spec/core-modules/1-draft/admin-surface.spec.md)** — access framework only; what the surface *does* needs its own specs.
+
 Build begins ~September 2026. Fan-side design must not foreclose it; the two surfaces are separate Clerk instances and share no session.
 
 **Separate instance with MFA required** (`IDN-10`), for three reasons: MFA is an instance-wide toggle and cannot be required of fans; organization membership mode is instance-wide and the surfaces need opposite settings (admin `Membership required`, fans personal accounts); and admin sign-in should be locked down rather than inheriting the fan variants' method config. The cost is one additional JWKS issuer for the backend to trust — acceptable, since `/admin/*` warrants a distinct middleware chain from `/b2b/*` regardless.
@@ -238,7 +242,7 @@ Not a specification — the shape the implementation spec must cover.
 
 ## Still Open
 
-- **`PRIZE-03` finalization authority** — whether team users may trigger contest finalization or only OBS staff. **Tabled.** Already an open question in PRD §11; it shapes the admin role set, and roles are inexpensive to add later.
+Nothing. Every requirement above is settled; `PRIZE-03` authority (OBS staff only) and admin MFA scope (required instance-wide) both closed 2026-09. Remaining unknowns are implementation-level and live in the specs' own open-questions sections.
 
 ## Superseded Guidance
 

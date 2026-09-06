@@ -16,7 +16,7 @@ Cutover **steps 1–4 of 5 are written and verified in tests**, but **not commit
 
 - [ ] **Cutover step 5 — drop `B2BUser`.** The model, its collection, and the legacy `users` reads. No hold period; the records are disposable per the spec.
 
-- [ ] **Move `POST /b2b/contest/prize-tier` off the fan surface.** It is gated behind `requireMembership` as an interim, which means any *fan* of a tenant can still write prize config. Belongs on `/admin/*`. Blocked on the `PRIZE-03` authority question (PRD §11) — that decision is the actual prerequisite.
+- [ ] **Move `POST /b2b/contest/prize-tier` off the fan surface.** It is gated behind `requireMembership` as an interim, which means any *fan* of a tenant can still write prize config. Belongs on `/admin/*` per [`admin-surface.spec.md`](../../spec/core-modules/1-draft/admin-surface.spec.md), which is now unblocked.
 
 - [ ] **Then: consent gate UI + `POST /b2b/consent`.** The server side is already enforced (blocking consent returns 409 on board generation) and `pendingConsents` is computed and returned; only the UI and the recording endpoint are missing. Note every tenant currently has `optIns: []`, so nothing is pending and the gate passes — authoring real consent copy is a **product/legal task**, not an engineering one.
 
@@ -56,8 +56,7 @@ All are documented in [`SETUP.md`](../../SETUP.md) and `node-server/.env.example
 
 ## Open decisions blocking work
 
-- **`PRIZE-03` finalization authority** — may team users trigger contest finalization, or only OBS staff? Already open in PRD §11. Blocks the admin surface spec, which in turn blocks moving `prize-tier` off the fan surface.
-- **MFA scope on the admin surface** — MFA for all admin users, or instance-toggle-off with application-level enforcement for OBS staff? See `IDN-10` and the HLD's "Still Open". Needed before the admin build starts.
+- **Approve [`admin-surface.spec.md`](../../spec/core-modules/1-draft/admin-surface.spec.md)** and move it to `2-approved`. No open questions remain; `PRIZE-03` (OBS staff only) and admin MFA (required, instance-wide) both closed 2026-09.
 
 ## Known gaps worth not forgetting
 

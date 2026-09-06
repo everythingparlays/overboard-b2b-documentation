@@ -12,7 +12,7 @@ Split identity from membership, move tenant scope to the server, and turn consen
 
 **Scope:** `node-server` (middleware, handlers, routes), `obs-b2b-shared` (models, interfaces, API schemas), `overboard-b2b-template` (route guard, join flow, tenant context). No CDK changes, no new infrastructure.
 
-**Not in scope:** the admin surface (`IDN-10`, `IDN-12`, `IDN-13`) — separate spec once the `PRIZE-03` authority question closes. The phone-primary variant (`IDN-09` [P2], needs a second Clerk instance). `AUTH-04` D2C passthrough.
+**Not in scope:** the admin surface (`IDN-10`, `IDN-12`, `IDN-13`) — see [`admin-surface.spec.md`](admin-surface.spec.md). The phone-primary variant (`IDN-09` [P2], needs a second Clerk instance). `AUTH-04` D2C passthrough.
 
 ---
 

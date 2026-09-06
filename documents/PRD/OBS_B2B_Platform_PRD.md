@@ -125,8 +125,14 @@ Exception: set-once tenant branding elements (see BRAND-01) may be hardcoded per
 **TEN-03 [V1] — Bounded onboarding effort.**
 Onboarding a new tenant requires no more than **1–2 hours of engineering time**. This excludes time spent gathering branding and configuration information from the customer, which is a sales/account-management activity.
 
-**TEN-04 [V1] — Many-to-many sponsors and tenants.**
-The system supports multiple sponsors per tenant and the same sponsor across multiple tenants (e.g. Coca-Cola sponsoring both UND and the Wild) without duplicated setup work.
+**TEN-04 [V1] — Multiple sponsors per tenant. Sponsors belong to one tenant.**
+A tenant can have many sponsors. A sponsor record belongs to exactly one tenant.
+
+**Revised 2026-09.** This previously required a sponsor record shared across tenants, so Coca-Cola sponsoring two teams would be configured once. That is dropped: the same brand sponsoring two tenants is now two independent sponsor records.
+
+The cost is accepted deliberately — a brand that rebrands mid-season must be updated once per tenant, and nothing enforces consistency between them. In exchange, sponsor configuration is entirely within one tenant's boundary: there is no shared record two teams' admins can both edit, no question of whose change wins, and no cross-tenant permission model to design for a V1 that has a handful of tenants. Sponsor assets are per-season and per-tenant in practice anyway (`BRAND-02`).
+
+Revisit if the sponsor count per brand grows enough that duplication is a real maintenance cost, or if a sponsor ever needs a single cross-tenant view of their activations.
 
 **TEN-05 [V1] — Config management, engineer-operated.**
 For V1, tenant configuration is created and updated **directly against the database by an engineer**. A self-serve admin UI is [FUTURE]. The config data model must be structured cleanly enough that adding that UI later does not require restructuring the data.
@@ -136,7 +142,8 @@ For V1, tenant configuration is created and updated **directly against the datab
 - [ ] A new tenant can be provisioned — slug live, branding applied, config populated — through a documented, repeatable process taking ≤2 hours of engineering time.
 - [ ] Two tenants' configurations are fully independent; changing one has no effect on the other.
 - [ ] One tenant's traffic load (e.g. a sold-out hockey game) does not degrade another tenant's app.
-- [ ] The same sponsor record can be associated with multiple tenants without re-entering sponsor data.
+- [ ] A tenant can have three or more sponsors configured simultaneously.
+- [ ] A sponsor's configuration is editable only by users scoped to that sponsor's tenant.
 
 ### 5.3 Constraints
 
@@ -346,8 +353,10 @@ When a fan completes three-in-a-row, their prize is delivered immediately, in re
 **PRIZE-02 [FUTURE] — Deferred end-of-game delivery.**
 For higher-value prizes, OBS will want to hold delivery until the contest is finalized rather than sending in real time. This is a **per-prize-tier** setting, not global — one game may have both real-time small prizes and deferred large prizes. Not built in V1; the prize tier data model must accommodate the setting.
 
-**PRIZE-03 [V1] — Manual contest finalization.**
-A person (OBS staff or a designated tenant user) manually triggers contest finalization for a game. Finalization is not inferred automatically from the live sports feed. This action is what will trigger deferred prize sends when PRIZE-02 is built.
+**PRIZE-03 [V1] — Manual contest finalization, OBS staff only.**
+An OBS staff member manually triggers contest finalization for a game. Finalization is not inferred automatically from the live sports feed. This action is what will trigger deferred prize sends when PRIZE-02 is built.
+
+**Tenant users cannot finalize** (decision, 2026-09). An earlier draft left this open between OBS staff and a designated tenant user. Finalization triggers real prize sends to real fans and cannot be undone, so the authority stays with the party that operates the platform and carries the sender reputation (`PRIZE-06`) — not with the party that benefits from the activation.
 
 **PRIZE-04 [V1] — One HTML template per prize.**
 Prize delivery uses a custom HTML template associated with a specific prize. One template per prize; contextual variants for the same prize are not needed. For V1, template creation and upload is performed by developers — no tenant-facing template upload interface is required.
@@ -522,5 +531,5 @@ Failed prize sends (PRIZE-07) surface through the same monitoring path, since de
 These are unresolved and should be raised rather than assumed:
 
 1. **Export delivery mechanism.** RPT-06 defines cadence, but not how exports reach the sponsor (email attachment, secure download link, SFTP, etc.). Sponsor security teams may have opinions here.
-2. **Contest finalization authority.** PRIZE-03 establishes a manual finalize action. Whether tenant users can trigger it or only OBS staff is undecided.
+2. ~~**Contest finalization authority.**~~ **Resolved 2026-09:** OBS staff only. See `PRIZE-03`.
 3. **Data retention windows.** SEC-07 covers deletion on request. Automatic retention expiry durations are pending legal counsel confirmation.
