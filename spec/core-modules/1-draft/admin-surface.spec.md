@@ -39,9 +39,13 @@ Two kinds of organization. **The tenant org's Clerk slug is the tenant's subdoma
 | Tenant | matches `B2BOrganization.subdomain` (`bears`) | one per team | that team's designated users | that tenant only |
 | OBS | `obs` (reserved) | exactly one | OBS staff | cross-tenant |
 
+`admin` is reserved the same way, one level up — it names `admin.overboardsports.com` itself rather than any organization, so it can never be a `B2BOrganization.subdomain` either (`TEN-C3`). Both `resolveAdminScope` and the fan-side `resolveTenant` check this list before touching the database.
+
 **OBS staff belong to the single `obs` org rather than holding admin membership in every tenant org.** Both satisfy `RPT-02`'s requirement that the internal fan-actions export be unreachable by team users — the alternative does it with custom roles. The `obs` org wins because Clerk's active organization is one value per session: `OBS-04`'s cross-tenant health dashboard and `RPT-01`/`RPT-02`'s cross-tenant trends have no single active org that authorizes them, whereas membership in `obs` is a standing grant. The two are alternatives, not complements — adding staff to every tenant org *as well* grants nothing further and makes tenant provisioning O(staff).
 
 **No sponsor organizations** (`IDN-11`). Sponsors receive exports; they do not sign in. A sponsor belongs to exactly one tenant (`TEN-04`, revised 2026-09) and carries that sponsor's DPA field scope (`RPT-04`), so sponsor configuration sits wholly inside one tenant's boundary — there is no shared record two teams' admins could both edit.
+
+**Organization self-creation must be disabled on the admin Clerk instance.** "Provisioning and delegation" below defines exactly three ways an organization comes to exist: bootstrap creates `obs`, OBS staff create a tenant org at onboarding, a tenant `org:admin` invites within their own org. A signed-in user with no other path into the admin app can otherwise use `<OrganizationSwitcher>`'s own "Create organization" action to make an arbitrary fourth org on the spot — Clerk permits this by default, and nothing in `resolveAdminScope` distinguishes that org from a real one until its slug fails to resolve to a tenant. The result is a 404 that looks like a provisioning bug from the caller's side when it's actually an unrestricted instance setting. **This must be turned off** (Clerk Dashboard → the admin instance → Organization Settings → restrict who can create an organization) so the three tiers above are the only ways in, not merely the intended one.
 
 ---
 
@@ -168,11 +172,13 @@ The fan template is tenant-branded and deployed per tenant; admin is one deploym
 4. **The tenant org's Clerk slug equals `B2BOrganization.subdomain`.** Provisioning must create both or neither; a mismatch silently denies access.
 5. **Admin routes are mounted under `/admin` and authenticate against the admin instance only.** A fan token must never satisfy an admin route.
 6. **MFA is required instance-wide.** Do not add a per-route or per-role bypass.
+7. **`admin` and `obs` are never a tenant's `B2BOrganization.subdomain`** (`TEN-C3`). Checked at onboarding and defensively in both `resolveAdminScope` and `resolveTenant`.
+8. **Organization self-creation is disabled on the admin Clerk instance.** The three provisioning tiers are the only ways an organization comes to exist — a user's own "Create organization" action is not a fourth.
 
 ---
 
 ## References
 
 - HLD: [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) — `IDN-10`–`IDN-13`
-- PRD: [`TEN-03`, `TEN-05`, `ADM-01`–`ADM-09`, `BRAND-02`, `GAME-01`, `PRIZE-03`, `RPT-01`–`RPT-05`, `SEC-07`, `SEC-08`, `OBS-04`](../../../documents/PRD/OBS_B2B_Platform_PRD.md)
+- PRD: [`TEN-03`, `TEN-05`, `TEN-C3`, `ADM-01`–`ADM-09`, `BRAND-02`, `GAME-01`, `PRIZE-03`, `RPT-01`–`RPT-05`, `SEC-07`, `SEC-08`, `OBS-04`](../../../documents/PRD/OBS_B2B_Platform_PRD.md)
 - [`multi-tenant-identity-auth.spec.md`](multi-tenant-identity-auth.spec.md) — the fan-side model this deliberately does not share

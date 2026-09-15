@@ -116,7 +116,7 @@ Acceptance criteria are written to be verifiable. If a criterion can't be tested
 ### 5.1 Requirements
 
 **TEN-01 [V1] — Unique tenant slug.**
-Every tenant has a required, unique slug reachable at `[teamname].overboardsports.com`. Subdomain routing is the chosen approach; teams value this level of customization and it is a differentiator.
+Every tenant has a required, unique slug reachable at `[teamname].overboardsports.com`. Subdomain routing is the chosen approach; teams value this level of customization and it is a differentiator. A small set of subdomains are reserved and can never be assigned to a tenant — see `TEN-C3`.
 
 **TEN-02 [V1] — Configuration-driven tenants.**
 Tenant-specific data — signup fields, opt-ins, sponsor scheduling, prize/game selection — is stored as configuration data, not embedded in per-team code branches or forks.
@@ -155,6 +155,9 @@ Where a requirement could be met either by a config field or by a team-specific 
 
 **TEN-C2 [CONSTRAINT] — Shared game engine.**
 Board generation, live stat evaluation, and win detection are shared platform logic used by all tenants. Tenant-specific work is limited to configuration, branding, sponsor assets, and prize definitions.
+
+**TEN-C3 [CONSTRAINT] — Reserved subdomains.**
+A tenant slug may never be `admin` or `obs` — both name platform infrastructure (`admin.overboardsports.com`, the OBS staff organization) rather than a tenant, and either would be unreachable at its own subdomain or ambiguous with the internal namespace. Checked at `TEN-05` onboarding, before a Clerk organization or `B2BOrganization` record is created for the new tenant.
 
 ---
 
