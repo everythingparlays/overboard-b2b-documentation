@@ -162,6 +162,29 @@ The fan template is tenant-branded and deployed per tenant; admin is one deploym
 - Route guards read `orgSlug` and `has({ permission })` from the session — the same pattern as the fan `ProtectedRoute`, different inputs.
 - **The URL's tenant must be checked against the session's `orgSlug` on every scoped page.** A stale `orgSlug` after an org switch otherwise renders one tenant's data under another's URL.
 
+### Navigation
+
+One nav structure, three sections. Same screens for both actor classes (`ADM-01`) — the difference is which sections render and whether the org switcher is interactive, never a different app or a different route table.
+
+| Section | Destination | Route | Implements |
+|---|---|---|---|
+| Workspace | Overview | `/` | `ADM-06`, `ADM-07` (games, KPIs, reporting surfaced on one screen) |
+| | Games & Contests | `/games` | `ADM-04`, `BRAND-02`, `GAME-01`–`GAME-04` |
+| | Prizes | `/prizes` | `ADM-04`, `PRIZE-05`–`PRIZE-07` |
+| | Fans | `/fans` | `RPT-02` view, scoped — not the export itself |
+| | Exports | `/exports` | `ADM-07`, `RPT-01`–`RPT-06` |
+| Configuration | Fields & Opt-ins | `/config` | `ADM-05`, `AUTH-02`, `OPT-01`–`OPT-05` |
+| | Branding | `/branding` | `BRAND-01` (view/set-once, not per-game) |
+| | Team | `/team` | Org membership — invite/remove within the caller's own org (see "Provisioning and delegation") |
+| OBS Internal | All tenants | `/tenants` | Cross-tenant tenant list/switcher target |
+| | Platform health | `/platform-health` | `OBS-01`–`OBS-05` |
+| | Delivery queue | `/delivery-queue` | `PRIZE-06`/`PRIZE-07` dead-letter visibility |
+| | Fan actions | `/fan-actions` | `RPT-02`, `org:fan_data:export` |
+
+**Workspace and Configuration render for every signed-in admin user, scoped to their active organization.** They are not permission-gated in the UI beyond that — `org:tenant_config:read` (`ADM-02`) covers viewing everything under them; write actions (`ADM-03`, `[FUTURE]`) will need their own per-control gating when they ship, not a section-level one.
+
+**OBS Internal renders only when `scope.kind === "obs"`.** This is UX, not the enforcement — hiding the section spares a tenant user four dead links, but the actual boundary is server-side (`resolveAdminScope`, `requirePermission`) exactly as everywhere else in this spec. A tenant role holding none of `org:fan_data:export`, `org:contest:finalize`, or a cross-tenant read is what makes hiding the section merely convenient rather than load-bearing.
+
 ---
 
 ## Rules
