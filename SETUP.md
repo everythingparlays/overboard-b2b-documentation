@@ -12,9 +12,9 @@ Three repos, cloned as siblings in one folder:
 |---|---|---|
 | `overboardb2b-documentation` | Specs, PRD, architecture docs (this repo) | `github.com/everythingparlays/overboard-b2b-documentation` |
 | `overboard-b2b-template` | Frontend — fan-facing web app | `github.com/everythingparlays/overboard-b2b-template` |
-| `overboard_sports_backend` | Backend API, workers, AWS infra (CDK) | `github.com/nickdep217/overboard_sports_backend` |
+| `overboard_sports_backend` | Backend API, workers, AWS infra (CDK) | `github.com/everythingparlays/overboard_sports_backend` |
 
-> The backend repo is currently hosted under a personal account (`nickdep217`), not the `everythingparlays` org — worth knowing so you don't search for it in the wrong place. Ask if this is expected to move.
+> The backend repo moved into the `everythingparlays` org (2026-09) — it previously lived under a personal account (`nickdep217`); the old URL redirects.
 
 ```
 obs-b2b-workspace/                     <- pick any name for this folder
@@ -51,7 +51,7 @@ Then commit the updated pins in each consuming repo. Skipping step 2 leaves cons
 Before you start, make sure you have:
 
 - **Git**, with access to the `everythingparlays` GitHub org (and the backend repo above)
-- **A GitHub Personal Access Token (PAT)** with repo access — `obs-b2b-shared` is private, and cloning/updating the submodule requires authenticated access. Ask a teammate to generate one for you if you don't have one.
+- **Authenticated GitHub access to private repos** — `obs-b2b-shared` is private, so cloning/updating the submodule needs credentials. If your git is already authenticated against the org (SSH keys, `gh auth login`, or a credential manager), a plain `git submodule update --init --recursive` works and you can skip the PAT URL-rewrite shown in step 3. A **Personal Access Token (PAT)** is only needed when no such credentials exist — which is the case in CI (`vercel-install.sh` uses one).
 - **Node.js 20+** and npm
 - **Docker**, installed and running — required for backend CDK asset builds
 - **AWS CLI** — only needed if you'll be deploying/inspecting the backend infra. Access goes through IAM Identity Center, not static credentials — ask Nick to add you to the `obs-b2b-dev-deployers` group, then see "AWS Access Setup" under step 4 below.
@@ -59,7 +59,7 @@ Before you start, make sure you have:
 - **A Clerk Dashboard invite** — only needed if you're changing auth configuration. For normal local work the non-production instance's publishable key is in step 3 below, and the backend reads its secret key from Secrets Manager. **Never use the production Clerk instance locally.**
 - **MongoDB Atlas access / connection string** — ask for this; there's no self-serve way to get it from the repos alone
 
-The frontend now ships a committed `.env.example` with working dev values — copy it and you're done (step 3). The backend has no equivalent yet; its variable names below were read out of the source, and you'll need actual values from a teammate.
+The frontend ships a committed `.env.example` with working dev values — copy it and you're done (step 3). `node-server` now has one too (added 2026-09) — copy it as step 4 shows, though a couple of values (your stage prefix, AWS profile) are yours to fill in.
 
 ## 1. Create the Workspace Folder
 
@@ -82,14 +82,18 @@ git clone https://github.com/everythingparlays/overboard-b2b-template.git
 cd overboard-b2b-template
 ```
 
-**Initialize the submodule** (`obs-b2b-shared`). Since it's private, use your PAT:
+**Initialize the submodule** (`obs-b2b-shared`). If your git is already authenticated against the org (SSH, `gh auth login`, or a credential manager — the usual case on a dev machine), this is all it takes:
+
+```bash
+git submodule update --init --recursive
+```
+
+Only if that fails with an auth error, rewrite the submodule URL to carry a PAT (the pattern the repo's own `vercel-install.sh` uses for CI, where no stored credentials exist):
 
 ```bash
 git submodule set-url obs-b2b-shared https://<YOUR_GITHUB_PAT>@github.com/everythingparlays/obs-b2b-shared.git
 git submodule update --init --recursive
 ```
-
-(Same pattern the repo's own `vercel-install.sh` uses for CI — with SSH access configured instead, a plain `git submodule update --init --recursive` works without the URL rewrite.)
 
 **Environment variables** — copy the committed template:
 
@@ -122,23 +126,37 @@ npm run dev
 
 ```bash
 cd ..
-git clone https://github.com/nickdep217/overboard_sports_backend.git
+git clone https://github.com/everythingparlays/overboard_sports_backend.git
 cd overboard_sports_backend
 ```
 
-**Initialize submodules** — there are three separate `obs-b2b-shared` checkouts in this repo (one per service):
+**Initialize submodules** — there are three separate `obs-b2b-shared` checkouts in this repo (one per service), real gitlinked submodules as of 2026-09-14:
 
 ```bash
 git submodule update --init --recursive
 ```
 
-(If they're not already configured with a token/SSH, apply the same `git submodule set-url ... https://<YOUR_GITHUB_PAT>@...` pattern as step 3 for each of the three paths in `.gitmodules`.)
+(Only if this fails with an auth error, apply the same `git submodule set-url ... https://<YOUR_GITHUB_PAT>@...` pattern as step 3 for each of the three paths in `.gitmodules`.)
 
 **Install CDK app dependencies:**
 
 ```bash
 npm install
 npm run build
+```
+
+**Build the services** — required once per fresh clone, and again after service code changes:
+
+```bash
+./scripts/build-all.sh
+```
+
+This builds `node-server`, `prize-worker`, and the board-evaluator Lambda into their `built/` directories. **A first `cdk deploy` on a fresh clone fails without it** — CDK packages the pre-built output rather than building the services itself, and the failure mode (two deploys have died on this) is not obviously "you forgot to build."
+
+**Run the tests** — the backend has a jest suite as of 2026-09 (42 tests across 7 suites: tenant isolation, route-auth declarations, entry-gate consent evaluation, admin scoping):
+
+```bash
+npx jest
 ```
 
 ### Running `node-server` locally (the API)
@@ -243,11 +261,10 @@ npx cdk destroy --profile obs-b2b-dev -c stage=<yourname>     # tear it down whe
 
 Use your own name as the stage (e.g. `-c stage=nick`) — this gives you an isolated `OverboardSportsBackendStack-<yourname>` stack, safe to deploy alongside anyone else's in the same account. **Never** pass `-c stage=prod` yourself — that's a separate account (`obs-b2b-prod`) with its own access, not something to deploy to casually. See the spec for the full design.
 
-**Not yet functional end-to-end, even with the above:** two real prerequisites don't exist yet —
+**A personal stack works end to end for the main API** (confirmed 2026-09-11: `OverboardSportsBackendStack-arthur` deployed and serves authenticated fan traffic — Atlas ARN registration done beforehand). One prerequisite is still missing:
 - A dev-scoped MongoDB secret in `obs-b2b-dev`. Without it, the async pipeline (board-evaluator / prop-update-evaluator Lambdas) will throw at runtime — they require `MONGODB_SECRET_ARN`, with no IAM fallback. (The main API / node-server doesn't need this — it uses Atlas IAM auth via its task role instead.)
-- A non-production Clerk instance. Without it, node-server comes up with no auth configured.
 
-Both are tracked in [`known-issues.md`](documents/POC-baseline/known-issues.md). Until they're resolved, a personal stack will deploy successfully but won't be fully usable — check there before assuming something you did wrong.
+(The non-production Clerk instance, previously also missing, exists and its secret is in Secrets Manager as `dev/OverBoardB2B/clerkAuth` — auth works out of the box.) The Mongo-secret gap is tracked in [`known-issues.md`](documents/POC-baseline/known-issues.md); until it's resolved, board/prop evaluation won't run on a personal stack — check there before assuming something you did wrong.
 
 See the backend repo's own `README.md` for full CDK deploy options (`mongodbSecretArn`, `dlqAlertPhoneNumber` context flags, etc.) — this workspace guide only covers getting things running locally.
 
@@ -272,8 +289,10 @@ If any of this doesn't work and the cause isn't obvious, check [`documents/POC-b
 
 These aren't setup mistakes — they're pre-existing gaps documented in [`documents/POC-baseline/known-issues.md`](documents/POC-baseline/known-issues.md):
 
-- No `.env.example` in the **backend** repo — its variable names above were reverse-engineered from source, not documented by the original authors. The frontend has one as of 2026-08.
+- Both repos ship a `.env.example` now — the frontend's since 2026-08, `node-server`'s since 2026-09. If a variable name in this doc and the `.env.example` ever disagree, trust the `.env.example` and flag the doc.
+- The backend has a jest suite as of 2026-09 (`npx jest` at the repo root) — run it before pushing backend changes. The frontend still has no tests or test runner.
 - `obs-b2b-shared` is vendored in four places and each can be pinned independently — if you see a type error that looks like it shouldn't exist, check that all four pins match (`git submodule status` in each repo).
 - Two AWS accounts exist (`obs-b2b-prod`, `obs-b2b-dev`) and the CDK app now supports per-developer namespaced stacks via required `-c stage=<name>` context (see `spec/infra/environments.spec.md`). `obs-b2b-prod` is a brand-new, empty account — it is **not** the account currently running the live system (see `known-issues.md`); migrating there is a separate, not-yet-done task.
-- A personal dev stack deploys successfully but isn't fully functional yet — no dev-scoped Mongo secret or non-prod Clerk instance exists, so the async Lambda pipeline and auth won't work until those are created (see `known-issues.md`).
+- A personal dev stack now works end to end for the main API and auth (2026-09-11); the async Lambda pipeline still needs a dev-scoped Mongo secret that doesn't exist yet (see `known-issues.md`).
+- A first `cdk deploy` on a fresh clone fails unless `./scripts/build-all.sh` has been run first — see step 4.
 - `SignUp.tsx` in the frontend has a known bug sending the wrong tenant slug to the backend on account creation (see `known-issues.md`).

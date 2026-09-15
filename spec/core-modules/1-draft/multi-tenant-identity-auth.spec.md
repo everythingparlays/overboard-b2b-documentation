@@ -2,7 +2,7 @@
 
 **Implements:** [`documents/HLDs/multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) — read that first for requirements `IDN-01`–`IDN-13`, the definitions of identity / membership / join / entry / consent gate, and the agreed case behavior. This document is the *how*.
 
-**Status:** Draft. Not approved.
+**Status:** Implemented on the fan surface (2026-09). The membership model, middleware, and route disposition landed with the 2026-09 membership work; the consent gate, join, `POST /b2b/consent`, and configurable signup fields were built 2026-09-11 and merged 2026-09-14 ([`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3), contracts in [`obs-b2b-shared#1`](https://github.com/everythingparlays/obs-b2b-shared/pull/1), frontend in [`overboard-b2b-template#2`](https://github.com/everythingparlays/overboard-b2b-template/pull/2)). One route-disposition row is half done: `POST /b2b/contest/prize-tier` is off the fan surface (2026-09-14) but not yet wired on `/admin/*`. The prescriptive content below stands as written; passages describing "today" refer to the pre-cutover POC.
 
 ## Overview
 
