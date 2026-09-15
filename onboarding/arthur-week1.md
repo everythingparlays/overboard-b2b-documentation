@@ -19,9 +19,11 @@ A couple of things specific to you, worth knowing up front:
 
 ---
 
-## Phase 2: Side Menu Story
+## Phase 2: ~~Side Menu Story~~ — DONE (built 2026-09, merged 2026-09-14)
 
-Full spec: [`spec/features/3-active/side-menu-nav.md`](../spec/features/3-active/side-menu-nav.md) — read the whole thing, it's short and already has the requirements and acceptance criteria written out. Don't duplicate effort re-deriving what's already decided there; if something in it is unclear or seems wrong once you're in the code, ask rather than guessing.
+Shipped in [`overboard-b2b-template#2`](https://github.com/everythingparlays/overboard-b2b-template/pull/2): shadcn `Sheet` side menu with Log Out (a deliberate transition, not a loading flash), Terms, and Privacy.
+
+Full spec: [`spec/features/2-approved/side-menu-nav.md`](../spec/features/2-approved/side-menu-nav.md) — read the whole thing, it's short and already has the requirements and acceptance criteria written out. Don't duplicate effort re-deriving what's already decided there; if something in it is unclear or seems wrong once you're in the code, ask rather than guessing.
 
 Quick pointers, not a replacement for the spec:
 - Use the shadcn CLI to add the `Sheet` component — don't hand-write it.
@@ -55,7 +57,13 @@ Ask for a replacement third task if you finish the side menu with time to spare.
 
 ---
 
-## Phase 4: Entry Gate — Opt-Ins and Configurable Signup Fields
+## Phase 4: ~~Entry Gate — Opt-Ins and Configurable Signup Fields~~ — DONE (built 2026-09-11, PRs merged 2026-09-14)
+
+Shipped across three PRs: [`obs-b2b-shared#1`](https://github.com/everythingparlays/obs-b2b-shared/pull/1) (contracts), [`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3) (consent persistence and enforcement), [`overboard-b2b-template#2`](https://github.com/everythingparlays/overboard-b2b-template/pull/2) (the gate screen). See [`entry-gate.spec.md`](../spec/webapp/entry-gate.spec.md) for what shipped.
+
+One correction to the context below, for the record: the backend was **not** "built and tested" when this phase was written — `GET /b2b/membership` and the join skeleton existed (the 2026-09 membership middleware work), but `POST /b2b/consent` did not, and consent was still silently discarded. The consent endpoint, join-time persistence, and the tests were built 2026-09-11 as part of this phase.
+
+Original phase description:
 
 **Spec:** [`spec/webapp/entry-gate.spec.md`](../spec/webapp/entry-gate.spec.md) — read it first; it has the acceptance criteria and the open questions. The spec's "Mocks" section links to screen mocks for the states it leaves visually undecided (blocking vs non-blocking, returning-fan copy) — look at those before you start on layout, since they're a proposed starting point, not a spec you're re-deriving from scratch.
 

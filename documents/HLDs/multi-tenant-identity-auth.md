@@ -1,6 +1,6 @@
 # HLD: Multi-Tenant Identity, Authentication & Consent
 
-**Status:** Draft — model agreed 2026-08, implementation approach not yet specified.
+**Status:** Model agreed 2026-08; implementation specified in [`multi-tenant-identity-auth.spec.md`](../../spec/core-modules/1-draft/multi-tenant-identity-auth.spec.md). The fan-surface membership, consent, and join requirements are implemented as of 2026-09 — see "Current State vs These Requirements" below.
 
 ## How to Read This Document
 
@@ -219,11 +219,11 @@ Note the deliberate asymmetry with the fan surface: single-active-organization s
 
 | Requirement | State | Evidence |
 |---|---|---|
-| `IDN-01` | Violated | `clerkUserId` uniquely indexed — one identity can hold one tenant only |
-| `IDN-03` | Violated | A session is treated as authorization. `ProtectedRoute` checks `isSignedIn` alone, so a session held for one tenant admits the fan to every tenant. Session sharing across subdomains is not the defect and persists in the target state; the defect is that nothing checks membership afterwards. |
-| `IDN-04` | Violated | `organizationId` arrives as a client-supplied query parameter, unvalidated against membership. Also an open IDOR independent of multi-tenancy — already logged in `known-issues.md`; `IDN-04` closes it. |
-| `IDN-05` | Violated | Opt-ins collected once, inside the signup form |
-| `IDN-07` | Violated | Worse than a version gap: `createB2BUser` accepts `optInConsents` but `b2bUserSchema` declares no such field, so Mongoose strips it. **Consent is discarded before persistence** — consistent with POC-baseline's `OPT-*` row. |
+| `IDN-01` | Implemented (2026-09) | `B2BUser` split into `B2BFan` (unique `clerkUserId`, platform-wide) and per-tenant `B2BFanMembership` — one identity, many memberships |
+| `IDN-03` | Implemented (2026-09) | `requireMembership` middleware returns `403` for a session with no membership at the resolved tenant; `ProtectedRoute` gained the authenticated-but-not-a-member state routing to the join flow (merged 2026-09-14) |
+| `IDN-04` | Implemented (2026-09) | Middleware resolves `?tenant=<slug>` and validates it against the caller's membership; handlers no longer accept `organizationId`. A guard test (merged 2026-09-14) asserts every `/b2b/*` route declares auth explicitly, closing the by-omission path. The IDOR logged in `known-issues.md` is closed. |
+| `IDN-05` | Implemented (built 2026-09-11, merged 2026-09-14) | Gate evaluated per entry: `GET /b2b/membership` returns `pendingConsents` (and `pendingFields` per `AUTH-02`'s 2026-09 mid-season decision), and the server enforces it — board generation returns `409` on an unmet blocking consent. The same merge fixed a gap where a fan with a recorded *decline* of a blocking opt-in passed the gate. |
+| `IDN-07` | Implemented (built 2026-09-11, merged 2026-09-14) | `ConsentRecord` `(optInId, textVersion, decision, agreedAt)` persisted on the membership — atomically with the join, and via `POST /b2b/consent` thereafter; stale `textVersion`s rejected, `agreedAt` stamped server-side ([`obs-b2b-shared#1`](https://github.com/everythingparlays/obs-b2b-shared/pull/1), [`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3)) |
 | `IDN-09` | Not built | One shared instance; no variant concept |
 | `IDN-10`, `IDN-12`, `IDN-13` | In progress | Admin surface access framework under active build, per `admin-surface.spec.md` |
 | `IDN-11` | Partially met | Sponsor↔tenant relationship exists in config; DPA field scope not modelled |

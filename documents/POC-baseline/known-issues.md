@@ -13,7 +13,13 @@ It stayed invisible because the failure needs data: with zero boards for the que
 **Worth taking from this:** a schema defined as `{}` with `strict: false` silently disables `populate` for every path. Any other model declared that way has the same latent failure — `entitySchema` and `betEventSchema` are both empty too, and are safe only because nothing populates *through* them today.
 
 
-## Cross-Tenant Data Isolation — No Enforcement (`SEC-08`)
+## ~~Cross-Tenant Data Isolation — No Enforcement~~ (`SEC-08`) — Resolved (2026-09)
+
+**Resolved in two steps.** Membership-based middleware landed 2026-09 (`resolveTenant` + `requireMembership` in `node-server/src/middleware/tenant.ts`, per [`multi-tenant-identity-auth.spec.md`](../../spec/core-modules/1-draft/multi-tenant-identity-auth.spec.md)): tenant scope is resolved server-side and validated against the caller's membership before any handler runs, closing the client-supplied-`organizationId` hole. [`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3) (merged 2026-09-14) finished the fan surface: `POST /b2b/contest/prize-tier` is removed from the fan route table entirely (handler kept for the coming admin surface), and a guard test now asserts every `/b2b/*` route declares `auth` explicitly — an unauthenticated route can no longer ship by omission.
+
+One correction to the original text below: by the time it was removed, `/b2b/contest/prize-tier` was no longer unauthenticated — the 2026-09 middleware work had put `requireMembership` on it. The remaining flaw was authority, not authentication: any tenant *member* could write prize configuration, which `PRIZE-03` (resolved 2026-09: OBS staff only) forbids.
+
+Original finding, for context:
 
 The backend's authorization model (`node-server/src/middleware/auth.ts`) only ever checks "is this the same Clerk user as the one in the request" — it never checks organization/tenant membership. Concretely:
 
@@ -25,7 +31,11 @@ The backend's authorization model (`node-server/src/middleware/auth.ts`) only ev
 
 The repo's own `b2b-routes-list.txt` shows the author was already tracking most of this as `AUTH: none` — it's a known, unfinished state, not a surprise. Full detail: [`backend.md`](backend.md).
 
-## Opt-In Consent Is Silently Discarded (`OPT-01`–`OPT-06`)
+## ~~Opt-In Consent Is Silently Discarded~~ (`OPT-01`–`OPT-06`) — Resolved (2026-09)
+
+**Resolved (built 2026-09-11, merged 2026-09-14)** by the entry-gate work: consent records are `{optInId, textVersion, decision, agreedAt}` embedded on the membership ([`obs-b2b-shared#1`](https://github.com/everythingparlays/obs-b2b-shared/pull/1)), and the backend actually persists them — `POST /b2b/join` validates and stores profile fields and consents atomically with the membership (declining a blocking opt-in fails the join; no partial membership), and `POST /b2b/consent` records post-join answers, rejecting stale `textVersion`s ([`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3)).
+
+Original finding, for context:
 
 The Zod schema for user creation models granular, timestamped, per-opt-in consent (`optInConsents: [{messageId, agreedAt}]`) and the handler passes it to `B2BUserModel.create()` — but the Mongoose schema has no matching field, so Mongoose's strict mode drops it silently before persistence. The API returns a 201 as if it worked. This is functionally equivalent to "unbuilt" but harder to catch than a missing feature, since the request appears to succeed. Detail: [`backend.md`](backend.md).
 
@@ -45,9 +55,11 @@ Only email+password (with email-code MFA) is implemented in the actual sign-up/s
 
 **Decision (2026-08):** this needs to be prioritized, not treated as a deferred nice-to-have — it's a `[V1]` PRD requirement (`AUTH-01`) that's currently missing from the actual signup flow.
 
-## Auth: Configurable Signup Fields Not Built (`AUTH-02`)
+## ~~Auth: Configurable Signup Fields Not Built~~ (`AUTH-02`) — Resolved (2026-09)
 
-There's no per-tenant field configuration model anywhere (frontend or backend) — the signup form and its required fields are currently fixed in code, not data-driven.
+**Resolved (built 2026-09-11, merged 2026-09-14):** `AUTH-02` is implemented end to end — field definitions from a closed platform catalog live on `B2BOrganization.signupFields` ([`obs-b2b-shared#1`](https://github.com/everythingparlays/obs-b2b-shared/pull/1)), the server validates values at join and re-evaluates required fields mid-season (`pendingFields` on the membership response, enforced at board generation — [`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3)), and the entry-gate form renders from that config ([`overboard-b2b-template#2`](https://github.com/everythingparlays/overboard-b2b-template/pull/2)). Changing a tenant's field config changes the form with no code change and no deploy — the acceptance criterion the original gap was measured against. See [`entry-gate.spec.md`](../../spec/webapp/entry-gate.spec.md).
+
+Original finding: there was no per-tenant field configuration model anywhere (frontend or backend) — the signup form and its required fields were fixed in code, not data-driven.
 
 ## Tenant/Org Provisioning Is Fully Manual (`TEN-05`)
 
@@ -61,13 +73,15 @@ The CDK code to terminate TLS at the ALB (443 + HTTP→HTTPS redirect) is implem
 
 No `express-rate-limit` or equivalent anywhere; this is ALB+Fargate, not API Gateway, so there's no platform-level throttling either. No CAPTCHA or signup-abuse protection.
 
-## Frontend Exposes a Live Session Token in a Production Route
+## ~~Frontend Exposes a Live Session Token in a Production Route~~ — Resolved (2026-09)
 
-`pages/Test.tsx` is routed at `/test`, gated only by `ProtectedRoute` (requires sign-in) — unlike the app's other dev tooling, it is **not** gated by `import.meta.env.DEV`, so it ships in the production bundle. It has a "Copy Auth Token" button that copies the live Clerk session JWT and logs it to the console in plaintext. It also hardcodes the backend's internal ELB hostname directly in source. Detail: [`webapp.md`](webapp.md).
+**Resolved (2026-09-14):** `pages/Test.tsx` and its `/test` route are deleted outright ([`overboard-b2b-template#2`](https://github.com/everythingparlays/overboard-b2b-template/pull/2)) — which also removes the dead `B2BTestObject` call noted in the "Removed" entry below.
+
+Original finding: `pages/Test.tsx` was routed at `/test`, gated only by `ProtectedRoute` (requires sign-in) — unlike the app's other dev tooling, it was **not** gated by `import.meta.env.DEV`, so it shipped in the production bundle. It had a "Copy Auth Token" button that copied the live Clerk session JWT and logged it to the console in plaintext. It also hardcoded the backend's internal ELB hostname directly in source. Detail: [`webapp.md`](webapp.md).
 
 ## Hardcoded Plaintext-HTTP Backend URL in Frontend Deploy Config
 
-`vercel.json` proxies API calls to a hardcoded AWS ELB DNS name over plain HTTP, not sourced from an env var. Same hostname duplicated in `pages/Test.tsx`.
+`vercel.json` proxies API calls to a hardcoded AWS ELB DNS name over plain HTTP, not sourced from an env var. Still open as of 2026-09-14. (The same hostname was also duplicated in `pages/Test.tsx` until that page was deleted 2026-09-14 — see the resolved token-exposure entry above.)
 
 ## Observability Is Console-Only (`OBS-01`–`OBS-05`)
 
@@ -88,7 +102,7 @@ Both also drop the misleading `cdk_test_` prefix. Cheap now while the target col
 
 ## Removed: `B2BTestObject` / `PUT /api/test-object`
 
-**Removed (2026-08).** The auth-verification scratch endpoint, its handler, Zod schemas, interface, and Mongoose model are deleted from `node-server` and `pb-shared-deps`. The frontend's `pages/Test.tsx` still calls it and that section is now dead — relevant because that page is the one exposing a live Clerk session token in production builds (see below); removing the page entirely would close both at once.
+**Removed (2026-08).** The auth-verification scratch endpoint, its handler, Zod schemas, interface, and Mongoose model are deleted from `node-server` and `pb-shared-deps`. The frontend's `pages/Test.tsx` still called it as dead code — that page was itself deleted 2026-09-14 (see the resolved token-exposure entry above), closing both at once.
 
 ## Atlas App Roles Grant Database-Wide readWrite, Not Per-Collection (Lower Priority)
 
@@ -112,15 +126,16 @@ Both auth paths described in [`infra.md`](infra.md) are currently live in produc
 
 **Found (2026-08) while verifying collection names for [`mongodb-access-isolation.spec.md`](../../spec/core-modules/2-approved/mongodb-access-isolation.spec.md):** the shared database contains a full parallel set of legacy collections prefixed `test_*` (`test_betevents`, `test_props`, `test_entities`, `test_users`, `test_contests`, `test_boards`, and others) alongside the live `cdk_test_*` set. These are **not** a live mirror — `test_betevents` has 3000 documents vs. `cdk_test_betevents`'s 2943, confirming divergence, not sync. The `stageName` constant in `pb-shared-deps/models.ts` is hardcoded to `"cdk_test"` today, meaning `test_*` was written under an earlier value of that constant and abandoned when it changed. Low priority — dead data taking up space, not a functional or security issue — but worth cleaning up eventually, and worth knowing about so it doesn't get mistaken for a second live environment.
 
-## Personal Dev Stacks: Infra Isolation Is Built, Two Prerequisites Still Missing
+## Personal Dev Stacks: Main API Works End to End (2026-09); One Prerequisite Still Missing
 
 **Update (2026-08): the CDK stage-parameterization from [`environments.spec.md`](../../spec/infra/environments.spec.md) is implemented.** `bin/overboard-sports-backend.ts` now requires `-c stage=<name>` (no default; a bare `cdk deploy` fails loudly), config moved into the new `lib/config/environments.ts`, and — found while implementing this — **all six SQS queues in `prize-delivery.ts` had hardcoded `queueName`s**, which would have collided the moment a second developer's stack deployed into the same account. Removed, so CDK now derives unique names per stack as the spec's Pattern 2 requires. `obs-b2b-prod` in this config is a brand-new, empty account, not the currently-running production system — see "Production Workloads Run in the AWS Organization's Management Account" below.
 
-**Still blocking a personal stack from being actually usable, not just deployable** — deploying with `-c stage=<name>` today will succeed, but:
-- **No dev-scoped MongoDB secret exists.** The board-evaluator and prop-update-evaluator Lambdas hard-require `MONGODB_SECRET_ARN` (confirmed in `pb-shared-deps/utils/lambda/db_connector_from_uri.ts` — throws if unset, no IAM fallback on the Lambda side). The existing secret lives in the management account (`769696051685`) and isn't cross-account accessible from `obs-b2b-dev` without a resource policy that doesn't exist. A new secret needs to be created in `obs-b2b-dev` itself. (Main API / node-server doesn't have this problem — it uses Atlas IAM auth via its task role.)
-- ~~**No non-production Clerk instance exists.**~~ **Resolved (2026-08):** created — `natural-macaw-97.clerk.accounts.dev`. Its publishable key is documented in [`SETUP.md`](../../SETUP.md) (publishable keys are public by design). **Still to do:** store its *secret* key in a Secrets Manager secret named `obs-b2b-dev/clerk` in the `obs-b2b-dev` account, and set `clerkSecretArn` in `lib/config/environments.ts` — until then node-server still starts with no auth configured.
+**Update (2026-09-11): a personal dev stack now works end to end for the main API.** `OverboardSportsBackendStack-arthur` deployed 2026-09-11 with its two IAM role ARNs pre-registered in Atlas per [`environments.spec.md`](../../spec/infra/environments.spec.md#onboarding-a-new-developer--required-atlas-step), and the deployed stack serves authenticated fan traffic against the `obs-b2b-dev` database. One prerequisite of the original two remains open:
 
-Until both exist, treat a personal dev stack as "infrastructure deploys, but auth and the async prize pipeline don't work yet."
+- **No dev-scoped MongoDB secret exists — still open.** The board-evaluator and prop-update-evaluator Lambdas hard-require `MONGODB_SECRET_ARN` (throws if unset, no IAM fallback on the Lambda side). The existing secret lives in the management account (`769696051685`) and isn't cross-account accessible from `obs-b2b-dev` without a resource policy that doesn't exist. A new secret needs to be created in `obs-b2b-dev` itself — `lib/config/environments.ts` still carries the TODO. (Main API / node-server doesn't have this problem — it uses Atlas IAM auth via its task role.)
+- ~~**No non-production Clerk instance exists.**~~ **Resolved (2026-08 instance, 2026-09 secret):** instance `natural-macaw-97.clerk.accounts.dev` created; its publishable key is documented in [`SETUP.md`](../../SETUP.md) (publishable keys are public by design). Its secret key now lives in Secrets Manager in `obs-b2b-dev` as `dev/OverBoardB2B/clerkAuth`, wired via `clerkSecretName` in `lib/config/environments.ts` — node-server starts with auth configured.
+
+Until the Mongo secret exists, treat a personal dev stack as "main API and auth work end to end; the async Lambda pipeline (board/prop evaluation) doesn't yet."
 
 ## External Dependency: `prop-hit` Queue Producer Lives in Another Repo
 
@@ -162,20 +177,24 @@ Removing `pb-shared-deps` from the frontend turned out to be possible only becau
 
 `pb-shared-deps` and `core` are gone from both B2B repos, replaced by `obs-b2b-shared` (see the decision entry above). All four checkouts are pinned to the same commit. Drift is still *possible* — they remain separate checkouts — but there is now one repo instead of two, and the `ecs-branch`/`main` divergence that made B2B changes conflict with D2C work no longer applies.
 
+**Update (2026-09-14):** the backend's three `obs-b2b-shared` paths had been committed as plain directories rather than gitlinks, so `git submodule` tooling could not manage or pin them. [`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3) registers them as real gitlinked submodules (commit `e8f2188`), all three pinned to one `obs-b2b-shared` commit alongside the frontend's.
+
 Original problem, for context:
 
 `pb-shared-deps` is vendored as four separate checkouts (frontend + backend's `lambdas/`, `node-server/`, `prize-worker/`), each pinned to a different commit. The backend's own `TODO` flags this as known and unresolved. A schema change to a shared model (e.g. `B2BBoard`) isn't guaranteed to be in sync across all four consumers today.
 
-## Testing: Effectively Zero Coverage Anywhere
+## Testing: ~~Effectively Zero Coverage Anywhere~~ — Backend Resolved (2026-09), Frontend Still at Zero
 
-Both repos have no real test coverage — the CDK app's test file has every assertion commented out, and neither `node-server`, the Lambdas, `prize-worker`, nor the frontend has any test files or testing libraries installed at all.
+**Backend resolved (2026-09, merged 2026-09-14):** `npx jest` at the backend repo root now runs 42 tests across 7 suites — tenant isolation, the route-auth guard (every `/b2b/*` route must declare `auth`), entry-gate consent/field evaluation, and admin instance/scope separation ([`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3) plus the 2026-09 membership and admin work). Two caveats: the CDK app's own test file is still the commented-out placeholder (its one empty test passes vacuously and accounts for one of the 7 suites), and the Lambdas/`prize-worker` remain untested. **The frontend claim below still stands** — no test files, no testing libraries installed.
+
+Original finding: both repos had no real test coverage — the CDK app's test file has every assertion commented out, and neither `node-server`, the Lambdas, `prize-worker`, nor the frontend had any test files or testing libraries installed at all.
 
 ## Known-But-Unaddressed Items (from the repos' own TODO files)
 
 These are gaps the original author already flagged, not new findings — useful signal for what was already understood as unfinished:
 
 - Frontend `TODO.md`: `SignUp.tsx` sends `VITE_TENANT_SLUG` (an env var) as `tenantSlug` instead of the subdomain-resolved `tenant?.slug` — since production tenant resolution is subdomain-based, this can tag a new user with the wrong tenant. **Decision (2026-08): deferred — not being worked on right now.** If it does get fixed, do it as a complete fix (using `tenant?.slug` consistently, not a partial patch), not a quick patch.
-- Backend `TODO`: "Get Database Access Configured for the Task" (manual provisioning), "fix submodules" (drift above), "Figure out how to test the functions" (no test strategy).
+- Backend `TODO`: "Get Database Access Configured for the Task" (manual provisioning), "fix submodules" (drift above — closed 2026-09-14, gitlinks restored), "Figure out how to test the functions" (answered 2026-09: jest — see the testing entry above).
 
 ## Styling System Doesn't Consistently Use Its Own Tenant-Theming Tokens
 

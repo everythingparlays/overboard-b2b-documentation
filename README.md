@@ -50,13 +50,14 @@ This repo is one of three, meant to sit side-by-side in a shared workspace folde
 obs-b2b-workspace/                     <- your workspace folder, any name
 ├── overboardb2b-documentation/        <- this repo (specs, PRD, POC baseline)
 ├── overboard-b2b-template/            <- frontend (React/Vite)
-│   ├── core/                          <- submodule: overboard-b2b-shared-deps
-│   └── pb-shared-deps/                <- submodule: pb-shared-deps
+│   └── obs-b2b-shared/                <- submodule: obs-b2b-shared
 └── overboard_sports_backend/          <- backend, workers, infra (CDK)
-    ├── lambdas/pb-shared-deps/            <- submodule: pb-shared-deps
-    ├── node-server/src/pb-shared-deps/    <- submodule: pb-shared-deps
-    └── prize-worker/pb-shared-deps/       <- submodule: pb-shared-deps
+    ├── lambdas/obs-b2b-shared/            <- submodule: obs-b2b-shared
+    ├── node-server/src/obs-b2b-shared/    <- submodule: obs-b2b-shared
+    └── prize-worker/obs-b2b-shared/       <- submodule: obs-b2b-shared
 ```
+
+(`pb-shared-deps` and `core` were removed from the B2B repos in 2026-08 in favor of the single `obs-b2b-shared` — see `documents/HLDs/b2b-shared-deps.md`.)
 
 New to the project? [`SETUP.md`](SETUP.md) walks through cloning and configuring all three repos from scratch.
 

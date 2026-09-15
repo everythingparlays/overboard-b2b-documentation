@@ -4,7 +4,7 @@
 
 **Depends on:** [`multi-tenant-identity-auth.spec.md`](../core-modules/1-draft/multi-tenant-identity-auth.spec.md) — the membership model, `GET /b2b/membership`, and the join endpoint, all of which are built.
 
-**Status:** Draft. Not approved.
+**Status:** Implemented 2026-09-11, merged 2026-09-14 — this spec now describes shipped behavior. Contracts in [`obs-b2b-shared#1`](https://github.com/everythingparlays/obs-b2b-shared/pull/1), enforcement in [`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3), the screen in [`overboard-b2b-template#2`](https://github.com/everythingparlays/overboard-b2b-template/pull/2).
 
 ## Overview
 
@@ -81,10 +81,10 @@ Do not navigate on success. The mutation invalidates the membership cache tag an
 
 ## Open questions
 
-- **Visual treatment of blocking vs non-blocking.** A required-field marker, grouping, helper text — undecided. Needs a product/design call, and it matters: a fan stuck on this screen must understand *why*.
-- **Copy for the returning-fan case.** "Welcome back" is a placeholder. A fan re-asked because legal text changed should probably be told that, rather than left to wonder whether something went wrong.
-- **Changing a previously-declined non-blocking opt-in.** There is no profile or settings screen today, so a fan who declines has no way to opt in later without the text changing. Whether that matters is a product decision.
-- **Drop-off measurement.** This screen sits between a fan and playing, and `AUTH-02`'s note for product warns that more required fields reduce conversion. Worth instrumenting, but analytics is unbuilt (`SEC-05` constrains what may be sent).
+- ~~**Visual treatment of blocking vs non-blocking.**~~ **Resolved (2026-09-14, implemented per the mocks):** every field and opt-in carries a REQUIRED or OPTIONAL chip (required fields also get an asterisk), and submitting with something outstanding shows an error summary plus inline red error text on each missing required field and a red-bordered card with its own error line on each unmet blocking consent — an untouched optional item shows no error state at all.
+- ~~**Copy for the returning-fan case.**~~ **Resolved (2026-09-14, implemented per the mocks):** the "Welcome back" heading stays, but the subtitle names what actually changed — "`<Team>` has updated the wording of an agreement you'd accepted / added a new opt-in / needs a little more profile info since your last visit" — and each re-asked card is chipped UPDATED or NEW so a fan is never left wondering whether something went wrong.
+- ~~**Changing a previously-declined non-blocking opt-in.**~~ **Decided (2026-09):** not revisitable until that opt-in's `textVersion` changes. A future profile/settings surface is the proper home for changing a standing answer; this gate only ever asks about what is outstanding.
+- **Drop-off measurement.** Still open. This screen sits between a fan and playing, and `AUTH-02`'s note for product warns that more required fields reduce conversion. Worth instrumenting, but analytics is unbuilt (`SEC-05` constrains what may be sent).
 
 ---
 
@@ -94,7 +94,7 @@ Static screen mocks exist for this flow: [Multi-Tenant Entry Flow](https://claud
 
 - **Screens 1 & 3 — "Join `<Team>`"** (Bears and Fighting Hawks): required/optional fields and opt-ins on one form, with visibly different `signupFields` per tenant so it's clear the fields are config-driven, not hardcoded.
 - **Screen 2 — same form, validation-error state**: one candidate for the blocking-vs-non-blocking question — a missing required field gets inline red error text on submit, and an unmet required (blocking) consent gets a red-highlighted row with its own error line, visually distinct from an untouched optional one.
-- **Screens 4 & 5 — "Welcome back"**: one candidate for the returning-fan copy — names what actually changed ("we've updated our Terms of Service" / "added a new sponsor") instead of a bare "Welcome back." Screen 5 also mocks a tenant requiring a new *field* (not just a consent) from existing members mid-season — flagged on the canvas as speculative, since the HLD only defines re-evaluation for opt-ins (`IDN-05`), not `signupFields`. Raise that gap with whoever owns the HLD before building against it.
+- **Screens 4 & 5 — "Welcome back"**: one candidate for the returning-fan copy — names what actually changed ("we've updated our Terms of Service" / "added a new sponsor") instead of a bare "Welcome back." Screen 5 also mocks a tenant requiring a new *field* (not just a consent) from existing members mid-season — flagged on the canvas as speculative at the time, since the HLD only defined re-evaluation for opt-ins (`IDN-05`), not `signupFields`. **Resolved (2026-09):** PRD `AUTH-02`'s 2026-09 decision settled it — fields are re-evaluated at entry like opt-ins. Implemented: the membership response carries `pendingFields`, and a missing required field blocks at the board gate just as a blocking consent does.
 
 **Access:** this is a Claude Artifact, private by default — if Arthur can't open the link, it needs to be shared from the page's share menu first.
 
