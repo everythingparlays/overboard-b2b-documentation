@@ -269,7 +269,7 @@ Standing constraints for anyone touching this area afterwards.
 4. **Consent text edits increment `textVersion`.** Editing `text` without incrementing silently leaves every fan consented to copy they never saw.
 5. **Consents never transfer between memberships** (`IDN-06`), including for the same sponsor.
 6. **`agreedAt` is stamped server-side.** Never accepted from a client.
-7. **`fieldId` comes from the closed platform catalog, and unconfigured fields are rejected rather than ignored.** Silently dropping an unexpected field hides a client bug; rejecting surfaces it. Several catalog fields (`address`, `birthday`, `phone`) are PII under `SEC-05`/`SEC-06`, and live on the membership so `IDN-08` deletion removes them.
+7. **`fieldId` comes from the closed platform catalog, and unconfigured fields are rejected rather than ignored.** Silently dropping an unexpected field hides a client bug; rejecting surfaces it. Several catalog fields (`address`, `birthday`, `phone`) are PII under `SEC-03`, and live on the membership so `IDN-08` deletion (`SEC-07`) removes them.
 
 ---
 

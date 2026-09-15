@@ -36,7 +36,7 @@ This document defines the identity, membership, consent, and administrative-acce
 - **Consent gate** — the check, run at every entry, comparing the tenant's currently-active opt-ins against the fan's recorded decisions for that tenant.
 - **Opt-in version** — the revision of an opt-in's user-facing text. Changing the text mints a new version; prior decisions no longer satisfy it.
 - **Fan surface** — `[slug].overboardsports.com`. Consumer-facing, high volume, no MFA.
-- **Admin surface** — the internal/tenant/reporting UI (`TEN-05`). Low volume, privileged, MFA-enforced. Does not exist yet; build begins ~September 2026.
+- **Admin surface** — the internal/tenant/reporting UI (`ADM-01`–`ADM-09`). Low volume, privileged, MFA-enforced. In progress as of September 2026 — the access framework (this document's `IDN-10`–`IDN-13`, and `admin-surface.spec.md`) is being built first; what the surface *does* (`ADM-04` onward) follows.
 - **Actor classes on the admin surface** — **OBS staff** (cross-tenant) and **team users** (one tenant; the "designated tenant user" of `PRIZE-03`). Sponsors receive exports but do not authenticate (`IDN-11`).
 
 ## Requirements
@@ -67,7 +67,7 @@ A fan's acceptance of a Coca-Cola opt-in at one tenant grants nothing at another
 Each record is `(membership, optInId, textVersion, decision, agreedAt)` where decision is accepted or declined. Storing only acceptances re-prompts a declining fan on every entry forever; storing no version makes an `OPT-05` text change undetectable. Both are required for `IDN-05` to function.
 
 **`IDN-08` [P0] — Account deletion is membership-scoped by default.**
-A deletion request at one tenant removes that membership and its tenant-scoped data, propagated per `SEC-06`. The platform identity is deleted only when the last membership is gone. A documented support path exists for full cross-tenant erasure.
+A deletion request at one tenant removes that membership and its tenant-scoped data, propagated per `SEC-07`. The platform identity is deleted only when the last membership is gone. A documented support path exists for full cross-tenant erasure.
 
 **`IDN-09` [P2] — Sign-in method is a product variant, constant per tenant per season.**
 `AUTH-04` anticipates tenants wanting different primary sign-in methods (one email-primary, another phone-primary). This is satisfied by **two fan Clerk instances — one email-primary, one phone-primary — sold to teams as variants**, with a tenant's choice fixed for the duration of a season. It is not a per-request config lookup and is not exposed in the admin UI.
@@ -198,7 +198,7 @@ Clerk Organizations remain correct for the admin surface, where volumes are smal
 
 **Specified in [`spec/core-modules/1-draft/admin-surface.spec.md`](../../spec/core-modules/1-draft/admin-surface.spec.md)** — access framework only; what the surface *does* needs its own specs.
 
-Build begins ~September 2026. Fan-side design must not foreclose it; the two surfaces are separate Clerk instances and share no session.
+In progress as of September 2026. Fan-side design must not foreclose it; the two surfaces are separate Clerk instances and share no session.
 
 **Separate instance with MFA required** (`IDN-10`), for three reasons: MFA is an instance-wide toggle and cannot be required of fans; organization membership mode is instance-wide and the surfaces need opposite settings (admin `Membership required`, fans personal accounts); and admin sign-in should be locked down rather than inheriting the fan variants' method config. The cost is one additional JWKS issuer for the backend to trust — acceptable, since `/admin/*` warrants a distinct middleware chain from `/b2b/*` regardless.
 
@@ -209,7 +209,7 @@ Build begins ~September 2026. Fan-side design must not foreclose it; the two sur
 | `tenant` | one per team, slug matching the tenant slug | that team's designated users | that tenant only |
 | `obs` | exactly one | OBS staff | cross-tenant |
 
-OBS staff hold membership in the single `obs` organization rather than admin membership in every tenant organization. Both approaches satisfy `RPT-05`'s requirement that the internal fan-actions export be inaccessible to team users — the alternative does so via custom roles (`org:obs_staff` vs `org:team_admin`), which works and is operationally cheap. The `obs` organization is preferred because Clerk's active organization is a single per-session value: `OBS-03`'s cross-tenant health dashboard and `RPT-01`/`RPT-02`'s cross-tenant trends have no single active org that authorizes them, whereas membership in one `obs` organization is a standing cross-tenant grant. The two are alternatives, not complements; adding staff to every tenant organization *as well* grants nothing further.
+OBS staff hold membership in the single `obs` organization rather than admin membership in every tenant organization. Both approaches satisfy `RPT-02`'s requirement that the internal fan-actions export be inaccessible to team users — the alternative does so via custom roles (`org:obs_staff` vs `org:team_admin`), which works and is operationally cheap. The `obs` organization is preferred because Clerk's active organization is a single per-session value: `OBS-04`'s cross-tenant health dashboard and `RPT-01`/`RPT-02`'s cross-tenant trends have no single active org that authorizes them, whereas membership in one `obs` organization is a standing cross-tenant grant. The two are alternatives, not complements; adding staff to every tenant organization *as well* grants nothing further.
 
 No sponsor organizations (`IDN-11`).
 
@@ -225,7 +225,7 @@ Note the deliberate asymmetry with the fan surface: single-active-organization s
 | `IDN-05` | Violated | Opt-ins collected once, inside the signup form |
 | `IDN-07` | Violated | Worse than a version gap: `createB2BUser` accepts `optInConsents` but `b2bUserSchema` declares no such field, so Mongoose strips it. **Consent is discarded before persistence** — consistent with POC-baseline's `OPT-*` row. |
 | `IDN-09` | Not built | One shared instance; no variant concept |
-| `IDN-10`, `IDN-12`, `IDN-13` | Not applicable yet | Admin surface not built |
+| `IDN-10`, `IDN-12`, `IDN-13` | In progress | Admin surface access framework under active build, per `admin-surface.spec.md` |
 | `IDN-11` | Partially met | Sponsor↔tenant relationship exists in config; DPA field scope not modelled |
 
 ## Implied Changes
@@ -255,7 +255,7 @@ Nothing. Every requirement above is settled; `PRIZE-03` authority (OBS staff onl
 
 ## Related
 
-- PRD [`AUTH-01`–`AUTH-04`, `OPT-01`–`OPT-06`, `TEN-04`, `SEC-03`, `SEC-06`, `SEC-08`, `RPT-04`, `RPT-05`](../PRD/OBS_B2B_Platform_PRD.md)
+- PRD [`AUTH-01`–`AUTH-04`, `OPT-01`–`OPT-06`, `TEN-04`, `SEC-03`, `SEC-06`, `SEC-07`, `SEC-08`, `RPT-02`, `RPT-04`, `RPT-05`](../PRD/OBS_B2B_Platform_PRD.md)
 - [`documents/POC-baseline/webapp.md`](../POC-baseline/webapp.md) — current auth and tenant resolution
 - [`documents/POC-baseline/known-issues.md`](../POC-baseline/known-issues.md) — the authorization gaps `IDN-04` closes
 - [`documents/HLDs/data-access-isolation.md`](data-access-isolation.md) — the same server-side-scope principle at the database credential layer

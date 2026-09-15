@@ -1,6 +1,6 @@
 # Core Module Spec: Admin Surface — Access Framework
 
-**Implements:** HLD [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) `IDN-10`, `IDN-12`, `IDN-13`. PRD `TEN-05`, `SEC-08`, `RPT-05`.
+**Implements:** HLD [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) `IDN-10`, `IDN-12`, `IDN-13`. PRD `ADM-01`, `ADM-02`, `ADM-09`, `SEC-08`, `RPT-02`.
 
 **Status:** Draft. No open questions remain — ready for review.
 
@@ -12,7 +12,7 @@ The access framework for the internal/tenant admin application: who can sign in,
 
 **In scope:** the Clerk instance, organization topology, roles, the two-instance backend mechanism, the `/admin/*` middleware contract, and the frontend app's shape.
 
-**Not in scope:** what the admin surface *does*. Tenant/game/prize configuration (`TEN-05`, `BRAND-02`), reporting (`RPT-*`), and the health dashboard (`OBS-03`) each need their own spec. This one exists so those can be built without re-litigating access.
+**Not in scope:** what the admin surface *does*. Tenant/game/prize configuration (`ADM-04`, `BRAND-02`), consent config (`ADM-05`), contest finalization (`ADM-06`), reporting (`ADM-07`, `RPT-*`), and the health dashboard (`OBS-04`) each need their own spec. This one exists so those can be built without re-litigating access.
 
 ---
 
@@ -39,7 +39,7 @@ Two kinds of organization. **The tenant org's Clerk slug is the tenant's subdoma
 | Tenant | matches `B2BOrganization.subdomain` (`bears`) | one per team | that team's designated users | that tenant only |
 | OBS | `obs` (reserved) | exactly one | OBS staff | cross-tenant |
 
-**OBS staff belong to the single `obs` org rather than holding admin membership in every tenant org.** Both satisfy `RPT-05`'s requirement that the internal fan-actions export be unreachable by team users — the alternative does it with custom roles. The `obs` org wins because Clerk's active organization is one value per session: `OBS-03`'s cross-tenant health dashboard and `RPT-01`/`RPT-02`'s cross-tenant trends have no single active org that authorizes them, whereas membership in `obs` is a standing grant. The two are alternatives, not complements — adding staff to every tenant org *as well* grants nothing further and makes tenant provisioning O(staff).
+**OBS staff belong to the single `obs` org rather than holding admin membership in every tenant org.** Both satisfy `RPT-02`'s requirement that the internal fan-actions export be unreachable by team users — the alternative does it with custom roles. The `obs` org wins because Clerk's active organization is one value per session: `OBS-04`'s cross-tenant health dashboard and `RPT-01`/`RPT-02`'s cross-tenant trends have no single active org that authorizes them, whereas membership in `obs` is a standing grant. The two are alternatives, not complements — adding staff to every tenant org *as well* grants nothing further and makes tenant provisioning O(staff).
 
 **No sponsor organizations** (`IDN-11`). Sponsors receive exports; they do not sign in. A sponsor belongs to exactly one tenant (`TEN-04`, revised 2026-09) and carries that sponsor's DPA field scope (`RPT-04`), so sponsor configuration sits wholly inside one tenant's boundary — there is no shared record two teams' admins could both edit.
 
@@ -49,19 +49,23 @@ Two kinds of organization. **The tenant org's Clerk slug is the tenant's subdoma
 
 Clerk's system roles carry org management; custom permissions carry ours. Naming follows `org:<resource>:<action>` (system permissions are `org:sys_*` and must not be invented).
 
+A tenant org has two Clerk roles in V1, distinct in what each is *for*: `org:admin` — the person(s) who can invite/remove teammates (see "Provisioning and delegation") — and `org:member`, everyone else. Neither currently holds write access to tenant config; that's the read/write split below, not the admin/member split.
+
 | Permission | Grants | Held by |
 |---|---|---|
-| `org:tenant_config:manage` | Per-game elements — sponsor assets, prize tiers, active games (`BRAND-02`, `GAME-01`) | tenant `org:admin`, obs `org:admin` + `org:member` |
+| `org:tenant_config:read` | View active games, prize tiers, sponsor assets, and contest performance (`ADM-02`) | tenant `org:admin` + `org:member`, obs `org:admin` + `org:member` |
+| `org:tenant_config:manage` | The same, **write** — per-game elements: sponsor assets, prize tiers, active games (`BRAND-02`, `GAME-01`) | obs `org:admin` + `org:member` only. **Not yet granted to any tenant role in V1** — extending it to tenant `org:admin` is `ADM-03` **[FUTURE]**. |
 | `org:reports:read` | Tenant-scoped reports (`RPT-01`–`RPT-03`) | all admin roles, scoped to the caller's org |
-| `org:fan_data:export` | The internal fan-actions export (`RPT-05`) — **PII** | obs only |
+| `org:fan_data:export` | The internal fan-actions export (`RPT-02`) — **PII** | obs only |
 | `org:contest:finalize` | Manual contest finalization (`PRIZE-03`) | **obs only** |
 
-Two permissions must never appear on a tenant org's role set:
+Three permissions must never appear on a tenant org's role set in V1:
 
-- `org:fan_data:export` — `RPT-05` states the internal fan-actions export is not accessible to team or sponsor users.
+- `org:tenant_config:manage` — `ADM-02` scopes the V1 team-user role to read-only; write is `ADM-03` **[FUTURE]**. Granting this to a tenant role is the one-line change that ships it, and should happen deliberately, not as a side effect of some other change.
+- `org:fan_data:export` — `RPT-02` states the internal fan-actions export is for OBS product analysis and is not shared with teams or sponsors; §11.2's acceptance criterion states it is not accessible to team or sponsor users.
 - `org:contest:finalize` — **OBS staff only** (decision, 2026-09). Finalization triggers real, irreversible prize sends, and failed sends degrade sender reputation for *every* tenant on the platform (`PRIZE-06`). The authority sits with the party that operates the platform and absorbs that cost, not the party that benefits from the activation.
 
-This is where both are enforced.
+This is where all three are enforced.
 
 ---
 
@@ -72,7 +76,7 @@ Three tiers, each delegating to the next (decision, 2026-09):
 | Step | Who | Does what |
 |---|---|---|
 | Bootstrap | An engineer, by hand, once | Creates the `obs` organization and its first member |
-| Tenant onboarding | OBS staff | Creates the tenant's Clerk organization and invites its first admin |
+| Tenant onboarding | OBS staff | Creates the tenant's Clerk organization and invites its first admin — with `org:tenant_config:read` only; `org:tenant_config:manage` is not granted until `ADM-03` ships |
 | Ongoing | That tenant's `org:admin` | Invites and removes users **within their own organization only** |
 
 This keeps `TEN-03`'s ≤2-hour onboarding budget intact: OBS creates one org and sends one invitation, and the team administers itself from there.
@@ -101,8 +105,8 @@ Fan sessions stay long-lived and unaffected — they are on a different instance
 
 Re-prompt for credentials inside an already-MFA'd session (`IDN-13`) before anything **irreversible or PII-releasing**:
 
-- Exporting fan data (`RPT-05`) — releases PII
-- Deleting a fan's data (`SEC-06`) — irreversible, and legally consequential
+- Exporting fan data (`RPT-01`, `RPT-02`) — releases PII
+- Deleting a fan's data (`SEC-07`) — irreversible, and legally consequential
 - Finalizing a contest (`PRIZE-03`) — triggers real prize sends to real fans; cannot be undone
 - Deleting a prize tier, sponsor, or game configuration — silently changes what fans can win
 - Removing an organization member or changing their role — the path to locking a tenant out of its own admin
@@ -159,15 +163,16 @@ The fan template is tenant-branded and deployed per tenant; admin is one deploym
 ## Rules
 
 1. **No admin handler takes a tenant identifier as a parameter.** Scope comes from `req.adminScope`. The exception — an OBS staff member acting on a chosen tenant — is explicit and verified, never implicit.
-2. **`org:fan_data:export` never appears on a tenant org role set** (`RPT-05`).
-3. **The tenant org's Clerk slug equals `B2BOrganization.subdomain`.** Provisioning must create both or neither; a mismatch silently denies access.
-4. **Admin routes are mounted under `/admin` and authenticate against the admin instance only.** A fan token must never satisfy an admin route.
-5. **MFA is required instance-wide.** Do not add a per-route or per-role bypass.
+2. **`org:fan_data:export` never appears on a tenant org role set** (`RPT-02`).
+3. **`org:tenant_config:manage` never appears on a tenant org role set in V1** (`ADM-02`/`ADM-03`). Team users get `org:tenant_config:read` only until `ADM-03` ships.
+4. **The tenant org's Clerk slug equals `B2BOrganization.subdomain`.** Provisioning must create both or neither; a mismatch silently denies access.
+5. **Admin routes are mounted under `/admin` and authenticate against the admin instance only.** A fan token must never satisfy an admin route.
+6. **MFA is required instance-wide.** Do not add a per-route or per-role bypass.
 
 ---
 
 ## References
 
 - HLD: [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) — `IDN-10`–`IDN-13`
-- PRD: [`TEN-03`, `TEN-05`, `BRAND-02`, `GAME-01`, `PRIZE-03`, `RPT-01`–`RPT-05`, `SEC-08`, `OBS-03`](../../../documents/PRD/OBS_B2B_Platform_PRD.md)
+- PRD: [`TEN-03`, `TEN-05`, `ADM-01`–`ADM-09`, `BRAND-02`, `GAME-01`, `PRIZE-03`, `RPT-01`–`RPT-05`, `SEC-07`, `SEC-08`, `OBS-04`](../../../documents/PRD/OBS_B2B_Platform_PRD.md)
 - [`multi-tenant-identity-auth.spec.md`](multi-tenant-identity-auth.spec.md) — the fan-side model this deliberately does not share

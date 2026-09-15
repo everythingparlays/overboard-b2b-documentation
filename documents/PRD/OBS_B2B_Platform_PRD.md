@@ -89,12 +89,13 @@ Acceptance criteria are written to be verifiable. If a criterion can't be tested
 | Reporting & exports | RPT-01 – RPT-07 |
 | Security & data privacy | SEC-01 – SEC-08 |
 | Observability & error monitoring | OBS-01 – OBS-05 |
+| Administrative surface | ADM-01 – ADM-09 |
 
 ### Explicitly out of scope for V1
 
 | Item | Why deferred | Reference |
 | --- | --- | --- |
-| Internal admin UI for tenant/game/prize config | Config changes made directly against the database by an engineer until built | TEN-05 |
+| Team-user *write* access to the admin surface (turning games on/off, editing own sponsor assets/prize tiers, running own exports) | Team users get read-only access in V1; write access follows once OBS-facing tooling is proven | ADM-03 |
 | Per-tenant choice of primary auth method | Email + Google sufficient for current clients | AUTH-04 |
 | Mobile app credential passthrough (D2C → B2B) | Directional only | AUTH-04 |
 | Additional game types (scratch-off, pick-3, over/under) | Separate PRD when prioritized | Section 12 |
@@ -134,8 +135,10 @@ The cost is accepted deliberately — a brand that rebrands mid-season must be u
 
 Revisit if the sponsor count per brand grows enough that duplication is a real maintenance cost, or if a sponsor ever needs a single cross-tenant view of their activations.
 
-**TEN-05 [V1] — Config management, engineer-operated.**
-For V1, tenant configuration is created and updated **directly against the database by an engineer**. A self-serve admin UI is [FUTURE]. The config data model must be structured cleanly enough that adding that UI later does not require restructuring the data.
+**TEN-05 [V1] — Onboarding-time setup is engineer-operated.**
+Creating a new tenant — domain/subdomain routing, CORS allowlist entry, Clerk organization, and the set-once branding elements in `BRAND-01` — is done directly by an engineer, once, at onboarding. This is the activity `TEN-03`'s 1–2 hour budget covers.
+
+Recurring, per-game configuration (active games, prize tiers, sponsor assets) is **not** covered by this requirement — see Section 15, `ADM-03`. This requirement previously covered that too, with a self-serve UI as `[FUTURE]`; it's now narrowed to onboarding-time setup because that admin UI is being built in V1 for OBS staff. The config data model must still be structured cleanly enough that extending admin access to team users later (`ADM-02`) does not require restructuring the data.
 
 ### 5.2 Acceptance Criteria
 
@@ -283,7 +286,7 @@ Configured once during onboarding, by an engineer. May be hardcoded per tenant s
 These do not change over the course of a season. Engineer involvement at onboarding is acceptable and expected.
 
 **BRAND-02 [V1] — Per-game elements (admin-configured).**
-Change on a per-game or between-game basis, and must be manageable by non-engineering OBS staff through the admin interface without a code change. Includes:
+Change on a per-game or between-game basis, and are managed by OBS staff through the admin surface (Section 15) without a code change. Includes:
 - Which sponsor(s) are active for a given game
 - Sponsor assets for that game: sign-in screen logo and tagline, bingo board banner (clickable, with destination link), free square logo and text, slider icon, prize popup logo, "visit our sponsor" destination URL
 - Which prizes and prize tiers are available for that game (see GAME-02)
@@ -292,7 +295,7 @@ Change on a per-game or between-game basis, and must be manageable by non-engine
 A single game can display assets from more than one sponsor. Teams have been explicit that this should not become visually overloaded, but the platform must support it.
 
 **BRAND-04 [V1] — Admin timing.**
-Per-game elements (BRAND-02) are engineer-operated until the admin UI ships (see TEN-05), but must never require a **code change** — only a config change. The distinction matters: BRAND-01 elements may be hardcoded; BRAND-02 elements may not.
+Per-game elements (BRAND-02) are managed by OBS staff through the admin surface (see Section 15) and must never require a **code change** — only a config change. The distinction matters: BRAND-01 elements may be hardcoded; BRAND-02 elements may not. Team-user self-serve access to this same configuration is `[FUTURE]` — see `ADM-02`.
 
 ### 8.3 Acceptance Criteria
 
@@ -321,7 +324,7 @@ Each game supports 1–3 prize tiers. Each tier is configured with: display name
 Prize tier difficulty is tunable so OBS and the sponsor can approximately control how many fans win each tier per game. Sponsors have consistently raised predictable redemption volume as a requirement.
 
 **GAME-04 [V1] — Non-engineer game and prize management.**
-Which games are active and which prizes/tiers attach to them are **per-game elements** (see BRAND-02). They must be manageable by non-engineering OBS staff through the admin interface once it ships, and must never require a code change. Until the admin UI exists (see TEN-05), these are engineer-operated config changes.
+Which games are active and which prizes/tiers attach to them are **per-game elements** (see BRAND-02). They are managed by OBS staff through the admin surface (Section 15) and must never require a code change.
 
 Note the boundary: *which* prizes are available for a given game is per-game admin config. The prize delivery email template and its underlying delivery logic are set-once engineer work (see BRAND-01, PRIZE-04, PRIZE-05).
 
@@ -526,7 +529,81 @@ Failed prize sends (PRIZE-07) surface through the same monitoring path, since de
 
 ---
 
-## 15. Open Items
+## 15. Administrative Surface
+
+**Customer need:** Teams want to see how their activation is performing and eventually want to run it themselves — turn games on or off, adjust their own sponsor assets and prize tiers, pull their own exports — rather than filing a request with OBS and waiting. OBS needs the same operating ability across *every* tenant it serves, without an engineer standing in for every routine change, because that cost repeats every game, every tenant, every season (see Section 2, the scaling risk) — today it's an engineer editing the production database by hand.
+
+**How V1 splits it:** Most of what's built first is for OBS staff, who operate on every tenant's behalf. Team users get a real role from day one rather than being an afterthought: they can sign in and see their own tenant's configuration and how their contest is performing. The ability for a team to make changes and pull their own exports themselves follows once the OBS-facing side is built and proven — the goal for the product, not a V1 deliverable.
+
+### 15.1 Who Uses It
+
+| Actor | Can do in V1 | Can do later |
+| --- | --- | --- |
+| **OBS staff** | Full control across every tenant: turn games on/off, configure prize tiers and sponsor assets, manage signup fields and opt-ins, finalize contests, run reports and data exports | — |
+| **Team users** (a tenant's own staff) | View their own tenant's configuration and contest performance | Make the same changes themselves; pull their own reports and exports |
+
+A team user never sees another tenant's data. Two things stay with OBS staff regardless of how far team self-serve goes: finalizing a contest, and the internal fan-actions export (`RPT-02`) — both because a mistake there isn't contained to one team (see `PRIZE-03`, `PRIZE-06`).
+
+### 15.2 The Dividing Line
+
+Two questions decide what belongs in the admin surface, generalizing the split already drawn between `BRAND-01` and `BRAND-02` (Section 8):
+
+**How often does it change?** If a piece of tenant setup changes more than once a season, it belongs in the admin surface. If it's set once at onboarding and stable for the season, an engineer sets it up directly, once (`TEN-05`).
+
+| Onboarding-time, engineer-operated (`TEN-05`) | Recurring, admin-surface-operated |
+| --- | --- |
+| Setting up the team's web address | Which games are active |
+| Setting up the team's initial account access | Prize tiers and difficulty targets |
+| Team colors, logo, app naming (`BRAND-01`) | Sponsor assets per game (`BRAND-02`) |
+| | Signup fields and opt-in catalog (`AUTH-02`, `OPT-01`–`OPT-05`) |
+| | Which prize-fulfillment handler applies to a tier (the handler itself is developer-built, `PRIZE-05`) |
+| | Contest finalization (`PRIZE-03`) |
+| | Reports and data exports (`RPT-01`–`RPT-03`) |
+
+**Whose mistake does it become?** An action whose failure is contained to one tenant is safe to eventually hand to that tenant's own team user. An action that's irreversible, or that can hurt every tenant on the platform, stays with OBS staff regardless of who else has access — the reasoning already behind `PRIZE-03` (a failed prize send degrades sender reputation platform-wide, `PRIZE-06`) and the internal export (`RPT-02`).
+
+### 15.3 Requirements
+
+**`ADM-01` [V1] — A separate, secure admin application.**
+A distinct application from the fan-facing app, protected by sign-in with mandatory multi-factor authentication (`SEC-08`). A fan account cannot use it, and it never displays fan-facing data outside a tenant's own scope.
+
+**`ADM-02` [V1] — Read-only access for team users.**
+A tenant's own designated staff can sign in and view their tenant's active games, prize tiers, sponsor assets, signup fields and opt-in configuration, and contest performance. They cannot change anything yet, and cannot view any other tenant's data.
+
+**`ADM-03` [FUTURE] — Write access for team users.**
+The team-user role gains the ability to make the changes it can currently only view — turning games on/off, editing sponsor assets and prize tiers, running their own reports and exports — once the OBS-facing tooling below is built and proven. This is additional permissions granted to the existing role, not a new access model.
+
+**`ADM-04` [V1] — Per-game configuration through the admin surface.**
+OBS staff create and update active games, prize tiers, and sponsor assets for any tenant through the admin surface, replacing direct database edits. This is what `BRAND-04` and `GAME-04` require. Which prize-fulfillment handler (`PRIZE-05`) applies to a given tier is selected here; building a new handler remains developer work.
+
+**`ADM-05` [V1] — Signup fields and opt-in catalog through the admin surface.**
+OBS staff manage a tenant's signup field configuration (`AUTH-02`) and opt-in catalog — definitions, labels, enforcement behavior, and consent text (`OPT-01`–`OPT-05`) — through the admin surface. Editing consent text still produces a new version and re-prompts fans on their next entry exactly as before (`OPT-05`); the admin surface changes who can make the edit and how it's tracked, not the underlying consent behavior.
+
+**`ADM-06` [V1] — Contest finalization through the admin surface.**
+OBS staff manually finalize a contest (`PRIZE-03`) through the admin surface, not by script or direct database access.
+
+**`ADM-07` [V1] — Reporting and exports through the admin surface.**
+OBS staff generate all three V1 reports (`RPT-01`–`RPT-03`) through the admin surface.
+
+**`ADM-08` [V1] — The admin surface is how export auditing (`SEC-06`) is actually met.**
+`SEC-06` requires every sponsor export to log who ran it, when, for which sponsor, and how many records. An ad hoc script run outside the admin surface can't produce that log — an export only satisfies `SEC-06` if it goes through the admin surface.
+
+**`ADM-09` [CONSTRAINT] — A user only ever acts within their own scope.**
+An OBS staff member can act on any tenant; a team user can only ever see (and, later, act on) their own tenant. This is enforced by the platform itself — never a control the interface merely chooses not to show.
+
+### 15.4 Acceptance Criteria
+
+- [ ] OBS staff can create/update an active game, a prize tier — including which prize-fulfillment handler applies to it — and a sponsor asset for any tenant through the admin surface, with no database access.
+- [ ] OBS staff can add, remove, or reconfigure a tenant's signup fields and opt-in catalog through the admin surface; a consent-text change re-prompts fans on their next entry.
+- [ ] Contest finalization is performed through the admin surface and produces an audit trail.
+- [ ] Each of the three V1 reports can be generated through the admin surface, and every export is logged with operator, time, sponsor, and record count.
+- [ ] A team user can sign in and view their own tenant's active games, prize configuration, sponsor assets, and contest performance, and cannot view any other tenant's data or edit anything.
+- [ ] A team user cannot finalize a contest or access the internal fan-actions export.
+- [ ] No user, of either role, can act on a tenant other than the one their session is scoped to, regardless of what identifier is supplied.
+
+---
+
+## 16. Open Items
 
 These are unresolved and should be raised rather than assumed:
 
