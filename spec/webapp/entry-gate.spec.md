@@ -51,6 +51,10 @@ Email is never a field on this form. It is mandatory platform-wide (`AUTH-03`), 
 
 Changing a tenant's field config must change this form with **no code change and no deploy**. That is `AUTH-02`'s core acceptance criterion and the reason the definitions live in the database.
 
+**Where the presentation lives (note, 2026-09-16).** The gate's presentation moves to `obs-b2b-shared` — `src/entry-gate/` for the field catalog, copy, and client-side validation, `src/ui/entry-gate/` for the form components and their stylesheet — because it now has two renderers. The fan app renders it here, in `JoinTenant.tsx`; the admin console renders it as the live preview on Fields & Opt-ins ([`admin-fields-and-optins.spec.md`](../core-modules/1-draft/admin-fields-and-optins.spec.md)), so that an admin editing this configuration is looking at the gate itself rather than a drawing of it.
+
+**Nothing in this spec's shipped behavior changes.** `JoinTenant.tsx` keeps the whole data layer — Clerk, the membership query, join/consent/profile mutations, the displayed-`textVersion` snapshot, 409 handling — and gives up only its markup. The one user-visible difference is that two catalog default labels, which had drifted between copies, settle on **"Address"** and **"Favorite players"**.
+
 ---
 
 ## Submitting
