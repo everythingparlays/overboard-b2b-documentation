@@ -36,7 +36,7 @@ This document defines the identity, membership, consent, and administrative-acce
 - **Consent gate** — the check, run at every entry, comparing the tenant's currently-active opt-ins against the fan's recorded decisions for that tenant.
 - **Opt-in version** — the revision of an opt-in's user-facing text. Changing the text mints a new version; prior decisions no longer satisfy it.
 - **Fan surface** — `[slug].overboardsports.com`. Consumer-facing, high volume, no MFA.
-- **Admin surface** — the internal/tenant/reporting UI (`ADM-01`–`ADM-09`). Low volume, privileged, MFA-enforced. In progress as of September 2026 — the access framework (this document's `IDN-10`–`IDN-13`, and `admin-surface.spec.md`) is being built first; what the surface *does* (`ADM-04` onward) follows.
+- **Admin surface** — the internal/tenant/reporting UI (`ADM-01`–`ADM-09`). Low volume, privileged, MFA-enforced. Built and merged 2026-09-15 — both the access framework (this document's `IDN-10`–`IDN-13`, and `admin-surface.spec.md`) and the screens on top of it (`ADM-04` onward), each specified in its own `admin-*.spec.md`.
 - **Actor classes on the admin surface** — **OBS staff** (cross-tenant) and **team users** (one tenant; the "designated tenant user" of `PRIZE-03`). Sponsors receive exports but do not authenticate (`IDN-11`).
 
 ## Requirements
@@ -196,9 +196,9 @@ Clerk Organizations remain correct for the admin surface, where volumes are smal
 
 ## Admin Surface
 
-**Specified in [`spec/core-modules/1-draft/admin-surface.spec.md`](../../spec/core-modules/1-draft/admin-surface.spec.md)** — access framework only; what the surface *does* needs its own specs.
+**Specified in [`spec/core-modules/1-draft/admin-surface.spec.md`](../../spec/core-modules/1-draft/admin-surface.spec.md)** — the access framework; what the surface *does* is specified per screen in the sibling `admin-*.spec.md` files.
 
-In progress as of September 2026. Fan-side design must not foreclose it; the two surfaces are separate Clerk instances and share no session.
+Built and merged 2026-09-15. Fan-side design must not foreclose it; the two surfaces are separate Clerk instances and share no session.
 
 **Separate instance with MFA required** (`IDN-10`), for three reasons: MFA is an instance-wide toggle and cannot be required of fans; organization membership mode is instance-wide and the surfaces need opposite settings (admin `Membership required`, fans personal accounts); and admin sign-in should be locked down rather than inheriting the fan variants' method config. The cost is one additional JWKS issuer for the backend to trust — acceptable, since `/admin/*` warrants a distinct middleware chain from `/b2b/*` regardless.
 
@@ -225,7 +225,7 @@ Note the deliberate asymmetry with the fan surface: single-active-organization s
 | `IDN-05` | Implemented (built 2026-09-11, merged 2026-09-14) | Gate evaluated per entry: `GET /b2b/membership` returns `pendingConsents` (and `pendingFields` per `AUTH-02`'s 2026-09 mid-season decision), and the server enforces it — board generation returns `409` on an unmet blocking consent. The same merge fixed a gap where a fan with a recorded *decline* of a blocking opt-in passed the gate. |
 | `IDN-07` | Implemented (built 2026-09-11, merged 2026-09-14) | `ConsentRecord` `(optInId, textVersion, decision, agreedAt)` persisted on the membership — atomically with the join, and via `POST /b2b/consent` thereafter; stale `textVersion`s rejected, `agreedAt` stamped server-side ([`obs-b2b-shared#1`](https://github.com/everythingparlays/obs-b2b-shared/pull/1), [`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3)) |
 | `IDN-09` | Not built | One shared instance; no variant concept |
-| `IDN-10`, `IDN-12`, `IDN-13` | In progress | Admin surface access framework under active build, per `admin-surface.spec.md` |
+| `IDN-10`, `IDN-12`, `IDN-13` | Implemented (merged 2026-09-15) | Admin surface access framework per `admin-surface.spec.md`: separate Clerk instance with MFA required, organization-based scope, and server-enforced step-up reverification (`fva` ≤10 minutes) on destructive and PII-revealing routes |
 | `IDN-11` | Partially met | Sponsor↔tenant relationship exists in config; DPA field scope not modelled |
 
 ## Implied Changes
