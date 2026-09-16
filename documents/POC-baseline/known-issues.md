@@ -47,9 +47,11 @@ Original finding:
 
 Zero code anywhere in the backend touches CSV generation, per-sponsor field scoping, or opt-in-filtered exports. Not stubbed, not TODO-commented — entirely absent. This is a full V1-scope area that needs to be built from scratch.
 
-## Prize Fulfillment Is Mostly Stubbed (`PRIZE-04`–`PRIZE-07`)
+## Prize Fulfillment Is Barely Built (`PRIZE-04`–`PRIZE-07`)
 
-The queue/DLQ/idempotency plumbing is solid (see [`workers.md`](workers.md)), but of 6 registered fulfillment handlers, 4 (`email`, `email-test`, `webhook`, `barcode`) are no-op stubs. The 2 that work send a hardcoded-brand email template with no per-sponsor customization and **no coupon-code generation/assignment/dedup logic at all** — despite `PRIZE-05`/`PRIZE-06` specifically calling for sponsor-supplied coupon batches with no-duplicate-issuance guarantees.
+The queue/DLQ/idempotency plumbing is solid (see [`workers.md`](workers.md)), but only 2 fulfillment handlers exist. Both send a hardcoded-brand email template with no per-sponsor customization and **no coupon-code generation/assignment/dedup logic at all** — despite `PRIZE-05`/`PRIZE-06` specifically calling for sponsor-supplied coupon batches with no-duplicate-issuance guarantees.
+
+Until 2026-09-16 four further ids (`email`, `email-test`, `webhook`, `barcode`) were registered as no-op stubs. They were worse than absent: because they resolved, the worker marked the redemption `fulfilled`, so a fan was recorded as having received a prize that was never sent and the Delivery queue never listed it. They are unregistered — a tier naming one now fails visibly, per `PRIZE-07`. The delivery gap is unchanged; only the lying about it is fixed.
 
 **Confirmed (2026-08): the `handlerId → handler` registry pattern is the intended design, not a gap to standardize away.** Fulfillment logic is meant to be bespoke per sponsor, matching PRD `PRIZE-05`'s explicit exception to the "prefer config over per-tenant code" rule (`TEN-C1`). The remaining gap is that most of the bespoke handlers haven't been written yet, and no coupon-code infrastructure exists for handlers that will need it — that's real work, but the architecture itself doesn't need to change.
 
