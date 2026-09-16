@@ -51,7 +51,7 @@ Filtering happens at generation time, in the query — there is no post-generati
 
 ## The screen
 
-`/exports`, per Nick's 2026-09-14 mock. Standard scope shape (OBS picks a tenant via `?tenant=`, tenant callers never carry the parameter).
+`/exports`, per Nick's 2026-09-14 mock. Standard scope shape: OBS follows the console-wide "Acting on tenant" selection and the request names it explicitly as `?tenant=`; tenant callers never carry the parameter.
 
 **Recent exports** (left): the audit log's export entries for this tenant — report, sponsor, game, row count with filtered-out count, when, and who ran it. **Download re-generates**: rows are filtered and fields scoped *at generation time*, so a fresh generation is the compliant artifact, and it goes through the same reverification gate as any other. The table is the audit trail wearing a UI; it cannot disagree with SEC-06 because it *is* SEC-06's record.
 

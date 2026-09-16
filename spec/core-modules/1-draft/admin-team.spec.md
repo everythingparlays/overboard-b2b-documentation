@@ -16,7 +16,7 @@ The Team screen at `/team`: who can administer this organization, and the invite
 
 **Not in scope:**
 
-- **Cross-org membership administration.** No screen here lists or edits another organization's members. OBS staff manage the `obs` org's own membership on this screen and nothing else — see "OBS sees its own org, and gets no tenant picker".
+- **Cross-org membership administration.** No screen here lists or edits another organization's members. OBS staff manage the `obs` org's own membership on this screen and nothing else — see "OBS sees its own org, and ignores the tenant selection".
 - **Tenant provisioning** — creating a tenant's Clerk organization and inviting its first admin (the ladder's middle tier). That is the Create-tenant flow, a later module, and it is the *only* place an organization is named. Nothing on this screen creates an organization or edits one's name or slug.
 - **A last-admin guard.** `admin-surface.spec.md` settles this: "Last-admin removal is unguarded [P2] (decision, 2026-09)." The screen surfaces Clerk's outcome and does not pre-empt it. Building the guard here would contradict an accepted decision and re-implement a boundary we deliberately delegate.
 - **Custom roles.** V1 has exactly `org:admin` and `org:member` (admin-surface, "Roles and permissions"). The role picker offers those two and is not a general role editor.
@@ -102,11 +102,11 @@ That is a judgement call, so: the mock is plainly our design system, not Clerk's
 
 What a tenant's panel therefore states — for: view active games and prize tiers, view signup fields and opt-ins, download this tenant's sponsor exports (`org:reports:read`, held by every admin role), invite and remove its own admins; against: change game, prize, or signup configuration (`ADM-03` **[FUTURE]**), finalize a contest, see another tenant's data, download the internal fan-actions export (`RPT-02`). Every line traces to the admin-surface permission table rather than to this screen's own opinion. For an OBS caller the panel states the cross-tenant authority instead.
 
-### OBS sees its own org, and gets no tenant picker
+### OBS sees its own org, and ignores the tenant selection
 
-Every previous module gave OBS callers a `?tenant=` picker. **This one does not**, and the reasoning is the nav table's own phrasing: `/team` is "Org membership — invite/remove **within the caller's own org**."
+Every other per-tenant screen acts on the console-wide "Acting on tenant" selection. **This one ignores it**, and the reasoning is the nav table's own phrasing: `/team` is "Org membership — invite/remove **within the caller's own org**." The top-bar selector stays visible — it is the console's state and still governs every other screen — but nothing here reads it.
 
-An OBS staff member on `/team` is looking at the `obs` organization's membership — their own colleagues — and the invite/remove controls administer OBS staff. A tenant picker here would mean one of two things, and both are wrong: either it re-scopes the Clerk client APIs to another organization (impossible — they read the *active* organization from the session, which is what makes the delegation boundary hold), or it adds a backend endpoint that takes a tenant identifier and manages a tenant's members on their behalf, which is the re-implementation this whole module exists to avoid, plus a violation of admin-surface Rule 1.
+An OBS staff member on `/team` is looking at the `obs` organization's membership — their own colleagues — and the invite/remove controls administer OBS staff. Acting on a named tenant here would mean one of two things, and both are wrong: either it re-scopes the Clerk client APIs to another organization (impossible — they read the *active* organization from the session, which is what makes the delegation boundary hold), or it adds a backend endpoint that takes a tenant identifier and manages a tenant's members on their behalf, which is the re-implementation this whole module exists to avoid, plus a violation of admin-surface Rule 1.
 
 There is a legitimate need behind the imagined picker — OBS creating a tenant org and inviting its first admin — and it has a home: the Create-tenant flow, out of scope here, where naming an organization is the point and OBS is the actor.
 
@@ -155,7 +155,7 @@ This is a real decision with a real cost (recovery is OBS re-inviting), accepted
 ## Rules
 
 1. **No endpoint, no contract, and no collection for membership.** Clerk's client APIs, scoped to the session's active organization, are the implementation. A future `/admin/team*` route must first explain why `org:sys_memberships:manage` is insufficient.
-2. **The screen never names an organization.** No org id or slug is passed to any Clerk membership call, no tenant picker, no `?tenant=`, and nothing on this screen creates or renames an organization (`admin-surface.spec.md`, "Provisioning and delegation").
+2. **The screen never names an organization.** No org id or slug is passed to any Clerk membership call, no tenant selection is read, no `?tenant=`, and nothing on this screen creates or renames an organization (`admin-surface.spec.md`, "Provisioning and delegation").
 3. **Every mutating control is gated on `has({ permission: "org:sys_memberships:manage" })`** — Clerk's answer, rendered; never a role string we compare ourselves, and never inferred from `adminScope`.
 4. **No last-admin guard** (`admin-surface.spec.md` decision, 2026-09). Clerk's outcome is displayed as returned.
 5. **Removal and role change go through `useReverification`** (`IDN-13`); invitation does not.

@@ -46,7 +46,7 @@ Two consequences the screens must own rather than paper over:
 
 ## The screens
 
-Both follow the Fields & Opt-ins screen's established shape: OBS with no tenant chosen gets the "Pick a tenant" empty state fed by `GET /admin/tenants`; the chosen tenant lives in `?tenant=<slug>`; a tenant-scoped user's URL never carries the parameter.
+Both follow the Fields & Opt-ins screen's established shape: the tenant being acted on comes from the console-wide selector in the top bar, and OBS with nothing chosen gets the "Pick a tenant" empty state fed by `GET /admin/tenants`, which sets that same selection; the request names the tenant explicitly as `?tenant=<slug>`; a tenant-scoped user's URL never carries the parameter.
 
 ### `/games` — Games & Contests
 
