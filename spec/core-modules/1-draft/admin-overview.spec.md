@@ -40,7 +40,7 @@ Everything is stated so the honest boundary is checkable:
 
 ## The screen
 
-Tenant users land on their own numbers with no parameter, as everywhere. An OBS caller sees whichever tenant the console-wide selector is acting on (admin-surface spec, "Frontend"); with nothing chosen yet, the "Pick a tenant" empty state sets that same selection. The request still names the tenant explicitly as `?tenant=`, and the screen remounts on change. Same layout for both actor classes (`ADM-01`); nothing on this screen writes.
+Tenant users land on their own numbers with no parameter, as everywhere. An OBS caller sees whichever tenant the console-wide sidebar switcher is acting on (admin-surface spec, "Frontend"); with nothing chosen yet, the "Pick a tenant" empty state sets that same selection. The request still names the tenant explicitly as `?tenant=`, and the screen remounts on change. Same layout for both actor classes (`ADM-01`); nothing on this screen writes.
 
 ## Endpoints
 

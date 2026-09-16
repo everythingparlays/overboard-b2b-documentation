@@ -12,13 +12,12 @@ The first real admin feature: the Fields & Opt-ins screen at `/config`, and the 
 
 **The whole change, in one line:** a tenant's signup-field and opt-in configuration becomes editable through the admin surface, with the server owning the `textVersion` bump so re-prompting fans can never be skipped.
 
-**In scope:** the screen, three endpoints (`GET /admin/config`, `PUT /admin/config`, `GET /admin/tenants`), their contracts in `obs-b2b-shared`, permission enforcement, and how mid-season change rules apply to admin edits. Two additive fields on `OptInDefinition`: `label` (`OPT-02` names label and text as separately configurable) and `publishedAt` (`ADM-05` — the admin surface changes "how it's tracked").
+**In scope:** the screen, three endpoints (`GET /admin/config`, `PUT /admin/config`, `GET /admin/tenants`), their contracts in `obs-b2b-shared`, permission enforcement, and how mid-season change rules apply to admin edits. **Tenant write access is in scope as of the 2026-09-16 ruling** — a tenant `org:admin` edits their own organization's fields and opt-ins here; `org:member` views. Two additive fields on `OptInDefinition`: `label` (`OPT-02` names label and text as separately configurable) and `publishedAt` (`ADM-05` — the admin surface changes "how it's tracked").
 
 **Not in scope:**
 
 - **Export cadence** (`RPT-06`). The mock places a cadence selector on this screen; cadence configures when *exports* are produced, not what signup collects, and no data model for it exists. It belongs to the Exports module — the screen omits it (spec wins over mock).
 - **Sponsor records.** `OptInDefinition.sponsorId` stays on the wire as an optional pass-through, but no sponsor collection exists yet, so the UI offers no sponsor picker. The `kind: "sponsor"` value is what marks a sponsor opt-in for now.
-- **Tenant write access** — `ADM-03` **[FUTURE]**.
 - **Concurrency control.** Publishing is last-write-wins between two concurrent admins. Acceptable at V1's operator count; revisit if OBS staffing grows.
 - **`SEC-05`'s IP address and consent method** on `ConsentRecord` — a pre-existing gap in the fan-side record, not something an admin write path can close. Flagged, not fixed here.
 
@@ -37,9 +36,9 @@ The first real admin feature: the Fields & Opt-ins screen at `/config`, and the 
 - A field newly set to Required → "Newly required — N existing fans will be asked on next entry" (N from the stats below).
 - An opt-in whose *text* changed → "Text edited — publishing creates v{n+1} and re-prompts every fan."
 
-**Read-only for team users (decision, this spec).** A tenant-scoped caller sees the same layout rendered as a **view-only presentation** — state badges instead of interactive controls — with one line of explanation ("Read-only — signup fields and opt-ins are managed by Overboard in V1"). Not disabled controls: disabled implies a temporarily unavailable action, and this is a role (`ADM-02`), not a state. The presentation flips per control when `ADM-03` ships, not per screen.
+**Read-only for `org:member` (ruling, 2026-09-16).** An `org:admin` — tenant or obs — gets the interactive screen for the org in context. An `org:member` sees the same layout rendered as a **view-only presentation**, state badges instead of interactive controls, with one line of explanation that their role views this configuration rather than edits it. Not disabled controls: disabled implies a temporarily unavailable action, and this is a role, not a state. **The presentation is keyed per control off the role claim**, not per screen — which is what the earlier version of this paragraph anticipated when it said the split would flip per control, and what makes a future per-control difference cost nothing structurally.
 
-**OBS tenant selection.** An OBS caller's scope names no tenant, so the tenant being acted on comes from the console-wide selector in the top bar ("Acting on tenant", admin-surface spec, "Frontend") — one choice that applies to every screen, not a choice per screen. With nothing chosen, `/config` shows the "Pick a tenant" empty state, fed by the same `GET /admin/tenants`; choosing there sets the console-wide selection. The request still names the tenant explicitly as `?tenant=<slug>`. A tenant-scoped user's `/config` never carries the parameter.
+**OBS tenant selection.** An OBS caller acting outside a tenant org names no tenant, so the tenant being acted on comes from the **sidebar switcher** (admin-surface spec, "Frontend") — one console-wide choice that applies to every screen. With nothing chosen, `/config` shows the "Pick a tenant" empty state, fed by the same `GET /admin/tenants`; choosing there sets the same console-wide selection. The wire is unchanged: the request names the tenant explicitly as `?tenant=<slug>`, including when the operator is acting on their own active tenant org. A non-obs user's `/config` never carries the parameter.
 
 ---
 
@@ -49,14 +48,14 @@ All under `/admin`, admin Clerk instance only, scope from `req.adminScope` (admi
 
 | Method | Path | Auth | Who |
 |---|---|---|---|
-| GET | `/admin/tenants` | `requireAdmin` + `scope.kind === "obs"` | OBS only — the chooser list, `{ slug, name }[]` |
+| GET | `/admin/tenants` | `requireAdmin` + obs staff | OBS only — the chooser list, `{ slug, name }[]` |
 | GET | `/admin/config` | `requireAdmin` | Any resolved admin scope (`ADM-02` read) |
-| PUT | `/admin/config` | `requireAdmin` + `scope.kind === "obs"` | OBS only in V1 (`ADM-02`/`ADM-03`) |
+| PUT | `/admin/config` | `requireAdmin` + obs staff or tenant `org:admin` | The tenant's own admins, or OBS on any tenant |
 
 **Tenant targeting** — the admin-surface spec's explicit-and-verified exception, in full:
 
-- `scope.kind === "tenant"`: the target is `scope.tenant`. A `?tenant=` parameter is **403**, even naming their own tenant — a tenant-scoped caller may never name a tenant.
-- `scope.kind === "obs"`: `?tenant=<slug>` is **required** (400 without it), resolved by `B2BOrganization.subdomain`; 404 when it names nothing, 404 for reserved slugs (`obs`, `admin`).
+- **Not obs staff**: the target is the caller's own organization. A `?tenant=` parameter is **403**, even naming their own tenant — a caller who is not obs staff may never name a tenant.
+- **Obs staff**: `?tenant=<slug>` is **required** (400 without it), resolved by `B2BOrganization.subdomain`; 404 when it names nothing, 404 for reserved slugs (`obs`, `admin`). This holds whatever organization they have active — an obs staffer inside a tenant org still sends the parameter, defaulted to that org.
 
 **`GET /admin/config` returns** the tenant `{ slug, name }`, `signupFields`, full `optIns` (admin sees `kind`, `label`, `publishedAt` — unlike the fan-facing `publicOptInSchema`), and **stats** computed with the same entry-gate helpers the fan surface uses, so the numbers shown are exactly what the gate will do: `memberCount`, per-opt-in `{ accepted, declined, pending }` at the *current* `textVersion`, and per-catalog-field `missingCount` (members without a provided value — the N in the newly-required warning, real for every field whether currently configured or not).
 
@@ -66,9 +65,9 @@ All under `/admin`, admin Clerk instance only, scope from `req.adminScope` (admi
 
 ## Permissions
 
-`ADM-02` scopes team users to read-only; `org:tenant_config:manage` never appears on a tenant role in V1 (admin-surface spec Rule 3). In V1 the manage grant is therefore **coextensive with membership in the `obs` org**, and the server enforces it structurally: write routes verify `req.adminScope.kind === "obs"` and answer 403 with a read-only message otherwise.
+`org:tenant_config:manage` is held by tenant `org:admin` and every obs role as of the 2026-09-16 ruling (admin-surface spec Rule 3); `org:member` holds the read grant only. The server enforces this **structurally**, as it always has — the allow-list on a write route is now **obs staff, or an `org:admin` of the organization being written**, and anyone else gets 403 with a view-only message. Cross-tenant writes remain obs-only: a tenant admin's allow is scoped to their own organization by construction, because the only tenant they can name is the one their session resolves to.
 
-**Why not `requirePermission("org:tenant_config:manage")` today:** Clerk custom permissions exist only once created in the dashboard, and the admin instance's roles do not carry them yet — `has()` would return false for *everyone*, OBS included, making the write path dead on arrival while looking like an authorization design. The structural check implements the identical V1 grant table without the unprovisioned dependency. When `ADM-03` ships, enforcement moves to `requirePermission` (already wired in `route_config.ts`), the instance's roles gain the permission deliberately, and the scope-kind check remains as defense in depth for the cross-tenant `?tenant=` path, which stays OBS-only regardless.
+**Why not `requirePermission("org:tenant_config:manage")` today:** unchanged by the ruling. Clerk custom permissions exist only once created in the dashboard, and the admin instance's roles still do not carry them — `has()` would return false for *everyone*, OBS included, making the write path dead on arrival while looking like an authorization design. The structural check implements the identical grant table without the unprovisioned dependency, and the role claim it now reads is one Clerk already puts in the session token. `requirePermission` remains the upgrade path: when the instance's roles gain the permission deliberately, enforcement moves there (already wired in `route_config.ts`) and the structural check remains as defense in depth for the cross-tenant `?tenant=` path, which stays OBS-only regardless.
 
 ---
 
@@ -90,7 +89,7 @@ The fan-side machinery (entry-gate spec) already re-prompts on `(optInId, textVe
 1. **No admin config handler takes a tenant identifier except the verified OBS `?tenant=` parameter.** A tenant-scoped caller naming any tenant is 403.
 2. **`textVersion` and `publishedAt` never cross the wire inbound.** The server derives both.
 3. **`fieldId` comes from the closed catalog**; unknown or duplicate ids are 400, on both ends (shared zod contract).
-4. **Config writes are obs-only until `ADM-03`**, enforced server-side; the UI's read-only presentation is UX, not the boundary.
+4. **Config writes require obs staff or the organization's own `org:admin`**, enforced server-side; the UI's view-only presentation for `org:member` is UX, not the boundary.
 5. **Removing an opt-in never removes consent records.**
 
 ---

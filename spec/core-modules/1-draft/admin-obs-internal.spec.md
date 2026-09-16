@@ -26,11 +26,13 @@ The operator-facing section of the admin console: the four OBS Internal screens 
 
 ## The cross-tenant read pattern
 
-Admin-surface Rule 1 — no handler takes a tenant identifier — has carried one exception so far: the OBS `?tenant=` argument, resolved by `resolveTargetTenant`. Three of these endpoints are the *other* legitimate shape: genuinely cross-tenant reads (`/tenants/directory`, `/platform-health`, `/delivery-queue`) where there is no tenant to name because the answer spans all of them. They follow the `GET /admin/tenants` precedent: no tenant parameter at all, and a structural refusal — `scope.kind !== "obs"` → 403 `"OBS staff only"` — before anything else runs.
+Admin-surface Rule 1 — no handler takes a tenant identifier — has carried one exception so far: the OBS `?tenant=` argument, resolved by `resolveTargetTenant`. Three of these endpoints are the *other* legitimate shape: genuinely cross-tenant reads (`/tenants/directory`, `/platform-health`, `/delivery-queue`) where there is no tenant to name because the answer spans all of them. They follow the `GET /admin/tenants` precedent: no tenant parameter at all, and a structural refusal — **the caller is not obs staff → 403 `"OBS staff only"`** — before anything else runs.
+
+**The predicate is user-level** since the 2026-09-16 ruling: obs staff-ness is resolved from the user's membership in the `obs` Clerk organization, not from which organization they happen to have active (admin-surface, "OBS-ness is user-level"). An operator who has switched into a tenant org to do tenant work reaches every one of these endpoints unchanged — which is the point, since the alternative was an operator who stopped being an operator by navigating. The refusal, its shape, and everything it protects are identical; only what the gate asks changed.
 
 Structural, not permission-based, for the reason recorded across the merged modules (D-058): the admin Clerk instance defines no custom permissions yet, so `has({permission})` would refuse everyone, OBS included. `requirePermission("org:fan_data:export")` / `("org:contest:finalize")` remain the upgrade path once the instance defines them; the refusal message and the boundary do not change when that lands.
 
-The fan-actions export blends the two shapes: `?tenant=` **narrows** an already-obs-only export, rather than selecting a scope. Omitting it does not mean "my tenant" — the caller has none — it means every tenant.
+The fan-actions export blends the two shapes: `?tenant=` **narrows** an already-obs-only export, rather than selecting a scope. Omitting it does not mean "my tenant" — even an operator with a tenant org active is running the platform-wide export unless they narrow it — it means every tenant.
 
 ---
 
@@ -47,12 +49,12 @@ Order and failure handling:
 1. **Validate.** The contract refuses malformed subdomains and `admin`/`obs` (`TEN-C3`); the handler re-checks both defensively (Rule 7's "checked at onboarding" clause). A duplicate `subdomain` is 409 before anything external happens.
 2. **Clerk organization first.** It is the resource with an external owner; if it cannot be created there is nothing to clean up. Failure → 409 with Clerk's reason.
 3. **Database record second.** If this fails, the handler deletes the just-created Clerk organization and reports the rollback; if the cleanup itself fails, the response names the orphaned Clerk org id so the operator can remove it by hand — a loud partial failure, never a silent mismatch.
-4. **Invitation last, non-fatal.** The first admin is invited as `org:admin` — invite/remove power within their own org; tenant config stays read-only until `ADM-03` per the provisioning table. An invitation failure does not unwind the tenant (both-or-neither already holds); the response carries `invitation.status: "failed"` and the reason, and OBS re-invites from the Clerk dashboard.
+4. **Invitation last, non-fatal.** The first admin is invited as `org:admin`, which since 2026-09-16 carries both invite/remove power and write access to their own organization's configuration — the team configures its workspace from day one, per the provisioning table. An invitation failure does not unwind the tenant (both-or-neither already holds); the response carries `invitation.status: "failed"` and the reason, and OBS re-invites from the Clerk dashboard.
 5. **Audit.** `tenant_create` (`SEC-06` register: who, when, what), detail carrying ids and the invitation status — never the invitee's email.
 
 **The subdomain is immutable once created.** It is simultaneously the Clerk org slug, the fan-app hostname, and the admin scope key; renaming any one strands the other two (the Team spec's argument, now load-bearing here). The form says so before submission; no rename endpoint exists.
 
-**This flow supersedes the org-switcher path.** Until now the only way a tenant org came to exist was someone using Clerk's own "Create organization" widget — the path admin-surface Rule 8 requires disabling. With `POST /admin/tenants` shipped, the widget path is superseded, and disabling self-creation on the admin instance (a Clerk dashboard toggle, still open as of 2026-09-15) loses its last excuse.
+**This flow supersedes the org-switcher path.** Until now the only way a tenant org came to exist was someone using Clerk's own "Create organization" widget — the path admin-surface Rule 8 requires disabling. With `POST /admin/tenants` shipped, the widget path is superseded, and disabling self-creation on the admin instance (a Clerk dashboard toggle, still open as of 2026-09-15) loses its last excuse. The console's own sidebar switcher carries a **Create organization** entry for obs staff only, and it routes here rather than to Clerk's widget — one provisioning path, reachable from where an operator would look for it, and the only one that keeps the record and the Clerk org a synced pair (admin-surface Rule 10).
 
 `TEN-03`'s budget: this reduces OBS's per-tenant engineering share of onboarding to one form — name, subdomain, auth variant, first admin — well inside the 1–2 hours, with config following through the existing screens.
 
@@ -105,14 +107,16 @@ Audited as `fan_actions_export` (`SEC-06`). A cross-tenant run has no single tar
 
 ## Endpoints
 
+All six authorize on **user-level obs staff-ness**, whatever organization the caller has active.
+
 | Method | Path | Auth | Who |
 |---|---|---|---|
-| GET | `/admin/tenants/directory` | requireAdmin | obs only (403 otherwise) |
-| POST | `/admin/tenants` | requireAdmin | obs only |
-| GET | `/admin/platform-health` | requireAdmin | obs only |
-| GET | `/admin/delivery-queue` | requireAdmin | obs only |
-| POST | `/admin/fan-actions/export` | requireAdminReverified | obs only |
-| POST | `/admin/contests/:contestId/finalize` | requireAdminReverified | obs only, `?tenant=` required |
+| GET | `/admin/tenants/directory` | requireAdmin | obs staff only (403 otherwise) |
+| POST | `/admin/tenants` | requireAdmin | obs staff only |
+| GET | `/admin/platform-health` | requireAdmin | obs staff only |
+| GET | `/admin/delivery-queue` | requireAdmin | obs staff only |
+| POST | `/admin/fan-actions/export` | requireAdminReverified | obs staff only |
+| POST | `/admin/contests/:contestId/finalize` | requireAdminReverified | obs staff only, `?tenant=` required |
 
 **`GET /admin/tenants/directory` returns** every tenant with `fanCount`, config counts, `failedSendCount`, and `contests[]` (derived status, `finalized`, game/tier counts, per-status delivery counts).
 
@@ -128,11 +132,11 @@ Audited as `fan_actions_export` (`SEC-06`). A cross-tenant run has no single tar
 
 ## Permissions
 
-All six are obs-only. On the future Clerk-permission model: the export maps to `org:fan_data:export`, finalization to `org:contest:finalize` (both barred from tenant roles by admin-surface Rules 2 and its §Roles), the rest to the cross-tenant read grant `obs` membership stands for. Until those permissions exist on the instance, the gate is structural (D-058) and the tests pin it.
+All six are obs-only, on user-level obs staff-ness. On the future Clerk-permission model: the export maps to `org:fan_data:export`, finalization to `org:contest:finalize` (both barred from tenant roles by admin-surface Rules 2 and 9), the rest to the cross-tenant read grant `obs` membership stands for. Until those permissions exist on the instance, the gate is structural (D-058) and the tests pin it. The 2026-09-16 ruling that opened Workspace and Configuration to tenant admins left all six untouched by name: OBS Internal is one of its explicit exclusions.
 
 ## Rules
 
-1. **Every OBS Internal endpoint refuses a tenant-scoped caller with 403 before doing anything else.** Hiding the nav section is UX; this is the boundary.
+1. **Every OBS Internal endpoint refuses a caller who is not obs staff with 403 before doing anything else** — the check is on the user, not the active organization. Hiding the nav section is UX; this is the boundary.
 2. **The Clerk organization and the `B2BOrganization` record are created both-or-neither.** Partial failure rolls back or reports the orphan loudly; it never returns success.
 3. **`admin` and `obs` are refused at provisioning** — in the contract for the polite error, in the handler for the boundary (`TEN-C3`).
 4. **The subdomain is immutable once created.** Nothing renames a tenant org or its record.
@@ -153,6 +157,7 @@ All six are obs-only. On the future Clerk-permission model: the export maps to `
 - **Fan-actions telemetry**: tile interactions, near-misses, session activity unrecorded; export limited to join/board/prize events.
 - **`failureReason` is forward-only**: rows failed before the worker change render "—".
 - **Clerk org self-creation is still enabled** on the admin instance (admin-surface Rule 8, observed violated 2026-09-15); the dashboard toggle remains an operator to-do this flow now supersedes.
+- **Three tenants violate the synced-pair invariant** (admin-surface Rule 10): `warriors` and `fightinghawks` have records with no Clerk organization, and `bears` has a self-created Clerk org that is not the pair of its record. Reconciling them is queued as its own task; `POST /admin/tenants` is what stops the list growing.
 
 ## References
 

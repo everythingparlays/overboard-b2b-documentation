@@ -1,8 +1,8 @@
 # Core Module Spec: Admin — Games & Contests, Prizes
 
-**Implements:** PRD `ADM-02`, `ADM-04`, `GAME-01`, `GAME-02`, `BRAND-02`, `PRIZE-01`, `PRIZE-05`–`PRIZE-07`. Read-only in V1 for team users per `ADM-02`; finalization (`ADM-06`, `PRIZE-03`) is deliberately **not** on these screens — see "Where finalization lives".
+**Implements:** PRD `ADM-02`, `ADM-04`, `GAME-01`, `GAME-02`, `BRAND-02`, `PRIZE-01`, `PRIZE-05`–`PRIZE-07`. Writable by a tenant `org:admin` for their own organization since the 2026-09-16 ruling; `org:member` views. Finalization (`ADM-06`, `PRIZE-03`) is deliberately **not** on these screens — see "Where finalization lives".
 
-**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — `resolveAdminScope`, the permission table, the `/games` and `/prizes` nav destinations. [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the tenant-targeting rule, the obs-only write pattern, and the read-only presentation this reuses verbatim.
+**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — `resolveAdminScope`, the permission table, the `/games` and `/prizes` nav destinations. [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the tenant-targeting rule, the write allow-list, and the `org:member` view-only presentation this reuses verbatim.
 
 **Status:** Draft.
 
@@ -10,9 +10,9 @@
 
 The two screens an OBS operator uses to answer "what is this tenant running, and what can fans win": Games & Contests at `/games` and Prizes at `/prizes`, plus the `/admin` endpoints behind them.
 
-**The whole change, in one line:** a tenant's contests, their scheduled games, and their prize tiers become readable through the admin surface — and the per-contest prize tier that `BRAND-02`/`GAME-02` call config becomes editable by OBS without a database write.
+**The whole change, in one line:** a tenant's contests, their scheduled games, and their prize tiers become readable through the admin surface — and the per-contest prize tier that `BRAND-02`/`GAME-02` call config becomes editable by the team's own admins, and by OBS, without a database write.
 
-**In scope:** two screens, four endpoints (`GET /admin/games`, `GET /admin/prizes`, `PUT /admin/contests/:contestId/games`, `PUT /admin/contests/:contestId/prize-tiers`), their contracts in `obs-b2b-shared`, and the delivery statistics both screens read from `PrizeRedemption`.
+**In scope:** two screens, four endpoints (`GET /admin/games`, `GET /admin/prizes`, `PUT /admin/contests/:contestId/games`, `PUT /admin/contests/:contestId/prize-tiers`), their contracts in `obs-b2b-shared`, and the delivery statistics both screens read from `PrizeRedemption`. **Tenant write access is in scope as of the 2026-09-16 ruling** — a tenant `org:admin` toggles their own games and edits their own prize tiers; `org:member` views.
 
 **Not in scope:**
 
@@ -23,7 +23,6 @@ The two screens an OBS operator uses to answer "what is this tenant running, and
 - **Creating and deleting contests.** A contest is created at tenant onboarding (`TEN-05`, still a manual write). Editing an existing contest's game list and tiers is the per-game config `BRAND-02` requires; contest lifecycle is not.
 - **Difficulty tuning** (`GAME-03`) beyond `threeInARows`. The tier's difficulty knob in the data model *is* `threeInARows` (1–8 bingos). `GAME-02`'s richer tier fields — approximate value, redemption window, redemption method and location — have no columns on `B2BPrizeTier`; adding them is a model change this spec does not make. Recorded as a gap.
 - **Export cadence** (`RPT-06`) — the Exports module, as in the Fields & Opt-ins spec.
-- **Tenant write access** — `ADM-03` **[FUTURE]**.
 
 ---
 
@@ -46,25 +45,25 @@ Two consequences the screens must own rather than paper over:
 
 ## The screens
 
-Both follow the Fields & Opt-ins screen's established shape: the tenant being acted on comes from the console-wide selector in the top bar, and OBS with nothing chosen gets the "Pick a tenant" empty state fed by `GET /admin/tenants`, which sets that same selection; the request names the tenant explicitly as `?tenant=<slug>`; a tenant-scoped user's URL never carries the parameter.
+Both follow the Fields & Opt-ins screen's established shape: the tenant being acted on comes from the console-wide sidebar switcher, and OBS with nothing chosen gets the "Pick a tenant" empty state fed by `GET /admin/tenants`, which sets that same selection; an OBS request names the tenant explicitly as `?tenant=<slug>`; a non-obs user's URL never carries the parameter.
 
 ### `/games` — Games & Contests
 
 The tenant's contests, each a card holding its games table. Per game row: the matchup (`bettingEvent`), tip-off (`eventTime`), venue where reference data carries it, and whether the contest runs at it. A row's status is the contest's derived status narrowed by that event's own `status` (`InProgress` → Live, `Final` → Final).
 
-Selecting a row opens the detail panel: the contest it belongs to, its prize tiers (read-only here — Prizes owns tier editing), and the game's own reference facts. **Toggling a game on or off is the one write on this screen**, and it is obs-only.
+Selecting a row opens the detail panel: the contest it belongs to, its prize tiers (not editable here — Prizes owns tier editing), and the game's own reference facts. **Toggling a game on or off is the one write on this screen**, available to obs staff and to the tenant's own `org:admin`.
 
 The contest header carries participation (`numberParticipants` / `maxParticipants`) and an **Incomplete** warning when the contest is enabled at a game but has no prize tiers — the mock's amber row, and a real operator error: fans can play a contest that can award nothing.
 
 ### `/prizes` — Prizes
 
-The tenant's prize tiers, grouped by contest, each showing name, `threeInARows`, description, the fulfillment handler (`handlerId`), and delivery counts for that tier drawn from `PrizeRedemption`. **Add, edit and remove tiers** via a drawer, obs-only.
+The tenant's prize tiers, grouped by contest, each showing name, `threeInARows`, description, the fulfillment handler (`handlerId`), and delivery counts for that tier drawn from `PrizeRedemption`. **Add, edit and remove tiers** via a drawer, for obs staff and the tenant's own `org:admin`.
 
 A **Delivery** card summarises the tenant's `PrizeRedemption` records — fulfilled, pending, failed, skipped — with a link to `/delivery-queue` for the failures themselves. This is the honest, model-backed half of the mock's two right-hand cards; the code-batch card is the half with no model.
 
 `handlerId` is a free-text field with an explanatory note, not a picker: `PRIZE-05` makes handlers per-sponsor custom code and there is no registry to enumerate. `ADM-04`'s "which handler applies to a tier is selected here" is satisfied by the field being editable; making it a picker requires a handler registry that does not exist.
 
-**Read-only for team users.** Identical to the Fields & Opt-ins decision, for the identical reason: a tenant-scoped caller sees the same layout as a view-only presentation — badges and static values where OBS gets controls — with one line of explanation. Not disabled controls; this is a role (`ADM-02`), not a state.
+**View-only for `org:member`.** Identical to the Fields & Opt-ins decision, for the identical reason: a member sees the same layout as a view-only presentation — badges and static values where an admin gets controls — with one line of explanation. Not disabled controls; this is a role, not a state. The presentation is keyed per control off the role claim, so the same screen serves a tenant admin, a tenant member, and an OBS operator.
 
 ---
 
@@ -72,7 +71,7 @@ A **Delivery** card summarises the tenant's `PrizeRedemption` records — fulfil
 
 **Not on these screens. It belongs to OBS Internal, as its own surface.** Three reasons, in order of weight:
 
-1. **It is not tenant-scoped configuration.** Everything else on `/games` and `/prizes` is per-tenant config a tenant could plausibly own once `ADM-03` ships; the whole read-only presentation is built on that premise. Finalization is `org:contest:finalize`, obs-only *permanently* (admin-surface Rule: "OBS staff only", decision 2026-09) — it is not waiting on `ADM-03`, it is never coming to tenants. Putting a permanently-obs action on a screen whose every other control flips to tenants at `ADM-03` invites exactly the wrong one-line change.
+1. **It is not tenant-scoped configuration.** Everything else on `/games` and `/prizes` is per-tenant config a tenant could plausibly own — and as of 2026-09-16 does own. Finalization is `org:contest:finalize`, obs-only *permanently* (admin-surface Rule 9, decision 2026-09) — it was never waiting on a ruling, and it is never coming to tenants. The 2026-09-16 ruling is precisely the case this argument anticipated: every other control on these screens flipped to tenant admins, and a permanently-obs action sitting among them would have flipped with them.
 2. **It is irreversible and requires reverification** (`IDN-13`). The admin-surface spec lists finalizing a contest beside exporting fan data and deleting a fan's data. Those live in OBS Internal (`/fan-actions`). An action that triggers real, unrecallable prize sends belongs with its peers behind the same reverification affordance, not one click from a config toggle.
 3. **Its blast radius is platform-wide, not tenant-wide** (`PRIZE-06`). A failed send degrades sender reputation for every tenant. The admin-surface spec's own test — "whose mistake does it become?" — puts it with OBS.
 
@@ -88,8 +87,8 @@ All under `/admin`, admin Clerk instance only, scope from `req.adminScope` (admi
 |---|---|---|---|
 | GET | `/admin/games` | `requireAdmin` | Any resolved admin scope (`ADM-02` read) |
 | GET | `/admin/prizes` | `requireAdmin` | Any resolved admin scope (`ADM-02` read) |
-| PUT | `/admin/contests/:contestId/games` | `requireAdmin` + `scope.kind === "obs"` | OBS only in V1 (`GAME-01`, `BRAND-02`) |
-| PUT | `/admin/contests/:contestId/prize-tiers` | `requireAdmin` + `scope.kind === "obs"` | OBS only in V1 (`GAME-02`, `BRAND-02`) |
+| PUT | `/admin/contests/:contestId/games` | `requireAdmin` + obs staff or tenant `org:admin` | The tenant's own admins, or OBS on any tenant (`GAME-01`, `BRAND-02`) |
+| PUT | `/admin/contests/:contestId/prize-tiers` | `requireAdmin` + obs staff or tenant `org:admin` | The tenant's own admins, or OBS on any tenant (`GAME-02`, `BRAND-02`) |
 
 **Tenant targeting** is the Fields & Opt-ins rule unchanged: a tenant-scoped caller's target is `scope.tenant` and any `?tenant=` is 403 even naming their own; an OBS caller must send `?tenant=<slug>` (400 without, 404 unknown, 404 reserved).
 
@@ -111,7 +110,7 @@ Both writes respond with the updated contest plus a `changes` summary, matching 
 
 ## Permissions
 
-`ADM-02` scopes team users to read-only. `org:tenant_config:manage` — which `BRAND-02` and `GAME-01` name as covering sponsor assets, prize tiers and active games, i.e. exactly these two writes — appears on no tenant role in V1 (admin-surface Rule 3). The V1 grant is therefore coextensive with obs scope and is **enforced structurally** (`scope.kind === "obs"`), identical to `PUT /admin/config` and for the identical reason: the admin Clerk instance has no custom permissions provisioned, so `has()` returns false for everyone including OBS, and `requirePermission` would be dead on arrival while looking like authorization design. `requirePermission("org:tenant_config:manage")` is the `ADM-03` upgrade path; the scope-kind check remains afterwards as defense in depth for the cross-tenant `?tenant=` path.
+`org:tenant_config:manage` — which `BRAND-02` and `GAME-01` name as covering sponsor assets, prize tiers and active games, i.e. exactly these two writes — is held by tenant `org:admin` and every obs role since the 2026-09-16 ruling (admin-surface Rule 3); `org:member` holds the read grant only. Enforcement is **structural**, identical to `PUT /admin/config` and for the identical reason: the admin Clerk instance has no custom permissions provisioned, so `has()` returns false for everyone including OBS, and `requirePermission` would be dead on arrival while looking like authorization design. The allow-list is obs staff, or an `org:admin` of the organization the contest belongs to. `requirePermission("org:tenant_config:manage")` remains the upgrade path once the instance defines it; the structural check remains afterwards as defense in depth for the cross-tenant `?tenant=` path.
 
 `org:contest:finalize` is not enforced here because nothing here finalizes.
 
@@ -123,7 +122,7 @@ Both writes respond with the updated contest plus a `changes` summary, matching 
 2. **`BetEvent` is read-only.** These endpoints select events into a contest; they never create, edit, or delete one. B2B does not own that collection.
 3. **Contest status is derived by `getB2BContestStatus`**, never stored or recomputed screen-side.
 4. **Prize tiers are per contest.** No endpoint or screen implies a per-game tier set.
-5. **Writes are obs-only until `ADM-03`**, enforced server-side; the read-only presentation is UX, not the boundary.
+5. **Writes require obs staff or the contest's own tenant `org:admin`**, enforced server-side; the view-only presentation for `org:member` is UX, not the boundary.
 6. **Removing a prize tier never deletes `PrizeRedemption` records.**
 7. **Finalization is not on these screens** and no control here sets `finalized`.
 
@@ -141,5 +140,5 @@ Both writes respond with the updated contest plus a `changes` summary, matching 
 
 - PRD: [`ADM-02`, `ADM-04`, `ADM-06`, `BRAND-02`–`BRAND-04`, `GAME-01`–`GAME-04`, `PRIZE-01`–`PRIZE-07`, `TEN-05`](../../../documents/PRD/OBS_B2B_Platform_PRD.md)
 - [`admin-surface.spec.md`](admin-surface.spec.md) — access framework, nav table, reverification list
-- [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the tenant-targeting and read-only patterns this reuses
+- [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the tenant-targeting and view-only presentation patterns this reuses
 - Mocks: `mocks/admin-console/Games-Contests.png`, `Prizes.png` (workspace) — layout source; sponsor assets, code batches and the failed-send queue deliberately not implemented
