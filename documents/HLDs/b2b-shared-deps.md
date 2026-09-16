@@ -126,7 +126,7 @@ The reliable method is compiler feedback: trim fields, compile every consumer, a
 
 ## Consequences
 
-**What improves:** B2B schema changes stop conflicting with D2C work. B2B stops carrying 16 unused interfaces. The HTTP contract is single-sourced between frontend and backend. There is one shared repo for B2B instead of two (`pb-shared-deps` + `core`), vendored in four places instead of five.
+**What improves:** B2B schema changes stop conflicting with D2C work. B2B stops carrying 16 unused interfaces. The HTTP contract is single-sourced between frontend and backend. There is one shared repo for B2B instead of two (`pb-shared-deps` + `core`) — at the time of this decision that cut the vendored checkouts from five to four, though the admin console has since added a fifth of the single repo.
 
 **What gets worse:** reference definitions and board-generation logic exist in two places and can diverge, with nothing detecting it. That is the price of decoupling, accepted knowingly.
 
