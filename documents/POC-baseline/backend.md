@@ -81,7 +81,9 @@ Other schemas in `models.ts` (`Contest`/`User`/`Prop`/`Board`/`BetEvent`/`PromoC
 
 ## Tenant/Org Provisioning
 
-**Fully manual.** No admin endpoint, no CLI/script, no seed data creates a `B2BOrganization` anywhere in the repo — only the read-only `getOrganization` handler exists. New tenants are provisioned by direct MongoDB writes outside any application code path (corroborated by the backend's root `TODO`: "Get Database Access Configured for the Task").
+**Fully manual as audited.** No admin endpoint, no CLI/script, no seed data created a `B2BOrganization` anywhere in the repo — only the read-only `getOrganization` handler existed. New tenants were provisioned by direct MongoDB writes outside any application code path (corroborated by the backend's root `TODO`: "Get Database Access Configured for the Task").
+
+**Since resolved (2026-09):** the admin console provisions tenants through the application — see [`known-issues.md`](known-issues.md#tenantorg-provisioning-is-fully-manual-ten-05-resolved-2026-09).
 
 ## Testing
 

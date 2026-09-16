@@ -144,7 +144,7 @@ Personal dev stacks must **never** point at the production Clerk instance.
 - **Fans:** one shared Clerk instance per *sign-in variant* (`IDN-09`) — two platform-wide, not one per tenant. Tenant membership is a database join, not a Clerk Organization.
 - **Admin surface:** its own Clerk instance with MFA required (`IDN-10`), using Clerk Organizations for staff and team users. MFA is an instance-wide toggle in Clerk, which is why it cannot share an instance with fans.
 
-The consequence for *this* spec is unchanged: a personal dev stack points at the non-production fan instance above and never at a production one. The admin instance is not yet built.
+The consequence for *this* spec is unchanged: a personal dev stack points at the non-production fan instance above and never at a production one. The non-production admin instance now exists too (`united-ram-5089.clerk.accounts.dev`), used by `obs-b2b-admin-frontend`; the same rule applies to it.
 
 ---
 

@@ -15,7 +15,7 @@ It stayed invisible because the failure needs data: with zero boards for the que
 
 ## ~~Cross-Tenant Data Isolation — No Enforcement~~ (`SEC-08`) — Resolved (2026-09)
 
-**Resolved in two steps.** Membership-based middleware landed 2026-09 (`resolveTenant` + `requireMembership` in `node-server/src/middleware/tenant.ts`, per [`multi-tenant-identity-auth.spec.md`](../../spec/core-modules/1-draft/multi-tenant-identity-auth.spec.md)): tenant scope is resolved server-side and validated against the caller's membership before any handler runs, closing the client-supplied-`organizationId` hole. [`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3) (merged 2026-09-14) finished the fan surface: `POST /b2b/contest/prize-tier` is removed from the fan route table entirely (handler kept for the coming admin surface), and a guard test now asserts every `/b2b/*` route declares `auth` explicitly — an unauthenticated route can no longer ship by omission.
+**Resolved in two steps.** Membership-based middleware landed 2026-09 (`resolveTenant` + `requireMembership` in `node-server/src/middleware/tenant.ts`, per [`multi-tenant-identity-auth.spec.md`](../../spec/core-modules/1-draft/multi-tenant-identity-auth.spec.md)): tenant scope is resolved server-side and validated against the caller's membership before any handler runs, closing the client-supplied-`organizationId` hole. [`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3) (merged 2026-09-14) finished the fan surface: `POST /b2b/contest/prize-tier` is removed from the fan route table entirely (prize-tier configuration now lives on the admin surface, which shipped 2026-09-15), and a guard test now asserts every `/b2b/*` route declares `auth` explicitly — an unauthenticated route can no longer ship by omission.
 
 One correction to the original text below: by the time it was removed, `/b2b/contest/prize-tier` was no longer unauthenticated — the 2026-09 middleware work had put `requireMembership` on it. The remaining flaw was authority, not authentication: any tenant *member* could write prize configuration, which `PRIZE-03` (resolved 2026-09: OBS staff only) forbids.
 
@@ -39,7 +39,11 @@ Original finding, for context:
 
 The Zod schema for user creation models granular, timestamped, per-opt-in consent (`optInConsents: [{messageId, agreedAt}]`) and the handler passes it to `B2BUserModel.create()` — but the Mongoose schema has no matching field, so Mongoose's strict mode drops it silently before persistence. The API returns a 201 as if it worked. This is functionally equivalent to "unbuilt" but harder to catch than a missing feature, since the request appears to succeed. Detail: [`backend.md`](backend.md).
 
-## Reporting & Exports Don't Exist (`RPT-01`–`RPT-07`)
+## ~~Reporting & Exports Don't Exist~~ (`RPT-01`–`RPT-07`) — Largely Resolved (2026-09)
+
+**Resolved (merged 2026-09-15):** the admin console's `/exports` screen generates the two tenant-scoped V1 reports — the sponsor-facing "Who played" roster (`RPT-01`) and the aggregate usage report (`RPT-03`) — with `RPT-04`'s per-sponsor field scoping and `RPT-05`'s opt-in row filtering enforced at generation rather than left to review, and every export written to the `B2BAdminAuditLog` (`SEC-06`). See [`admin-exports.spec.md`](../../spec/core-modules/1-draft/admin-exports.spec.md).
+
+Original finding:
 
 Zero code anywhere in the backend touches CSV generation, per-sponsor field scoping, or opt-in-filtered exports. Not stubbed, not TODO-commented — entirely absent. This is a full V1-scope area that needs to be built from scratch.
 
