@@ -2,7 +2,7 @@
 
 ## Package Overview
 
-This repo is documentation-only — no runtime code. It's the source of truth for the OBS B2B platform (a multi-tenant, white-labeled fan-engagement bingo game licensed to sports teams). It drives AI-assisted and human development against two implementation repos: `overboard-b2b-template` (frontend) and `overboard_sports_backend` (backend API + Lambda workers + AWS CDK infra).
+This repo is documentation-only — no runtime code. It's the source of truth for the OBS B2B platform (a multi-tenant, white-labeled fan-engagement bingo game licensed to sports teams). It drives AI-assisted and human development against three implementation repos: `overboard-b2b-template` (fan-facing frontend), `obs-b2b-admin-frontend` (the admin console — a separate origin and Clerk instance), and `overboard_sports_backend` (backend API + Lambda workers + AWS CDK infra).
 
 ## Read This First
 
@@ -64,5 +64,7 @@ Per-feature behavior. Only read specs in `2-approved/` or `3-active/` for implem
 | Repo | Purpose |
 |------|---------|
 | `overboard-b2b-template` | Frontend — fan-facing web app |
+| `obs-b2b-admin-frontend` | Frontend — admin console for OBS and tenant staff, at `admin.overboardsports.com` |
 | `overboard_sports_backend` | Backend API, Lambda workers, AWS CDK infra |
+| `obs-b2b-shared` | Shared types, Zod HTTP contract, and Mongoose models — vendored as a submodule in the three repos above |
 | [`PbCdkMonoRepo`](https://github.com/everythingparlays/PbCdkMonoRepo) | External — publishes to the `prop-hit` SQS queue that `overboard_sports_backend`'s `prop-update-evaluator` Lambda consumes. Not part of this workspace/onboarding; the message contract between the two is currently informal — see [`known-issues.md`](documents/POC-baseline/known-issues.md). |
