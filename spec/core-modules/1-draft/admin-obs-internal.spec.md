@@ -20,7 +20,7 @@ The operator-facing section of the admin console: the four OBS Internal screens 
 - **Retry or resend of failed prize sends.** `PRIZE-07` wants failures "resolved or resent"; the only retry that exists is SQS's own redrive, exhausted before a row ever reads `failed`. The Delivery queue is visibility-only, and says so. A resend control without a resend mechanism would be a button that lies. Recorded gap.
 - **Coupon-code batches.** `PRIZE-05`/`PRIZE-06` code tracking has no model (the games/prizes spec already records the missing sponsor model); the queue cannot show code exhaustion. Recorded gap.
 - **Deferred prize sends on finalization.** The PRD itself scopes this out: finalization "is what will trigger deferred prize sends **when PRIZE-02 is built**". V1 finalization persists the state and the audit record — it dispatches nothing, and fakes nothing. Recorded gap.
-- **Tenant offboarding.** Deleting a production tenant is a legal-and-data question, not a screen. The dev script below is developer tooling with the seed script's guards, not the offboarding path.
+- ~~**Tenant offboarding.** Deleting a production tenant is a legal-and-data question, not a screen.~~ **Superseded 2026-09-15 (ruling, Arthur):** offboarding *is* a screen — suspend, rename, and delete ship as the tenant lifecycle module, with delete behind reverification and a server-checked typed confirmation. See [`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md); the dev script survives as developer tooling only.
 
 ---
 
@@ -52,7 +52,7 @@ Order and failure handling:
 4. **Invitation last, non-fatal.** The first admin is invited as `org:admin`, which since 2026-09-16 carries both invite/remove power and write access to their own organization's configuration — the team configures its workspace from day one, per the provisioning table. An invitation failure does not unwind the tenant (both-or-neither already holds); the response carries `invitation.status: "failed"` and the reason, and OBS re-invites from the Clerk dashboard.
 5. **Audit.** `tenant_create` (`SEC-06` register: who, when, what), detail carrying ids and the invitation status — never the invitee's email.
 
-**The subdomain is immutable once created.** It is simultaneously the Clerk org slug, the fan-app hostname, and the admin scope key; renaming any one strands the other two (the Team spec's argument, now load-bearing here). The form says so before submission; no rename endpoint exists.
+**The subdomain is immutable once created.** It is simultaneously the Clerk org slug, the fan-app hostname, and the admin scope key; renaming any one strands the other two (the Team spec's argument, now load-bearing here). The form says so before submission. The *display name* is a label, not a key, and is renameable through the lifecycle module ([`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md), 2026-09-15) — Clerk and the record together, never the subdomain.
 
 **This flow supersedes the org-switcher path.** Until now the only way a tenant org came to exist was someone using Clerk's own "Create organization" widget — the path admin-surface Rule 8 requires disabling. With `POST /admin/tenants` shipped, the widget path is superseded, and disabling self-creation on the admin instance (a Clerk dashboard toggle, still open as of 2026-09-15) loses its last excuse. The console's own sidebar switcher carries a **Create organization** entry for obs staff only, and it routes here rather than to Clerk's widget — one provisioning path, reachable from where an operator would look for it, and the only one that keeps the record and the Clerk org a synced pair (admin-surface Rule 10).
 
@@ -139,7 +139,7 @@ All six are obs-only, on user-level obs staff-ness. On the future Clerk-permissi
 1. **Every OBS Internal endpoint refuses a caller who is not obs staff with 403 before doing anything else** — the check is on the user, not the active organization. Hiding the nav section is UX; this is the boundary.
 2. **The Clerk organization and the `B2BOrganization` record are created both-or-neither.** Partial failure rolls back or reports the orphan loudly; it never returns success.
 3. **`admin` and `obs` are refused at provisioning** — in the contract for the polite error, in the handler for the boundary (`TEN-C3`).
-4. **The subdomain is immutable once created.** Nothing renames a tenant org or its record.
+4. **The subdomain is immutable once created.** Nothing renames a tenant org's slug or its record's subdomain; the display name alone may change, both systems together, through the lifecycle module (2026-09-15).
 5. **Finalization is reverification-gated, server-side name-confirmed, and audited before the write.** No audit row, no finalization.
 6. **Finalization dispatches no sends** until `PRIZE-02` exists. It persists state; it never fakes delivery.
 7. **The fan-actions export carries platform identifiers only** — no contact fields — and excludes declined fans (`RPT-05`) from identified rows.
