@@ -13,7 +13,7 @@ Covers `overboard_sports_backend/lambdas/` (`board-evaluator`, `prop-update-eval
         → board-evaluator Lambda
         → prize-fulfillment queue (SQS FIFO)
         → prize-worker (Fargate, long-poll)
-        → fulfillment handler (email/webhook/barcode by handlerId)
+        → fulfillment handler (by handlerId; unknown ids fail the redemption)
 ```
 
 Each queue has a DLQ with a CloudWatch alarm on message depth (see [`infra.md`](infra.md)).
@@ -45,12 +45,16 @@ Per message:
 
 | Handler ID | Status |
 |---|---|
-| `email` | Stub — `console.log` only, `// TODO: send email (e.g. SES)` |
-| `email-test` | Stub |
-| `webhook` | Stub — `// TODO: POST to configured webhook URL` |
-| `barcode` | Stub — `// TODO: generate/store barcode` |
 | `handler_001` | **Real** — sends an SES email from a static HTML template on disk |
 | `handler_002` | **Real** — same pattern, different template |
+
+`email`, `email-test`, `webhook` and `barcode` were registered here as TODO-bodied no-ops until
+2026-09-16. Because they resolved without sending anything, the worker marked the redemption
+`fulfilled`: the fan was recorded as having received a prize that was never delivered, and the
+Delivery queue — which lists failures only — never showed it. That is precisely the silent drop
+`PRIZE-07` forbids, so they were unregistered rather than left as placeholders. A tier naming one
+now takes the unknown-handler path and lands in `failed` with a reason an operator can read.
+Register a handler when it can really send.
 
 The only two working handlers use a **hardcoded subject line** (`"Hawk Bingo: Claim Your Prize - {prizeName}"`) baked into shared worker code — not sponsor- or org-configurable, despite prize tiers being per-tenant/per-sponsor. SES sender address (`nick@overboardsports.com`) is hardcoded in two files rather than environment-configurable.
 
@@ -60,7 +64,7 @@ The only two working handlers use a **hardcoded subject line** (`"Hawk Bingo: Cl
 
 ## Assessment
 
-The queue plumbing, idempotency, and DLQ/alerting infrastructure across this whole pipeline are solid and already close to production-shaped. The gap is entirely in **fulfillment**: the extensible `handlerId → handler` registry pattern is the right shape for PRD `PRIZE-05`'s "custom logic per sponsor" requirement, but 4 of 6 registered handlers are no-ops, and the two that work are hardcoded to one brand's copy with no coupon-code capability at all.
+The queue plumbing, idempotency, and DLQ/alerting infrastructure across this whole pipeline are solid and already close to production-shaped. The gap is entirely in **fulfillment**: the extensible `handlerId → handler` registry pattern is the right shape for PRD `PRIZE-05`'s "custom logic per sponsor" requirement, but only two handlers exist, and both are hardcoded to one brand's copy with no coupon-code capability at all. (Four further ids were registered as no-ops until 2026-09-16; removing them converted a fake success into an honest, visible failure, but it did not add delivery capability.)
 
 **Confirmed direction (2026-08): fulfillment is meant to be bespoke, per-sponsor code** — this isn't a pattern that needs to be replaced with something more generic, it's the explicit exception PRD `PRIZE-05` carves out. The work here is writing more handlers and coupon-code infrastructure as sponsors need it, not redesigning the registry.
 
