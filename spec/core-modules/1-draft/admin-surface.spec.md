@@ -158,7 +158,7 @@ A **separate application and deployment** at `admin.overboardsports.com`, not a 
 
 The fan template is tenant-branded and deployed per tenant; admin is one deployment serving all tenants, with its own Clerk publishable key, its own theme, and an org switcher instead of tenant resolution. Sharing a bundle would ship admin code to every fan and put two Clerk instances in one page.
 
-- `<OrganizationSwitcher hidePersonal />` for OBS staff moving between tenants. Tenant users see one org and should not be shown a switcher at all.
+- `<OrganizationSwitcher hidePersonal />` for OBS staff moving between tenants. A tenant user who belongs to a single organization sees one org and should not be shown a switcher at all. The switcher renders for anyone whose Clerk membership count is greater than one, whatever their currently resolved scope — otherwise a user who is in both `obs` and a tenant org is stranded in the tenant org, since the active organization survives sign-out.
 - Route guards read `orgSlug` and `has({ permission })` from the session — the same pattern as the fan `ProtectedRoute`, different inputs.
 - **The URL's tenant must be checked against the session's `orgSlug` on every scoped page.** A stale `orgSlug` after an org switch otherwise renders one tenant's data under another's URL.
 
