@@ -36,7 +36,7 @@ exportFields?: ExportFieldId[]   // subset of EXPORT_FIELD_CATALOG, meaningful o
 
 - **Fail closed.** A sponsor opt-in with no `exportFields` (unset or empty) cannot be exported: 409, "No DPA field scope configured". The alternative — a default scope — is a fabricated DPA.
 - **The server intersects, the client never chooses.** A generation request names the sponsor, not the fields; the CSV's columns come from the stored scope. There is no "include extra fields" parameter to misuse.
-- **Editing the scope is config, so it is obs-only** in V1 (structurally, like every config write) — a signed DPA is what changes it, and OBS holds the DPA. Tenants see the scope read-only.
+- **Editing the scope is Workspace config**, so since the 2026-09-16 ruling a tenant `org:admin` edits their own — obs staff or `org:admin`, structurally, like every config write. The DPA framing is unchanged by that: the scope follows the signed DPA, and staying inside it is the tenant admin's responsibility. `org:member` sees the scope without controls.
 - `applyConfigUpdate` (the Fields & Opt-ins publish path) **preserves `exportFields`** on opt-ins it updates — the config screen doesn't know the field exists, and a publish from it must not strip a sponsor's DPA scope. Guarded by test.
 
 ## The row filter (`RPT-05`)
@@ -51,15 +51,15 @@ Filtering happens at generation time, in the query — there is no post-generati
 
 ## The screen
 
-`/exports`, per Nick's 2026-09-14 mock. Standard scope shape: OBS follows the console-wide "Acting on tenant" selection and the request names it explicitly as `?tenant=`; tenant callers never carry the parameter.
+`/exports`, per Nick's 2026-09-14 mock. Standard scope shape: OBS follows the console-wide selection made in the sidebar switcher and the request names it explicitly as `?tenant=`; non-obs callers never carry the parameter.
 
 **Recent exports** (left): the audit log's export entries for this tenant — report, sponsor, game, row count with filtered-out count, when, and who ran it. **Download re-generates**: rows are filtered and fields scoped *at generation time*, so a fresh generation is the compliant artifact, and it goes through the same reverification gate as any other. The table is the audit trail wearing a UI; it cannot disagree with SEC-06 because it *is* SEC-06's record.
 
 **Generate export**: pick the report; for "Who played", pick the sponsor and the contest (optionally narrowed to one game); generation streams back a CSV the browser saves. "Who played" generation triggers the reverification prompt (IDN-13 — releases PII); the usage report does not (aggregate-only, nothing identifying). Failures are stated plainly — most importantly the unconfigured-field-scope 409, which tells the operator what to fix rather than producing an empty file.
 
-**Field scope** (right): per sponsor opt-in, the catalog as a checklist — checked means the DPA authorizes it. OBS callers edit and save; tenant callers see the same card as read-only state, one line of explanation, per the established presentation rule. Beneath it, the row-filtering arithmetic for the selected sponsor, with the mock's note: excluded fans still count in aggregate reports, where nothing identifies them.
+**Field scope** (right): per sponsor opt-in, the catalog as a checklist — checked means the DPA authorizes it. Obs staff and the tenant's own `org:admin` edit and save; an `org:member` sees the same card as view-only state, one line of explanation, per the established presentation rule. Beneath it, the row-filtering arithmetic for the selected sponsor, with the mock's note: excluded fans still count in aggregate reports, where nothing identifies them.
 
-**Tenant callers can generate and download both reports.** This is the deliberate difference from every previous module: `org:reports:read` is held by *all* admin roles (admin-surface permission table) — reporting is the product the team bought. The obs-only boundary here is config (the field scope), not use.
+**Tenant callers can generate and download both reports.** This was the deliberate difference from every previous module: `org:reports:read` is held by *all* admin roles (admin-surface permission table) — reporting is the product the team bought. It is no longer the exception it was, now that the tenant's own admins configure the rest of their workspace too; but it remains the one thing an `org:member` can *do* rather than view.
 
 ---
 
@@ -72,7 +72,7 @@ All under `/admin`, admin Clerk instance only, scope from `req.adminScope`. Cont
 | GET | `/admin/exports` | `requireAdmin` | Any resolved admin scope |
 | POST | `/admin/exports/who-played` | `requireAdmin` + reverification | Any resolved admin scope (`org:reports:read`) |
 | POST | `/admin/exports/usage` | `requireAdmin` | Any resolved admin scope (`org:reports:read`) |
-| PUT | `/admin/exports/field-scope` | `requireAdmin` + `scope.kind === "obs"` | OBS only (config) |
+| PUT | `/admin/exports/field-scope` | `requireAdmin` + obs staff or tenant `org:admin` | The tenant's own admins, or OBS on any tenant (config) |
 
 **Tenant targeting** unchanged from every prior module (403 / 400 / 404 discipline).
 
@@ -82,7 +82,7 @@ All under `/admin`, admin Clerk instance only, scope from `req.adminScope`. Cont
 
 **`POST /admin/exports/usage` takes** `{ contestId? }` (default: all the tenant's contests) and returns the same envelope: one CSV row per contest — members joined, boards played, distinct players, bingos, prizes fulfilled/failed, gameplay and prize-claim conversion rates (`RPT-03`'s trio, minus signup conversion — recorded gap: the platform does not yet count entry-gate visits, so there is no denominator). Every fan counts, declines included. Audited as `usage_export`.
 
-**`PUT /admin/exports/field-scope` takes** `{ optInId, exportFields }` — catalog-validated, no duplicates — and returns the updated sponsor list plus a `changes` summary, the config PUT's precedent. Obs-only structurally; `requirePermission` is the eventual upgrade path, per the fields spec's reasoning verbatim.
+**`PUT /admin/exports/field-scope` takes** `{ optInId, exportFields }` — catalog-validated, no duplicates — and returns the updated sponsor list plus a `changes` summary, the config PUT's precedent. Enforced structurally — obs staff, or an `org:admin` of the owning organization; `requirePermission` is the eventual upgrade path, per the fields spec's reasoning verbatim.
 
 ### Generation, not storage
 
@@ -92,7 +92,7 @@ Exports are generated in-process and returned in the response envelope (`csv` as
 
 ## Permissions
 
-`org:reports:read` — all admin roles, scoped to the caller's org (admin-surface permission table). In V1 this grant is coextensive with *any resolved admin scope*, so the reads and generations enforce nothing beyond `requireAdmin` + tenant targeting — the first module where tenant callers act rather than view, which is the permission table working as designed, not an oversight. The field-scope write is config: obs-only structurally, `ADM-03`-shaped like every other config write. `RPT-02`'s `org:fan_data:export` appears nowhere in this module, by design.
+`org:reports:read` — all admin roles, scoped to the caller's org (admin-surface permission table). This grant is coextensive with *any resolved admin scope*, so the reads and generations enforce nothing beyond `requireAdmin` + tenant targeting — the first module where tenant callers acted rather than viewed, which is the permission table working as designed, not an oversight. The field-scope write is config: structural, obs staff or the owning org's `org:admin`, shaped like every other config write. `RPT-02`'s `org:fan_data:export` appears nowhere in this module, by design.
 
 Reverification (IDN-13, mechanism in the Fans spec): "Who played" releases PII → gated, for OBS and tenant callers alike. The usage report and the catalog read release nothing identifying → not gated. The field-scope write is config, not PII release → not gated (and a stale scope edit is recoverable, unlike a release).
 

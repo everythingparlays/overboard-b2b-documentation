@@ -20,13 +20,13 @@ The Fans screen at `/fans`: the tenant's membership roster — profile fields, c
 - **The fan-actions export and event-level activity** (`RPT-02`) — OBS Internal's `/fan-actions`, its own module. This screen shows membership state, not event streams.
 - **Editing a fan's profile or consents.** Consent is recorded from the fan, through the gate (`OPT-04`); an admin writing a fan's consent would forge the audit record. No such endpoint exists or should.
 - **Full account erasure across tenants and providers.** SEC-07's propagation to analytics tools, the email provider, and the fan Clerk instance — see "Deletion semantics" for the exact V1 boundary and the recorded gap.
-- **Tenant write access** — nothing here changes at `ADM-03`; deletion stays with OBS (see below).
+- **Tenant write access** — nothing on this screen was affected by the 2026-09-16 ruling that gave tenant admins write access elsewhere. Deletion is named in that ruling as one of the exclusions that stays OBS-only, permanently (see below); the rest of this screen has no config writes to grant.
 
 ---
 
 ## The screen
 
-`/fans`, per Nick's 2026-09-14 mock. Same scope shape as every workspace screen: the tenant being acted on comes from the console-wide selector in the top bar, and OBS with nothing chosen gets the "Pick a tenant" state, which sets that same selection; the request names the tenant explicitly as `?tenant=<slug>`; a tenant-scoped user's URL never carries the parameter.
+`/fans`, per Nick's 2026-09-14 mock. Same scope shape as every workspace screen: the tenant being acted on comes from the console-wide sidebar switcher, and OBS with nothing chosen gets the "Pick a tenant" state, which sets that same selection; an OBS request names the tenant explicitly as `?tenant=<slug>`; a non-obs user's URL never carries the parameter.
 
 **The table.** One row per membership: display name with masked email beneath, joined date, one chip per active opt-in (accepted / declined / pending at the current `textVersion` — the same three states, computed by the same rules, as the Fields & Opt-ins stats, so the two screens can never disagree about a fan), profile completeness (Complete, or Missing N against the tenant's current required fields), boards played, prizes won with failed deliveries called out. Search (name or email) plus two filters: opt-in state per opt-in, and missing-required-field.
 
@@ -38,9 +38,9 @@ The Fans screen at `/fans`: the tenant's membership roster — profile fields, c
 
 **The drawer.** Selecting a row opens the fan's detail: profile fields (contact masked unless the view is revealed), full consent history — each record with its decision, the `textVersion` the fan actually saw, and when — gameplay (boards, bingos), and prize redemptions with statuses. Consent history is append-only truth from the gate; the drawer labels a record made against an older text version as such rather than pretending it answers the current wording.
 
-**Deletion** lives at the bottom of the drawer, OBS-only, behind a typed confirmation (the fan's display name) *and* reverification. Tenant callers do not see the control — same presentation rule as every obs-only write.
+**Deletion** lives at the bottom of the drawer, OBS-only, behind a typed confirmation (the fan's display name) *and* reverification. Non-obs callers — tenant `org:admin` included — do not see the control. It did not become visible to tenant admins when the rest of the console did: the 2026-09-16 ruling names fan-data deletion as one of its explicit exclusions.
 
-**Read-only for team users** otherwise — this screen has no config writes at all, so tenant and OBS callers see the same table; the differences are exactly two: which tenant's roster is shown (OBS follows the console-wide selection; a tenant caller has only their own) and the deletion control (OBS).
+**The same table for everyone** otherwise — this screen has no config writes at all, so every caller sees the same roster; the differences are exactly two: which tenant's roster is shown (OBS follows the console-wide selection; a non-obs caller has only their own) and the deletion control (OBS).
 
 ---
 
@@ -52,9 +52,9 @@ All under `/admin`, admin Clerk instance only, scope from `req.adminScope` (admi
 |---|---|---|---|
 | POST | `/admin/fans/search` | `requireAdmin` (+ reverification when `reveal: true`) | Any resolved admin scope |
 | GET | `/admin/fans/:membershipId` | `requireAdmin` | Any resolved admin scope |
-| DELETE | `/admin/fans/:membershipId` | `requireAdmin` + reverification + `scope.kind === "obs"` | OBS only |
+| DELETE | `/admin/fans/:membershipId` | `requireAdmin` + reverification + obs staff | OBS only, permanently |
 
-**Tenant targeting** is the established rule unchanged: tenant callers are scoped to their own org and 403 on any `?tenant=`; OBS callers must send `?tenant=<slug>` (400 without, 404 unknown or reserved).
+**Tenant targeting** is the established rule unchanged: non-obs callers are scoped to their own org and 403 on any `?tenant=`; obs staff must send `?tenant=<slug>` (400 without, 404 unknown or reserved), whatever organization they have active.
 
 **`:membershipId` is verified against the resolved tenant** — the games spec's `:contestId` rule, same reasoning: the handler re-reads the membership and answers **404** when its `organizationId` is not the target tenant's, never 403, so a cross-tenant probe learns nothing.
 
@@ -96,7 +96,7 @@ The Exports module's "Recent exports" table reads this collection — the export
 4. **The membership deleted** — profile fields and consent records go with the document. Consent records are the one deliberate exception to "consent history is never deleted" (`OPT-04`): an erasure request is the fan revoking the basis for keeping the record, and SEC-07 postdates and outranks the retention default.
 5. **The identity, if orphaned** — when this was the fan's last membership on any tenant, the `B2BFan` document (cached email) is deleted too. The Clerk fan-instance user is **not** deleted here — recorded gap below.
 
-**OBS-only, permanently** — not an `ADM-03` candidate. The admin-surface spec's own test is "whose mistake does it become": deletion is irreversible and legally consequential, and the party executing an erasure obligation end-to-end is the platform operator. This is `org:fan_data:export`'s sibling, not `org:tenant_config:manage`'s. Enforced structurally (`scope.kind === "obs"`) with its own message, exactly as every V1 write.
+**OBS-only, permanently.** The 2026-09-16 ruling that gave tenant admins write access across Workspace and Configuration excludes this explicitly, and the admin-surface spec records it as a named boundary rather than a permission row (it has no `org:*` permission of its own). The test is the admin-surface spec's own — "whose mistake does it become": deletion is an irreversible PII lifecycle action, legally consequential, and the party executing an erasure obligation end-to-end is the platform operator. This is `org:fan_data:export`'s sibling, not `org:tenant_config:manage`'s, and it did not move when that one did. Enforced structurally on user-level obs staff-ness, with its own message.
 
 **Idempotent in effect:** deleting an already-deleted membership is 404 — nothing about the fan remains to confirm.
 
@@ -104,7 +104,7 @@ The Exports module's "Recent exports" table reads this collection — the export
 
 ## Permissions
 
-Reads: every resolved admin scope — `ADM-01`'s shared-screen model; the roster is the tenant's own data, and a team user seeing their own fans is the product. Reveal: every resolved admin scope, but only through reverification and the audit log (see above — the grant already exists via `org:reports:read`; the gate adds accountability, not access). Deletion: OBS only, structurally; `requirePermission` remains the upgrade path if a dedicated permission is ever provisioned, per the fields spec's reasoning.
+Reads: every resolved admin scope — `ADM-01`'s shared-screen model; the roster is the tenant's own data, and a team user seeing their own fans is the product. Reveal: every resolved admin scope, but only through reverification and the audit log (see above — the grant already exists via `org:reports:read`; the gate adds accountability, not access). Deletion: OBS only, structurally and permanently; `requirePermission` remains the upgrade path if a dedicated permission is ever provisioned, per the fields spec's reasoning — a different enforcement mechanism for the same boundary, never a wider one.
 
 ---
 
