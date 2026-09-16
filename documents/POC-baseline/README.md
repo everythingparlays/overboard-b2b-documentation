@@ -29,7 +29,7 @@ This matters for spec work: a shared-model spec in `spec/core-modules/` should t
 
 ## One-Line Status Per PRD Area
 
-Full detail and evidence for each row is in [`known-issues.md`](known-issues.md) and the layer-specific files above. These rows describe the POC **as audited (2026-08)** — several have since been resolved (consent persistence, route auth/tenant isolation, configurable signup fields — all 2026-09); `known-issues.md` tracks resolution per entry and is the current word.
+Full detail and evidence for each row is in [`known-issues.md`](known-issues.md) and the layer-specific files above. These rows describe the POC **as audited (2026-08)** — several have since been resolved (consent persistence, route auth/tenant isolation, configurable signup fields — all 2026-09), and the admin console that shipped 2026-09-15 resolved three more: tenant provisioning, the game/prize configuration path, and reporting/exports all now have an admin path. `known-issues.md` tracks resolution per entry and is the current word.
 
 | PRD Section | Status in POC |
 |---|---|

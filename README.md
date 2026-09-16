@@ -2,12 +2,14 @@
 
 This is a **documentation-only repository** (no runtime code) that acts as the single source of truth for the OBS B2B platform: what it should do, why it's built the way it is, and how AI-assisted and human development should generate consistent, architecture-compliant code against it.
 
-It documents two implementation repos:
+It documents these implementation repos:
 
 | Repo | Purpose |
 |------|---------|
 | `overboard-b2b-template` | Frontend — fan-facing web app (React/Vite) |
+| `obs-b2b-admin-frontend` | Frontend — admin console for OBS and tenant staff (React/Vite), a separate origin and a separate Clerk instance from the fan app |
 | `overboard_sports_backend` | Backend, workers, and infrastructure (Express API, Lambda evaluators, AWS CDK) |
+| `obs-b2b-shared` | Shared types, Zod HTTP contract, and Mongoose models, vendored as a submodule in the repos above |
 
 ## Where Things Live
 
@@ -44,12 +46,14 @@ If you deleted every file in `documents/`, AI could still generate correct code 
 
 ## Workspace Layout
 
-This repo is one of three, meant to sit side-by-side in a shared workspace folder:
+The repos are meant to sit side-by-side in a shared workspace folder:
 
 ```
 obs-b2b-workspace/                     <- your workspace folder, any name
 ├── overboardb2b-documentation/        <- this repo (specs, PRD, POC baseline)
-├── overboard-b2b-template/            <- frontend (React/Vite)
+├── overboard-b2b-template/            <- fan-facing frontend (React/Vite)
+│   └── obs-b2b-shared/                <- submodule: obs-b2b-shared
+├── obs-b2b-admin-frontend/            <- admin console (React/Vite)
 │   └── obs-b2b-shared/                <- submodule: obs-b2b-shared
 └── overboard_sports_backend/          <- backend, workers, infra (CDK)
     ├── lambdas/obs-b2b-shared/            <- submodule: obs-b2b-shared

@@ -6,13 +6,16 @@ If anything here is out of date or doesn't match what you find, that's useful si
 
 ## What You're Setting Up
 
-Three repos, cloned as siblings in one folder:
+Four repos, cloned as siblings in one folder:
 
 | Repo | Purpose | Remote |
 |---|---|---|
 | `overboardb2b-documentation` | Specs, PRD, architecture docs (this repo) | `github.com/everythingparlays/overboard-b2b-documentation` |
 | `overboard-b2b-template` | Frontend — fan-facing web app | `github.com/everythingparlays/overboard-b2b-template` |
+| `obs-b2b-admin-frontend` | Frontend — admin console for OBS and tenant staff | `github.com/everythingparlays/obs-b2b-admin-frontend` |
 | `overboard_sports_backend` | Backend API, workers, AWS infra (CDK) | `github.com/everythingparlays/overboard_sports_backend` |
+
+> The admin console is a separate origin with its own Clerk instance; the steps below cover the fan app and the backend. Its deploy notes live in that repo's `DEPLOY.md`, and its screens are specified in [`spec/core-modules/1-draft/`](spec/core-modules/1-draft/) (`admin-surface.spec.md` is the umbrella).
 
 > The backend repo moved into the `everythingparlays` org (2026-09) — it previously lived under a personal account (`nickdep217`); the old URL redirects.
 
@@ -22,15 +25,17 @@ obs-b2b-workspace/                     <- pick any name for this folder
 ├── obs-b2b-shared/                    <- edit/publish copy (see note below)
 ├── overboard-b2b-template/
 │   └── obs-b2b-shared/                <- git submodule
+├── obs-b2b-admin-frontend/
+│   └── obs-b2b-shared/                <- git submodule
 └── overboard_sports_backend/
     ├── lambdas/obs-b2b-shared/            <- git submodule
     ├── node-server/src/obs-b2b-shared/    <- git submodule
     └── prize-worker/obs-b2b-shared/       <- git submodule
 ```
 
-Both app repos depend on **`obs-b2b-shared`** — B2B's own repo of TypeScript types, the Zod HTTP contract, and Mongoose models — vendored as a git submodule in four places (frontend, `node-server`, `lambdas`, `prize-worker`). Keep all four pinned to the same commit; they are separate checkouts and can drift. Design: [`documents/HLDs/b2b-shared-deps.md`](documents/HLDs/b2b-shared-deps.md).
+All three app repos depend on **`obs-b2b-shared`** — B2B's own repo of TypeScript types, the Zod HTTP contract, and Mongoose models — vendored as a git submodule in five places (fan frontend, admin frontend, `node-server`, `lambdas`, `prize-worker`). Keep them all pinned to the same commit; they are separate checkouts and can drift. Design: [`documents/HLDs/b2b-shared-deps.md`](documents/HLDs/b2b-shared-deps.md).
 
-**Why there's a fifth copy at the workspace root.** No build reads it — every project resolves the package from its own submodule. It exists because submodule checkouts are pinned and therefore sit in *detached HEAD*: committing inside one leaves the commit on no branch, unreachable by the other three pins. The root clone is the one checkout on `main`, so it is where you edit and publish:
+**Why there's an extra copy at the workspace root.** No build reads it — every project resolves the package from its own submodule. It exists because submodule checkouts are pinned and therefore sit in *detached HEAD*: committing inside one leaves the commit on no branch, unreachable by the other pins. The root clone is the one checkout on `main`, so it is where you edit and publish:
 
 ```bash
 # 1. change the shared package
@@ -153,7 +158,7 @@ npm run build
 
 This builds `node-server`, `prize-worker`, and the board-evaluator Lambda into their `built/` directories. **A first `cdk deploy` on a fresh clone fails without it** — CDK packages the pre-built output rather than building the services itself, and the failure mode (two deploys have died on this) is not obviously "you forgot to build."
 
-**Run the tests** — the backend has a jest suite as of 2026-09 (42 tests across 7 suites: tenant isolation, route-auth declarations, entry-gate consent evaluation, admin scoping):
+**Run the tests** — the backend has a jest suite as of 2026-09 (351 tests: tenant isolation, route-auth declarations, entry-gate consent evaluation, admin scoping, and the `/admin/*` route surface):
 
 ```bash
 npx jest
@@ -272,7 +277,7 @@ See the backend repo's own `README.md` for full CDK deploy options (`mongodbSecr
 
 A few things are off-limits for new contributors (interns especially) by default, because the blast radius extends outside what you can see or test from this workspace:
 
-- **Don't edit inside the `obs-b2b-shared` submodule directory.** It is one repo vendored into four places — an inline edit changes types and models for the frontend *and* all three backend services, and is easy to lose when the submodule is next updated. Changes go through the `obs-b2b-shared` repo itself, then all four pins move together. If a task seems to need a change there, **stop and ask** rather than fixing it inline as part of an unrelated ticket.
+- **Don't edit inside the `obs-b2b-shared` submodule directory.** It is one repo vendored into five places — an inline edit changes types and models for both frontends *and* all three backend services, and is easy to lose when the submodule is next updated. Changes go through the `obs-b2b-shared` repo itself, then all five pins move together. If a task seems to need a change there, **stop and ask** rather than fixing it inline as part of an unrelated ticket.
 - **Never point your local environment at the production MongoDB database.** The same database that stores B2B data also stores live data for the D2C mobile app (`Contest`, `User`, `Board`, `Prop`, and other non-`B2B`-prefixed collections — see `known-issues.md`) — these are serving real users right now. Only use connection strings/credentials you've been explicitly told are for dev/local use. If you're not sure whether what you were given points at production, **ask before running anything against it** — including read-only exploration, since it's easy to fat-finger a write.
 - **Don't run tenant/org provisioning steps, migrations, or one-off scripts against shared infrastructure** without a teammate reviewing them first, even if they look small and scoped only to B2B collections — provisioning today is manual, direct database writes (see `known-issues.md`), which means there's no safety net catching a mistake.
 - If a task assigned to you seems to require touching any of the above, that's a signal it's not actually a good first task — flag it rather than pushing through.
@@ -291,7 +296,7 @@ These aren't setup mistakes — they're pre-existing gaps documented in [`docume
 
 - Both repos ship a `.env.example` now — the frontend's since 2026-08, `node-server`'s since 2026-09. If a variable name in this doc and the `.env.example` ever disagree, trust the `.env.example` and flag the doc.
 - The backend has a jest suite as of 2026-09 (`npx jest` at the repo root) — run it before pushing backend changes. The frontend still has no tests or test runner.
-- `obs-b2b-shared` is vendored in four places and each can be pinned independently — if you see a type error that looks like it shouldn't exist, check that all four pins match (`git submodule status` in each repo).
+- `obs-b2b-shared` is vendored in five places and each can be pinned independently — if you see a type error that looks like it shouldn't exist, check that all five pins match (`git submodule status` in each repo).
 - Two AWS accounts exist (`obs-b2b-prod`, `obs-b2b-dev`) and the CDK app now supports per-developer namespaced stacks via required `-c stage=<name>` context (see `spec/infra/environments.spec.md`). `obs-b2b-prod` is a brand-new, empty account — it is **not** the account currently running the live system (see `known-issues.md`); migrating there is a separate, not-yet-done task.
 - A personal dev stack now works end to end for the main API and auth (2026-09-11); the async Lambda pipeline still needs a dev-scoped Mongo secret that doesn't exist yet (see `known-issues.md`).
 - A first `cdk deploy` on a fresh clone fails unless `./scripts/build-all.sh` has been run first — see step 4.

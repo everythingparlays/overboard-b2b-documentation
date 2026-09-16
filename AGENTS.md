@@ -2,7 +2,7 @@
 
 ## Package Overview
 
-This repo is documentation-only — no runtime code. It's the source of truth for the OBS B2B platform (a multi-tenant, white-labeled fan-engagement bingo game licensed to sports teams). It drives AI-assisted and human development against two implementation repos: `overboard-b2b-template` (frontend) and `overboard_sports_backend` (backend API + Lambda workers + AWS CDK infra).
+This repo is documentation-only — no runtime code. It's the source of truth for the OBS B2B platform (a multi-tenant, white-labeled fan-engagement bingo game licensed to sports teams). It drives AI-assisted and human development against three implementation repos: `overboard-b2b-template` (fan-facing frontend), `obs-b2b-admin-frontend` (the admin console — a separate origin and Clerk instance), and `overboard_sports_backend` (backend API + Lambda workers + AWS CDK infra).
 
 ## Read This First
 
@@ -45,7 +45,7 @@ An `architecture.spec.md` covering the rest of the CDK stack (VPC/ECS/ALB/SQS/La
 
 ### Core Module Specs (`spec/core-modules/`)
 
-Cross-cutting capabilities used across webapp, backend, and workers — most importantly **auth/tenancy** (Clerk + multi-tenant resolution) and shared data models. See [`documents/HLDs/data-access-isolation.md`](documents/HLDs/data-access-isolation.md) (requirements) and [`spec/core-modules/2-approved/mongodb-access-isolation.spec.md`](spec/core-modules/2-approved/mongodb-access-isolation.spec.md) (implementation — exact collection names, Atlas custom roles, CDK constructs) before writing any code that touches non-B2B collections (`BetEvent`, `Prop`, `Entity`) or that scopes B2B service/developer credentials. B2B now has **one** shared dependency: **`obs-b2b-shared`** — types, the Zod HTTP contract, and Mongoose models — vendored in four places (frontend, `node-server`, `lambdas`, `prize-worker`). `pb-shared-deps` and `core` were removed from the B2B repos entirely (`pb-shared-deps` still serves the D2C products; `core` was absorbed into the frontend). Layering rules — notably that `interfaces/` must stay Mongoose-free so the frontend can import it — are in [`documents/HLDs/b2b-shared-deps.md`](documents/HLDs/b2b-shared-deps.md). See [`documents/POC-baseline/README.md`](documents/POC-baseline/README.md#shared-components-across-both-repos) for detail. These should be specced early since drift here propagates everywhere. Only read specs in `3-active/` (or `2-approved/` if implementing something not yet built) for implementation.
+Cross-cutting capabilities used across webapp, backend, and workers — most importantly **auth/tenancy** (Clerk + multi-tenant resolution) and shared data models. See [`documents/HLDs/data-access-isolation.md`](documents/HLDs/data-access-isolation.md) (requirements) and [`spec/core-modules/2-approved/mongodb-access-isolation.spec.md`](spec/core-modules/2-approved/mongodb-access-isolation.spec.md) (implementation — exact collection names, Atlas custom roles, CDK constructs) before writing any code that touches non-B2B collections (`BetEvent`, `Prop`, `Entity`) or that scopes B2B service/developer credentials. B2B now has **one** shared dependency: **`obs-b2b-shared`** — types, the Zod HTTP contract, and Mongoose models — vendored in five places (fan frontend, admin frontend, `node-server`, `lambdas`, `prize-worker`). `pb-shared-deps` and `core` were removed from the B2B repos entirely (`pb-shared-deps` still serves the D2C products; `core` was absorbed into the frontend). Layering rules — notably that `interfaces/` must stay Mongoose-free so the frontend can import it — are in [`documents/HLDs/b2b-shared-deps.md`](documents/HLDs/b2b-shared-deps.md). See [`documents/POC-baseline/README.md`](documents/POC-baseline/README.md#shared-components-across-both-repos) for detail. These should be specced early since drift here propagates everywhere. Only read specs in `3-active/` (or `2-approved/` if implementing something not yet built) for implementation.
 
 ### Feature Specs (`spec/features/`)
 
@@ -57,12 +57,14 @@ Per-feature behavior. Only read specs in `2-approved/` or `3-active/` for implem
 2. **Prefer configuration over per-tenant code** (PRD `TEN-C1`) — except set-once branding (`BRAND-01`) and per-sponsor prize fulfillment logic (`PRIZE-05`), which are explicit exceptions.
 3. **Security and reliability are first-class, not deferred.** This effort exists specifically to take the platform from POC to production-grade (PRD Section 13 Security, Section 14 Observability). Flag gaps against those sections as they're found.
 4. **Requirement IDs are stable.** When writing specs, tickets, or tests, reference PRD IDs (e.g. `OPT-04`) rather than re-describing the requirement.
-5. **Never generate changes inside the `obs-b2b-shared` submodule directory** — it is one repo vendored in four places; edits go through that repo, then all four pins move together. And never suggest connecting to or running scripts against the production MongoDB database (it also serves the live D2C mobile app — see `known-issues.md`). If a task seems to require either, stop and flag it instead of proceeding — see [`SETUP.md`](SETUP.md#boundaries--read-this-before-your-first-pr) for the full contributor-boundaries list this applies to.
+5. **Never generate changes inside the `obs-b2b-shared` submodule directory** — it is one repo vendored in five places; edits go through that repo, then all five pins move together. And never suggest connecting to or running scripts against the production MongoDB database (it also serves the live D2C mobile app — see `known-issues.md`). If a task seems to require either, stop and flag it instead of proceeding — see [`SETUP.md`](SETUP.md#boundaries--read-this-before-your-first-pr) for the full contributor-boundaries list this applies to.
 
 ## Related Repositories
 
 | Repo | Purpose |
 |------|---------|
 | `overboard-b2b-template` | Frontend — fan-facing web app |
+| `obs-b2b-admin-frontend` | Frontend — admin console for OBS and tenant staff, at `admin.overboardsports.com` |
 | `overboard_sports_backend` | Backend API, Lambda workers, AWS CDK infra |
+| `obs-b2b-shared` | Shared types, Zod HTTP contract, and Mongoose models — vendored as a submodule in the three repos above |
 | [`PbCdkMonoRepo`](https://github.com/everythingparlays/PbCdkMonoRepo) | External — publishes to the `prop-hit` SQS queue that `overboard_sports_backend`'s `prop-update-evaluator` Lambda consumes. Not part of this workspace/onboarding; the message contract between the two is currently informal — see [`known-issues.md`](documents/POC-baseline/known-issues.md). |

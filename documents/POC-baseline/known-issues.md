@@ -15,7 +15,7 @@ It stayed invisible because the failure needs data: with zero boards for the que
 
 ## ~~Cross-Tenant Data Isolation — No Enforcement~~ (`SEC-08`) — Resolved (2026-09)
 
-**Resolved in two steps.** Membership-based middleware landed 2026-09 (`resolveTenant` + `requireMembership` in `node-server/src/middleware/tenant.ts`, per [`multi-tenant-identity-auth.spec.md`](../../spec/core-modules/1-draft/multi-tenant-identity-auth.spec.md)): tenant scope is resolved server-side and validated against the caller's membership before any handler runs, closing the client-supplied-`organizationId` hole. [`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3) (merged 2026-09-14) finished the fan surface: `POST /b2b/contest/prize-tier` is removed from the fan route table entirely (handler kept for the coming admin surface), and a guard test now asserts every `/b2b/*` route declares `auth` explicitly — an unauthenticated route can no longer ship by omission.
+**Resolved in two steps.** Membership-based middleware landed 2026-09 (`resolveTenant` + `requireMembership` in `node-server/src/middleware/tenant.ts`, per [`multi-tenant-identity-auth.spec.md`](../../spec/core-modules/1-draft/multi-tenant-identity-auth.spec.md)): tenant scope is resolved server-side and validated against the caller's membership before any handler runs, closing the client-supplied-`organizationId` hole. [`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3) (merged 2026-09-14) finished the fan surface: `POST /b2b/contest/prize-tier` is removed from the fan route table entirely (prize-tier configuration now lives on the admin surface, which shipped 2026-09-15), and a guard test now asserts every `/b2b/*` route declares `auth` explicitly — an unauthenticated route can no longer ship by omission.
 
 One correction to the original text below: by the time it was removed, `/b2b/contest/prize-tier` was no longer unauthenticated — the 2026-09 middleware work had put `requireMembership` on it. The remaining flaw was authority, not authentication: any tenant *member* could write prize configuration, which `PRIZE-03` (resolved 2026-09: OBS staff only) forbids.
 
@@ -39,7 +39,11 @@ Original finding, for context:
 
 The Zod schema for user creation models granular, timestamped, per-opt-in consent (`optInConsents: [{messageId, agreedAt}]`) and the handler passes it to `B2BUserModel.create()` — but the Mongoose schema has no matching field, so Mongoose's strict mode drops it silently before persistence. The API returns a 201 as if it worked. This is functionally equivalent to "unbuilt" but harder to catch than a missing feature, since the request appears to succeed. Detail: [`backend.md`](backend.md).
 
-## Reporting & Exports Don't Exist (`RPT-01`–`RPT-07`)
+## ~~Reporting & Exports Don't Exist~~ (`RPT-01`–`RPT-07`) — Largely Resolved (2026-09)
+
+**Resolved (merged 2026-09-15):** the admin console's `/exports` screen generates the two tenant-scoped V1 reports — the sponsor-facing "Who played" roster (`RPT-01`) and the aggregate usage report (`RPT-03`) — with `RPT-04`'s per-sponsor field scoping and `RPT-05`'s opt-in row filtering enforced at generation rather than left to review, and every export written to the `B2BAdminAuditLog` (`SEC-06`). See [`admin-exports.spec.md`](../../spec/core-modules/1-draft/admin-exports.spec.md).
+
+Original finding:
 
 Zero code anywhere in the backend touches CSV generation, per-sponsor field scoping, or opt-in-filtered exports. Not stubbed, not TODO-commented — entirely absent. This is a full V1-scope area that needs to be built from scratch.
 
@@ -61,9 +65,11 @@ Only email+password (with email-code MFA) is implemented in the actual sign-up/s
 
 Original finding: there was no per-tenant field configuration model anywhere (frontend or backend) — the signup form and its required fields were fixed in code, not data-driven.
 
-## Tenant/Org Provisioning Is Fully Manual (`TEN-05`)
+## ~~Tenant/Org Provisioning Is Fully Manual~~ (`TEN-05`) — Resolved (2026-09)
 
-No admin endpoint, script, or seed path creates a `B2BOrganization` — provisioning happens via direct database writes outside any application code. `TEN-03` calls for ≤1–2 hours of engineering time per onboarding; there's currently no tooling to measure or bound that against.
+**Resolved (merged 2026-09-15):** the admin console's OBS Internal section provisions a tenant through the application. Create-tenant is both-or-neither — the Clerk organization is created first and rolled back if the `B2BOrganization` write fails, so a half-made tenant cannot be left behind — and a `delete-tenant.mjs` teardown script exists alongside it. See [`admin-obs-internal.spec.md`](../../spec/core-modules/1-draft/admin-obs-internal.spec.md).
+
+Original finding: no admin endpoint, script, or seed path created a `B2BOrganization` — provisioning happened via direct database writes outside any application code, with no tooling to measure `TEN-03`'s ≤1–2 hours per onboarding against.
 
 ## HTTPS Is Off in the Checked-In Infra Config (`SEC-04`)
 
@@ -183,9 +189,13 @@ Original problem, for context:
 
 `pb-shared-deps` is vendored as four separate checkouts (frontend + backend's `lambdas/`, `node-server/`, `prize-worker/`), each pinned to a different commit. The backend's own `TODO` flags this as known and unresolved. A schema change to a shared model (e.g. `B2BBoard`) isn't guaranteed to be in sync across all four consumers today.
 
-## Testing: ~~Effectively Zero Coverage Anywhere~~ — Backend Resolved (2026-09), Frontend Still at Zero
+## Testing: ~~Effectively Zero Coverage Anywhere~~ — Backend and Admin Console Resolved (2026-09), Fan Frontend Still at Zero
 
-**Backend resolved (2026-09, merged 2026-09-14):** `npx jest` at the backend repo root now runs 42 tests across 7 suites — tenant isolation, the route-auth guard (every `/b2b/*` route must declare `auth`), entry-gate consent/field evaluation, and admin instance/scope separation ([`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3) plus the 2026-09 membership and admin work). Two caveats: the CDK app's own test file is still the commented-out placeholder (its one empty test passes vacuously and accounts for one of the 7 suites), and the Lambdas/`prize-worker` remain untested. **The frontend claim below still stands** — no test files, no testing libraries installed.
+**Backend resolved (2026-09):** `npx jest` at the backend repo root now runs **351 tests** — tenant isolation, the route-auth guard (every `/b2b/*` route must declare `auth`), entry-gate consent/field evaluation, admin instance/scope separation, and the `/admin/*` route surface built through 2026-09-15. Two caveats: the CDK app's own test file is still the commented-out placeholder (its one empty test passes vacuously), and the Lambdas/`prize-worker` remain untested.
+
+**Admin console resolved (2026-09):** `obs-b2b-admin-frontend` ships with Vitest and React Testing Library and runs **248 tests across 21 files**. Every page has a test except the debug health route and the one remaining placeholder screen.
+
+**Still open — the fan frontend (`overboard-b2b-template`):** no test files, no testing libraries installed.
 
 Original finding: both repos had no real test coverage — the CDK app's test file has every assertion commented out, and neither `node-server`, the Lambdas, `prize-worker`, nor the frontend had any test files or testing libraries installed at all.
 
