@@ -39,7 +39,7 @@ The first real admin feature: the Fields & Opt-ins screen at `/config`, and the 
 
 **Read-only for team users (decision, this spec).** A tenant-scoped caller sees the same layout rendered as a **view-only presentation** — state badges instead of interactive controls — with one line of explanation ("Read-only — signup fields and opt-ins are managed by Overboard in V1"). Not disabled controls: disabled implies a temporarily unavailable action, and this is a role (`ADM-02`), not a state. The presentation flips per control when `ADM-03` ships, not per screen.
 
-**OBS tenant selection.** An OBS caller's scope names no tenant, so `/config` without a tenant shows a chooser fed by `GET /admin/tenants`; choosing navigates to `/config?tenant=<slug>`. The URL is the chosen-tenant state (admin-surface spec, "Frontend"). A tenant-scoped user's `/config` never carries the parameter.
+**OBS tenant selection.** An OBS caller's scope names no tenant, so the tenant being acted on comes from the console-wide selector in the top bar ("Acting on tenant", admin-surface spec, "Frontend") — one choice that applies to every screen, not a choice per screen. With nothing chosen, `/config` shows the "Pick a tenant" empty state, fed by the same `GET /admin/tenants`; choosing there sets the console-wide selection. The request still names the tenant explicitly as `?tenant=<slug>`. A tenant-scoped user's `/config` never carries the parameter.
 
 ---
 

@@ -26,7 +26,7 @@ The Fans screen at `/fans`: the tenant's membership roster — profile fields, c
 
 ## The screen
 
-`/fans`, per Nick's 2026-09-14 mock. Same scope shape as every workspace screen: OBS with no tenant chosen gets the "Pick a tenant" state; the chosen tenant lives in `?tenant=<slug>`; a tenant-scoped user's URL never carries the parameter.
+`/fans`, per Nick's 2026-09-14 mock. Same scope shape as every workspace screen: the tenant being acted on comes from the console-wide selector in the top bar, and OBS with nothing chosen gets the "Pick a tenant" state, which sets that same selection; the request names the tenant explicitly as `?tenant=<slug>`; a tenant-scoped user's URL never carries the parameter.
 
 **The table.** One row per membership: display name with masked email beneath, joined date, one chip per active opt-in (accepted / declined / pending at the current `textVersion` — the same three states, computed by the same rules, as the Fields & Opt-ins stats, so the two screens can never disagree about a fan), profile completeness (Complete, or Missing N against the tenant's current required fields), boards played, prizes won with failed deliveries called out. Search (name or email) plus two filters: opt-in state per opt-in, and missing-required-field.
 
@@ -40,7 +40,7 @@ The Fans screen at `/fans`: the tenant's membership roster — profile fields, c
 
 **Deletion** lives at the bottom of the drawer, OBS-only, behind a typed confirmation (the fan's display name) *and* reverification. Tenant callers do not see the control — same presentation rule as every obs-only write.
 
-**Read-only for team users** otherwise — this screen has no config writes at all, so tenant and OBS callers see the same table; the differences are exactly two: the tenant picker (OBS) and the deletion control (OBS).
+**Read-only for team users** otherwise — this screen has no config writes at all, so tenant and OBS callers see the same table; the differences are exactly two: which tenant's roster is shown (OBS follows the console-wide selection; a tenant caller has only their own) and the deletion control (OBS).
 
 ---
 
