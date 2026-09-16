@@ -4,7 +4,7 @@
 
 ## Purpose
 
-A single repository — `obs-b2b-shared` — owned by the B2B platform and consumed by all four B2B runtimes: `node-server`, the two Lambda evaluators, `prize-worker`, and the frontend.
+A single repository — `obs-b2b-shared` — owned by the B2B platform and consumed by all five B2B runtimes: `node-server`, the two Lambda evaluators, `prize-worker`, the fan frontend, and the admin console.
 
 It exists to give B2B a dependency it controls. Today B2B's models live in `pb-shared-deps`, a repo shared with the D2C mobile app and website. That coupling has concrete costs: B2B work happens on a long-lived branch of someone else's repo, B2B schema changes merge-conflict with D2C changes, and B2B carries 25 interfaces of which it uses 9.
 
@@ -118,7 +118,7 @@ The reliable method is compiler feedback: trim fields, compile every consumer, a
 
 **Not in this repo:** anything D2C-owned. No `Contest`, `User`, `Board`, `PromoCode`, `Transaction`, `AttendantCall`, `PaymentCode`, `Relationship`, `DeferredLinking`, `ContentBanner`, `UserNotificationPreferences`, `Team`, `Sport`, or the legacy `score.ts`. B2B imports none of them today, and adding one should be treated as a signal that the boundary is wrong rather than as a routine change.
 
-**Not a general OBS shared library.** `pb-shared-deps` continues to exist and serve the D2C products. This repo is B2B's, and its scope is what the four B2B runtimes need.
+**Not a general OBS shared library.** `pb-shared-deps` continues to exist and serve the D2C products. This repo is B2B's, and its scope is what the five B2B runtimes need.
 
 **Frontend UI components do not belong here.** Those live in the frontend, per the separate decision to retire the `core` submodule.
 
