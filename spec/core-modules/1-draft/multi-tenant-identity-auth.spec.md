@@ -4,6 +4,8 @@
 
 **Status:** Implemented on the fan surface (2026-09). The membership model, middleware, and route disposition landed with the 2026-09 membership work; the consent gate, join, `POST /b2b/consent`, and configurable signup fields were built 2026-09-11 and merged 2026-09-14 ([`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3), contracts in [`obs-b2b-shared#1`](https://github.com/everythingparlays/obs-b2b-shared/pull/1), frontend in [`overboard-b2b-template#2`](https://github.com/everythingparlays/overboard-b2b-template/pull/2)). One route-disposition row is half done: `POST /b2b/contest/prize-tier` is off the fan surface (2026-09-14) but not yet wired on `/admin/*`. The prescriptive content below stands as written; passages describing "today" refer to the pre-cutover POC.
 
+**Amended 2026-09-21 for entry-gate editor v2:** `FieldDefinition` gains a type and per-field copy, `fieldId` stops being a platform enum, `B2BOrganization` gains `gateCopy`, and `authVariant` gains `"both"`. Rule 7 is rewritten to match. Existing documents are unaffected — the new properties are optional and resolve from well-known defaults at read, so there is no migration and no backfill. The model and the argument live in [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md).
+
 ## Overview
 
 Split identity from membership, move tenant scope to the server, and turn consent from a signup form field into a gate evaluated on every entry.
@@ -88,26 +90,35 @@ Embedded rather than a separate collection: consents are always read with their 
 | Field | Type | Notes |
 |---|---|---|
 | `optIns` | `[OptInDefinition]` | `{ optInId, kind, text, textVersion, blocking, sponsorId? }` — `OPT-01`, `OPT-03`, `OPT-05` |
-| `signupFields` | `[FieldDefinition]` | `{ fieldId, requirement, label?, order? }` — `AUTH-02`. See below |
-| `authVariant` | `"email" \| "phone"` | `IDN-09` [P2]. Add the field now, default `"email"`; the second instance is later work |
+| `signupFields` | `[FieldDefinition]` | `AUTH-02`. See below |
+| `gateCopy` | `GateCopyOverrides?` | Seven optional strings overriding the entry gate's page copy; blank is unset. Defined in [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) |
+| `authVariant` | `AuthVariant` | `"email" \| "phone" \| "both"`, default `"email"`. `IDN-09` [P2]. See below |
 
 `textVersion` increments on any change to `text`. That increment is the entire re-consent trigger — treat it as the write that must never be skipped when editing consent copy.
 
-**`FieldDefinition`** — `AUTH-02`'s configurable signup fields, deliberately the **same shape as opt-ins**: the tenant defines a set, the membership stores the fan's answers, and the server validates answers against definitions at the boundary. Both are also evaluated the same way — outstanding items are computed when a fan arrives, not only when they first join, so a tenant can add a required field mid-season and existing fans are asked on next entry (decision, 2026-09). The only difference is versioning: an opt-in's wording is versioned so a rewording re-asks it, while a field value is simply present or absent.
+**`FieldDefinition`** — `AUTH-02`'s configurable signup fields, deliberately the **same shape as opt-ins**: the tenant defines a set, the membership stores the fan's answers, and the server validates answers against definitions at the boundary. Both are also evaluated the same way — outstanding items are computed when a fan arrives, not only when they first join, so a tenant can add a required field mid-season and existing fans are asked on next entry (decision, 2026-09). The only difference is versioning: an opt-in's wording is versioned so a rewording re-asks it, while a field is simply satisfied or not. That asymmetry is deliberate and load-bearing — because a field definition carries no version, nothing about how a field is *worded* can re-prompt anybody, which is what makes the rich field editor safe (the semantic/descriptive split, [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md)). Opt-in text stays the only versioned string on the platform.
 
 | Field | Type | Notes |
 |---|---|---|
-| `fieldId` | enum | From a **closed platform catalog** — not free-form. See below |
+| `fieldId` | String | Tenant-chosen: a **well-known id** or a slug generated once from the label. Never a reserved id. See below |
+| `type` | enum, optional | `shortText` \| `longText` \| `date` \| `dropdown` \| `checkbox`. Optional only because a well-known id resolves it |
 | `requirement` | `"required" \| "optional"` | |
-| `label` / `order` | String / Number, optional | Copy override and render order |
+| `label` | String, optional | Optional only because a well-known id resolves it |
+| `description` / `caption` / `placeholder` | String, optional | Copy under the label, under the input, and inside the empty input |
+| `options` | `[String]`, optional | Dropdown choices; required on a dropdown, absent otherwise |
+| `order` | Number, optional | Render order |
+
+The full validation rules, and the editor that writes these definitions, are in [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md); this spec holds the shape and the guarantees the server makes about it.
 
 Three details make three of `AUTH-02`'s acceptance criteria structurally true rather than something to enforce:
 
 - **"Not shown" is absence, not a third state.** A field the tenant does not want simply is not in the array, so there is nowhere for the value to come from. A tenant collecting nothing extra has `signupFields: []`.
-- **The catalog is closed.** `fieldId` is a fixed platform enum — `firstName`, `lastName`, `phone`, `birthday`, `zip`, `address`, `favoritePlayers`. A tenant configures *which* of these to collect; it cannot invent new ones. This is a privacy control, not a typing convenience: the platform decides what may ever be collected about a fan, the tenant decides what is. Adding to the catalog is a platform change with a privacy review.
-- **Email is not in the catalog at all.** `AUTH-03` makes it mandatory, and it lives on `B2BFan` as the identity key (`IDN-02`) rather than on the membership — so "email cannot be set to optional or not shown" holds because the setting does not exist.
+- **The field set is tenant-owned, with platform guardrails** (superseding the closed catalog, 2026-09-21). `fieldId` was a fixed enum of seven on the argument that the platform should decide what may ever be collected about a fan. The **2026-09-16 tenant-ownership ruling** decided the harder version of that question the other way: a tenant `org:admin` now authorizes which fan PII is *released to a sponsor* under their own DPA ([`admin-exports.spec.md`](admin-exports.spec.md)). A platform that delegates release cannot coherently reserve collection, so it delegates collection too — and keeps four guardrails that do the work the enum was credited with. **A typed value set:** five types, each with a known value shape (`string | boolean`) and a boundary check, so no field can store an arbitrary payload. **Fail-closed export scoping:** nothing is exportable until a named human checks it into a sponsor's scope, and an unconfigured scope is a 409. **Scope pruning on delete:** a deleted field's id is removed from every opt-in's `exportFields` in the same write, so a re-created id inherits nothing. **Reserved ids:** `email`, `picks`, `gameDate`, and `displayName` can never be a `fieldId`. The seven old catalog entries survive as *well-known ids* — a defaults library that resolves label, type, placeholder, and format rules for the fields most tenants want.
+- **Email is not a field at all.** `AUTH-03` makes it mandatory, and it lives on `B2BFan` as the identity key (`IDN-02`) rather than on the membership — so "email cannot be set to optional or not shown" holds because the setting does not exist. It is also a reserved `fieldId`, so the open model cannot be used to manufacture a second one.
 
-Values are stored in `B2BFanMembership.profileFields` as `Mixed` (decision, 2026-08): a `fieldId → value` map, validated at the boundary rather than by a Mongoose schema. A dynamically-built per-tenant schema was considered and is not worth it at this size.
+Values are stored in `B2BFanMembership.profileFields` as `Mixed` (decision, 2026-08): a `fieldId → value` map, validated at the boundary rather than by a Mongoose schema. A dynamically-built per-tenant schema was considered and is not worth it at this size — and under the open field set it would now have to be rebuilt on every config publish, which settles it. `Mixed` is only safe because the boundary check is real: every value is typed against its definition on the way in (Rule 7).
+
+**`authVariant` takes a third value, `"both"`, from one source.** `AUTH_VARIANTS` in the shared package is the single definition — the Mongoose enum, both zod sites, and the tenant-creation contract read it, replacing the four inline unions that had to be edited together to add a value and that nothing stopped from disagreeing. **The fan app implements email sign-in only and branches on no variant at all**, so `"phone"` and `"both"` are stored intent, not behavior — the same gap `"phone"` has had since the field was added, and `IDN-09` stays P2. Recording the intent is still worth doing: it is what a tenant asked for at creation, it is the input to `IDN-09` whenever the second Clerk instance lands, and the alternative is discovering the answer by asking the customer again. The admin surface offers all three and says nothing about when they take effect, because it does not know ([`admin-surface.spec.md`](admin-surface.spec.md) records the same gap in the reflect-point inventory).
 
 ### There is no migration
 
@@ -205,7 +216,7 @@ If any pending opt-in has `blocking: true`, the server **also rejects gameplay w
 
 1. Upsert `B2BFan` on `clerkUserId` — the fan may already exist from another tenant. This is the `IDN-01` moment: an existing identity is reused, never duplicated.
 2. Reject with `409` if a membership already exists for `(fan, tenant)` — idempotency, and it stops a double-submit creating two memberships.
-3. Validate submitted `profileFields` against `organization.signupFields`: reject any `fieldId` the tenant did not configure (including catalog-valid ones), reject when a `required` field is absent or empty, accept an absent `optional` field, and apply the catalog's per-field format check. A no-op when the tenant configures no extra fields.
+3. Validate submitted `profileFields` against `organization.signupFields`: reject any `fieldId` the tenant did not configure (including well-known ones), reject when a `required` field is not satisfied, accept an absent `optional` field, and apply the definition's own checks — value shape for the resolved type, membership in `options` for a dropdown, date validity, length, and the well-known format rules where they apply. A no-op when the tenant configures no extra fields.
 4. Validate and record consents as above. If any `blocking` opt-in is declined or missing, **fail the join** — do not create a partial membership.
 5. Create the membership. Steps 4 and 5 must be atomic; a membership without its blocking consents is exactly the state the model exists to prevent.
 
@@ -269,7 +280,7 @@ Standing constraints for anyone touching this area afterwards.
 4. **Consent text edits increment `textVersion`.** Editing `text` without incrementing silently leaves every fan consented to copy they never saw.
 5. **Consents never transfer between memberships** (`IDN-06`), including for the same sponsor.
 6. **`agreedAt` is stamped server-side.** Never accepted from a client.
-7. **`fieldId` comes from the closed platform catalog, and unconfigured fields are rejected rather than ignored.** Silently dropping an unexpected field hides a client bug; rejecting surfaces it. Several catalog fields (`address`, `birthday`, `phone`) are PII under `SEC-03`, and live on the membership so `IDN-08` deletion (`SEC-07`) removes them.
+7. **A submitted field value is validated against the tenant's own configured definition, and an unconfigured `fieldId` is rejected rather than ignored.** Silently dropping an unexpected field hides a client bug; rejecting surfaces it — unchanged, and now the only thing standing where a platform enum used to stand as well. Validation is against *the tenant's configured set plus the type rules* — the id is configured, the value matches the resolved type's shape, a dropdown value is one of that field's options, a date is a date, lengths and well-known format rules hold — not against a platform list of permitted ids. Fields carrying PII under `SEC-03` (`address`, `birthday`, `phone`, and anything a tenant invents) live on the membership, so `IDN-08` deletion (`SEC-07`) removes them wholesale regardless of who defined them.
 
 ---
 
