@@ -6,6 +6,8 @@
 
 **Revised 2026-09-16** (ruling, Nick) — tenant self-service ships now, OBS-ness is a property of the user rather than the active organization, and the console has one switcher. The sections marked with that date carry the change; nothing else in this spec moved.
 
+**Revised 2026-09-16** (ruling, Arthur) — a third principle, **Fan's-eye view**: where configuration reflects onto the fan app, the console shows the fan's view of it, rendered from the fan product's own code. Principles, Rule 12, and the reflect-point inventory carry the change.
+
 ## Overview
 
 The access framework for the internal/tenant admin application: who can sign in, what they can reach, and how the backend tells them apart from fans.
@@ -230,11 +232,36 @@ One nav structure, three sections. Same screens for both actor classes (`ADM-01`
 
 ## Principles
 
-Two named principles sit above the rules. They are not route-specific, and a change that satisfies every numbered rule can still violate one of them.
+Three named principles sit above the rules. They are not route-specific, and a change that satisfies every numbered rule can still violate one of them.
 
 **Seamlessness.** *What parts of the app a user is shown is calculated per user — from their identity and memberships — never from what part of the frontend they happen to be standing in.* An operator does not gain or lose capabilities by navigating; the console renders the same answer to "what may this person do" on every screen, because it asks the same question. This is what makes the one switcher and the identity-driven nav sections coherent rather than two features that happen to agree. And it is convenience only: **UI hiding is never the boundary**. Every one of these decisions is enforced again server-side, and a user who reconstructs a hidden route by hand meets the same refusal they would have met anyway.
 
 **Plain product language.** *No developer jargon and no spec identifiers in customer-visible copy.* No requirement ids (`RPT-05`, `ADM-03`), no implementation vocabulary ("dead-letter", "hard bounce", "structural refusal"), and no over-explaining the mechanism behind a result. The reader is a team's marketing staffer, and the copy should read as normal to them. Spec ids belong in specs, code comments, and API documentation — never in UI text. This governs new copy from now; the existing screens get their own sweep, which is not this change.
+
+**Fan's-eye view** (ruling 2026-09-16, Arthur). *Where a configuration screen changes what a fan sees, the console shows the fan's view of the change, rendered from the fan product's own code.* A team's staffer configuring signup fields or prize tiers is editing a screen they never look at; without a view of it their only way to see their own work is to publish and go find it — which turns a deliberate publish into a preview mechanism on screens explicitly designed so that publishing is deliberate.
+
+Two halves, and the second is what makes the first worth having:
+
+- **Shown.** Configuration that reflects onto the fan app gets a view of the result, alongside the controls that produce it and bound to the unsaved draft, not to the last publish.
+- **Rendered, not drawn.** The view runs the fan app's own components, copy, and validation, shared through `obs-b2b-shared`. A hand-built likeness is a second implementation of a screen, and second implementations drift — which is not a hypothetical here: the signup field catalog's labels were copied into three files and two of them had already disagreed.
+
+Where the console cannot honestly know something the fan sees, **it says so rather than guessing**. Tenant colors and logos live compile-time in the fan app today, so the preview renders the platform's default palette under a caption saying so; copying the palettes into the console would buy a view that looks right while being wrong, which is worse than the caption.
+
+This is a direction, not a retrofit order. It governs new configuration screens, and the inventory below names the existing ones in the order they are worth doing.
+
+### Reflect points (noted, not built)
+
+Everywhere a console setting reaches the fan app today, and how good a candidate each is:
+
+| Configuration | Fan surface | Status |
+|---|---|---|
+| **Signup fields & opt-ins** | The entry gate | **Built first** — [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md), the flagship |
+| **Prize tiers** (`Prizes.tsx`) | `PrizeModal.tsx`, `BoardPage.tsx` | **Best next candidate.** The shared `B2BPrizeTier` type is already used verbatim by the fan app, so the projection is nearly free. One thing to settle first: `PrizeModal` headlines `prizeDescription` and uses `prizeName` only as image alt text — a preview would make that visible, which is the argument for doing it |
+| **Games enabled per contest** (`Games.tsx`) | `ContestPage.tsx` tabs | Candidate. Small surface, and the reflection is a tab strip rather than a screen |
+| **Contest visibility** | Server-filtered; the fan gets a generic empty state | Weak candidate. What the fan sees is an absence, and a preview of an absence teaches little |
+| **Tenant name** | Nothing — **a broken link** | Not a preview problem. An admin rename never reaches the fan app at all, which reads its local registry. Recorded here because it looks like a missing reflect point and is actually a missing write path |
+| **Branding** (`/branding`) | Every fan screen | Blocked. The screen is unbuilt and there is no data model behind it; see the open `BRAND-01` question in the fields spec's known gaps |
+| **`authVariant`** | The fan sign-in | Blocked, and worth flagging: the value is configurable while the fan sign-in hardcodes email — configuration with no effect, which a preview would expose but not fix |
 
 ---
 
@@ -251,11 +278,14 @@ Two named principles sit above the rules. They are not route-specific, and a cha
 9. **`org:contest:finalize` never appears on a tenant org role set**, and fan-data deletion stays with OBS (decision 2026-09; reaffirmed 2026-09-16). Neither is waiting on anything.
 10. **A `B2BOrganization` record and its Clerk organization are a synced pair at all times** — created, changed, and deleted together or not at all. The DB directory is the source of truth for what tenants exist; three records violate this today and are recorded above as data debt. The rule governs the pair's existence and identity (slug, name); **tenant suspension is deliberately outside it** — a database-side status with no Clerk half, because Clerk has no suspend primitive and inventing one by deleting the org would destroy exactly what the rule protects ([`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md), 2026-09-15).
 11. **OBS staff-ness is resolved from the user, not the active organization.** Active `obs` proves it from the signed token; anything else verifies membership against Clerk, cached 5 minutes, failing closed on error.
+12. **A view of the fan product inside the console renders the fan product's own code**, shared through `obs-b2b-shared` — never a likeness rebuilt in console markup, and never an embed of the live fan site. The console references the fan product; it does not host it, and it does not redraw it.
 
 ---
 
 ## References
 
 - HLD: [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) — `IDN-10`–`IDN-13`
+- HLD: [`b2b-shared-deps.md`](../../../documents/HLDs/b2b-shared-deps.md) — the shared package's `ui/` layer, and the test a component must pass to live there
+- [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the first instance of the Fan's-eye view principle
 - PRD: [`TEN-03`, `TEN-05`, `TEN-C3`, `ADM-01`–`ADM-09`, `BRAND-02`, `GAME-01`, `PRIZE-03`, `RPT-01`–`RPT-05`, `SEC-07`, `SEC-08`, `OBS-04`](../../../documents/PRD/OBS_B2B_Platform_PRD.md)
 - [`multi-tenant-identity-auth.spec.md`](multi-tenant-identity-auth.spec.md) — the fan-side model this deliberately does not share
