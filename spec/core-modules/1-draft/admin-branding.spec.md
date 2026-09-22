@@ -125,6 +125,22 @@ Storing computed values was considered and rejected on the same ground as `textV
 | Neutrals, partial | absent members derive from the **given** ground by the same rules — a tenant sets a ground and gets a coherent ramp, rather than having to supply seven hexes to change one |
 | Borders | `--border` = explicit `neutrals.border` if present, else `withAlpha(borderBase, borderAlpha)`; `--border-strong` = `withAlpha(borderBase, min(borderAlpha*2, 0.4))` |
 
+**The fixed interface — the 41 variables `themeToCssVars` emits**, pinned by name in the shared package's `resolve.test.ts` so adding or removing one is a deliberate contract change, never drift:
+
+```
+--background --foreground --card --card-foreground --muted --muted-foreground
+--input --border --border-strong --surface-raised --text-secondary
+--primary --primary-foreground --secondary --secondary-foreground
+--accent --accent-foreground --ring --live --live-foreground
+--tenant-primary --tenant-secondary --tenant-border
+--radius --radius-chip --radius-card --radius-full
+--font-display --font-body --font-numeric --display-transform --display-weight
+--texture --texture-size --team-soft --team-border --team-glow --on-team
+--glow-hit --glow-ring --glow-intensity
+```
+
+Three of those (`--border-strong`, `--text-secondary`, `--live-foreground`) were added during the build because a stored or computed value had no variable to reach a host through; a value the contract holds but no host can read is a defect, so the list was widened rather than the storage narrowed.
+
 **The emitted variable set is a superset of what the entry gate reads today**, so the existing 14-variable gate contract keeps working untouched, and the legacy aliases are kept deliberately: `muted` = surface, `input` = surface, `ring` = primary, `secondary` falls back to primary when absent, `accent` falls back to secondary then primary, and `--radius` carries the control radius in px because the gate stylesheet already reads it by that name. A new name for an existing concept would have been cleaner and would have broken every consumer for nothing.
 
 **`BRAND-06` — The explicit `border` override exists for legacy parity and nothing else.** `ThemeNeutrals` carries both `borderBase` (an rgb basis, alpha applied by `borderAlpha`) and `border` (a full explicit color that wins). Two ways to say one thing is normally a defect; here the second is load-bearing. Today's tenant files store a flat opaque border hex, and the parity test below must reproduce it byte-for-byte. `borderBase` is how the contract is meant to be used and what the screen writes; `border` is how a legacy seed survives conversion without a visual delta.
