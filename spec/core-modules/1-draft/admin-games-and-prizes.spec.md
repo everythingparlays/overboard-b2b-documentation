@@ -94,7 +94,18 @@ All under `/admin`, admin Clerk instance only, scope from `req.adminScope` (admi
 
 **`:contestId` is not a tenant identifier**, but it is an identifier that could cross tenants, so it gets the same treatment: every write re-reads the contest and verifies its `organizationId` matches the resolved target tenant, answering **404** — not 403 — when it does not. A 403 would confirm the contest exists under some other tenant; 404 tells an OBS operator who fat-fingered an id exactly as much as they need.
 
-**`GET /admin/games` returns** the tenant, its contests, and for each contest its derived status, participation, tier count, and its games — each with the event's id, matchup, tip-off, status, and whether it is enabled. Because `allowedBetEvents` holds only the enabled events, the *candidate* games a contest could run at come from the reference `BetEvent` collection: the response includes upcoming events for the sport in a bounded window, so the screen can offer the mock's "Off" rows. Where no reference events exist the contest still renders with its enabled games.
+**`GET /admin/games` returns** the tenant, its contests, and for each contest its derived status, participation, tier count, and its games — each with the event's id, matchup, tip-off, status, and whether it is enabled. Because `allowedBetEvents` holds only the enabled events, the *candidate* games a contest could run at come from the reference `BetEvent` collection: the response includes events in a bounded window, so the screen can offer the mock's "Off" rows. Where no reference events exist the contest still renders with its enabled games.
+
+**The candidate window reaches backwards as well as forwards, and turning a game off is reversible.** This is a correction, not a refinement: with a forward-only window, turning a game off was a one-way door. `allowedBetEvents` is the only record that a contest ever ran at a game, so removing an id erases it — and a game that has already been played then matches neither the enabled set nor the candidate query. Its row simply disappeared, leaving the contest reading "Closed" (the empty-`allowedBetEvents` branch of `getB2BContestStatus`) with an empty table and no control to undo the change. An operator's own click made their contest look lost.
+
+Two rules close it, and both are needed:
+
+1. **The candidate window is bounded on both sides** — recently played games stay listed as "Off" rows for as long as anyone is plausibly still correcting a mistake.
+2. **A games write returns the games it just disabled**, whatever their age. A contest may run at a game from last season, which no window worth scanning would reach; echoing the disabled ids back is what keeps the toggle on screen immediately after the click that turned it off.
+
+Neither changes what is stored: `allowedBetEvents` remains the whole of the state, and the write still replaces it wholesale. What changed is what the endpoint *offers*. A game older than the lookback that was disabled in an earlier session is not offered again on a later load — reinstating that is a model change (a stored record of the games a contest has run at), recorded as a gap below.
+
+**A contest is never hidden by its status.** No list endpoint filters on `closed` or `finalized`; both are reported so the screens can badge them. A finalized contest stays visible and stays read-only — finalization is permanent (`PRIZE-03`), and permanence is a reason to keep showing it, not to hide it.
 
 **`GET /admin/prizes` returns** the tenant, its contests with their full tier lists, and delivery stats per tier and per tenant from `PrizeRedemption`.
 
@@ -125,6 +136,8 @@ Both writes respond with the updated contest plus a `changes` summary, matching 
 5. **Writes require obs staff or the contest's own tenant `org:admin`**, enforced server-side; the view-only presentation for `org:member` is UX, not the boundary.
 6. **Removing a prize tier never deletes `PrizeRedemption` records.**
 7. **Finalization is not on these screens** and no control here sets `finalized`.
+8. **No list endpoint hides a contest by its status.** `closed` and `finalized` are reported, never filtered on — a contest an operator can no longer see is a contest they cannot fix.
+9. **Turning a game off is reversible.** The candidate window is bounded on both sides, and a games write returns the ids it disabled so they stay togglable. No admin action may leave a contest with no games and no way to add one back.
 
 ---
 
@@ -134,6 +147,7 @@ Both writes respond with the updated contest plus a `changes` summary, matching 
 - **No coupon-code batch model.** `PRIZE-05`/`PRIZE-06` describe assigning unused codes from a sponsor batch and never issuing one twice; nothing stores a batch or an assignment. `PrizeRedemption` records *that* a tier was fulfilled, not *which code* went out.
 - **`GAME-02`'s tier fields are partly unmodelled** — approximate value, redemption window, redemption method, redemption location. `GAME-03`'s difficulty tuning is served only by `threeInARows`.
 - **`B2BContest.allowedBetEvents` has no per-event configuration**, so anything genuinely per-game (the mock's per-game sponsor assets) needs a model change, not just a UI.
+- **A contest keeps no record of the games it has run at** — only the ones it runs at *now*. `allowedBetEvents` is both the live set and the entire history, so disabling a game erases the fact it was ever enabled. The bounded window and the write's echo of its own disabled ids (above) cover the cases an operator actually hits, but a game disabled in an earlier session and older than the lookback cannot be offered again, because nothing knows it was ever there. The fix is a stored `ranAtBetEvents` (or equivalent) on `B2BContest` — a change to `obs-b2b-shared`, deliberately not made here.
 - **`POST /b2b/contest/prize-tier` is still on the fan surface** behind `requireMembership`, where any fan of a tenant can write prize config. The admin-surface spec already calls for its removal; `PUT /admin/contests/:contestId/prize-tiers` is its replacement, and retiring the fan route is follow-up work this spec does not perform.
 
 ## References
