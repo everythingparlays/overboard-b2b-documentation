@@ -90,6 +90,8 @@ Both endpoints validate server-side and will reject what the client accepts; sur
 - `POST /b2b/consent` — `[{ optInId, textVersion, decision }]`. Send the `textVersion` that was **displayed**, not the current one, so a tenant editing copy mid-session cannot record agreement to wording the fan never saw. The server rejects stale versions; re-fetch and re-ask.
 - `POST /b2b/join` — for the not-a-member path, carrying display name, profile fields, and consents together. The membership and its blocking consents must be created atomically; a membership without them is the state the model exists to prevent.
 
+**Every rendered checkbox is submitted, including the ones the fan left alone** (ruling, 2026-09-21). An unchecked box sends `false`; it does not send nothing. A box the fan was shown and chose not to tick is an answer, which is the same reason a declined non-blocking opt-in is recorded rather than dropped — and it is what stops an optional checkbox from being asked again on every single entry for the rest of the season. Required checkboxes are unaffected: `false` is a stored answer that does not satisfy them, so they keep blocking until they are ticked.
+
 Do not navigate on success. The mutation invalidates the membership cache tag and `ProtectedRoute` re-renders into the app — routing manually races that refetch.
 
 ---
@@ -110,6 +112,7 @@ Do not navigate on success. The mutation invalidates the membership cache tag an
 Added by v2:
 
 - [ ] A custom field of each of the five types renders correctly and validates correctly: short text and long text accept text, date accepts only a valid date in the platform's format, a dropdown accepts only one of its own options, and a required checkbox blocks until it is ticked while an optional one treats a deliberate "no" as an answer.
+- [ ] An optional checkbox a fan is shown and leaves unchecked is stored as `false` and is not asked again on the next entry.
 - [ ] A field with a description, a caption, and a placeholder shows each in its own place — description under the label, caption under the input, placeholder inside the empty input — and the caption's slot gives way to the error message when there is one.
 - [ ] A legacy definition carrying only `fieldId` and `requirement` renders exactly as it did before v2, label and type resolved from the well-known defaults.
 - [ ] A tenant's `gateCopy` override replaces the matching default string, and an override that is blank or only whitespace falls back to the default.
