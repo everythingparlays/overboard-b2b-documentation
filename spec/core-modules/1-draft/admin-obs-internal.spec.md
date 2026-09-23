@@ -6,6 +6,8 @@
 
 **Status:** Draft.
 
+**Revised 2026-09-22** (ruling, Arthur) — customer-visible gap narration is removed from these screens under the **Honesty by omission, not by narration** principle in [`admin-surface.spec.md`](admin-surface.spec.md). The Platform health gap card naming `OBS-01`–`OBS-03`, the delivery queue's "—" for a missing `failureReason`, and its on-screen "visibility-only" note all go; the gaps themselves stay recorded here. Never-fabricate is unchanged.
+
 ## Overview
 
 The operator-facing section of the admin console: the four OBS Internal screens the nav has carried as placeholders — All tenants (`/tenants`), Platform health (`/platform-health`), Delivery queue (`/delivery-queue`), Fan actions (`/fan-actions`) — plus the two actions that only OBS may ever perform: **tenant provisioning** (`TEN-05`) and **contest finalization** (`PRIZE-03`, `ADM-06`).
@@ -16,8 +18,8 @@ The operator-facing section of the admin console: the four OBS Internal screens 
 
 **Not in scope:**
 
-- **An error-tracking service.** `OBS-01`–`OBS-03` need error events with tenant attribution and alerting; nothing in the stack collects them. The Platform health screen says so on its face rather than rendering an invented error rate. Recorded gap.
-- **Retry or resend of failed prize sends.** `PRIZE-07` wants failures "resolved or resent"; the only retry that exists is SQS's own redrive, exhausted before a row ever reads `failed`. The Delivery queue is visibility-only, and says so. A resend control without a resend mechanism would be a button that lies. Recorded gap.
+- **An error-tracking service.** `OBS-01`–`OBS-03` need error events with tenant attribution and alerting; nothing in the stack collects them. The Platform health screen renders no error-rate tile and no note about one — neither an invented number nor an explanation of its absence. Recorded gap (superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md); this previously required the screen to say so on its face).
+- **Retry or resend of failed prize sends.** `PRIZE-07` wants failures "resolved or resent"; the only retry that exists is SQS's own redrive, exhausted before a row ever reads `failed`. The Delivery queue is visibility-only: it ships **no resend control and no note explaining that there isn't one**. A resend control without a resend mechanism would be a button that lies; a caption about the missing button is the screen narrating its own roadmap. Recorded gap.
 - **Coupon-code batches.** `PRIZE-05`/`PRIZE-06` code tracking has no model (the games/prizes spec already records the missing sponsor model); the queue cannot show code exhaustion. Recorded gap.
 - **Deferred prize sends on finalization.** The PRD itself scopes this out: finalization "is what will trigger deferred prize sends **when PRIZE-02 is built**". V1 finalization persists the state and the audit record — it dispatches nothing, and fakes nothing. Recorded gap.
 - ~~**Tenant offboarding.** Deleting a production tenant is a legal-and-data question, not a screen.~~ **Superseded 2026-09-15 (ruling, Arthur):** offboarding *is* a screen — suspend, rename, and delete ship as the tenant lifecycle module, with delete behind reverification and a server-checked typed confirmation. See [`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md); the dev script survives as developer tooling only.
@@ -76,7 +78,11 @@ Semantics: 404 for a contest the named tenant does not own (the standard probe a
 
 `OBS-04` asks whether a tenant's app is healthy before and during a game; `OBS-05` asks that prize failures surface in the same view. The screen ships what the database genuinely answers: per tenant — fans, contests, enabled games in the next 24 hours, whether a game is live now, failed and pending sends, and the most recent board (the closest recorded signal to "the app is being used"). Failed-send counts read the same rows as `/delivery-queue` — one source, two screens, no drift.
 
-What it does not ship, on its face: error rates. The screen carries an explicit gap card in place of `OBS-01`–`OBS-03`, because the alternative is a fabricated number on a health dashboard — the one place fabrication is most dangerous. Of §14.2's four acceptance criteria, only the prize-failure one is met; the other three need the error-tracking substrate. Recorded gap. Two adjacent facts, recorded with it: the SQS dead-letter queues and their ≥1-message alarms exist in CDK, but no alert recipient is configured (`dlqAlertPhoneNumber` unset in every environment), and DLQ depth is visible only in AWS — the app surfaces Mongo `failed` rows, not queue depth.
+What it does not ship: error rates. **The screen renders nothing at all in their place** — no tile, no gap card, no mention of `OBS-01`–`OBS-03`. Fabricating a number on a health dashboard is the most dangerous fabrication on the platform, and it stays forbidden; but the honest alternative is the absence itself, not a card explaining the absence. An error-rate tile appears on this screen when there is an error-tracking substrate behind it, and not before. Of §14.2's four acceptance criteria, only the prize-failure one is met; the other three need that substrate. Recorded gap — here, which is the only place it belongs.
+
+*Superseded 2026-09-22 by the "Honesty by omission, not by narration" principle in [`admin-surface.spec.md`](admin-surface.spec.md) (Rule 13): this previously required an explicit on-screen gap card naming `OBS-01`–`OBS-03`. The card is deleted from the UI; the gap is recorded in this spec instead.*
+
+Two adjacent facts, recorded with it: the SQS dead-letter queues and their ≥1-message alarms exist in CDK, but no alert recipient is configured (`dlqAlertPhoneNumber` unset in every environment), and DLQ depth is visible only in AWS — the app surfaces Mongo `failed` rows, not queue depth.
 
 ---
 
@@ -84,9 +90,11 @@ What it does not ship, on its face: error rates. The screen carries an explicit 
 
 `PRIZE-07`'s reviewable failure surface, platform-wide because failed sends degrade sender reputation for every tenant (`PRIZE-06`'s rationale). One read: totals by redemption status, plus the failed rows newest-first — tenant, fan (display name only; `/fans` owns contact fields), contest, prize, and **why**.
 
-"Why" is new: `PrizeRedemption.failureReason`, written by the prize-worker at the moment it marks a row failed (contest missing, unknown handler, or the fulfillment error itself). Rows that failed before the field existed render an honest "—". The seed fixtures give the demo tenant two failed sends with realistic reasons so the screen is real in dev.
+"Why" is new: `PrizeRedemption.failureReason`, written by the prize-worker at the moment it marks a row failed (contest missing, unknown handler, or the fulfillment error itself). Rows that failed before the field existed have no reason to show, so **the cell is empty — no "—", no "reason not recorded", no footnote about the field being forward-only**. The row is still true: it names a failed send, and says nothing it cannot say. The seed fixtures give the demo tenant two failed sends with realistic reasons so the screen is real in dev.
 
-Visibility-only, stated on the screen: resolution is manual in V1. See Not-in-scope for why there is no retry button.
+*Superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md) (Rule 13): this previously required legacy rows to render an "—" placeholder. A dash is a caption saying "we don't have this", which is narration; the empty cell says the same thing without claiming the screen owes the reader an explanation.*
+
+Visibility-only, and **not stated on the screen**: resolution is manual in V1, which the operator learns from the absence of any resolve control, not from a line of copy about it. See Not-in-scope for why there is no retry button. (Superseded 2026-09-22 by the omission principle — this previously required the limitation to be stated on screen.)
 
 ---
 
@@ -145,17 +153,18 @@ All six are obs-only, on user-level obs staff-ness. On the future Clerk-permissi
 7. **The fan-actions export carries platform identifiers only** — no contact fields — and excludes declined fans (`RPT-05`) from identified rows.
 8. **The delivery queue and every failure count elsewhere read the same redemption rows.** One source; screens may not disagree.
 9. **A platform-scoped audit row omits `organizationId` and names its tenants in `detail`.** One action, one row.
+10. **These screens never narrate what they cannot show** (ruling 2026-09-22, admin-surface Rule 13). No gap card, no placeholder dash, no "manual in V1" note, no rendered `OBS-*` id. A metric with no honest source renders no tile; a missing control is simply not drawn. Every such gap is recorded under "Known gaps" below — that is where an operator's question gets answered, not the screen.
 
 ## Known gaps (recorded, not blocking)
 
-- **Error tracking (`OBS-01`–`OBS-03`)**: no error-capture substrate exists in either repo; per-tenant error rates, spike alerting and PII-stripped capture all need it. Platform health ships a gap card, not a number. Three of §14.2's four criteria are unmet.
+- **Error tracking (`OBS-01`–`OBS-03`)**: no error-capture substrate exists in either repo; per-tenant error rates, spike alerting and PII-stripped capture all need it. Platform health ships neither a number nor a gap card — the tile is simply absent until the substrate exists (superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md); the gap card is deleted). Three of §14.2's four criteria are unmet.
 - **Alert recipient**: the DLQ CloudWatch alarms publish to SNS with no subscriber (`dlqAlertPhoneNumber` unset). `OBS-03`'s "defined recipient" does not exist yet.
 - **SQS DLQ depth**: not surfaced in-app; the queue screen reads Mongo `failed` rows, which is the durable superset but not the queue itself.
-- **Retry/resend (`PRIZE-07` second half)**: no mechanism; visibility-only, stated on-screen.
+- **Retry/resend (`PRIZE-07` second half)**: no mechanism; visibility-only, and not stated on-screen — the screen carries no resend control and no note about lacking one (superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md)).
 - **Coupon-code batches (`PRIZE-05`/`PRIZE-06`)**: no model; exhaustion and duplicate-assignment tracking cannot be shown.
 - **Deferred sends on finalize (`PRIZE-02`)**: unbuilt; finalization is state + audit only.
 - **Fan-actions telemetry**: tile interactions, near-misses, session activity unrecorded; export limited to join/board/prize events.
-- **`failureReason` is forward-only**: rows failed before the worker change render "—".
+- **`failureReason` is forward-only**: rows failed before the worker change have no reason, and their cell renders empty — no "—" and no explanatory caption (superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md)).
 - **Clerk org self-creation is still enabled** on the admin instance (admin-surface Rule 8, observed violated 2026-09-15); the dashboard toggle remains an operator to-do this flow now supersedes.
 - **Three tenants violate the synced-pair invariant** (admin-surface Rule 10): `warriors` and `fightinghawks` have records with no Clerk organization, and `bears` has a self-created Clerk org that is not the pair of its record. Reconciling them is queued as its own task; `POST /admin/tenants` is what stops the list growing.
 
