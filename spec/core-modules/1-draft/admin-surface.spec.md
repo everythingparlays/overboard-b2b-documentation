@@ -213,7 +213,7 @@ One nav structure, three sections. Same screens for both actor classes (`ADM-01`
 | | Fans | `/fans` | `RPT-02` view, scoped — not the export itself |
 | | Exports | `/exports` | `ADM-07`, `RPT-01`–`RPT-06` |
 | Configuration | Fields & Opt-ins | `/config` | `ADM-05`, `AUTH-02`, `OPT-01`–`OPT-05` |
-| | Branding | `/branding` | `BRAND-01` (view/set-once, not per-game) |
+| | Branding | `/branding` | `BRAND-01`, `BRAND-03`–`BRAND-23` — [`admin-branding.spec.md`](admin-branding.spec.md) |
 | | Team | `/team` | Org membership — invite/remove within the caller's own org (see "Provisioning and delegation") |
 | OBS Internal | All tenants | `/tenants` | Cross-tenant tenant list/switcher target |
 | | Platform health | `/platform-health` | `OBS-01`–`OBS-05` |
@@ -260,7 +260,7 @@ Everywhere a console setting reaches the fan app today, and how good a candidate
 | **Games enabled per contest** (`Games.tsx`) | `ContestPage.tsx` tabs | Candidate. Small surface, and the reflection is a tab strip rather than a screen |
 | **Contest visibility** | Server-filtered; the fan gets a generic empty state | Weak candidate. What the fan sees is an absence, and a preview of an absence teaches little |
 | **Tenant name** | Nothing — **a broken link** | Not a preview problem. An admin rename never reaches the fan app at all, which reads its local registry. Recorded here because it looks like a missing reflect point and is actually a missing write path |
-| **Branding** (`/branding`) | Every fan screen | Blocked. The screen is unbuilt and there is no data model behind it; see the open `BRAND-01` question in the fields spec's known gaps |
+| **Branding** (`/branding`) | Every fan screen | **Specced** — [`admin-branding.spec.md`](admin-branding.spec.md). The data model, the endpoints, and the screen's live preview are defined there; `BRAND-01`'s hardcode-permitted classification is superseded by it |
 | **`authVariant`** | The fan sign-in | Blocked, and worth flagging: the value is configurable while the fan sign-in hardcodes email — configuration with no effect, which a preview would expose but not fix |
 
 ---
