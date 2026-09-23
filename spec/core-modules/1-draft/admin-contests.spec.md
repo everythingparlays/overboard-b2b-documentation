@@ -98,7 +98,7 @@ Body: any of `{ contestName, contestDescription, maxParticipants, visible, close
 
 ### Changes to existing endpoints
 
-- **`GET /admin/games`** gains per contest `gameType`, `createdAt`, and `gamesRunCount`, and at the top level `schedule`: the candidate window on its own, attached to no contest — what the create drawer offers, since a tenant with no contests has no games list to borrow from. `numberParticipants` becomes the board count.
+- **`GET /admin/games`** gains per contest `gameType`, `createdAt`, and `gamesRunCount`; per game row `ranAt` (the contest runs at it now or ran at it before — `false` for a row that is only on the schedule); and at the top level `schedule`: the candidate window on its own, attached to no contest — what the create and Add games pickers offer, since a tenant with no contests has no games list to borrow from. `numberParticipants` becomes the board count.
 - **Every game a contest has ever run at stays on its table.** The read resolves `ranAtBetEventIds(contest)` (history ∪ live set) by id, the same way it resolves the enabled set, and offers the history as *Off* rows whatever their age. This retires the games spec's recorded gap — "a game disabled in an earlier session and older than the lookback cannot be offered again". The bounded candidate window and the PUT's echo of its disabled ids stay: the window is how *new* games are offered, and the echo still covers a contest stored before the history existed.
 - **`PUT /admin/contests/:contestId/games`** adds `$addToSet: { ranAtBetEvents: { $each: betEventIds } }` in the same update that replaces `allowedBetEvents`. It never removes from the history.
 
@@ -109,6 +109,10 @@ Body: any of `{ contestName, contestDescription, maxParticipants, visible, close
 ### `/games` — the head
 
 A **New contest** primary action in the page head, for anyone who can write. A tenant with no contests gets an empty state whose one action is the same button; for a view-only member the empty state says only that there are no contests yet.
+
+### Each contest's table — its own games, and Add games
+
+**A contest's table lists only its own games**: the ones it runs at, and the ones it ran at and was turned off (`ranAt`), which stay so the toggle can undo the change. It no longer lists the whole candidate window under every contest — measured on the shared dev database, that repeated 65 schedule rows per contest and made a four-contest page about 49,000 pixels tall. The rest of the schedule is reached through **Add games** on the contest card (writers only, never on a finalized contest): the create drawer's picker — upcoming games only, grouped by day, searchable by team, narrowed by sport — minus the games the contest already runs at, saved through the games PUT with the contest's current set plus the chosen games and the usual precondition. A server that predates `ranAt` sends no flag, and every row stays, as before. A contest with no games of its own says "No games yet."; the page-level "Games scheduled in the next 30 days" caption is gone with the rows it described.
 
 ### The create drawer
 
