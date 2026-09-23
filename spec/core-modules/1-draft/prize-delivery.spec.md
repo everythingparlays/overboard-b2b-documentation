@@ -73,7 +73,8 @@ A URL that is not `http:` or `https:` is treated as absent (a `javascript:` or `
 ### How it is built
 
 - **Table layout, inline styles, 600px fluid container**, one `<style>` block for the mobile breakpoint and dark-mode hints; renders in Gmail (web and apps), Apple Mail, Outlook (Windows, with VML button fallback), Outlook.com and Yahoo.
-- **Light card on a neutral ground.** The tenant's primary color is an accent (header rule, button, code border), never the page ground: email dark-mode inversion across clients is inconsistent enough that a dark-ground email is a gamble, and the accent survives inversion. Button text color is picked by contrast (WCAG ≥4.5:1) from the accent, via the shared `onColor` helper.
+- **Light card on a neutral ground.** The tenant's primary color is an accent (header rule, button, code border), never the page ground: email dark-mode inversion across clients is inconsistent enough that a dark-ground email is a gamble, and the accent survives inversion.
+- **The brand color is measured, not trusted.** Text in the brand hue is walked darker (hue kept) until it reads at 4.5:1 on the card. The button keeps the brand's exact color whenever it is visible on the card at all (≥1.35:1 — a stadium yellow at ~1.4:1 stays the team's yellow); only near-whites are darkened. The label ink is the better of near-black and white (`onColor`), and a mid-tone brand where neither ink reaches 4.5:1 (a saturated red, a mid grey) is walked toward black until one does.
 - **A plain-text part** accompanies every HTML part, with the same content and the same omissions.
 - **A hidden preheader** ("{prize} from {tenant}") so inbox previews read as a sentence, not markup.
 - **Every merged string is HTML-escaped**; the subject and sender name are header-encoded (RFC 2047 for non-ASCII) and cannot carry a line break — the contract refuses control characters, the renderer strips them again.
@@ -107,7 +108,7 @@ The catalog lives in `node-server/src/prize-delivery/handler-catalog.ts` and is 
 |---|---|---|---|
 | `standard-email` | Prize email | standard | every tenant |
 
-`handler_001` and `handler_002` (the retired Nike templates) are **aliases of `standard-email`**. Tiers stored with them — UND's in production — keep delivering, now with their own real content instead of the Nike copy, and show as "Prize email" on screen; the next save writes `standard-email`. `email`, `email-test`, `webhook` and `barcode` (the removed stubs) are **not** aliases: they never sent anything, so there is no behavior to preserve, and a tier naming one keeps failing loudly until an operator chooses a real method.
+`handler_001` and `handler_002` (the retired Nike templates) are **aliases of `standard-email`**. Tiers stored with them — UND's in production — keep delivering, now with their own real content instead of the Nike copy, and show as "Prize email" on screen; the console writes `standard-email` the next time that tier is saved (the API accepts either, since both resolve to the same method). `email`, `email-test`, `webhook` and `barcode` (the removed stubs) are **not** aliases: they never sent anything, so there is no behavior to preserve, and a tier naming one keeps failing loudly until an operator chooses a real method.
 
 **Custom methods are tenant-scoped.** `GET /admin/prizes/handlers?tenant=` returns the standard methods plus the custom methods registered for that tenant only. A custom method's name can identify another team's sponsor; on a white-label platform that is a leak.
 
@@ -152,6 +153,8 @@ Attempt `n` is `resendCount + 1`: the original send is attempt 1, every resend a
 - **A redelivered message can never re-send.** Its attempt is already claimed, so it either finds a terminal status (and acks) or finds an orphaned claim (and records an interruption for a human to judge).
 - **A crashed send is visible, not silent.** Previously a worker dying between creating the row and sending left it `pending` forever — the redelivered message saw the row existed and acked. Now a row that exists but was never claimed is simply delivered, and one that was claimed and never finished becomes a `failed` row on the Delivery queue.
 
+**Failure reasons never carry an address.** The email provider echoes the recipient in some rejections; every email address in provider text is redacted before it is stored, because the reason is shown on the Delivery queue, which names a fan by display name only.
+
 Transient failures retry through SQS redrive only when the error proves nothing left: a throttle or provider-unavailable response, or a failed email lookup before any send. A timeout does **not** retry — the send may have landed — it fails with a reason that says so.
 
 ---
@@ -190,7 +193,7 @@ Supersedes the `/prizes` section of admin-games-and-prizes.spec.md where they di
 
 - **One contest at a time.** A switcher at the top (segmented control for up to four contests, a select beyond that), remembered per tenant for the session. Default: the most recently created contest that is not finalized, else the most recent. Every contest used to render at once, which buried the one being worked on.
 - **The bingo ladder.** The contest's tiers as rungs ordered by bingo count, from 1 up to the highest tier. A count with no tier renders as a quiet "No prize" rung — the configuration truthfully drawn, so a gap between two tiers is visible as a gap rather than discovered from a fan complaint. Each rung shows the prize, its method (or **Won't deliver**), and what it has delivered.
-- **Unawarded wins.** Where fans actually reached a bingo count with no tier (`skipped` redemptions), the rung carries the count: "14 fans reached 2 bingos". Counts above the top tier are shown on one line beneath the ladder. These are real numbers from `PrizeRedemption`; nothing is estimated.
+- **Unawarded wins.** Where fans actually reached a bingo count with no tier (`skipped` redemptions), the rung carries the count ("Reached 14 times"). Counts above the top tier are shown on one line beneath the ladder. These are real numbers from `PrizeRedemption` — counted per win (per board), not per distinct fan — and nothing is estimated.
 - **The tier drawer** gains the delivery-method dropdown (defaulting to the standard email), the claim button fields (previously uneditable), the GAME-02 fields and the static code when the shared model carries them, URL validation, and a **Preview email** view rendering the unsaved draft through `POST /admin/prizes/email/preview`.
 - **Prize email card** (side column): sender name, reply-to and subject, each showing the real fallback as its placeholder, with the sending address shown read-only when the server knows it. A tenant `org:member` sees the values read-only (the D-059 presentation).
 - **Delivery card** unchanged in meaning; "Skipped" is relabelled **"No prize at that count"** so the number explains itself.
@@ -230,7 +233,7 @@ Neither SQS nor SES is reachable from a laptop in a useful way — the dev stack
 - `PRIZE_LOCAL_QUEUE_DIR` — the API writes resend messages there as JSON files instead of calling SQS; `prize-worker`'s local runner (`npm run local`) consumes that directory in place of the queue.
 - `PRIZE_EMAIL_OUTBOX_DIR` — the worker writes each email as `.html`, `.txt` and a headers `.json` instead of calling SES.
 
-`prize-worker/scripts/enqueue-local.mjs` drops a board-win message into the local queue, so a full win → email → failure → resend loop runs end to end against the developer's own `arthur_`-style collections.
+The local worker authenticates to Mongo with the developer's AWS SSO session through `@aws-sdk/credential-providers` (a dev dependency, as in node-server; the deployed container uses its task role). `prize-worker/.env.example` documents the whole setup. `prize-worker/scripts/enqueue-local.mjs` drops a board-win message into the local queue, so a full win → email → failure → resend loop runs end to end against the developer's own `arthur_`-style collections.
 
 ---
 
@@ -250,7 +253,7 @@ Neither SQS nor SES is reachable from a laptop in a useful way — the dev stack
 4. **A send is claimed before it is attempted**, conditionally, per attempt. No code path sends without holding the claim.
 5. **Only a `failed` row can be resent, and only at the resend count the operator saw.** Everything else is refused unchanged.
 6. **Every resend request is audited before any row changes**, and the audit never contains an address.
-7. **A corrected address is fan PII**: never selected by default, never on a wire, never logged, cleared when its attempt concludes and on fan deletion.
+7. **A corrected address is fan PII**: never selected by default, never on a wire, never logged, cleared when its attempt concludes and on fan deletion. A fan whose data was erased is never resent to at all.
 8. **No fallback sender.** Without a configured sending address, nothing is sent and the reason is recorded.
 9. **Development transports are refused in production.**
 
@@ -263,6 +266,8 @@ Neither SQS nor SES is reachable from a laptop in a useful way — the dev stack
 - **Sending-domain authentication and SES production access** — Nick-gated; see "Deploy dependency".
 - **Sponsor logo in the email** — waits on the sponsor model (Slice 1 of the 2026-09-23 wave); the email will add a "Presented by" mark from the tier's sponsor when that link exists.
 - **Resend history per row** — the row keeps its count and last-resend time; the per-attempt history lives in the audit log, not on the row.
+- **Provider message id** — the SES message id is not stored on the redemption yet; bounce correlation (above) will need it, as an additive `PrizeRedemption` field requested through the shared repo at that time. Sends are tagged with tenant, redemption and attempt meanwhile.
+- **Seed fixtures name non-existent methods** (`concessions-demo`, `teamstore-demo`) — they now show "Won't deliver", which is true. The fixture refresh belongs to the Games & Contests work.
 - **DLQ depth** — messages that exhaust redrive still land in the SQS dead-letter queue, which nothing in-app reads; the Mongo row is the operator's view and is always written first.
 
 ## References
