@@ -8,6 +8,8 @@
 
 **Revised 2026-09-16** (ruling, Arthur) — a third principle, **Fan's-eye view**: where configuration reflects onto the fan app, the console shows the fan's view of it, rendered from the fan product's own code. Principles, Rule 12, and the reflect-point inventory carry the change.
 
+**Revised 2026-09-22** (ruling, Arthur) — a fourth principle, **Honesty by omission, not by narration**: the console never fabricates and never narrates its own gaps — an unmeasured stat gets no tile, an unwired feature gets no card, a real number gets no provenance caveat. Principles and Rule 13 carry the change, and it supersedes any requirement in a sibling spec to disclose a gap on screen.
+
 ## Overview
 
 The access framework for the internal/tenant admin application: who can sign in, what they can reach, and how the backend tells them apart from fans.
@@ -232,7 +234,7 @@ One nav structure, three sections. Same screens for both actor classes (`ADM-01`
 
 ## Principles
 
-Three named principles sit above the rules. They are not route-specific, and a change that satisfies every numbered rule can still violate one of them.
+Four named principles sit above the rules. They are not route-specific, and a change that satisfies every numbered rule can still violate one of them.
 
 **Seamlessness.** *What parts of the app a user is shown is calculated per user — from their identity and memberships — never from what part of the frontend they happen to be standing in.* An operator does not gain or lose capabilities by navigating; the console renders the same answer to "what may this person do" on every screen, because it asks the same question. This is what makes the one switcher and the identity-driven nav sections coherent rather than two features that happen to agree. And it is convenience only: **UI hiding is never the boundary**. Every one of these decisions is enforced again server-side, and a user who reconstructs a hidden route by hand meets the same refusal they would have met anyway.
 
@@ -245,9 +247,15 @@ Two halves, and the second is what makes the first worth having:
 - **Shown.** Configuration that reflects onto the fan app gets a view of the result, alongside the controls that produce it and bound to the unsaved draft, not to the last publish.
 - **Rendered, not drawn.** The view runs the fan app's own components, copy, and validation, shared through `obs-b2b-shared`. A hand-built likeness is a second implementation of a screen, and second implementations drift — which is not a hypothetical here: the signup field catalog's labels were copied into three files and two of them had already disagreed.
 
-Where the console cannot honestly know something the fan sees, **it says so rather than guessing**. Tenant colors and logos live compile-time in the fan app today, so the preview renders the platform's default palette under a caption saying so; copying the palettes into the console would buy a view that looks right while being wrong, which is worse than the caption.
+Where the console cannot honestly know something the fan sees, **it shows less rather than guessing**. A view renders only what it can render truthfully, and it does not caption the rest — copying the fan app's palettes into the console would buy a view that looks right while being wrong, and annotating the shortfall on screen trades one violation for another. (Superseded 2026-09-22 by the omission principle below: this previously required the preview to render the default palette *under a caption saying so*. The caption goes; what the view cannot honestly show is simply absent, and the gap is recorded in the spec. For the palette specifically the question is now moot — [`admin-branding.spec.md`](admin-branding.spec.md) makes tenant colors real configuration the console does know.)
 
 This is a direction, not a retrofit order. It governs new configuration screens, and the inventory below names the existing ones in the order they are worth doing.
+
+**Honesty by omission, not by narration** (ruling 2026-09-22, Arthur). *The console never fabricates, and it never narrates its own gaps: what it cannot show honestly, it simply does not show.* Nothing is invented — no placeholder numbers, no controls that pretend to work. But the other half is new: **the UI does not explain what is missing from it.** A stat we do not measure gets no tile. A feature that is not wired gets no card. A real number carries no caveat about where it came from. What is on screen is true; what cannot be true is absent, and absence is not annotated.
+
+The reader is a team's marketing staffer, and a screen that catalogues its own incompleteness reads as a product still under construction — which is the impression a dash-and-caption tile creates whether or not the caption is accurate. Disclosure is owed to the people building the console, not to the people using it: **gap disclosure lives in specs and code comments, never on screen.** A spec must still say plainly what is unbuilt — that is what specs are for, and nothing here narrows it.
+
+**This supersedes any earlier requirement to disclose a gap in the UI.** Where a sibling spec requires a placeholder tile, an unwired-feature card, a caveat caption under a metric, or a rendered spec id, the requirement is now the omission: the element is absent until the data behind it exists. The element appears when it can be populated, and it arrives without commentary about having been missing.
 
 ### Reflect points (noted, not built)
 
@@ -279,6 +287,7 @@ Everywhere a console setting reaches the fan app today, and how good a candidate
 10. **A `B2BOrganization` record and its Clerk organization are a synced pair at all times** — created, changed, and deleted together or not at all. The DB directory is the source of truth for what tenants exist; three records violate this today and are recorded above as data debt. The rule governs the pair's existence and identity (slug, name); **tenant suspension is deliberately outside it** — a database-side status with no Clerk half, because Clerk has no suspend primitive and inventing one by deleting the org would destroy exactly what the rule protects ([`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md), 2026-09-15).
 11. **OBS staff-ness is resolved from the user, not the active organization.** Active `obs` proves it from the signed token; anything else verifies membership against Clerk, cached 5 minutes, failing closed on error.
 12. **A view of the fan product inside the console renders the fan product's own code**, shared through `obs-b2b-shared` — never a likeness rebuilt in console markup, and never an embed of the live fan site. The console references the fan product; it does not host it, and it does not redraw it.
+13. **The console never fabricates a value and never narrates a gap** (ruling 2026-09-22). An unmeasured stat renders no tile, an unwired feature renders no card, and a real number renders no caveat about its provenance — the element is absent until the data behind it exists, and absence is not captioned. Gap disclosure belongs in specs and code comments. This supersedes any earlier requirement to disclose a gap in the UI.
 
 ---
 
