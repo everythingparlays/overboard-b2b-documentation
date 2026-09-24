@@ -124,7 +124,7 @@ One drawer, top to bottom in the order an operator thinks:
 4. **Visibility** — *Hidden* (default) / *Listed*, with one line saying what each means for fans.
 5. **Note** — optional, labelled as console-only.
 
-Validation answers beside the input (the server's field errors land in the same place, including the name clash). On success the drawer closes, the new contest's card appears at the top with the row-flash cue, and a single confirmation line names the next step: it is hidden until listed, and it has no prize tiers until they are added on Prizes (only the parts that are true are said).
+Validation answers beside the input (the server's field errors land in the same place, including the name clash). On success the drawer closes, the new contest's card appears at the top with the row-flash cue, and a single confirmation line names the next step: it is hidden until listed, and it has no prize tiers until they are added on Prizes (only the parts that are true are said). Its "Add its prize tiers" link opens Prizes on the new contest (below, "Links into Prizes").
 
 ### The contest detail drawer
 
@@ -133,11 +133,15 @@ Each contest card's header carries a **Settings** button (every role — members
 - **Summary** — status badge, players (with the limit when there is one), games enabled, games run, created.
 - **Settings** — name, note, player limit, visibility: one form, one Save, dirty-tracked, the precondition echoed. Lowering the limit below the current player count is stated inline before saving ("412 are already playing — nobody is removed; new fans can't join").
 - **Entries** — *Close entries* / *Reopen entries* as its own immediate action, because it is an operational switch rather than an edit of the contest's description.
-- **Prize tiers** — the contest's tiers, read from `GET /admin/prizes` (name, bingos to win, approximate value when stated), with a link to Prizes. None → the Incomplete line and the link.
+- **Prize tiers** — the contest's tiers, read from `GET /admin/prizes` (name, bingos to win, approximate value when stated), with a link to Prizes on this contest. None → the Incomplete line and the link.
 - **Finalized** contests render the whole drawer read-only with a *Finalized* badge; nothing on it links to finalization (games spec).
 - **View-only** (`org:member`) gets the same layout with static values in place of controls — the Fields & Opt-ins presentation, reused.
 
 The per-game drawer's "In this contest" toggle and the table's toggles are unchanged.
+
+### Links into Prizes
+
+Every link from this screen to Prizes — the drawer's tier link and the create confirmation's "Add its prize tiers" — names the contest (`/prizes?contest=<id>`), and Prizes opens on that contest rather than on whichever contest it last showed ([`prize-delivery.spec.md`](prize-delivery.spec.md), "The Prizes screen").
 
 ---
 

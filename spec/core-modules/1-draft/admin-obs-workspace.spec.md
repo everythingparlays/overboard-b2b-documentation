@@ -39,7 +39,7 @@ Four bands, top to bottom:
    |---|---|---|
    | `game-not-ready` | A game in the next **24 hours** whose readiness is not clean — the pre-kickoff row, the highest-value one | That workspace's game day, on that game (the checklist links to each fix) |
    | `failed-sends` | A workspace with prizes sitting failed | Delivery queue |
-   | `no-prize-tiers` | A contest with games enabled and no prize attached | Prizes, in that workspace |
+   | `no-prize-tiers` | A contest with games enabled and no prize attached | Prizes, in that workspace, open on that contest (`?contest=`) |
    | `no-games-enabled` | A visible, open contest with no games | Games & Contests, in that workspace |
    | `ready-to-finalize` | An unfinalized contest all of whose games have **ended** | All tenants (finalization's home) |
    | `paused-workspace` | A paused workspace, with how long | All tenants |
