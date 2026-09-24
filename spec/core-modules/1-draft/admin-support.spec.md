@@ -20,7 +20,6 @@ Second-order value: every recorded spec gap that confuses a paying customer beco
 
 - **Email or chat notification to Overboard per report.** Deliberately never: a per-report email is how inboxes die. The badge counts unresolved reports, and the OBS overview's attention queue carries them — the places staff already look.
 - **Auto-resolution** (resolve a report when the platform observes the fix — a redemption later fulfilled, tiers later added). Designed for, not built: the subject pair makes it a read-side rule. Recorded.
-- **The report action on every other screen's error card.** It ships as `ReportableLoadError`, a composition of the kit's `LoadError`, used on the ops screens. The kit primitive itself was not changed this wave (`components/ui/` is additive-only while four slices build in parallel); a one-line slot in `LoadError` would give every screen the action at once and is the recorded follow-up. Get help covers every screen meanwhile.
 - **Report buttons inside screens other slices own this wave** — export refusals (Exports), contest and game rows (Games & Contests), publish rejections (Fields & Opt-ins, Branding), lifecycle divergence (All tenants), and reverification loops. Their *load* failures are covered on day one through the error card; the inline, pre-loaded buttons are recorded for those owners.
 
 ---
@@ -61,10 +60,14 @@ Surfaces built this wave:
 
 | Surface | Where | Subject | Context attached |
 |---|---|---|---|
-| `load-error` | The error card on every ops screen (Overview, Game day, Operations, All contests, Season calendar, Support, Game recap) — beneath "Try again" | `screen` = the route | route, error message |
+| `load-error` | The load-failure card on every console screen (below) — inside the card, last, under "Try again" and the server's line | `screen` = the route | route, error message |
 | `failed-delivery` | Each failed row on `/live` | `redemption` | route, redemption, contest, game, reason category |
 | `fan` | The fan drawer on `/fans` ("they say they never got their prize") | `membership` | route, membership |
 | `general` | **Get help** in the top bar, every screen (it replaced a notifications bell that had nothing behind it) | — | route |
+
+**Every console screen's load-failure card offers it.** The ops screens (Overview, Game day, Operations, All contests, Season calendar, Support, Game recap) and, since 2026-09-23, Exports, Fans, Fields & Opt-ins, Games & Contests, Sponsors & Branding (the Sponsors tab and the Brand tab), Prizes, Delivery queue, Platform health, All tenants and Team. The card is `ReportableLoadError` (`src/lib/support.tsx`): the kit's `LoadError` with **Tell Overboard** in its `action` slot — one card, the report inside it. Outside the console shell's support provider it is exactly `LoadError`, with no action. The slot is the kit's one additive change for this: `LoadError` (`src/components/ui/loadError.tsx`) gained an optional `action?: ReactNode`, drawn last inside the card, after the lead, the retry and the server's line; omitted, the card draws nothing for it, so every other call site is unchanged and nothing was restyled.
+
+Deliberately without it: the shell's "Couldn't load your workspace" (it renders outside the support provider, so there is nowhere to send a report), Team's "No active organization" (a state, not a load failure), `/debug/health`, the Prize email card's small inline note when its settings don't load (a side card on a screen that did), and inline save errors (not load failures).
 
 **The drawer shows exactly what will be sent, in plain words, in full** — "Where: Games & Contests", "What happened: Couldn't load games", "Error: 409" — then the optional message, then **Send to Overboard**. Nothing is attached that the drawer does not show.
 
@@ -127,7 +130,6 @@ Reads and the report write are not reverification-gated: nothing here releases P
 
 - **Auto-resolution** — not built; the subject pair makes it a read-side rule when wanted.
 - **Inline report buttons on other slices' screens** — exports, contest/game rows, publish rejections, lifecycle divergence, reverification loops.
-- **Error-card coverage outside the ops screens** — waits on the `LoadError` slot above.
 - **No `{ mergedInto: 1 }` index** on the reports collection; related-report reads and merge re-pointing query it. Add with the next shared-model touch.
 - **Reporter notification of a resolution** outside the console — none; the answer appears where the problem was, which is the design, and there is no mail channel to the admin users yet.
 - **No SLA or assignment rotation** — ownership is "assign to me".
