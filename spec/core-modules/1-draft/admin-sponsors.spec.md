@@ -119,14 +119,19 @@ same position on deploy day. So the move is **additive, dual-written, and never 
    both. The mirror is the one piece of this that is temporary: it retires once every environment
    has run the migration and no deployed code reads the opt-in copy (recorded gap).
 4. **Unmigrated data keeps working.** A `kind: "sponsor"` opt-in with no sponsor record still appears
-   on Exports as a row of its own, exportable and scope-editable exactly as before, keyed by its
-   `optInId`. The contracts accept either key (`sponsorId` or `optInId`). A tenant that never runs the
-   migration loses nothing; one that does gains the sponsor record.
+   on Exports as a row of its own, exportable and scope-editable exactly as before. A tenant that never
+   runs the migration loses nothing; one that does gains the sponsor record.
+5. **The Exports contract only grows.** Every row and request stays keyed by the consent opt-in
+   (`optInId`, required, as before); the record reaches the screen through new optional fields
+   (`sponsorId`, `dpaReference`). Every existing field keeps its type, so a consumer pinned to the
+   shared package without this work still compiles. (A first cut made `optInId` optional and broke
+   exactly that; it was reverted within the wave.)
 
 **`SP-03` — Fail closed is unchanged.** No stored scope — on the sponsor or its opt-in — means no
 export (409). A sponsor with **no linked consent opt-in** has no fan who agreed to share anything
-with it, so it has no "Who played" export at all: it is not offered in the generate drawer, and the
-server refuses it (409) if asked directly. Its scope can still be set ahead of the opt-in going live.
+with it, so it has no export and **does not appear on Exports** until it is linked; its scope is
+set there once it is. Exports is about consent-based sharing, and a row with no consent behind it
+would be a checklist authorizing nothing.
 
 ### The opt-in ↔ sponsor link, and the picker
 
@@ -202,10 +207,10 @@ unchanged).
 
 ### Exports and Fields & Opt-ins
 
-- **Exports** lists sponsors by name (records first, then any unmigrated sponsor opt-ins). The field
-  scope card gains the Data agreement line beneath the checklist when one is stored. The generate
-  drawer offers only sponsors with a linked consent opt-in. The empty state points at Sponsors &
-  Branding.
+- **Exports** lists each sponsor opt-in under its sponsor record's name when linked (its label
+  otherwise). The field scope card gains the Data agreement line beneath the checklist when one is
+  stored. Every request is still keyed by the opt-in; the server applies the record's scope and
+  mirrors every scope save onto both.
 - **Fields & Opt-ins** gains the Sponsor picker on sponsor-kind opt-ins (above).
 
 ---
@@ -290,7 +295,7 @@ The board resolves against its contest and its game — the game of the board's 
 3. **A slot is placeable only with its artwork** (`SP-02`).
 4. **The DPA scope lives on the sponsor**; the opt-in copy is a write-through mirror, never read
    first, and retired later. No stored scope, no export (`SP-03`).
-5. **A sponsor with no linked consent opt-in has no roster export.**
+5. **A sponsor with no linked consent opt-in has no export and is not on Exports.**
 6. **One consent opt-in per sponsor; only sponsor-kind opt-ins link** (`SP-04`).
 7. **The migration creates and links; it never removes.** Idempotent, dry-run by default.
 8. **Deleting a sponsor is reverified, audited, refused while linked, and takes its placements.**

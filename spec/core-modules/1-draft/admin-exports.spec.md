@@ -26,9 +26,9 @@ The Exports screen at `/exports`: the two tenant-scoped V1 reports — the spons
 
 ## The sponsor, since 2026-09-23
 
-A row on this screen is a **sponsor record** (`B2BSponsor`) — named, carrying its DPA scope and, optionally, the reference of the agreement that scope follows. Its **consent** is the `kind: "sponsor"` opt-in linked to it (`OptInDefinition.sponsorId`); the row filter below reads that opt-in's consent records exactly as before. A record with no linked opt-in has no fan who agreed to share anything with it, so it has no "Who played" export (409 if asked), though its scope can be set ahead of time. A `kind: "sponsor"` opt-in not yet migrated to a record still appears as its own row and works exactly as it always did.
+A row on this screen is still a sponsor-kind **consent opt-in** — the thing the row filter below needs — and every request is still keyed by its `optInId`. What changed is that the opt-in may be linked to a **sponsor record** (`B2BSponsor`, `OptInDefinition.sponsorId`): the row then carries the record's id, its name as the label, its DPA scope and the reference of the agreement that scope follows. A record with no linked opt-in has no fan who agreed to share anything with it, so it is not on this screen until it is linked. An opt-in not linked to any record works exactly as it always did.
 
-Every request that names a sponsor takes **exactly one** of `sponsorId` (a record) or `optInId` (an unmigrated opt-in). The scope's home is the record; every scope write also mirrors the list onto the linked opt-in's `exportFields`, so code that predates the record — `main` on a shared database, or an old deploy — exports exactly what the new code would. The mirror is temporary and recorded as such in the sponsor spec.
+The scope's home is the record; every scope write also mirrors the list onto the linked opt-in's `exportFields`, so code that predates the record — `main` on a shared database, or an old deploy — exports exactly what the new code would. The mirror is temporary and recorded as such in the sponsor spec. The contract only grew: `sponsorId` and `dpaReference` are optional additions, and every existing field kept its type.
 
 ## The field scope (`RPT-04` / `SEC-02`)
 
