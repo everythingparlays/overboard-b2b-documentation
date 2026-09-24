@@ -75,7 +75,7 @@ The delivery method (`handlerId`) is chosen from a dropdown fed by the delivery-
 2. **It is irreversible and requires reverification** (`IDN-13`). The admin-surface spec lists finalizing a contest beside exporting fan data and deleting a fan's data. Those live in OBS Internal (`/fan-actions`). An action that triggers real, unrecallable prize sends belongs with its peers behind the same reverification affordance, not one click from a config toggle.
 3. **Its blast radius is platform-wide, not tenant-wide** (`PRIZE-06`). A failed send degrades sender reputation for every tenant. The admin-surface spec's own test — "whose mistake does it become?" — puts it with OBS.
 
-If a finalize affordance appears on these screens in a later mock, it must not render for tenant scope, and it should be a *link* to the OBS Internal surface rather than the control itself. The screens do show `finalized` as a status badge: tenants **view** contest state, OBS **operates** finalization.
+**Superseded for staff by the 2026-09-24 ruling:** Overboard staff get Finalize on the contest itself (today the contest drawer on Games & Contests, next the contest page and All contests rows), with the same typed-name confirmation and reverification as the tenant record. It still never renders for tenant scope. The screens do show `finalized` as a status badge: tenants **view** contest state, OBS **operates** finalization.
 
 ---
 
