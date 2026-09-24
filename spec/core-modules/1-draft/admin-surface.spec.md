@@ -10,6 +10,8 @@
 
 **Revised 2026-09-22** (ruling, Arthur) — a fourth principle, **Honesty by omission, not by narration**: the console never fabricates and never narrates its own gaps — an unmeasured stat gets no tile, an unwired feature gets no card, a real number gets no provenance caveat. Principles and Rule 13 carry the change, and it supersedes any requirement in a sibling spec to disclose a gap on screen.
 
+**Revised 2026-09-24** (ruling, Arthur) — the S1 console redesign. Sponsors become their own Configuration item, separate from Brand; Prize deliveries replaces Prizes (and, across workspaces, the Delivery queue); Emails joins Configuration; contests, prize tiers, sponsors, fans and the staff tenant record become full pages with their own routes. "Pages, drawers and dialogs" (Rule 14) decides what is a page and what stays a drawer, and "Staff extras on tenant screens" (Rule 15) lists the staff-only controls the redesign adds. The Navigation table, the new page-route table beneath it, the reverification list and Rules 14–15 carry the change; nothing else moved.
+
 ## Overview
 
 The access framework for the internal/tenant admin application: who can sign in, what they can reach, and how the backend tells them apart from fans.
@@ -151,6 +153,8 @@ Re-prompt for credentials inside an already-MFA'd session (`IDN-13`) before anyt
 - Deleting a prize tier, sponsor, or game configuration — silently changes what fans can win
 - Removing an organization member or changing their role — the path to locking a tenant out of its own admin
 - Suspending or resuming a tenant, and deleting a tenant (ruling 2026-09-15, Arthur — the lifecycle module). Suspend and resume are reversible, but each flips a customer's live program for every fan at once; delete is the platform's largest irreversible action.
+- Staff sending an admin invitation into a tenant's organization, including re-inviting its first admin (2026-09-24, [`admin-tenant-page.spec.md`](admin-tenant-page.spec.md)). It is the mirror image of removing a member or changing a role: whoever opens the email gets full control of a customer's workspace.
+- Sending a prize again that was already sent (staff "Send again", 2026-09-24). It duplicates a code or a claim link to a real fan, which clicking again cannot take back.
 
 The common thread is *cannot be undone by clicking again*. Editing a sponsor logo does not qualify; deleting the sponsor does. (Renaming a tenant's display name follows the logo side of that line — argued in [`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md).)
 
@@ -199,7 +203,7 @@ The fan template is tenant-branded and deployed per tenant; admin is one deploym
 - **What the switcher lists.** Every user sees their real Clerk organization memberships; selecting one calls Clerk's `setActive`, semantics unchanged. **OBS staff additionally see every tenant from `GET /admin/tenants`** — the DB tenant directory, which is the source of truth for what tenants exist. Selecting a tenant they hold a Clerk membership in switches the active org (`setActive`); selecting one they do not sets the internal acting-on context instead. **One deduped list**: a tenant that appears both as a membership and as a directory entry shows once, and the two cases look and feel identical. Which mechanism fires is ours to know, not the operator's to learn. **Pending invitations are listed too**, after the user's own organizations: choosing one accepts the invitation and switches to that organization, the same way picking a membership does, and a join that fails says so and leaves the user where they were. The switcher is the console's one place to accept an invitation — Clerk's sign-in step offers invitations only while no organization is active, and the active one survives sign-out, so without it a user invited to a second organization would stay locked into their first. The same reasoning decides who gets a switcher at all: a user with one organization and nowhere else to go sees it as a fixed card, and a pending invitation counts as somewhere else, so it earns the switcher in place of the card.
 - **The acting-on machinery stays as wiring; only its UI goes.** The `TenantContext` that held the console-wide choice is unchanged underneath — set once, applies to every per-tenant screen, survives routes and reloads, dropped at sign-out, reset when the stored slug no longer appears in `GET /admin/tenants`. It changes nothing about the wire: **every OBS request still names the tenant explicitly as `?tenant=<slug>`**, including when the operator is acting on their own active tenant org. Explicit, never implicit.
 - **"Create organization" appears for OBS staff only**, and routes to the console's own All-tenants Create-tenant flow (`POST /admin/tenants`, OBS Internal spec) — never Clerk's widget, which creates a Clerk org with no `B2BOrganization` behind it and breaks the synced-pair invariant. A non-obs user never sees the entry, and Rule 8 still stands: self-creation is disabled instance-wide, so the entry is a link to the one provisioning path rather than a second one.
-- **Cross-tenant screens are not filtered by the selection.** All tenants, Platform health and Delivery queue answer questions about the set of tenants and ignore it (the All-tenants drawer flows the other way: it *sets* the selection and opens that tenant's Overview). Fan actions already had a tenant filter, so the selection pre-fills it, with "All tenants" still available. Team ignores it — membership reads the active organization from the session, not a tenant slug.
+- **Cross-tenant screens are not filtered by the selection.** All tenants, Platform health and Delivery queue answer questions about the set of tenants and ignore it (the All-tenants drawer flows the other way: it *sets* the selection and opens that tenant's Overview; since 2026-09-24 that drawer is the tenant page, whose "Open as this tenant" does the same). Fan actions already had a tenant filter, so the selection pre-fills it, with "All tenants" still available. Team ignores it — membership reads the active organization from the session, not a tenant slug.
 - Route guards read `orgSlug` and `has({ permission })` from the session — the same pattern as the fan `ProtectedRoute`, different inputs.
 - **The URL's tenant must be checked against the session's `orgSlug` on every scoped page.** A stale `orgSlug` after an org switch otherwise renders one tenant's data under another's URL.
 
@@ -211,23 +215,41 @@ One nav structure, three sections. Same screens for both actor classes (`ADM-01`
 |---|---|---|---|
 | Workspace | Overview | `/` | `ADM-06`, `ADM-07` (games, KPIs, reporting surfaced on one screen) |
 | | Games & Contests | `/games` | `ADM-04`, `BRAND-02`, `GAME-01`–`GAME-04` — [`admin-games-and-prizes.spec.md`](admin-games-and-prizes.spec.md), contest lifecycle in [`admin-contests.spec.md`](admin-contests.spec.md) |
-| | Prizes | `/prizes` | `ADM-04`, `PRIZE-05`–`PRIZE-07` |
+| | ~~Prizes~~ | ~~`/prizes`~~ | *Superseded 2026-09-24 by Prize deliveries: tiers moved into the contest page's Prizes tab, the tenant email settings to Emails.* |
+| | Prize deliveries | `/prize-deliveries` (`/prizes` redirects here; `/prizes?contest=<id>` to that contest's Prizes tab) | `PRIZE-01`, `PRIZE-07` — every send, failure and resend across the tenant's contests; [`admin-prizes.spec.md`](admin-prizes.spec.md) |
 | | Fans | `/fans` | `RPT-02` view, scoped — not the export itself |
 | | Exports | `/exports` | `ADM-07`, `RPT-01`–`RPT-06` |
 | | Game day | `/live` | `OBS-04`, `OBS-05` — [`admin-game-day.spec.md`](admin-game-day.spec.md) |
 | Configuration | Fields & Opt-ins | `/config` | `ADM-05`, `AUTH-02`, `OPT-01`–`OPT-05` |
-| | Sponsors & Branding | `/branding/sponsors`, `/branding` | `BRAND-01`–`BRAND-04`, `TEN-04` — [`admin-sponsors.spec.md`](admin-sponsors.spec.md) (Sponsors tab), [`admin-branding.spec.md`](admin-branding.spec.md) (Brand tab, `THEME-03`–`THEME-23`) |
+| | ~~Sponsors & Branding~~ | ~~`/branding/sponsors`, `/branding`~~ | *Superseded 2026-09-24: split into two items, Sponsors and Brand, below.* |
+| | Sponsors | `/sponsors` (`/branding/sponsors` redirects) | `BRAND-02`–`BRAND-04`, `TEN-04` — its own item and hue, separate from Brand; [`admin-sponsors.spec.md`](admin-sponsors.spec.md) |
+| | Brand | `/branding` | `BRAND-01`, `TEN-C1` — [`admin-branding.spec.md`](admin-branding.spec.md) (`THEME-03`–`THEME-23`) |
+| | Emails | `/settings/emails` | The tenant-wide prize email settings (sender name, reply-to, subject), moved off the Prizes screen; [`admin-prizes.spec.md`](admin-prizes.spec.md) |
 | | Team | `/team` | Org membership — invite/remove within the caller's own org (see "Provisioning and delegation") |
 | OBS Internal | Operations | `/operations` | The staff home — [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) |
 | | All tenants | `/tenants` | Cross-tenant tenant list/switcher target |
 | | All contests | `/contests` | [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) |
 | | Season calendar | `/schedule` | `OBS-04` at planning horizon — [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) |
 | | Platform health | `/platform-health` | `OBS-01`–`OBS-05` |
-| | Delivery queue | `/delivery-queue` | `PRIZE-06`/`PRIZE-07` dead-letter visibility |
+| | ~~Delivery queue~~ | ~~`/delivery-queue`~~ | *Superseded 2026-09-24 by the cross-tenant Prize deliveries below; `/delivery-queue` redirects.* |
+| | Prize deliveries (all workspaces) | `/obs/prize-deliveries` | `PRIZE-06`/`PRIZE-07` — every workspace's sends, with a Tenant column and filter; [`admin-prizes.spec.md`](admin-prizes.spec.md) |
 | | Fan actions | `/fan-actions` | `RPT-02`, `org:fan_data:export` |
 | | Support inbox | `/support` | [`admin-support.spec.md`](admin-support.spec.md) — rendered as Your reports for a workspace's own users; not in their nav |
 
 Not in the nav, reached from a game: **Game recap** (`/recap`, [`admin-sponsor-recap.spec.md`](admin-sponsor-recap.spec.md)). An Overboard staffer with no tenant chosen lands on Operations rather than on Overview's "Pick a tenant" card.
+
+**Pages reached from a destination** (2026-09-24). Not sidebar items: each opens from a card, a row or a button on the destination named, keeps that destination active in the nav, and has a back link to it.
+
+| Page | Route | Opened from | Spec |
+|---|---|---|---|
+| Contest page | `/contests/:id`, `/contests/:id/<tab>` — tab is `overview`, `games`, `board`, `prizes`, `sponsors` or `preview`; bare `/contests/:id` is Overview | Games & Contests cards; staff All contests rows and the tenant page's Contests rows, with `?tenant=` | [`admin-contests.spec.md`](admin-contests.spec.md) |
+| Contest builder | `/contests/new`, then `/contests/:id/setup/<step>` once the draft exists — step is `basics`, `games`, `board`, `prizes`, `sponsors` or `review` | "New contest"; "Continue setup" on a draft | [`admin-contests.spec.md`](admin-contests.spec.md); full screen, the sidebar is hidden |
+| Prize tier editor | `/contests/:id/prizes/new`, `/contests/:id/prizes/:tierId`; inside the builder `/contests/:id/setup/prizes/new`, `/contests/:id/setup/prizes/:tierId` | The contest page's Prizes tab; the builder's Prizes step | [`admin-prizes.spec.md`](admin-prizes.spec.md); full page, back to the ladder |
+| Sponsor page | `/sponsors/:id` | Sponsors cards | [`admin-sponsors.spec.md`](admin-sponsors.spec.md) |
+| Fan page | `/fans/:membershipId` | Fans rows; support reports that carry a membership id | [`admin-fans.spec.md`](admin-fans.spec.md) |
+| Tenant page (staff) | `/obs/tenants/:slug` | All tenants rows; staff links on tenant screens | [`admin-tenant-page.spec.md`](admin-tenant-page.spec.md) |
+
+Every one of these routes that belongs to a tenant resolves its tenant exactly as its destination does: from the console-wide selection, and for staff from `?tenant=`, which sets the selection when it differs (the tenant page's slug is the one exception, and it too sends `?tenant=` on every request). The staff All contests list keeps `/contests`; the contest page's routes sit beneath it and are tenant-scoped, so `/contests` alone never renders a tenant's contest.
 
 **Sections render by identity** (ruling, 2026-09-16), not by which part of the console the user is standing in.
 
@@ -236,6 +258,47 @@ Not in the nav, reached from a game: **Game recap** (`/recap`, [`admin-sponsor-r
 **OBS Internal renders whenever the user is obs staff**, regardless of which organization or tenant is selected — staff-ness is user-level, so the section does not disappear when an operator switches into a tenant org to do tenant work. A non-obs user never sees it. This is UX, not the enforcement: hiding the section spares a tenant user four dead links, but the boundary is server-side exactly as everywhere else in this spec.
 
 **The "Pick a tenant" empty states stay** as the fallback for a deep link that arrives with no tenant chosen. Hiding a nav section does not make its routes unreachable, and a bookmarked URL must land somewhere honest.
+
+### Pages, drawers and dialogs (ruling, 2026-09-24)
+
+Arthur's walkthrough ruling: "Full pages instead of drawers for contest create/edit, prize tiers, the staff tenant page, fan detail and the sponsor editor. Small forms stay as drawers." The console had one modal surface, a 440px drawer, and used it for everything from a two-field export form to a fifteen-field prize editor with a preview tab. The ruling generalises into one principle:
+
+**A drawer holds a small form. Anything with tabs, a preview, a list, or more than about eight fields is a page.** A page has a URL, so it can be linked from a support report, a colleague's message or another screen, and it has the width a preview or a table needs. A drawer keeps its place for what is quick and self-contained: open, fill in a few fields, done, back where you were.
+
+**Drawers retired**, each replaced by a page or folded into one:
+
+| Drawer | Becomes |
+|---|---|
+| New contest | The full-screen contest builder (`/contests/new`) |
+| Contest settings | The contest page's Overview tab |
+| Add games | An inline picker inside the contest page's Games tab and the builder's Games step |
+| Game row | The contest page's Games tab rows |
+| Prize tier | The full-page tier editor |
+| Prize email preview | The tier editor's live preview rail, and the Emails page's preview |
+| Sponsor editor | The sponsor page (`/sponsors/:id`), edited in place |
+| Sponsor view | The sponsor page, read-only for members |
+| Fan detail | The fan page (`/fans/:membershipId`) |
+| Tenant detail | The tenant page (`/obs/tenants/:slug`) |
+
+**Drawers that stay** (small forms): create tenant; tenant created; invite admin; invite or edit a team member; export; calendar day (Schedule and Season calendar); Tell Overboard; delivery detail (Prize deliveries); opt-in, until the Fields & Opt-ins overhaul replaces it with its inline pattern.
+
+**Confirmations are centred dialogs**, not drawers and not inline zones: Finalize, Delete (fan, tenant, sponsor, draft contest, prize tier), Pause and Resume, Send again, Re-invite. A dialog states the consequence in plain words, names the thing it acts on, and puts the confirming action on the right. Where the action is reverified, reverification runs after the dialog's confirm; where it takes a typed confirmation (Finalize: the contest name; delete a tenant: its subdomain; delete a fan: their display name), the confirming button is enabled only on an exact match and the server checks the typed value again. A cancelled reverification leaves the dialog open and says nothing happened.
+
+### Staff extras on tenant screens (ruling, 2026-09-24)
+
+"Identity is per user, not per screen" (Seamlessness, and D-064): whenever Overboard staff have a tenant selected, that tenant's screens show the staff-only controls as part of the screen, not on a separate staff surface. The server enforces each one on user-level staff-ness; the rendering follows `useIsObsStaff()`. The console-wide sweep of the existing screens has its own section, "Staff extras (sweep, 2026-09-24)", written alongside this one on `arthur-g1-console`; the redesign adds these:
+
+| Screen | Staff extra |
+|---|---|
+| Games & Contests cards | **Finalize** (ghost), only when the contest is published, not finalized, and every game has ended; hidden otherwise, not disabled ([`admin-contests.spec.md`](admin-contests.spec.md)) |
+| Contest page | **Finalize** in the header, and the Finalize state with its button in the Overview's "What's next" rail |
+| Staff All contests rows, tenant page Contests rows | **Finalize** per row, same rule |
+| Prize deliveries | **Send again** on a sent row (reverified, because it duplicates a code); **Send to a different address** on a failed row; the recorded failure reason; a **Tenant column** and tenant filter across all workspaces (`/obs/prize-deliveries`), where the old queue's 100-row cap goes ([`admin-prizes.spec.md`](admin-prizes.spec.md)) |
+| Fan page | **Delete fan**; **Export this fan's activity** |
+| Team (the chosen tenant's) and the tenant page | **Re-invite** the first admin, only while the invitation is not accepted (reverified) |
+| Every tenant screen | The tenant page itself, reached from the staff links on the screen |
+
+A tenant user never sees these controls, and a tenant user's request for any of them is refused server-side regardless.
 
 ---
 
@@ -293,8 +356,10 @@ Everywhere a console setting reaches the fan app today, and how good a candidate
 9. **`org:contest:finalize` never appears on a tenant org role set**, and fan-data deletion stays with OBS (decision 2026-09; reaffirmed 2026-09-16). Neither is waiting on anything.
 10. **A `B2BOrganization` record and its Clerk organization are a synced pair at all times** — created, changed, and deleted together or not at all. The DB directory is the source of truth for what tenants exist; three records violate this today and are recorded above as data debt. The rule governs the pair's existence and identity (slug, name); **tenant suspension is deliberately outside it** — a database-side status with no Clerk half, because Clerk has no suspend primitive and inventing one by deleting the org would destroy exactly what the rule protects ([`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md), 2026-09-15).
 11. **OBS staff-ness is resolved from the user, not the active organization.** Active `obs` proves it from the signed token; anything else verifies membership against Clerk, cached 5 minutes, failing closed on error.
-12. **A view of the fan product inside the console renders the fan product's own code**, shared through `obs-b2b-shared` — never a likeness rebuilt in console markup, and never an embed of the live fan site. The console references the fan product; it does not host it, and it does not redraw it.
+12. **A view of the fan product inside the console renders the fan product's own code**, shared through `obs-b2b-shared` — never a likeness rebuilt in console markup, and never an embed of the live fan site. The console references the fan product; it does not host it, and it does not redraw it. Revised 2026-09-24: the fan-app preview mode is the one exception; [`admin-preview.spec.md`](admin-preview.spec.md) defines it.
 13. **The console never fabricates a value and never narrates a gap** (ruling 2026-09-22). An unmeasured stat renders no tile, an unwired feature renders no card, and a real number renders no caveat about its provenance — the element is absent until the data behind it exists, and absence is not captioned. Gap disclosure belongs in specs and code comments. This supersedes any earlier requirement to disclose a gap in the UI.
+14. **Pages, drawers and dialogs** (ruling 2026-09-24). A drawer holds a small form; anything with tabs, a preview, a list, or more than about eight fields is a page with its own route; confirmations are centred dialogs, with typed confirmation where reverification applies. The inventory of retired and remaining drawers is in "Pages, drawers and dialogs" above, and a new surface follows the principle rather than the nearest precedent.
+15. **Staff extras appear on tenant screens whenever staff have a tenant selected** (ruling 2026-09-24). Identity decides them, not which part of the console the staffer is in: Finalize on contest cards, the contest page and contest rows; Send again and the Tenant column on Prize deliveries; Delete fan and the fan activity export on the fan page; Re-invite on Team and the tenant page. Each is enforced server-side on user-level staff-ness; rendering is convenience.
 
 ---
 
