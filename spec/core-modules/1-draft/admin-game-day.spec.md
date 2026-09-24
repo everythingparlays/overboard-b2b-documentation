@@ -92,7 +92,7 @@ Same screen for tenant users and Overboard staff (`ADM-01`). Read-only for every
 
 **Left column — the live feed.** The four event kinds the platform can reconstruct: a fan joined, a board was created, a prize was delivered, a prize could not be delivered. Newest first, display names only, never a contact field. Polled every ~10 seconds (no socket infrastructure; ten seconds is the right grain for a human watching). New rows fade in; nothing else moves.
 
-**Right column — operations.** (a) **Couldn't be delivered** — this game's failed sends: fan display name, prize, and the reason as a plain category (below), each with **Tell Overboard** and, once reported, the report's status chip ([`admin-support.spec.md`](admin-support.spec.md)). (b) **Prize tiers** — per tier: lines required, boards that have reached it, and delivered / pending / failed. (c) **Readiness** — the checklist, which during and after the game says whether anything is still wrong. (d) **Health** — when the last board was created, when the last prize was delivered, and the oldest prize still pending.
+**Right column — operations.** (a) **Couldn't be delivered** — this game's failed sends: fan display name, prize, and the reason as a plain category (below), each with **Tell Overboard** and, once reported, the report's status chip ([`admin-support.spec.md`](admin-support.spec.md)). (b) **Prize tiers** — per tier: its threshold in the game's own unit ("1 bingo", "3 bingos", the words Prizes uses), boards that have reached it, and delivered / pending / failed. (c) **Readiness** — the checklist, which during and after the game says whether anything is still wrong. (d) **Health** — when the last board was created, when the last prize was delivered, and the oldest prize still pending.
 
 **Footer — the game's timeline.** Five-minute buckets from the start of the game window to now (or its end): boards created (bars), prizes delivered (bars), fans joined (line). The screenshot a team sends a sponsor.
 
@@ -104,9 +104,11 @@ Today failed sends are OBS-only (the Delivery queue) while Overview already tell
 
 | `reasonKind` | Derived from the worker's `failureReason` | The tenant reads |
 |---|---|---|
-| `setup` | "No delivery method is set up…", "Contest not found…" | This prize isn't set up to send yet. |
-| `address` | Mentions an email address, a recipient, a mailbox, or a rejected/bounced message | The fan's email couldn't accept it. |
-| `other` | Anything else, and rows with no recorded reason | The send didn't go through. |
+| `setup` | The prize has nothing to send with: its tier's delivery method isn't available, no tier pays at that count any more, or its contest or team is gone (the prize worker's `REASONS`; the older worker's "No delivery method is set up…" / "Contest not found…" still count) | This prize isn't set up to send yet. |
+| `address` | The fan has no email address on file, or the reason names an email address, a recipient, a mailbox, or a rejected/bounced message. A bare "email" is not enough: the worker's own sentences say "the email service…" about failures that have nothing to do with the fan | The fan's email couldn't accept it. |
+| `other` | Anything else (the email service busy or down, the platform's sending address or account, an interrupted or timed-out send) and rows with no recorded reason | The send didn't go through. |
+
+`deliveryReasonKind` (`node-server/src/util/admin-game.ts`) is the one reader, and `prize-worker/src/__tests__/failure-reasons.test.ts` pins every sentence the worker writes today against it, so rewording a worker reason cannot silently move it to the wrong category. (Integration, 2026-09-23: the prize overhaul's new sentences had been landing in `other`, and "the email service…" ones in `address`.)
 
 ### Attribution — how a number is "this game's"
 
@@ -135,7 +137,7 @@ This is the rule for every game-attributed number the platform shows: `/live`, t
 1. **Readiness is computed once, server-side, by one evaluator.** No screen re-derives it.
 2. **Every game-attributed number comes from the one attribution helper.** `/live`, the strip, the calendar and the recap cannot disagree.
 3. **Auto-enter, never auto-exit.** A pinned game stays on screen through `Final`; nothing navigates an operator away.
-4. **No invented clock, rate or score.** Tip-off and elapsed time only; the score only when the feed carries one.
+4. **No invented clock, rate or score.** Tip-off and elapsed time only; the score only when the feed carries one **and the game has started**. Before tip-off the feed fills both scores with 0, a placeholder rather than a score, so an `upcoming` or `pre-game` game's `score` is null.
 5. **The LIVE tag means the feed said so.** A game under way by schedule alone is "Under way".
 6. **Fans are named by display name only**, in the feed and the failure list. No contact field reaches `/live`.
 7. **A tenant caller never receives the worker's raw failure text** — the payload carries `reason: null` and a category.
