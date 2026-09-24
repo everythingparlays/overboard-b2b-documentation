@@ -4,7 +4,7 @@
 
 **Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — the permission table (`org:reports:read`), the `/exports` nav destination, the reverification list. [`admin-fans.spec.md`](admin-fans.spec.md) — `requireReverification` and the `B2BAdminAuditLog` collection, defined there and consumed here. [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the `OptInDefinition` shape this extends, the consent-state vocabulary the row filter reuses, and the tenant's `signupFields`, which are now what this module's exportable set is derived from.
 
-**Status:** Draft. Amended 2026-09-21 for entry-gate editor v2: `EXPORT_FIELD_CATALOG` is retired in favour of a per-tenant exportable set, and field deletion prunes sponsor scopes.
+**Status:** Draft. Amended 2026-09-21 for entry-gate editor v2: `EXPORT_FIELD_CATALOG` is retired in favour of a per-tenant exportable set, and field deletion prunes sponsor scopes. Amended 2026-09-23 for the sponsor model ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)): a sponsor is a record, the DPA scope lives on it, and the opt-in becomes the sponsor's consent.
 
 ## Overview
 
@@ -19,17 +19,23 @@ The Exports screen at `/exports`: the two tenant-scoped V1 reports — the spons
 - **The internal fan-actions export** (`RPT-02`, `org:fan_data:export`). It is obs-only, event-level, and belongs to OBS Internal's `/fan-actions` — its own module. This screen neither lists nor links it; a tenant-facing catalog must not carry an entry whose only correct rendering for tenants is "you can't have this".
 - **Scheduled delivery and cadence** (`RPT-06`). The PRD's own open question — "how exports reach the sponsor (email attachment, secure download link, SFTP)" — is unanswered, and cadence without a delivery mechanism is a stored setting nothing consumes. V1 is on-demand generation only; the mock's "Cadence: weekly, Monday 6:00 AM MT" line is omitted rather than rendered as decoration. **Spec wins over mock.** Recorded gap.
 - **Stored export files.** Generated CSVs are returned to the caller and not persisted — see "Generation, not storage".
-- **A sponsor entity.** Still unmodelled (games spec, same gap). V1's sponsor *is* the `kind: "sponsor"` opt-in — which is also exactly the thing `RPT-05` filters rows by, so the export configuration hangs together without the missing collection. A real sponsor model can absorb `exportFields` later.
+- **The sponsor entity itself** — [`admin-sponsors.spec.md`](admin-sponsors.spec.md). *(Superseded 2026-09-23: V1's sponsor used to* be *the `kind: "sponsor"` opt-in. It is now a `B2BSponsor` record that absorbs `exportFields`; the opt-in it links to remains what `RPT-05` filters rows by.)*
 - **Favorite-players and dashboard reporting** (`RPT-07` **[FUTURE]**) — the *report*. The field itself is now scopeable into a sponsor's "Who played" export like any other configured field; what stays unbuilt is `RPT-07`'s own aggregate view.
 
 ---
 
+## The sponsor, since 2026-09-23
+
+A row on this screen is still a sponsor-kind **consent opt-in** — the thing the row filter below needs — and every request is still keyed by its `optInId`. What changed is that the opt-in may be linked to a **sponsor record** (`B2BSponsor`, `OptInDefinition.sponsorId`): the row then carries the record's id, its name as the label, its DPA scope and the reference of the agreement that scope follows. A record with no linked opt-in has no fan who agreed to share anything with it, so it is not on this screen until it is linked. An opt-in not linked to any record works exactly as it always did.
+
+The scope's home is the record; every scope write also mirrors the list onto the linked opt-in's `exportFields`, so code that predates the record — `main` on a shared database, or an old deploy — exports exactly what the new code would. The mirror is temporary and recorded as such in the sponsor spec. The contract only grew: `sponsorId` and `dpaReference` are optional additions, and every existing field kept its type.
+
 ## The field scope (`RPT-04` / `SEC-02`)
 
-One additive field on `OptInDefinition`:
+Stored on the sponsor record since 2026-09-23 (`B2BSponsor.exportFields`), mirrored onto its linked opt-in; originally one additive field on `OptInDefinition`:
 
 ```ts
-exportFields?: string[]   // ids from the tenant's exportable set, meaningful on kind: "sponsor"
+exportFields?: string[]   // ids from the tenant's exportable set
 ```
 
 **The exportable set is per tenant, and it is derived, not enumerated** (2026-09-21, superseding `EXPORT_FIELD_CATALOG`). It is `email`, then the tenant's configured `signupFields` in their configured order, then `picks` — computed by `exportableFieldIds(signupFields)` in the shared package, which is also the CSV's column order, so nothing has to keep a scope list and a column list agreeing.
@@ -124,10 +130,9 @@ Reverification (IDN-13, mechanism in the Fans spec): "Who played" releases PII �
 
 - **`RPT-06` cadence and delivery** — blocked on the PRD's open delivery-mechanism question; nothing stored, nothing scheduled.
 - **Signup conversion** (`RPT-03`) — no entry-gate visit counting exists, so the usage report ships gameplay and prize-claim conversion only.
-- **No sponsor entity** — the DPA scope lives on the opt-in; a future sponsor model should absorb it (`TEN-04`'s sponsor↔tenant relationship, the games spec's recorded gap).
 - **Per-game attribution rides on props** — boards do not carry a `betEventId`; the per-game narrowing resolves it through the board's props. Correct today; a board-level event id would be cheaper at scale.
 - **No rate limiting on generation** (`SEC-08`) — platform-wide concern.
-- **A stored scope carries no record of which DPA authorized it.** It is a list of ticked ids and an audit entry saying who ticked them; nothing names the agreement, its date, or its counterparty. That was survivable when the tickable ids were a platform list of seven; with a tenant-defined set it is the obvious next thing to want, and it belongs with the sponsor entity whenever that lands.
+- **A stored scope's agreement is named in free text only.** Since 2026-09-23 the sponsor record carries `dpaReference` ("Coca-Cola DPA v3, signed 2026-08-01") beside its scope. OBS does not hold the DPAs, so nothing validates the reference or versions the scope against it.
 - **A column header is the field's current label.** Change the label, and the next generation's header changes with it while the historical exports a sponsor already holds keep the old one. Correct — the label is copy, the id is identity — and worth knowing before someone reconciles two CSVs by column name.
 
 ## References

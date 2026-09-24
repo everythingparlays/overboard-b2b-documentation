@@ -56,6 +56,7 @@ Tenant users land on their own numbers with no parameter, as everywhere. An OBS 
 2. **Failed-send counts come from the redemption rows** — the same source as `/delivery-queue` and Platform health.
 3. **Contest status is the derived status**, computed server-side once.
 4. **No finalize affordance on Overview.** The action is obs-only and lives on `/tenants` (admin-obs-internal).
+5. **Head actions follow the write rule.** "Export fans" is for everyone (Exports shows members its view-only presentation). "Enable games" is an edit, so it renders only for someone who can change contests (`useCanWrite`: Overboard staff, or the tenant's `org:admin` in an active workspace); a view-only member is not offered it (integration, 2026-09-23).
 
 ## Known gaps (recorded, not blocking)
 

@@ -196,7 +196,7 @@ A **separate application and deployment** at `admin.overboardsports.com`, not a 
 The fan template is tenant-branded and deployed per tenant; admin is one deployment serving all tenants, with its own Clerk publishable key, its own theme, and an org switcher instead of tenant resolution. Sharing a bundle would ship admin code to every fan and put two Clerk instances in one page.
 
 - **One switcher, in the sidebar** (ruling, 2026-09-16). The console previously had two selectors — Clerk's `<OrganizationSwitcher>` in the sidebar for *who you are*, and an "Acting on tenant" pill in the top bar for *which tenant you act on*. Two controls for one question is one too many, and which of the two applied depended on whether the target happened to be an org you were a member of — an implementation detail from the operator's side. **The top-bar pill is removed and Clerk's switcher is replaced by a custom sidebar switcher.**
-- **What the switcher lists.** Every user sees their real Clerk organization memberships; selecting one calls Clerk's `setActive`, semantics unchanged. **OBS staff additionally see every tenant from `GET /admin/tenants`** — the DB tenant directory, which is the source of truth for what tenants exist. Selecting a tenant they hold a Clerk membership in switches the active org (`setActive`); selecting one they do not sets the internal acting-on context instead. **One deduped list**: a tenant that appears both as a membership and as a directory entry shows once, and the two cases look and feel identical. Which mechanism fires is ours to know, not the operator's to learn.
+- **What the switcher lists.** Every user sees their real Clerk organization memberships; selecting one calls Clerk's `setActive`, semantics unchanged. **OBS staff additionally see every tenant from `GET /admin/tenants`** — the DB tenant directory, which is the source of truth for what tenants exist. Selecting a tenant they hold a Clerk membership in switches the active org (`setActive`); selecting one they do not sets the internal acting-on context instead. **One deduped list**: a tenant that appears both as a membership and as a directory entry shows once, and the two cases look and feel identical. Which mechanism fires is ours to know, not the operator's to learn. **Pending invitations are listed too**, after the user's own organizations: choosing one accepts the invitation and switches to that organization, the same way picking a membership does, and a join that fails says so and leaves the user where they were. The switcher is the console's one place to accept an invitation — Clerk's sign-in step offers invitations only while no organization is active, and the active one survives sign-out, so without it a user invited to a second organization would stay locked into their first. The same reasoning decides who gets a switcher at all: a user with one organization and nowhere else to go sees it as a fixed card, and a pending invitation counts as somewhere else, so it earns the switcher in place of the card.
 - **The acting-on machinery stays as wiring; only its UI goes.** The `TenantContext` that held the console-wide choice is unchanged underneath — set once, applies to every per-tenant screen, survives routes and reloads, dropped at sign-out, reset when the stored slug no longer appears in `GET /admin/tenants`. It changes nothing about the wire: **every OBS request still names the tenant explicitly as `?tenant=<slug>`**, including when the operator is acting on their own active tenant org. Explicit, never implicit.
 - **"Create organization" appears for OBS staff only**, and routes to the console's own All-tenants Create-tenant flow (`POST /admin/tenants`, OBS Internal spec) — never Clerk's widget, which creates a Clerk org with no `B2BOrganization` behind it and breaks the synced-pair invariant. A non-obs user never sees the entry, and Rule 8 still stands: self-creation is disabled instance-wide, so the entry is a link to the one provisioning path rather than a second one.
 - **Cross-tenant screens are not filtered by the selection.** All tenants, Platform health and Delivery queue answer questions about the set of tenants and ignore it (the All-tenants drawer flows the other way: it *sets* the selection and opens that tenant's Overview). Fan actions already had a tenant filter, so the selection pre-fills it, with "All tenants" still available. Team ignores it — membership reads the active organization from the session, not a tenant slug.
@@ -210,17 +210,24 @@ One nav structure, three sections. Same screens for both actor classes (`ADM-01`
 | Section | Destination | Route | Implements |
 |---|---|---|---|
 | Workspace | Overview | `/` | `ADM-06`, `ADM-07` (games, KPIs, reporting surfaced on one screen) |
-| | Games & Contests | `/games` | `ADM-04`, `BRAND-02`, `GAME-01`–`GAME-04` |
+| | Games & Contests | `/games` | `ADM-04`, `BRAND-02`, `GAME-01`–`GAME-04` — [`admin-games-and-prizes.spec.md`](admin-games-and-prizes.spec.md), contest lifecycle in [`admin-contests.spec.md`](admin-contests.spec.md) |
 | | Prizes | `/prizes` | `ADM-04`, `PRIZE-05`–`PRIZE-07` |
 | | Fans | `/fans` | `RPT-02` view, scoped — not the export itself |
 | | Exports | `/exports` | `ADM-07`, `RPT-01`–`RPT-06` |
+| | Game day | `/live` | `OBS-04`, `OBS-05` — [`admin-game-day.spec.md`](admin-game-day.spec.md) |
 | Configuration | Fields & Opt-ins | `/config` | `ADM-05`, `AUTH-02`, `OPT-01`–`OPT-05` |
-| | Branding | `/branding` | `BRAND-01`, `BRAND-03`–`BRAND-23` — [`admin-branding.spec.md`](admin-branding.spec.md) |
+| | Sponsors & Branding | `/branding/sponsors`, `/branding` | `BRAND-01`–`BRAND-04`, `TEN-04` — [`admin-sponsors.spec.md`](admin-sponsors.spec.md) (Sponsors tab), [`admin-branding.spec.md`](admin-branding.spec.md) (Brand tab, `THEME-03`–`THEME-23`) |
 | | Team | `/team` | Org membership — invite/remove within the caller's own org (see "Provisioning and delegation") |
-| OBS Internal | All tenants | `/tenants` | Cross-tenant tenant list/switcher target |
+| OBS Internal | Operations | `/operations` | The staff home — [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) |
+| | All tenants | `/tenants` | Cross-tenant tenant list/switcher target |
+| | All contests | `/contests` | [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) |
+| | Season calendar | `/schedule` | `OBS-04` at planning horizon — [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) |
 | | Platform health | `/platform-health` | `OBS-01`–`OBS-05` |
 | | Delivery queue | `/delivery-queue` | `PRIZE-06`/`PRIZE-07` dead-letter visibility |
 | | Fan actions | `/fan-actions` | `RPT-02`, `org:fan_data:export` |
+| | Support inbox | `/support` | [`admin-support.spec.md`](admin-support.spec.md) — rendered as Your reports for a workspace's own users; not in their nav |
+
+Not in the nav, reached from a game: **Game recap** (`/recap`, [`admin-sponsor-recap.spec.md`](admin-sponsor-recap.spec.md)). An Overboard staffer with no tenant chosen lands on Operations rather than on Overview's "Pick a tenant" card.
 
 **Sections render by identity** (ruling, 2026-09-16), not by which part of the console the user is standing in.
 
@@ -268,7 +275,7 @@ Everywhere a console setting reaches the fan app today, and how good a candidate
 | **Games enabled per contest** (`Games.tsx`) | `ContestPage.tsx` tabs | Candidate. Small surface, and the reflection is a tab strip rather than a screen |
 | **Contest visibility** | Server-filtered; the fan gets a generic empty state | Weak candidate. What the fan sees is an absence, and a preview of an absence teaches little |
 | **Tenant name** | Nothing — **a broken link** | Not a preview problem. An admin rename never reaches the fan app at all, which reads its local registry. Recorded here because it looks like a missing reflect point and is actually a missing write path |
-| **Branding** (`/branding`) | Every fan screen | **Specced** — [`admin-branding.spec.md`](admin-branding.spec.md). The data model, the endpoints, and the screen's live preview are defined there; `BRAND-01`'s hardcode-permitted classification is superseded by it |
+| **Sponsors & Branding** (`/branding`) | Every fan screen | **Specced** — [`admin-branding.spec.md`](admin-branding.spec.md) for the Brand tab (the data model, endpoints and live preview; `BRAND-01`'s hardcode-permitted classification is superseded by it) and [`admin-sponsors.spec.md`](admin-sponsors.spec.md) for the Sponsors tab |
 | **`authVariant`** | The fan sign-in | Blocked, and worth flagging: the value is configurable while the fan sign-in hardcodes email — configuration with no effect, which a preview would expose but not fix |
 
 ---

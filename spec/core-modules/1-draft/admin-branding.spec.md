@@ -14,7 +14,7 @@ A tenant's colors, type, shape, finish and signature moments become real server-
 
 **In scope:** the stored theme contract (v2) and its derivation rules; the shipped preset defaults, the OBS-curated gallery and a tenant's own saved presets, with the promote-to-gallery pipeline; storage on `B2BOrganization` and the gallery's own collection; `GET`/`PUT /admin/branding`, `PUT /admin/branding/presets`, `POST /admin/branding/promote`; the public fan wire; the `/branding` screen and its live preview; and back-compat with the compile-time tenant files, pinned by test.
 
-**Not in scope:** sponsor asset management (below, "Recorded gaps"); a full fan-board preview inside the console; per-cell live fractions for Under props and non-player props; anything that would make `--destructive` / `--success` / `--warning` tenant-settable.
+**Not in scope:** sponsor records and their per-game assets — [`admin-sponsors.spec.md`](admin-sponsors.spec.md), the Sponsors tab of the same screen; a full fan-board preview inside the console; per-cell live fractions for Under props and non-player props; anything that would make `--destructive` / `--success` / `--warning` tenant-settable.
 
 ---
 
@@ -22,9 +22,9 @@ A tenant's colors, type, shape, finish and signature moments become real server-
 
 Two principles sit above the numbered rules. A change can satisfy every rule below and still violate one of these.
 
-**Honesty by omission, not by narration** (ruling 2026-09-22, Arthur). *Where the product cannot honestly show something, it omits it — silently — and the gap is recorded here, not on screen.* Never-fabricate stays absolute: no invented stats, no mocked-up data, no preview of a thing that is not the thing. But a customer-visible surface must not explain its own gaps or its own provenance either. No "not measured yet" caption under a missing stat fraction. No "a Sponsors section is coming" note on the Branding screen. No roadmap narration, no caveat lines, no provenance notes anywhere a tenant admin or a fan can read them.
+**Honesty by omission, not by narration** (ruling 2026-09-22, Arthur). *Where the product cannot honestly show something, it omits it — silently — and the gap is recorded here, not on screen.* Never-fabricate stays absolute: no invented stats, no mocked-up data, no preview of a thing that is not the thing. But a customer-visible surface must not explain its own gaps or its own provenance either. No "not measured yet" caption under a missing stat fraction. No "coming soon" note for anything not yet built. No roadmap narration, no caveat lines, no provenance notes anywhere a tenant admin or a fan can read them.
 
-The two halves are easy to confuse, so state them together: a cell with no honest progress data shows **no fraction and no explanation**; the Branding screen ships **without a Sponsors section and without any mention of one**; the preview shows what it can render honestly and **does not caption what it is not**. Every one of those gaps is written down in "Recorded gaps" below, which is the correct and only place for them.
+The two halves are easy to confuse, so state them together: a cell with no honest progress data shows **no fraction and no explanation**; a screen ships **without any section it cannot yet fill, and without mentioning one**; the preview shows what it can render honestly and **does not caption what it is not**. Every one of those gaps is written down in "Recorded gaps" below, which is the correct and only place for them.
 
 This supersedes, for this screen, the pattern the fields spec's preview established — a caption saying the team's real colors apply elsewhere. That caption was honest and correct when the console had no way to know a tenant's colors. This spec is the reason it stops being true, so the caption goes rather than being restated (Rule 12).
 
@@ -44,9 +44,9 @@ Three reasons the exception stopped earning its keep:
 2. **The elements turned out not to be set-once.** `BRAND-01` assumes a tenant's look is fixed for a season. The four design directions this wave specifies are not palettes; they are systems — mode, type, radius, border weight, texture, glow, celebration character — and a team that wants to try one against its own colors cannot do so by filing an engineering ticket per attempt. `TEN-03`'s onboarding budget is also the wrong budget: this is a recurring, exploratory act, which is exactly `ADM-03`'s and §15.2's test for what belongs in the admin surface.
 3. **Hardcoding was already producing wrong output.** The compile-time model stores foreground colors alongside background colors, and one shipped tenant (`fightinghawks`) carries a secondary foreground that renders white on white. A model where a human hand-picks a pair of colors that must contrast has no mechanism to stop that; a model that computes the foreground has no way to produce it (below, "Why on-colors are computed").
 
-The PRD text is not edited by this spec. `BRAND-01` remains the requirement; this is its implementation, and the classification change is recorded here and dated so it is a ruling rather than a drift. `BRAND-02` (per-game sponsor assets, admin-configured, never a code change) is untouched and unimplemented — see "Recorded gaps".
+The PRD text is not edited by this spec. `BRAND-01` remains the requirement; this is its implementation, and the classification change is recorded here and dated so it is a ruling rather than a drift. `BRAND-02` (per-game sponsor assets, admin-configured, never a code change) is built by [`admin-sponsors.spec.md`](admin-sponsors.spec.md); the field-by-field split between the two is [`branding-field-split.md`](../../../documents/PRD/branding-field-split.md).
 
-**Requirement ids.** `BRAND-01` and `BRAND-02` are PRD ids and keep their numbers. This spec mints `BRAND-03` onward for the theming work.
+**Requirement ids.** `BRAND-01`–`BRAND-04` are PRD ids. This spec's own rules are `THEME-03`–`THEME-23` — renamed on 2026-09-23 from `BRAND-03`–`BRAND-23`, which collided with the PRD's `BRAND-03` (several sponsors per game) and `BRAND-04` (no code change). The numbers are kept so older commit messages and PR descriptions still map one-to-one.
 
 ---
 
@@ -94,11 +94,11 @@ export interface BrandingSettings { theme?: ThemeSettings; assets?: BrandingAsse
 // on B2BOrganization:  branding?: BrandingSettings
 ```
 
-**`BRAND-03` — The theme is pure data and the resolver is the only thing that computes.** On-colors, tints, the radius ladder, glow shadows, the texture gradient and every derived neutral are **never stored**. `resolveTheme()` / `themeToCssVars()` in `obs-b2b-shared/src/theme/` is the single canonical implementation, imported by the fan app, the admin console and (for validation) the backend. A second derivation anywhere is the defect this rule exists to prevent.
+**`THEME-03` — The theme is pure data and the resolver is the only thing that computes.** On-colors, tints, the radius ladder, glow shadows, the texture gradient and every derived neutral are **never stored**. `resolveTheme()` / `themeToCssVars()` in `obs-b2b-shared/src/theme/` is the single canonical implementation, imported by the fan app, the admin console and (for validation) the backend. A second derivation anywhere is the defect this rule exists to prevent.
 
-**`BRAND-04` — The font list is a curated allowlist, not a free string.** `THEME_FONT_IDS` is a closed `as const` array; the zod schema validates against it and nothing else passes. Each id maps in `fonts.ts` to a label, a full CSS stack with fallbacks, and a provider plus stylesheet URL that the host injects. An open font field would be a tenant-supplied URL loaded into every fan's browser on every page — a third-party asset with no review step, on the critical rendering path, for a setting whose product value is "pick one of ten". The allowlist is a security boundary and a quality floor in one decision, and growing it is a one-line change in a shared file with a code review attached.
+**`THEME-04` — The font list is a curated allowlist, not a free string.** `THEME_FONT_IDS` is a closed `as const` array; the zod schema validates against it and nothing else passes. Each id maps in `fonts.ts` to a label, a full CSS stack with fallbacks, and a provider plus stylesheet URL that the host injects. An open font field would be a tenant-supplied URL loaded into every fan's browser on every page — a third-party asset with no review step, on the critical rendering path, for a setting whose product value is "pick one of ten". The allowlist is a security boundary and a quality floor in one decision, and growing it is a one-line change in a shared file with a code review attached.
 
-**`BRAND-05` — Status colors stay platform-owned.** `--destructive`, `--success` and `--warning` are fixed per mode and are not in the contract; the resolver does not emit them. This is [`styling.spec.md`](../../webapp/styling.spec.md) §1's existing rule, kept deliberately rather than inherited by accident: a "closed" badge must read as closed on every team's site, and a fan who plays at two teams must not have to learn two color vocabularies. `live` is the **one** themable signal tone, because it is a broadcast treatment rather than a status — Prime Time's `#FF3B5C` chyron and Club Level's `#B3364B` are a direction's voice, not a claim about state.
+**`THEME-05` — Status colors stay platform-owned.** `--destructive`, `--success` and `--warning` are fixed per mode and are not in the contract; the resolver does not emit them. This is [`styling.spec.md`](../../webapp/styling.spec.md) §1's existing rule, kept deliberately rather than inherited by accident: a "closed" badge must read as closed on every team's site, and a fan who plays at two teams must not have to learn two color vocabularies. `live` is the **one** themable signal tone, because it is a broadcast treatment rather than a status — Prime Time's `#FF3B5C` chyron and Club Level's `#B3364B` are a direction's voice, not a claim about state.
 
 ### Why on-colors are computed, never stored
 
@@ -143,11 +143,11 @@ Three of those (`--border-strong`, `--text-secondary`, `--live-foreground`) were
 
 **The emitted variable set is a superset of what the entry gate reads today**, so the existing 14-variable gate contract keeps working untouched, and the legacy aliases are kept deliberately: `muted` = surface, `input` = surface, `ring` = primary, `secondary` falls back to primary when absent, `accent` falls back to secondary then primary, and `--radius` carries the control radius in px because the gate stylesheet already reads it by that name. A new name for an existing concept would have been cleaner and would have broken every consumer for nothing.
 
-**`BRAND-06` — The explicit `border` override exists for legacy parity and nothing else.** `ThemeNeutrals` carries both `borderBase` (an rgb basis, alpha applied by `borderAlpha`) and `border` (a full explicit color that wins). Two ways to say one thing is normally a defect; here the second is load-bearing. Today's tenant files store a flat opaque border hex, and the parity test below must reproduce it byte-for-byte. `borderBase` is how the contract is meant to be used and what the screen writes; `border` is how a legacy seed survives conversion without a visual delta.
+**`THEME-06` — The explicit `border` override exists for legacy parity and nothing else.** `ThemeNeutrals` carries both `borderBase` (an rgb basis, alpha applied by `borderAlpha`) and `border` (a full explicit color that wins). Two ways to say one thing is normally a defect; here the second is load-bearing. Today's tenant files store a flat opaque border hex, and the parity test below must reproduce it byte-for-byte. `borderBase` is how the contract is meant to be used and what the screen writes; `border` is how a legacy seed survives conversion without a visual delta.
 
 ---
 
-## `BRAND-07` — The four directions are preset JSON, with zero code
+## `THEME-07` — The four directions are preset JSON, with zero code
 
 **Acceptance rule.** The four design directions — Prime Time, Club Level, Signal, Floodlight — must each be expressible as one complete `ThemeSettings` JSON object, and rendering them must require **no per-direction code branch anywhere in the platform**. Not in the resolver, not in the fan app, not in a component, not in a stylesheet.
 
@@ -169,13 +169,13 @@ Three shelves, three different things, deliberately not one list.
 | **Gallery** | OBS-curated, cross-tenant, genericized | `${prefix}theme_gallery_presets`, its own collection | OBS staff, by promoting |
 | **Your presets** | This tenant's own saved looks | `branding.presets[]` on the org | The tenant's `org:admin` |
 
-**`BRAND-08` — Applying a preset keeps the tenant's own team colors.** `applyPreset(preset, current)` takes everything from the preset **except** `colors.primary` and `colors.secondary`, which keep the tenant's current values when they exist. A direction is a system a team's palette flows into, not a palette that replaces it — a team that clicks "Prime Time" wants a broadcast treatment of *their* colors, and a picker that repaints them in someone else's blue has misunderstood what it is for. Shipped presets carry a neutral slate `#64748B` in `primary` so an unbranded preview is honest rather than accidentally implying a color the tenant has not chosen, and `applyPreset` swaps in the tenant's primary the moment one exists.
+**`THEME-08` — Applying a preset keeps the tenant's own team colors.** `applyPreset(preset, current)` takes everything from the preset **except** `colors.primary` and `colors.secondary`, which keep the tenant's current values when they exist. A direction is a system a team's palette flows into, not a palette that replaces it — a team that clicks "Prime Time" wants a broadcast treatment of *their* colors, and a picker that repaints them in someone else's blue has misunderstood what it is for. Shipped presets carry a neutral slate `#64748B` in `primary` so an unbranded preview is honest rather than accidentally implying a color the tenant has not chosen, and `applyPreset` swaps in the tenant's primary the moment one exists.
 
 **Only two directions ship as presets, and this is the interesting call.** Prime Time and Club Level ship. **Floodlight does not** — it is the conservative evolution of the current fan default, so its value ships as the *quality bar of the default theme itself* and as an acceptance fixture; offering it in the picker would be offering the tenant what they already have, listed as if it were a choice. **Signal does not either** — what is worth keeping from Signal is two components (the ring gauge and the per-cell stat fraction), which ship as real shared UI available to every theme through `motif.boardCounter`, not as a look. A preset shelf whose entries are "the default, again" and "two components, bundled as a mood" is a shelf that teaches a tenant nothing.
 
 ### The rejected model: public cross-tenant preset visibility
 
-**`BRAND-09` — A tenant's saved presets are private to that tenant, always. There is no public, tenant-to-tenant preset sharing, and this is a deliberate rejection, not an unbuilt feature.**
+**`THEME-09` — A tenant's saved presets are private to that tenant, always. There is no public, tenant-to-tenant preset sharing, and this is a deliberate rejection, not an unbuilt feature.**
 
 The obvious design is to let a tenant publish a preset and let every other tenant browse it — a community palette library, free to build once presets exist as data. It is rejected on three grounds, any one of which is sufficient.
 
@@ -187,7 +187,7 @@ The obvious design is to let a tenant publish a preset and let every other tenan
 
 So the curated path is strictly better on every axis that matters: a tenant still gets the good look, the identifying colors are gone by construction rather than by policy, a named human decided it was worth sharing, and there is an audit entry saying who and when. The only thing public sharing adds is immediacy — and immediacy is precisely what makes the first two objections bite.
 
-**`BRAND-10` — Promotion is an OBS-staff act and is audited.** Unlike ordinary config edits, which this codebase deliberately does not audit (`SEC-06` covers PII release and irreversible actions, not settings), promotion is **cross-tenant publication**: it takes one tenant's work and makes it visible to all of them. That crosses a boundary every other write in this module respects, so it gets the trail — actor, target tenant, preset id, gallery id. Ids and counts only, never values.
+**`THEME-10` — Promotion is an OBS-staff act and is audited.** Unlike ordinary config edits, which this codebase deliberately does not audit (`SEC-06` covers PII release and irreversible actions, not settings), promotion is **cross-tenant publication**: it takes one tenant's work and makes it visible to all of them. That crosses a boundary every other write in this module respects, so it gets the trail — actor, target tenant, preset id, gallery id. Ids and counts only, never values.
 
 ---
 
@@ -197,7 +197,7 @@ Two decisions, argued separately because they come out differently.
 
 ### The theme, assets and a tenant's presets: a subdocument on the organization
 
-**`BRAND-11` — `branding` is a typed subdocument on `B2BOrganization`, `_id: false`, `default: undefined`, `$unset` on clear.**
+**`THEME-11` — `branding` is a typed subdocument on `B2BOrganization`, `_id: false`, `default: undefined`, `$unset` on clear.**
 
 The backend's existing per-tenant config is unanimous on this: `signupFields`, `optIns` and `gateCopy` are all subdocuments on the org, all `_id: false`, and `gateCopy` is `default: undefined` with `$unset` on clear. `branding` is the same kind of thing and the precedent is followed for the same four reasons:
 
@@ -214,7 +214,7 @@ The backend's existing per-tenant config is unanimous on this: `signupFields`, `
 
 ### The gallery: its own collection
 
-**`BRAND-12` — Gallery presets live in `${prefix}theme_gallery_presets`, a separate global collection.**
+**`THEME-12` — Gallery presets live in `${prefix}theme_gallery_presets`, a separate global collection.**
 
 The same reasoning that puts branding on the org puts the gallery off it, because the gallery fails every test the org subdocument passes:
 
@@ -225,7 +225,7 @@ The same reasoning that puts branding on the org puts the gallery off it, becaus
 
 That is the codebase's own stated rule for a separate collection — "an entity with its own id, its own lifecycle, queried independently of the org" — met on all four counts. The collection inherits `B2B_COLLECTION_PREFIX` like every other B2B collection, so a dev stage's gallery is its own.
 
-**The gallery is read-only to tenants and its rows are already genericized.** There is no tenant-facing write path, and the write path that exists strips brand colors before insert (`BRAND-09`). `sourceSubdomain` is stored for OBS provenance and is on no response a tenant receives.
+**The gallery is read-only to tenants and its rows are already genericized.** There is no tenant-facing write path, and the write path that exists strips brand colors before insert (`THEME-09`). `sourceSubdomain` is stored for OBS provenance and is on no response a tenant receives.
 
 ---
 
@@ -242,13 +242,13 @@ All under `/admin`, admin Clerk instance only, scope from `req.adminScope` ([`ad
 
 **Tenant targeting is unchanged** and inherited whole: a caller who is not obs staff may never name a tenant — `?tenant=` is 403 even when it names their own — and an obs caller must name one (400 without it), with 404 for unknown and reserved slugs. Nothing about branding justifies a second targeting model.
 
-**`BRAND-13` — `org:admin` writes, `org:member` reads, enforced server-side.** `refuseReadOnlyWrite(scope)` runs **first**, before the target is even resolved, on all three write routes. A suspended tenant's own admins are refused (OBS staff are not) — a paused workspace is paused for configuration too. The console's read-only presentation for `org:member` is UX; the server is the boundary, and the `org:member` refusal carries the module's existing message rather than a branding-specific one.
+**`THEME-13` — `org:admin` writes, `org:member` reads, enforced server-side.** `refuseReadOnlyWrite(scope)` runs **first**, before the target is even resolved, on all three write routes. A suspended tenant's own admins are refused (OBS staff are not) — a paused workspace is paused for configuration too. The console's read-only presentation for `org:member` is UX; the server is the boundary, and the `org:member` refusal carries the module's existing message rather than a branding-specific one.
 
-**`BRAND-14` — No reverification anywhere in this module, and that is a ruling rather than an omission** (Arthur, 2026-09-22). [`admin-surface.spec.md`](admin-surface.spec.md)'s reverification list has one common thread: *cannot be undone by clicking again*. A theme edit can. It releases no PII, sends nothing to anyone, triggers no irreversible action, and its worst outcome is a tenant's site looking wrong until someone publishes again — which they can do immediately, from the same screen, with the same session. That spec draws the line explicitly at "editing a sponsor logo does not qualify; deleting the sponsor does", and every write in this module sits on the logo side of it. Adding a re-prompt to a reversible cosmetic edit would spend the mechanism's credibility on the cheapest action in the console and teach admins to click through it.
+**`THEME-14` — No reverification anywhere in this module, and that is a ruling rather than an omission** (Arthur, 2026-09-22). [`admin-surface.spec.md`](admin-surface.spec.md)'s reverification list has one common thread: *cannot be undone by clicking again*. A theme edit can. It releases no PII, sends nothing to anyone, triggers no irreversible action, and its worst outcome is a tenant's site looking wrong until someone publishes again — which they can do immediately, from the same screen, with the same session. That spec draws the line explicitly at "editing a sponsor logo does not qualify; deleting the sponsor does", and every write in this module sits on the logo side of it. Adding a re-prompt to a reversible cosmetic edit would spend the mechanism's credibility on the cheapest action in the console and teach admins to click through it.
 
 Promotion is the one write that is *not* reversible in the same way — a gallery row is visible to every tenant the moment it lands — and it is handled with the tool that fits: staff-only plus an audit entry, not a credential re-prompt. Reverification protects against an unattended session; the gallery risk is about *authority*, which is what the staff gate answers.
 
-**`BRAND-15` — Every branding write calls `clearOrgCache()`.** The fan-side org lookup is cached 60 seconds. An admin who publishes a theme, opens the team's site and sees the old one concludes the publish failed — and their next act is to publish again, which does nothing, twice. The write knows exactly which tenant changed. Preset writes call it too: they are org-document writes, the call is cheap, and a cache holding a document that no longer matches the database is a bug regardless of which field moved.
+**`THEME-15` — Every branding write calls `clearOrgCache()`.** The fan-side org lookup is cached 60 seconds. An admin who publishes a theme, opens the team's site and sees the old one concludes the publish failed — and their next act is to publish again, which does nothing, twice. The write knows exactly which tenant changed. Preset writes call it too: they are org-document writes, the call is cheap, and a cache holding a document that no longer matches the database is a bug regardless of which field moved.
 
 **Responses echo stored state plus a `changes` summary**, and the server owns derived fields — `createdAt` on a preset is merged in from the stored row by `presetId` and is never accepted from the client, the same rule `textVersion` and `publishedAt` follow in the fields module.
 
@@ -256,11 +256,11 @@ Promotion is the one write that is *not* reversible in the same way — a galler
 
 ## The fan wire
 
-**`BRAND-16` — Branding reaches fans through the public org endpoint's explicit allowlist.** `GET /b2b/org/:subdomain` is unauthenticated and was deliberately converted from a denylist to an allowlist precisely so that a field added to the shared model does not auto-publish to the anonymous internet. That property is kept: `branding` does not appear on the wire because it was added to the org, it appears because a hand-picked projection was added to the handler — `{ theme, logo, sponsorName, sponsorLogo, sliderTipImageUrl }`, and nothing else.
+**`THEME-16` — Branding reaches fans through the public org endpoint's explicit allowlist.** `GET /b2b/org/:subdomain` is unauthenticated and was deliberately converted from a denylist to an allowlist precisely so that a field added to the shared model does not auto-publish to the anonymous internet. That property is kept: `branding` does not appear on the wire because it was added to the org, it appears because a hand-picked projection was added to the handler — `{ theme, logo, sponsorName, sponsorLogo, sliderTipImageUrl }`, and nothing else.
 
-**`BRAND-17` — Presets are never on the fan wire.** Not the tenant's, not the gallery's. A fan needs the *active* theme; a preset is authoring state. Shipping it would publish a tenant's unreleased looks — and, in the gallery's case, every other tenant's curated entries — to an endpoint with no authentication at all. The projection above is exhaustive and `presets` is not in it; the `BrandingSettings` type and the wire type are deliberately different shapes so this cannot be reintroduced by spreading an object.
+**`THEME-17` — Presets are never on the fan wire.** Not the tenant's, not the gallery's. A fan needs the *active* theme; a preset is authoring state. Shipping it would publish a tenant's unreleased looks — and, in the gallery's case, every other tenant's curated entries — to an endpoint with no authentication at all. The projection above is exhaustive and `presets` is not in it; the `BrandingSettings` type and the wire type are deliberately different shapes so this cannot be reintroduced by spreading an object.
 
-**`BRAND-18` — Branding is served while `suspended === true`.** The suspended path is branded on purpose: a paused workspace shows the team's page on a break, never a raw error and never another team's colors. The theme must therefore be in the response *before* the suspension branch returns, and a test pins it. This is the existing behavior of the compile-time model and it is easy to lose when the source of the colors moves to the server.
+**`THEME-18` — Branding is served while `suspended === true`.** The suspended path is branded on purpose: a paused workspace shows the team's page on a break, never a raw error and never another team's colors. The theme must therefore be in the response *before* the suspension branch returns, and a test pins it. This is the existing behavior of the compile-time model and it is easy to lose when the source of the colors moves to the server.
 
 The public org schema takes the branding block with a passthrough/loose object so a later additive field does not require a five-way submodule pin bump to reach fans.
 
@@ -268,11 +268,11 @@ The public org schema takes the branding block with a passthrough/loose object s
 
 ## Back-compat
 
-**`BRAND-19` — The compile-time tenant files become seeds, and the server wins.** `overboard-b2b-template/src/config/tenants/*.ts` stay exactly as they are. The fan app applies the **local seed synchronously at module scope** — the colors are already in the bundle, so this costs nothing and kills the cold-load flash the current provider-mount timing produces — then re-applies the server theme when `GET /b2b/org` returns and `branding.theme` is present. Server wins; the seed is the first paint and the offline fallback.
+**`THEME-19` — The compile-time tenant files become seeds, and the server wins.** `overboard-b2b-template/src/config/tenants/*.ts` stay exactly as they are. The fan app applies the **local seed synchronously at module scope** — the colors are already in the bundle, so this costs nothing and kills the cold-load flash the current provider-mount timing produces — then re-applies the server theme when `GET /b2b/org` returns and `branding.theme` is present. Server wins; the seed is the first paint and the offline fallback.
 
-`themeFromLegacyColors()` converts the eight-hex shape into a `ThemeSettings`: mode dark, primary/secondary/accent as given, neutrals from background/card/text/textMuted with the **explicit** `border` (this is what `BRAND-06` exists for), defaults everywhere else. The `test` tenant, which configures no colors, resolves to the platform default theme and must render identically to today's `.dark` block.
+`themeFromLegacyColors()` converts the eight-hex shape into a `ThemeSettings`: mode dark, primary/secondary/accent as given, neutrals from background/card/text/textMuted with the **explicit** `border` (this is what `THEME-06` exists for), defaults everywhere else. The `test` tenant, which configures no colors, resolves to the platform default theme and must render identically to today's `.dark` block.
 
-**`BRAND-20` — Legacy parity is pinned by test, with exactly one sanctioned visual delta.** `src/theme/__tests__/legacy-parity.test.ts` asserts, for all four existing tenant color sets, that `themeToCssVars(themeFromLegacyColors(x))` equals the legacy `applyTenantColors` mapping **for every variable except** `--primary-foreground`, `--secondary-foreground` and `--accent-foreground`. For those three it asserts the computed value equals the legacy value **whenever the legacy value cleared 4.5:1** against its background.
+**`THEME-20` — Legacy parity is pinned by test, with exactly one sanctioned visual delta.** `src/theme/__tests__/legacy-parity.test.ts` asserts, for all four existing tenant color sets, that `themeToCssVars(themeFromLegacyColors(x))` equals the legacy `applyTenantColors` mapping **for every variable except** `--primary-foreground`, `--secondary-foreground` and `--accent-foreground`. For those three it asserts the computed value equals the legacy value **whenever the legacy value cleared 4.5:1** against its background.
 
 Read the two halves together: **the rendering changes only where it was already broken.** A tenant whose hand-picked foreground was legible keeps it, byte-for-byte; a tenant whose foreground failed contrast gets a legible one. The test names the case directly — `fightinghawks`' secondary foreground is asserted to no longer be white on white.
 
@@ -284,17 +284,17 @@ This is the only visual change this wave sanctions to an existing tenant, it is 
 
 ## The screen
 
-`/branding`, per the fan-theming design contract. The [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) skeleton is copied wholesale — pick-tenant empty state, `key={qs}` remount on tenant switch, draft-and-publish with `sessionStorage` persistence under a distinct draft scope, inline publish notes rather than toasts, read-only presentation for `org:member`, and the console's own `ui/` primitives throughout.
+`/branding` — the **Brand** tab of **Sponsors & Branding** (the nav label since 2026-09-23; the Sponsors tab at `/branding/sponsors` is [`admin-sponsors.spec.md`](admin-sponsors.spec.md)) — per the fan-theming design contract. The [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) skeleton is copied wholesale — pick-tenant empty state, `key={qs}` remount on tenant switch, draft-and-publish with `sessionStorage` persistence under a distinct draft scope, inline publish notes rather than toasts, read-only presentation for `org:member`, and the console's own `ui/` primitives throughout.
 
-**Groups, in plain product language** (Principle 2): **Look** (Light/Dark) · **Colors** (Team color, Second color, Accent, Live tone, and an Advanced reveal for explicit neutrals) · **Type** (Headline font, Body font, Number font, ALL-CAPS headlines, Headline weight) · **Shape** (Corner roundness, Density) · **Finish** (Border strength, Texture, Glow) · **Signature** (Hero band, Bingo counter) · **Assets** (Logo, Board marker image).
+**Groups, in plain product language** (Principle 2): **Look** (Light/Dark) · **Colors** (Team color, Second color, Accent, Live tone, and an Advanced reveal for explicit neutrals) · **Type** (Headline font, Body font, Number font, ALL-CAPS headlines, Headline weight) · **Shape** (Corner roundness, Density) · **Finish** (Border strength, Texture, Glow) · **Signature** (Hero band, Bingo counter) · **Assets** (Logo, Progress marker — the image that moves along the board's prize slider; a sponsor holding the slider slot at a game replaces it there).
 
-**There is no Sponsors section and no mention of one** (Principle 1). The contract carries `sponsorName` and `sponsorLogo` so the shape is right when the sponsor model lands; the screen does not edit them and does not say why.
+**Sponsors live on their own tab, not in this editor.** The Brand tab is draft-and-publish with a live preview; sponsors are records saved one at a time with a schedule grid, and one scrolling page holding both save models would put a Publish bar above controls it does not publish (argued in [`admin-sponsors.spec.md`](admin-sponsors.spec.md)). `branding.assets.sponsorName`/`sponsorLogo` stay on the contract as legacy fallback for a tenant with no sponsor records; nothing edits them.
 
-**The preset picker is the three shelves above**, in that order. Apply runs the shared `applyPreset`, so the tenant's own team colors survive (`BRAND-08`). Save-as-preset, rename and delete act on "Your presets" only. **Promote to gallery appears only for OBS staff** — gated on the staff flag, not on write access, because a tenant `org:admin` has write access and must not have this. The server refuses it regardless; the gate is so the control is not offered to someone who cannot use it.
+**The preset picker is the three shelves above**, in that order. Apply runs the shared `applyPreset`, so the tenant's own team colors survive (`THEME-08`). Save-as-preset, rename and delete act on "Your presets" only. **Promote to gallery appears only for OBS staff** — gated on the staff flag, not on write access, because a tenant `org:admin` has write access and must not have this. The server refuses it regardless; the gate is so the control is not offered to someone who cannot use it.
 
 ### Live preview
 
-**`BRAND-21` — The preview renders real shared components under the draft theme's resolved variables, and captions nothing.** The wrapper is `.obs-gate-preview` with an inline style of `themeToCssVars(draftTheme)`, which overrides the class's fallback palette by specificity. Inside it: the real `EntryGatePreview` from `obs-b2b-shared`, plus a sampler strip built **only** from real shared pieces and real tokens — a display-type headline, a primary CTA, chips, the ring gauge or the numeral per the draft's motif, a stat fraction, and one hit-treatment tile.
+**`THEME-21` — The preview renders real shared components under the draft theme's resolved variables, and captions nothing.** The wrapper is `.obs-gate-preview` with an inline style of `themeToCssVars(draftTheme)`, which overrides the class's fallback palette by specificity. Inside it: the real `EntryGatePreview` from `obs-b2b-shared`, plus a sampler strip built **only** from real shared pieces and real tokens — a display-type headline, a primary CTA, chips, the ring gauge or the numeral per the draft's motif, a stat fraction, and one hit-treatment tile.
 
 This satisfies [`admin-surface.spec.md`](admin-surface.spec.md) Rule 12 the same way the gate preview does: the console renders the fan product's own code, never a likeness in console markup. A hand-drawn swatch board would be a second implementation of the theme system and would drift from it — and unlike a field label, a drifting *theme* preview is wrong about every screen at once.
 
@@ -308,15 +308,15 @@ This satisfies [`admin-surface.spec.md`](admin-surface.spec.md) Rule 12 the same
 
 The fan board gains two shared components, both theme-driven and neither direction-specific: a ring-gauge bingo counter (`motif.boardCounter === "ringGauge"`) and a per-cell live stat fraction.
 
-**`BRAND-22` — A per-cell stat fraction renders only when the underlying progress is real, and renders nothing otherwise.** The conditions are all of: the prop names a player entity, the outcome type is `Over`, the progress value is a number, and the target is greater than zero. When any fails, the cell shows **no fraction and no caption** — no "not tracked", no "—", no explanatory line anywhere on the board.
+**`THEME-22` — A per-cell stat fraction renders only when the underlying progress is real, and renders nothing otherwise.** The conditions are all of: the prop names a player entity, the outcome type is `Over`, the progress value is a number, and the target is greater than zero. When any fails, the cell shows **no fraction and no caption** — no "not tracked", no "—", no explanatory line anywhere on the board.
 
 This is Principle 1 at its sharpest and it is worth stating as a rule because the instinct to explain is strong. A fan looking at a cell with no fraction learns nothing false. A fan looking at a cell that says "not measured yet" has been handed a piece of platform vocabulary, a hint that the number exists somewhere, and a reason to distrust the fractions that *are* shown. The absence is the honest signal; narrating it is the dishonest one.
 
 **Under props never render a fraction this wave**, even where progress data exists, because the existing progress bar's semantics are inverted for them and a fraction inherited from that bar would be confidently wrong. If the bar's inversion is cheap and safe to fix it is fixed; if it is not, the bar stands as-is and the gap is recorded below. **Neither path renders a fraction for an Under.**
 
-**Celebration is theme-derived, not direction-coded.** `celebrationProfile(theme)` returns pure data — particle count, spread, whether a broadcast flash fires, whether the moment is uppercase — computed from `glowIntensity` and `displayTransform`. Glow 0 yields 40 particles and no flash, which is Club Level's editorial understatement falling out of the theme rather than being special-cased (`BRAND-07` again).
+**Celebration is theme-derived, not direction-coded.** `celebrationProfile(theme)` returns pure data — particle count, spread, whether a broadcast flash fires, whether the moment is uppercase — computed from `glowIntensity` and `displayTransform`. Glow 0 yields 40 particles and no flash, which is Club Level's editorial understatement falling out of the theme rather than being special-cased (`THEME-07` again).
 
-**`BRAND-23` — `prefers-reduced-motion: reduce` means no confetti and no flash at all.** Not fewer particles, not a shorter flash: none, with the modal appearing statically. This is the fan app's first reduced-motion handling and it is specified as an absolute because a reduced version of a full-screen color flash is still a full-screen color flash.
+**`THEME-23` — `prefers-reduced-motion: reduce` means no confetti and no flash at all.** Not fewer particles, not a shorter flash: none, with the modal appearing statically. This is the fan app's first reduced-motion handling and it is specified as an absolute because a reduced version of a full-screen color flash is still a full-screen color flash.
 
 ---
 
@@ -346,11 +346,11 @@ This is Principle 1 at its sharpest and it is worth stating as a rule because th
 
 Principle 1 makes this section load-bearing: it is the *only* place these live.
 
-- **Sponsor asset management is not built.** `BrandingAssets` carries `sponsorName` and `sponsorLogo` so the shape is right, and the screen neither edits them nor mentions them. The screen grows a **Sponsors** section when the sponsor model lands — which is `BRAND-02`'s per-game, admin-configured territory and a different data model (a sponsor entity with a schedule), not a field to add here. Recorded so "deliberately deferred" is distinguishable from "forgotten".
+- **Sponsor asset management** — closed 2026-09-23 by [`admin-sponsors.spec.md`](admin-sponsors.spec.md): a sponsor entity with a schedule, on its own tab, as predicted here.
 - **No full board preview in the console.** The gate plus the themed sampler is what can be rendered honestly from shared components today; a full board needs live contest data the console does not have and must not invent. Not captioned on screen.
 - **No stat fraction for Under props or non-player props.** The Under case is blocked on the existing progress bar's inverted semantics; the non-player case is blocked on there being no per-cell progress concept for it. Both render nothing rather than something approximate.
 - **Board freshness is 2-minute polling.** The fractions are as fresh as the poll, which is the platform's actual truth today, not a streaming feed. Nothing on screen claims live-to-the-second, and nothing on screen explains the cadence either.
-- **`BRAND-02` is still unimplemented.** This spec covers `BRAND-01`'s elements only. Per-game sponsor rotation remains the open half of PRD §8.
+- **`BRAND-02`** — implemented by [`admin-sponsors.spec.md`](admin-sponsors.spec.md). This spec covers `BRAND-01`'s elements only.
 - **Publishing is last-write-wins between two admins**, as everywhere else in the admin surface. Acceptable at V1's operator count; the same revisit trigger applies.
 - **The gallery has no delete path in this wave.** Rows are created by promotion and edited by nobody. A curated library of a dozen entries does not need lifecycle management yet; one that grows will, and it is a small additive route when it does.
 - **Preset ordering is array order with no separate rank field**, exactly as `signupFields` works. A reorder is a whole-array write.
@@ -364,4 +364,4 @@ Principle 1 makes this section load-bearing: it is the *only* place these live.
 - [`../../webapp/styling.spec.md`](../../webapp/styling.spec.md) — §1 the runtime theming system this replaces, and the platform-fixed status colors it keeps
 - [`multi-tenant-identity-auth.spec.md`](multi-tenant-identity-auth.spec.md) — its Data Model section already places branding server-side; this is that
 - HLD: [`b2b-shared-deps.md`](../../../documents/HLDs/b2b-shared-deps.md) — the layer rules `src/theme/` (pure, no react, no DOM) and `src/ui/board/` (react, relative imports only) must satisfy
-- `obs-b2b-shared/src/theme/` — `color.ts`, `fonts.ts`, `resolve.ts`, `presets.ts`, `legacy.ts`, `celebration.ts`, and the acceptance and parity tests that pin `BRAND-07` and `BRAND-20`
+- `obs-b2b-shared/src/theme/` — `color.ts`, `fonts.ts`, `resolve.ts`, `presets.ts`, `legacy.ts`, `celebration.ts`, and the acceptance and parity tests that pin `THEME-07` and `THEME-20`
