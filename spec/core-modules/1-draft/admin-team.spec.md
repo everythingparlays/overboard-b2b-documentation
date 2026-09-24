@@ -44,7 +44,7 @@ Why the narrowing is safe: the endpoints are **staff-only**, enforced server-sid
 - **Re-invite the first admin.** When the workspace has no admin who has signed in, a staff-only card names the most recent admin invitation (pending, expired or revoked) and offers **Send a new invitation** — revoking a still-pending one first, so there is only ever one live link. With no invitation on record it offers the invite form pre-set to Admin.
 - **Resend** or **revoke** any pending invitation.
 - Change a member's role or remove them — the same controls a workspace admin has, with the same confirmations.
-- "Overboard staff" on a member row comes from the server's staff flag (`isObsStaff` on the row), not from an email domain. On the client path a workspace user's session cannot read that flag for other people, so no row is labelled there (staff are not members of tenant organizations in the model; they act through the switcher).
+- "Overboard staff" on a member row comes from the server's staff flag (`isObsStaff` on the row), not from an email domain. On the client path a workspace user's session cannot read that flag for other people, so there the row uses the company email domain as a presentation hint (it labels the row and withholds its buttons; Clerk and the server still decide every write), and the viewer's own row uses the server's flag.
 
 **Endpoints (staff only, all `?tenant=` required):**
 
