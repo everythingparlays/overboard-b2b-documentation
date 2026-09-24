@@ -96,6 +96,18 @@ Do not navigate on success. The mutation invalidates the membership cache tag an
 
 ---
 
+## Platform terms, legal pages and the tenant's name (2026-09-24)
+
+**The Overboard Terms & Privacy opt-in.** Every tenant carries the platform's own blocking opt-in (`overboard-terms`; defined in `obs-b2b-shared` `interfaces/b2b/tenant-defaults.ts`, rules in `admin-obs-internal.spec.md`, "New tenants start configured"). The gate renders it like any other opt-in, except that the phrases "Terms of Service" and "Privacy Policy" in its text are links to the fan app's in-app pages. `EntryGateForm` takes `legalLinks: { termsHref, privacyHref }` for that; the console preview passes none, and the phrases render as inert underlined text. Links open in the same tab of the fan app and the gate's draft survives the round trip (the pages have a Back action that returns to the gate).
+
+**In-app `/terms` and `/privacy`.** Public routes in the fan app (no sign-in, no membership needed, because the gate links to them before either exists), themed like the rest of the app, with a Back action. Their text is pending from Nick and is not invented: until it lands each page shows its title and one temporary line. The side menu's Terms and Privacy links point at these pages instead of the old external placeholders.
+
+**The sign-up "I agree" checkbox is removed.** It sat on the account-creation screen, bound to nothing: no state, not required, not recorded, no link. The real, recorded, versioned agreement is the Overboard opt-in at the gate, which every fan passes before playing anywhere. A second, unrecorded checkbox before it would be a control that lies (D-068).
+
+**The team's name comes from the server.** The fan app used to take the tenant's display name from its bundled seed configs, so a tenant missing from the bundle (any tenant created in the console, e.g. Denver Nuggets) showed "Overboard" in the gate heading, the start screen, the side menu and the paused screen. The name now comes from `GET /b2b/org/:subdomain` (`organization.name`) and overrides the bundled value whenever the server answers, including for a paused tenant. The bundled name is only a fallback while the request is in flight or when it fails.
+
+**No light-mode flash.** On a cold load the app used to paint its light default for a moment before the tenant's theme applied. The document now starts in the last theme mode this browser saw for this tenant (a tiny inline script reads it before first paint, falling back to dark, the platform's default mode), and the theme is re-applied when the server's answer arrives.
+
 ## Acceptance criteria
 
 - [ ] A fan who has not joined sees "Join `<Team>`" with that tenant's configured fields and all its opt-ins.

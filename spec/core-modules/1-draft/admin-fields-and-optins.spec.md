@@ -97,6 +97,42 @@ The editor writes fully-explicit definitions on the next publish, so a tenant co
 
 ---
 
+## The screen, v3 (ruled 2026-09-24, Arthur)
+
+Arthur's walkthrough ruling reshapes the screen. **Where this section and the v2 sections below disagree, this section wins**; the v2 text stays as the record of what it replaced and why.
+
+**Three tabs across the left column: Sign-up fields · Screen text · Opt-ins.** "Page copy" is renamed **Screen text** everywhere it appears. The sticky live preview stays on the right and follows the tab: the Screen text and Sign-up fields tabs show join mode, Opt-ins shows the consent block in join mode. The tab is kept in the URL (`?tab=fields|text|optins`) so a link and a reload land where the admin was. The draft, Publish and Discard span all three tabs: one publish, one set of consequence notes, each note naming its tab.
+
+**One editing pattern on every tab.** Every item — a field, a screen-text string group, an opt-in — is a row that expands in place into its editor. There is no drawer anywhere on the screen: the v2 opt-ins drawer is gone, because a screen where fields expand inline and opt-ins open a drawer asks an admin to learn two tools for one job.
+
+**Rows (Sign-up fields and Opt-ins).**
+
+- **Collapsed:** a drag handle, the label, the type or kind in plain product language, the Required/Optional (fields) or Required/Optional-to-accept (opt-ins) badge, and a delete button. The row toggles expansion.
+- **Drag moves the whole row, visibly.** The row lifts with a shadow and the list makes room as it passes (a sortable list, not a drag image), with pointer, touch and keyboard sensors (space to lift, arrows to move, space to drop, escape to cancel, and a spoken announcement of each step). **The move-up/move-down arrows are gone**; the keyboard sensor is what replaces them for keyboard users. The preview reorders live.
+- **Delete sits on the row, replacing the arrows.** It edits the draft (v2's reasoning stands: nothing reaches a fan until Publish, so no confirmation dialog); the consequence note says what the publish will do.
+- **Type size is larger than v2** (row label ≥ 15px, editor labels ≥ 14px, helper lines ≥ 13px) and the craft bar is the B2C survey builder: calm spacing, clear focus rings, smooth expand/collapse, no layout jumps.
+
+**Fixed rows.** Two rows cannot be dragged, deleted or retyped, and say so by their shape (a lock glyph where the handle would be, no delete button), not by disabled controls:
+
+- **Display name**, pinned first on Sign-up fields: "Short text · Required · always asked — it's the name on the fan's board." Expanded, it edits its **label and placeholder** (stored as `gateCopy.displayNameLabel` / `gateCopy.displayNamePlaceholder`; blank means the standard wording).
+- **Overboard Terms & Privacy**, pinned first on Opt-ins: "Required on every team." Expanded, it shows its text with the two links, read-only, and one line: "Overboard's own terms. Every team asks them, and they can't be edited or removed."
+
+**The email row is removed.** Email is collected when the fan creates their account, before the gate ever shows; listing it among the gate's fields described a question the gate never asks.
+
+**Change a field's type in place.** The expanded field shows Type as a real control on every field, published or not. What a change means depends on whether anyone has answered:
+
+- **Nobody has answered it yet** (the field's `missingCount` equals `memberCount`, or it is unpublished): the field keeps its id and simply changes type.
+- **Fans have answered it:** their answers were given to a different question, and reinterpreting them as the new type would be wrong. The field is re-keyed — it keeps its place, label and wording but gets a fresh id (`<id>-<type>`, e.g. `favorite-team-dropdown`; switching back to the original type returns to the original id and its answers). The consequence note says it plainly: "N fans answered this as <old type>. They'll be asked again." The publish carries `retypes: [{ from, to }]`, and the server moves the field in every sponsor's export scope from the old id to the new one, so a signed DPA keeps covering the field it authorised.
+- The server enforces the line: a same-id type change is accepted only if no membership has a stored answer for that id; otherwise it is refused ("Fans answered this field while you were editing. Reload to see the change.").
+
+**Dropdown options** are edited as a list of inputs (add, remove, drag to reorder), not a textarea.
+
+**Screen text** keeps its seven strings, grouped by where they appear (Joining · Returning · Consents & footer), each group a row that expands like every other row.
+
+**Empty states** stay honest and short. A tenant with no fields sees the display-name row and an Add field button; with only the Overboard opt-in, the Opt-ins tab shows that row and Add opt-in.
+
+**Read-only for `org:member`** is unchanged in principle (D-059): the same tabs and rows, badges instead of controls, nothing expands into an editor.
+
 ## The screen
 
 `/config`, "Fields & Opt-ins", per Nick's 2026-09-14 mock, extended by the v2 directive. **Three cards in the left column — Signup fields, Page copy, Opt-ins — with the sticky preview on the right.** All scoped to the resolved tenant.
@@ -121,7 +157,7 @@ The editor writes fully-explicit definitions on the next publish, so a tenant co
 
 **The three-state Required / Optional / Hidden control is gone.** "Hidden" was always absence from `signupFields`, so a third radio state existed only because the screen rendered a fixed catalog of seven rows and needed a way to say "not this one". A list you add to and delete from says it better, and says it the same way the opt-ins card already does.
 
-### Page copy card
+### Page copy card (renamed Screen text in v3)
 
 **Seven labelled inputs, between the fields and the opt-ins:** Join heading, Join intro, Join button, Returning heading, Returning intro, Consents heading, Footer note. Each one's placeholder shows the default this tenant resolves to today, each carries a dim line saying where it appears, and the card's lede says that leaving anything blank uses the standard wording. Blank is unset, whitespace included, on the preview and on publish alike — so clearing a box is how you go back to the default, and there is no separate "reset" affordance to explain.
 
@@ -131,7 +167,7 @@ They are stored on the organization as `gateCopy` and resolved by the gate itsel
 
 ### Opt-ins card
 
-Unchanged from v1. The tenant's opt-ins, each showing label, consent text, kind, Blocking/Non-blocking, current `textVersion` + `publishedAt`, and acceptance stats. Add / edit / remove via a drawer.
+*v3 replaces the drawer with inline rows (above).* Unchanged from v1. The tenant's opt-ins, each showing label, consent text, kind, Blocking/Non-blocking, current `textVersion` + `publishedAt`, and acceptance stats. Add / edit / remove via a drawer.
 
 ### Draft-and-publish
 
