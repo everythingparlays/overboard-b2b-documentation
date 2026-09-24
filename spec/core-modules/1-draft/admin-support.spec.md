@@ -41,7 +41,7 @@ Second-order value: every recorded spec gap that confuses a paying customer beco
 | `resolution?` | Overboard's answer. **Customer copy**: plain product language, no ids, no vendor names — the reporter reads it on the thing they reported. |
 | `assigneeUserId?`, `assigneeName?` | Which staffer owns it. |
 | `fingerprint` | `surface|kind|code`, server-derived. What Patterns clusters on. |
-| `mergedInto?` | Set on a duplicate folded into another report. |
+| `mergedInto?` | Set on a duplicate folded into another report. Indexed `{ mergedInto: 1 }`, sparse (only merged reports carry it): the inbox counts and lists the reports folded into each one it shows. |
 | `acknowledgedAt?`, `resolvedAt?`, `resolvedByUserId?`, timestamps | |
 
 ### Context carries no fan PII — structurally
@@ -130,7 +130,6 @@ Reads and the report write are not reverification-gated: nothing here releases P
 
 - **Auto-resolution** — not built; the subject pair makes it a read-side rule when wanted.
 - **Inline report buttons on other slices' screens** — exports, contest/game rows, publish rejections, lifecycle divergence, reverification loops.
-- **No `{ mergedInto: 1 }` index** on the reports collection; related-report reads and merge re-pointing query it. Add with the next shared-model touch.
 - **Reporter notification of a resolution** outside the console — none; the answer appears where the problem was, which is the design, and there is no mail channel to the admin users yet.
 - **No SLA or assignment rotation** — ownership is "assign to me".
 
