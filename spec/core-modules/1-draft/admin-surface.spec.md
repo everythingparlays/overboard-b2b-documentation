@@ -214,13 +214,20 @@ One nav structure, three sections. Same screens for both actor classes (`ADM-01`
 | | Prizes | `/prizes` | `ADM-04`, `PRIZE-05`–`PRIZE-07` |
 | | Fans | `/fans` | `RPT-02` view, scoped — not the export itself |
 | | Exports | `/exports` | `ADM-07`, `RPT-01`–`RPT-06` |
+| | Game day | `/live` | `OBS-04`, `OBS-05` — [`admin-game-day.spec.md`](admin-game-day.spec.md) |
 | Configuration | Fields & Opt-ins | `/config` | `ADM-05`, `AUTH-02`, `OPT-01`–`OPT-05` |
 | | Branding | `/branding` | `BRAND-01`, `BRAND-03`–`BRAND-23` — [`admin-branding.spec.md`](admin-branding.spec.md) |
 | | Team | `/team` | Org membership — invite/remove within the caller's own org (see "Provisioning and delegation") |
-| OBS Internal | All tenants | `/tenants` | Cross-tenant tenant list/switcher target |
+| OBS Internal | Operations | `/operations` | The staff home — [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) |
+| | All tenants | `/tenants` | Cross-tenant tenant list/switcher target |
+| | All contests | `/contests` | [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) |
+| | Season calendar | `/schedule` | `OBS-04` at planning horizon — [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) |
 | | Platform health | `/platform-health` | `OBS-01`–`OBS-05` |
 | | Delivery queue | `/delivery-queue` | `PRIZE-06`/`PRIZE-07` dead-letter visibility |
 | | Fan actions | `/fan-actions` | `RPT-02`, `org:fan_data:export` |
+| | Support inbox | `/support` | [`admin-support.spec.md`](admin-support.spec.md) — rendered as Your reports for a workspace's own users; not in their nav |
+
+Not in the nav, reached from a game: **Game recap** (`/recap`, [`admin-sponsor-recap.spec.md`](admin-sponsor-recap.spec.md)). An Overboard staffer with no tenant chosen lands on Operations rather than on Overview's "Pick a tenant" card.
 
 **Sections render by identity** (ruling, 2026-09-16), not by which part of the console the user is standing in.
 
