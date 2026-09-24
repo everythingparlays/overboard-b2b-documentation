@@ -58,7 +58,7 @@ The LIVE badge renders only when the feed says `InProgress`. A game `in-play` by
 | `contest-visible` | `showContest` is false — fans cannot see it. | blocked |
 | `contest-open` | The contest is closed or finalized. | blocked |
 | `prize-tiers` | No prize tier is attached — fans play for nothing. | blocked |
-| `prize-delivery` | A tier has no delivery method (`handlerId` empty). `count` = how many. | blocked |
+| `prize-delivery` | A tier's delivery method is unset, or is not one the Prizes registry can run for this workspace. `count` = how many. | blocked |
 | `consent-text` | An opt-in fans are asked to accept has empty wording. `count` = how many. | blocked |
 | `failed-sends` | Prizes from this contest are sitting failed. `count` = how many. | attention |
 
@@ -66,7 +66,7 @@ The level is the worst issue's (`blocked` → red, `attention` → amber, none �
 
 **One evaluator, every screen.** Readiness is computed once, server-side (`node-server/src/util/admin-readiness.ts`), and carried on every read that shows a game: Overview's upcoming games (inside `READINESS_HORIZON_HOURS = 48`, null beyond), `/live`, and the OBS workspace reads ([`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md)). Screens phrase checks; they never re-derive them. Two screens disagreeing about whether Friday's game is ready is the failure this design exists to prevent.
 
-**Delivery method, today and next.** `prize-delivery` checks that a method is set. The Prizes overhaul is building a delivery-method registry in the same wave; when it lands, this check tightens to "set **and** registered" — a one-line change in the evaluator, recorded as a follow-up. An unregistered method is exactly the failure the worker records as "No delivery method is set up", so the tightened check catches it before kickoff instead of at the first win.
+**Delivery method: set and registered.** `prize-delivery` passes only when each tier's method resolves in the Prizes delivery-method registry for this workspace — `resolveHandler` from `prize-delivery/handler-catalog.ts`, the same catalog the worker runs ([`prize-delivery.spec.md`](prize-delivery.spec.md), "The delivery-method registry"). Unset fails; so do the retired stubs (`email`, `email-test`, `webhook`, `barcode`), an unknown id, and another tenant's custom method. The old aliases (`handler_001`, `handler_002`) pass, because they still deliver. A method the registry cannot run is exactly what the worker fails a send with ("This prize's tier uses a delivery method that isn't available…"), so the check catches it before kickoff instead of at the first win. The row reads "N prizes need a delivery method" ("A prize needs a delivery method" without a count): unset or marked **Won't deliver** on Prizes, the fix is the same — choose one there.
 
 ---
 
@@ -144,7 +144,6 @@ This is the rule for every game-attributed number the platform shows: `/live`, t
 ## Known gaps (recorded, not blocking)
 
 - **Games and Prizes live touches** (live row pinned with a badge; confirm before disabling a live game; delivery card live-counts) — owned by the Games & Contests and Prizes overhauls; not built here.
-- **`prize-delivery` checks "set", not "registered"** until the Prizes overhaul's delivery-method registry lands.
 - **Per-tile rates** — second pass; arithmetic over `createdAt`.
 - **Attribution for multi-game contests depends on prop replication.** A board whose props are missing from `readonly_props` cannot be attributed to a game in a multi-game contest; it counts toward no game rather than a guessed one.
 - **No end-of-game timestamp.** The feed records no end time, so "ended" is `Final` or tip-off + 6 h. A genuinely longer game (a long rain delay) would read "Ended" early.
