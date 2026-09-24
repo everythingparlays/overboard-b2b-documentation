@@ -134,10 +134,15 @@ Each contest card's header carries a **Settings** button (every role — members
 - **Settings** — name, note, player limit, visibility: one form, one Save, dirty-tracked, the precondition echoed. Lowering the limit below the current player count is stated inline before saving ("412 are already playing — nobody is removed; new fans can't join").
 - **Entries** — *Close entries* / *Reopen entries* as its own immediate action, because it is an operational switch rather than an edit of the contest's description.
 - **Prize tiers** — the contest's tiers, read from `GET /admin/prizes` (name, bingos to win, approximate value when stated), with a link to Prizes on this contest. None → the Incomplete line and the link.
+- **Sponsors** — who is placed at this contest, each by name with where it runs: "Every game" for a contest-wide placement, else "N games". Contest-wide sponsors first, then the rest, each group by name. The link "Edit on Sponsors & Branding" goes to the schedule; with nobody placed the section says "No sponsor is placed at this contest." and the link reads "Place sponsors on Sponsors & Branding". Read-only here — placements are edited only on the Sponsors tab ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)).
 - **Finalized** contests render the whole drawer read-only with a *Finalized* badge; nothing on it links to finalization (games spec).
 - **View-only** (`org:member`) gets the same layout with static values in place of controls — the Fields & Opt-ins presentation, reused.
 
 The per-game drawer's "In this contest" toggle and the table's toggles are unchanged.
+
+### Sponsors on the contest card
+
+Each contest card's stats line is followed by **"Sponsors: A, B"** — every sponsor placed at the contest, in the drawer's order (contest-wide first, then by name). No line when nobody is placed. The screen reads the tenant's sponsor schedule (`GET /admin/sponsors`) on its own, beside the games read and never holding it up; if that read fails, the card line and the drawer's Sponsors section are both left out rather than guessed at. A placement naming a sponsor the schedule no longer lists is skipped, never shown as an id. Placements at a game the contest no longer runs are dormant and not counted, as on the schedule itself.
 
 ### Links into Prizes
 

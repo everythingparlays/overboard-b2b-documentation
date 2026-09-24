@@ -181,8 +181,9 @@ unchanged).
 - **Why not on Games & Contests**, where Nick's mock drew per-game sponsor chips? The schedule
   answers two questions — *who is on this game* and *where does this sponsor appear* — and the
   second is the one a sponsor's account manager asks. It belongs where the sponsor records live.
-  Games & Contests is also being rebuilt in parallel this wave; a read-only sponsor summary on its
-  game drawer is a natural follow-up once both land (recorded).
+  Games & Contests carries a read-only summary that links here: each contest card names its
+  sponsors, and the contest drawer lists each with "Every game" or "N games"
+  ([`admin-contests.spec.md`](admin-contests.spec.md), "Sponsors on the contest card").
 
 ### The Sponsors tab
 
@@ -322,8 +323,6 @@ The board resolves against its contest and its game — the game of the board's 
   the branding module is. Acceptable at V1's operator count.
 - **No per-game creative override.** A sponsor has one kit; a game-specific tagline means editing
   the kit or a second sponsor record. Add `overrides` on the placement if a sponsor ever asks.
-- **Games & Contests shows no sponsor summary yet.** A read-only "sponsors at this game" line on the
-  game drawer, linking here, once the contests overhaul lands.
 - **Consent per game (`OPT-06`) stays unbuilt.** A sponsor placed at a game does not prompt fans who
   never answered its opt-in; `activeOptIns(context)` is still the seam.
 - **The recap page's sponsor logos** read from this model when that page is built.
