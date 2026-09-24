@@ -194,10 +194,11 @@ The shared dev database (`obs-b2b-dev`, `arthur_` prefix) carried stale contests
 7. **`ranAtBetEvents` only grows.** Every writer that adds to `allowedBetEvents` adds to it; nothing removes from it; readers go through `ranAtBetEventIds`.
 8. **Game type is a contest property**, read through `contestGameType`; bingo-only code checks it.
 9. **Contests are not deleted from the console** — hidden and closed instead.
+10. **A contest locks when its first fan joins** ([`contest-safety.spec.md`](contest-safety.spec.md)). Name, description, visibility, entries, the player limit and adding games stay editable; removing games, the contest type, board rules, bingos to win and removing or lowering prize tiers lock. Locked controls read as values with one plain line saying why.
 
 ## Known gaps (recorded, not blocking)
 
-- **Multi-entry** (`maxEntriesPerPerson > 1`) needs fan-app support for several boards per contest before it can be offered.
+- **Multi-entry** (`maxEntriesPerPerson > 1`) needs fan-app support for several boards per contest before it can be offered, and a change to the one-board-per-fan unique index ([`contest-safety.spec.md`](contest-safety.spec.md)).
 - **The contest note is console-only.** If fans should see a contest description, the fan app needs a place for it, and the field's label changes with it.
 - **The stored `numberParticipants` is dead data.** It is left in place, and since 2026-09-23 nothing reads it: the All tenants directory, its last reader, counts players from boards too.
 - **No contest delete** — see Not in scope.
