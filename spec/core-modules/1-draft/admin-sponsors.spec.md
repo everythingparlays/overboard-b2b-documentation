@@ -247,7 +247,7 @@ and nothing else.
 **`GET /b2b/org/:subdomain/sponsors`** — unauthenticated, like the org endpoint, because the
 sign-in screen renders before a fan exists. Response: `configured` (the tenant has at least one
 sponsor record), the public sponsor projection, the placements for visible, unfinalized contests,
-and the `featured` game. Cached 60 seconds beside the org cache and cleared by the same writes.
+the `featured` game, and the `nextGame` it describes. Cached 60 seconds beside the org cache and cleared by the same writes.
 
 **`SP-06` — The public projection is an allowlist.** `{ sponsorId, name, websiteUrl, assets }` and
 nothing else. `exportFields`, `dpaReference` and `organizationId` never cross this wire, and a test
@@ -259,7 +259,17 @@ per screen; the server's tests pin it; nothing re-derives it.
 
 **The featured game** (for the sign-in screen, which has no contest): among visible, unfinalized
 contests' games, the one in progress; else the soonest not yet final whose start is no more than
-three hours past (the feed lags); else the most recent. `pickFeaturedGame` in the shared package.
+three hours past (the feed lags); else the most recent. `pickFeaturedGame` in the shared package.
+
+**The next game** (`nextGame`, added at integration 2026-09-23): the featured game described for the
+sign-in screen's matchup — `{ betEventId, eventTime, homeTeam: { name, logoUrl? }, awayTeam }` —
+but only while it is under way or still ahead by the same window (not final, start no more than
+three hours past). When the featured game is only "the most recent", or is not a two-team game
+with both names, `nextGame` is null and the start screen shows **no matchup** (D-068): the
+hardcoded "UNO vs UND, Fri, Mar 7" matchup the start screen used to show for `test` and
+`fightinghawks` is gone. Team logos cross the wire only as https URLs. `nextGameOf` in
+`node-server/src/util/admin-sponsors.ts`; the contract is `publicNextGameSchema` in
+`api/b2b/sponsors.ts` (nullish, so an older server reads as none).
 
 ### Render rules (fan app)
 
