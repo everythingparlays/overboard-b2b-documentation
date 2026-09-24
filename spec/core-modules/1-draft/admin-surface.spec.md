@@ -210,7 +210,7 @@ One nav structure, three sections. Same screens for both actor classes (`ADM-01`
 | Section | Destination | Route | Implements |
 |---|---|---|---|
 | Workspace | Overview | `/` | `ADM-06`, `ADM-07` (games, KPIs, reporting surfaced on one screen) |
-| | Games & Contests | `/games` | `ADM-04`, `BRAND-02`, `GAME-01`–`GAME-04` |
+| | Games & Contests | `/games` | `ADM-04`, `BRAND-02`, `GAME-01`–`GAME-04` — [`admin-games-and-prizes.spec.md`](admin-games-and-prizes.spec.md), contest lifecycle in [`admin-contests.spec.md`](admin-contests.spec.md) |
 | | Prizes | `/prizes` | `ADM-04`, `PRIZE-05`–`PRIZE-07` |
 | | Fans | `/fans` | `RPT-02` view, scoped — not the export itself |
 | | Exports | `/exports` | `ADM-07`, `RPT-01`–`RPT-06` |
