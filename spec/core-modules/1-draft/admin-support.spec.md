@@ -4,7 +4,7 @@
 
 **Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — scope, the `?tenant=` exception, and **Honesty by omission** (Rule 13) plus **Plain product language**, which bind the resolution notes Overboard writes as much as any screen string. [`admin-game-day.spec.md`](admin-game-day.spec.md) — the failed-delivery rows that carry the highest-value button. [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) — the attention queue row and Platform health's anti-rot tile.
 
-**Status:** Draft — built on `arthur-ops` (2026-09-23).
+**Status:** Draft — built on `arthur-ops` (2026-09-23); revised on `arthur-g1-console` (2026-09-24) — see "Revision 2026-09-24", which wins wherever it and an older section disagree.
 
 ## Overview
 
@@ -22,6 +22,63 @@ Second-order value: every recorded spec gap that confuses a paying customer beco
 - **Auto-resolution** (resolve a report when the platform observes the fix — a redemption later fulfilled, tiers later added). Designed for, not built: the subject pair makes it a read-side rule. Recorded.
 - **Report buttons inside screens other slices own this wave** — export refusals (Exports), contest and game rows (Games & Contests), publish rejections (Fields & Opt-ins, Branding), lifecycle divergence (All tenants), and reverification loops. Their *load* failures are covered on day one through the error card; the inline, pre-loaded buttons are recorded for those owners.
 
+## Revision 2026-09-24 — a Support page, threads, one Resolved status
+
+Arthur's walkthrough ruling: a **Support** page in the workspace sidebar that lists every report with a back-and-forth thread, replies both ways, Get help kept; staff can un-acknowledge; one **Resolved** status with a reason; the preview names the reporter and workspace with a friendlier footer; reports capture app version, browser and page URL; staff get time-to-first-response and time-to-resolve. No session recording. This section wins over any older line below.
+
+### Where things live now
+
+| Route | Who | What |
+|---|---|---|
+| `/support` | everyone with a workspace in view | **Support** — the workspace's reports, newest first, endless scroll (admin-lists.spec.md), search on the message, status filter (Open / Resolved / All). In the Workspace sidebar section, last. Staff with a tenant chosen see that tenant's reports, **including internal staff-raised ones** (marked "Internal"), plus staff actions. The old "not in the sidebar" decision is reversed. |
+| `/support/:reportId` | the report's workspace, or staff | **The report page**: what was sent, the thread, a reply box, and the status. Staff get the triage panel (acknowledge / un-acknowledge, assign, resolve with a reason, merge, reopen) beside it. A full page with a URL, so a report can be linked from anywhere. |
+| `/inbox` | staff | **Support inbox** (OBS Internal, badge unchanged): every workspace's reports, paged, with a **workspace filter**, search, status and reason filters, the Patterns view, and the two response-time metrics. Rows open `/support/:reportId` in that workspace. `/support` used to be the inbox for staff; it now always means the workspace page. |
+
+Get help stays in the top bar, unchanged in place; after sending, its confirmation links to the new report's page.
+
+### One Resolved status, with a reason
+
+- **Statuses:** `open`, `acknowledged`, `resolved`. **Reasons** (on resolved only): `fixed`, `wont-fix`, `duplicate`.
+- **Resolve** takes a reason and an answer. The answer is still required and still customer copy (Rule 4) — except `duplicate`, which is what a merge sets and which reads the target's answer, as before.
+- The tenant chip and the Support page say **"Resolved"** with the answer; the reason shows as a quiet second word ("Resolved · Won't fix") so a reporter is never told "Closed".
+- **Un-acknowledge** (`action: "unacknowledge"`): acknowledged → open, clearing `acknowledgedAt`. Staff only; audited as `support_report_update`.
+- **Reopen** clears the reason, the answer and `resolvedAt`, and keeps the thread.
+
+**Migration, non-destructive.** `wont-fix` stays a legal stored value, and every read maps it: `status: "wont-fix"` reads as `resolved` + `wont-fix`; a `resolved` row with no reason reads as `duplicate` when `mergedInto` is set, otherwise `fixed`. A one-off script (`node-server/scripts/migrate-support-v2.mjs`, dry run by default, `--apply` to write) rewrites old rows to the new shape — sets `status: "resolved"` and `resolutionReason`, copies the old status into `legacyStatus`, seeds `thread` from `message` and `resolution`, and derives `firstResponseAt` from `resolvedAt` where a resolution exists. It never deletes a field, and it is idempotent. The read-time mapping stays, so the console is correct before, during and after the script runs.
+
+### Threads
+
+- The report's own `message` is the first entry of the thread (the reporter's). Anyone in the report's workspace may reply; staff may reply to any report. `POST /admin/support/reports/:reportId/messages` `{ body }` (1–2,000 characters).
+- A **workspace reply to a resolved report reopens it** — the industry norm: the reporter saying "still broken" must not land in a closed ticket nobody reads. Recorded in the thread as a quiet event line.
+- Staff replies are customer copy, like resolutions (Rule 4).
+- **Internal notes:** a staff reply can be marked internal. Internal notes are shown only to staff and never reach the workspace.
+- Every status change also appears in the thread as an event line ("Overboard acknowledged this", "Resolved — fixed"), so the thread is the report's whole history.
+- The tenant's unread cue: a report whose latest staff message is newer than the reporter's last view shows a dot on the Support page. (Stored per report as `lastWorkspaceViewAt`; no per-user read receipts.)
+
+### What a report carries now
+
+- **Captured automatically**, new context keys: `pageUrl` (the full console URL, which never carries PII — fan search is a POST), `browser` (a plain summary such as "Chrome 131 on Windows", derived from the user agent in the console), and `appVersion` (the console build: package version plus short commit, injected at build). All three on every report. The context stays a strict, closed key set.
+- **The preview** shows, above the draft's own rows: **From** — the reporter's name; **Workspace** — the workspace's name. The old footer line ("With your name and workspace, so Overboard can reply") becomes: **"Goes straight to the Overboard crew. A real person reads every one."**
+
+### Response-time metrics (staff)
+
+- **Time to first response:** `firstResponseAt − createdAt` — the first staff reply (not an internal note) or resolution. Acknowledging is not a response.
+- **Time to resolve:** `resolvedAt − createdAt`, for reports resolved as `fixed` or `wont-fix` (duplicates are excluded: they resolve at merge speed and would flatter the number).
+- Shown at the top of the inbox as **median** and **90th percentile** over the last 30 days, with the number of reports each is based on, and an optional workspace filter. `GET /admin/support/metrics?tenant=&days=30`. A metric with no reports behind it is not shown (Rule 13).
+
+### Endpoints added or changed
+
+| Method | Path | Change |
+|---|---|---|
+| GET | `/admin/support/reports` | Paged (`cursor`, `limit`, `q`, `status=open|resolved|all`); staff see internal reports for the chosen tenant; the 200 cap goes. |
+| GET | `/admin/support/reports/:reportId` | New. One report with its thread (internal notes only for staff). Marks the workspace's view time when a workspace user reads it. |
+| POST | `/admin/support/reports/:reportId/messages` | New. `{ body, internal? }` — `internal` is staff-only. |
+| PATCH | `/admin/support/reports/:reportId` | Adds `unacknowledge`; `resolve` takes `reason: "fixed" | "wont-fix"` (the `outcome` field is still accepted from old clients: `resolved`→`fixed`). |
+| GET | `/admin/support/inbox` | Paged; `tenant`, `q`, `status`, `reason`, `fingerprint` filters. Patterns stay a separate small list in the same response. |
+| GET | `/admin/support/metrics` | New, staff only. |
+
+Audit: `support_report_update` (new) for acknowledge, un-acknowledge, assign, reopen and replies by staff; `support_report_resolve` as before for resolve and merge.
+
 ---
 
 ## The model
@@ -37,7 +94,10 @@ Second-order value: every recorded spec gap that confuses a paying customer beco
 | `subject?` | `{ type, id }` — what it is about (`redemption`, `membership`, `contest`, `game`, `screen`). This is what puts the answer back on the thing reported. |
 | `context` | The auto-attached context, a **closed key set** (below). |
 | `message?` | The reporter's own sentence, ≤2,000 characters. Optional — the context is meant to be enough. |
-| `status` | `open` → `acknowledged` → `resolved` / `wont-fix`. Open and acknowledged are both **unresolved**. |
+| `status` | `open` ⇄ `acknowledged` → `resolved`. Open and acknowledged are both **unresolved**; staff can un-acknowledge. `wont-fix` is a legacy value, read as `resolved` with reason `wont-fix` (see the revision). |
+| `resolutionReason?` | `fixed`, `wont-fix` or `duplicate` — why a resolved report is resolved. |
+| `thread` | The back-and-forth: `{ messageId, author: { userId, name, isObsStaff }, body, createdAt }[]`, oldest first, ≤200 messages of ≤2,000 characters. |
+| `firstResponseAt?` | When Overboard first answered — the first staff message or resolution. Server-set; the metric's source. |
 | `resolution?` | Overboard's answer. **Customer copy**: plain product language, no ids, no vendor names — the reporter reads it on the thing they reported. |
 | `assigneeUserId?`, `assigneeName?` | Which staffer owns it. |
 | `fingerprint` | `surface|kind|code`, server-derived. What Patterns clusters on. |
