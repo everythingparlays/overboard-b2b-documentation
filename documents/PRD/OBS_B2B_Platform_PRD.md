@@ -627,3 +627,11 @@ These are unresolved and should be raised rather than assumed:
 1. **Export delivery mechanism.** RPT-06 defines cadence, but not how exports reach the sponsor (email attachment, secure download link, SFTP, etc.). Sponsor security teams may have opinions here.
 2. ~~**Contest finalization authority.**~~ **Resolved 2026-09:** OBS staff only. See `PRIZE-03`.
 3. **Data retention windows.** SEC-07 covers deletion on request. Automatic retention expiry durations are pending legal counsel confirmation.
+
+---
+
+## Revision notes (2026-09-24)
+
+- `GAME-02`: prize tiers are configured per contest, not per game (ruling, Arthur, 2026-09-24). A contest spans one or more games and its 1–3 tiers apply to every game in it; tiers that differ between two games are two contests. See `spec/core-modules/1-draft/admin-contests.spec.md` and `admin-prizes.spec.md`.
+- `PRIZE-04`, `PRIZE-05` and `PRIZE-06` remain deferred: prizes go out as one parameterised standard email, and no coupon-batch model or per-sponsor fulfillment code exists yet. Their `[V1]` tags are stale and should be read as deferred until a sponsor needs them.
+- The per-tenant auth-variant control (email, phone, or both) is removed from the admin surface until phone sign-in exists (`AUTH-04`, `[FUTURE]`). Every tenant signs fans in with email; the stored value stays `email`.

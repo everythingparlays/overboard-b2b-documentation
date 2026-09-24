@@ -6,6 +6,8 @@
 
 **Status:** Draft — built on `arthur-ops` (2026-09-23).
 
+**Revised 2026-09-24** (ruling, Arthur) — All contests keeps its table, but a row now opens the contest's own page acting as that tenant, and carries Finalize. The `/contests` section carries the change; [`admin-contests.spec.md`](admin-contests.spec.md) owns the page and the Finalize rule.
+
 ## Overview
 
 With no tenant chosen, an Overboard operator used to land on a void: "pick a tenant". The operator's real questions are platform-shaped — *what is live, what is about to go wrong, what changed* — and answering them took N tenant switches. This module gives staff a home and the two cross-tenant screens the platform was missing.
@@ -51,6 +53,8 @@ Four bands, top to bottom:
 ## `/contests` — All contests
 
 "What's running this weekend across all clients" used to take N tenant switches. One row per contest on the platform: contest and workspace, game type, derived status, visibility, next game with its readiness dot, games, prize tiers, players, delivered / failed, and a Live badge. Filters: **This week** (a game live or in the next 7 days — the default), **Active** (not finalized), **Finished**, **All**; and a search over contest and workspace names. Row links: the contest → Games & Contests in that workspace; the next game → game day; the last game → its recap.
+
+**Revised 2026-09-24.** A row now opens the contest page itself, `/contests/:contestId?tenant=<slug>`, which sets the console's acting tenant to that workspace before it reads, so the page, the sidebar and every link on it act as that tenant; its back link returns to All contests. The game-type column reads "Contest type". Each row carries **Finalize** under the same rule as the contest cards: shown only when the contest is published, not finalized, and every one of its games has ended (the test behind the `ready-to-finalize` attention row), and absent rather than disabled otherwise. It opens the same reverified, typed-name dialog as everywhere else ([`admin-contests.spec.md`](admin-contests.spec.md), "Finalize, wherever it appears"). The next-game and recap links are unchanged.
 
 ## `/schedule` — the season calendar
 
