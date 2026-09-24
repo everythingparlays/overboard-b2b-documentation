@@ -285,6 +285,12 @@ else, `javascript:` included).
 
 The board resolves against its contest and its game — the game of the board's props.
 
+**Beyond the fan app: the prize email.** The `prizePopup` holder is also credited in the prize
+email — a "Presented by" mark with the same logo, linked to the sponsor's website — resolved by
+the same `resolveSponsorSlots` at the same (contest, board's game), so the email and the popup
+always name the same sponsor. No holder, no mark ([`prize-delivery.spec.md`](prize-delivery.spec.md),
+"Presented by"). It is not a fifth slot: placing a sponsor on the prize popup places it in both.
+
 ---
 
 ## Rules

@@ -82,6 +82,9 @@ where the fan sees them:
 | `slider` | The progress slider's moving marker on the board | `sliderIcon` | `sliderIcon` |
 | `prizePopup` | The prize popup, under the prize | `prizePopupLogo`, plus "Visit {name}" → `websiteUrl` | `prizePopupLogo` |
 
+The `prizePopup` holder is also credited in the prize email, as a "Presented by" mark with the same
+logo (`prize-delivery.spec.md`) — the same slot reaching the fan's inbox, not a fifth slot.
+
 `BRAND-03` (several sponsors per game) is satisfied **by slot**: different sponsors hold different
 slots at the same game, and **one sponsor per slot per game**. That is also the platform's answer to
 the teams' "don't let it get visually overloaded" — the board can carry at most one banner, the

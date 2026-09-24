@@ -18,7 +18,7 @@ When a fan completes a bingo line, the board-evaluator puts a message on the pri
 
 **In scope:**
 
-1. The **standard prize email** — one templated email, rendered per tier from the tier's own fields and the tenant's branding, with a tenant-configured sender name, reply-to and subject.
+1. The **standard prize email** — one templated email, rendered per tier from the tier's own fields and the tenant's branding, with a tenant-configured sender name, reply-to and subject, and the presenting sponsor's mark when a sponsor holds the prize popup.
 2. The **delivery-method registry** (`handlerId`) — a catalog of methods the Prizes screen offers as a dropdown, scoped per tenant; the standard email for everyone, developer-built custom methods for the tenants they were built for (`PRIZE-05`).
 3. **Resend** — failed sends go back on the queue from the Delivery queue, singly or in bulk, optionally to a corrected address, audited, and structurally unable to double-send.
 4. **At-most-once delivery** in the worker — attempt claiming, interruption detection, bounded handler time.
@@ -64,11 +64,26 @@ The email is built from real, configured data only. **Anything unconfigured is o
 | Code | the tier's static redemption code, when the tier has one | no code block |
 | How to claim | `prizeClaimInstructions` | no section |
 | Button | `prizeClaimButtonLinkUrl` (http/https only) + `prizeClaimButtonText` | no button without a link; "Claim your prize" when a link has no text |
+| Presented by | the sponsor holding the prize-popup slot where the prize was won (below, "Presented by") | no mark |
 | Footer | "You're receiving this because you won a prize playing with {tenant}." | — |
 
 The fan's name is **not** merged. Signup fields are tenant-configurable and a name may not exist; a greeting that sometimes reads "Hi ," or "Hi there" is worse than none. The email carries no tracking pixel and no link rewriting.
 
 A URL that is not `http:` or `https:` is treated as absent (a `javascript:` or `data:` link never reaches a mail client). The tier write now refuses such URLs at the door, so the renderer's check is defence in depth.
+
+### Presented by
+
+The email credits the sponsor presenting the prize: **the sponsor holding the `prizePopup` slot where the prize was won** — exactly the sponsor the fan's in-app prize popup credits for the same win ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)). It is decided by the same shared resolver, `resolveSponsorSlots` (`SP-07`), at (the contest, the board's game), so the popup and the email cannot name different sponsors:
+
+- **A game-specific placement overrides the contest-wide one** for the slot (`SP-01`). The board's game is the one game its squares' props come from; a board naming none or several resolves contest-wide placements only. The board is read only when a game-specific placement holds the prize popup at all — otherwise the game cannot change the answer.
+- **Placements at a game the contest no longer runs are dormant**, exactly as on the fan schedule.
+- **Nobody holds the slot, or the holder has no prize-popup logo: no mark, and nothing is said** — the omission rule above. Most contests place nothing on the prize popup, and their emails are unchanged.
+
+**Rendered at the end of the card**, under everything the winner needs and set apart by a rule: a small "Presented by" label and the sponsor's prize-popup logo (32 px high, the sponsor's name as its alt text for clients that block images), linked to the sponsor's website when one is set. The logo and link are https — the sponsor contract stores nothing else — and pass the renderer's scheme check like every URL here. The plain-text part carries "Presented by {name}", or "Presented by {name}: {website}". Kept small: it is the team's email, not the sponsor's.
+
+**A failed sponsor lookup never costs a winner their prize.** The worker resolves the sponsor on demand for the method that credits one (`DeliveryContext.sponsor()`, backed by the store's `loadPrizeSponsor`, tenant-scoped like every sponsor read); if the lookup throws, the email goes without the mark and the worker logs it against the redemption.
+
+Code: `node-server/src/prize-delivery/prize-sponsor.ts` (the pure resolution both callers share), `render-prize-email.ts`; `prize-worker/src/delivery-store.ts` (`loadPrizeSponsor`), `process-message.ts`, `fulfillment-handlers.ts`.
 
 ### How it is built
 
@@ -195,8 +210,8 @@ Supersedes the `/prizes` section of admin-games-and-prizes.spec.md where they di
   - **A link can name the contest.** `/prizes?contest=<id>` opens on that contest — Games & Contests' tier links and Operations' "has games but no prizes" item send it. It outranks the remembered choice (it is the newer one: the operator just chose that contest elsewhere) and becomes the remembered choice. Picking another contest in the switcher drops the parameter from the address, so a reload does not contradict the switcher. An id that is not one of this tenant's contests is ignored and the usual order applies: this visit's pick, the remembered contest, the default.
 - **The bingo ladder.** The contest's tiers as rungs ordered by bingo count, from 1 up to the highest tier. A count with no tier renders as a quiet "No prize" rung — the configuration truthfully drawn, so a gap between two tiers is visible as a gap rather than discovered from a fan complaint. Each rung shows the prize, its method (or **Won't deliver**), and what it has delivered.
 - **Unawarded wins.** Where fans actually reached a bingo count with no tier (`skipped` redemptions), the rung carries the count ("Reached 14 times"). Counts above the top tier are shown on one line beneath the ladder. These are real numbers from `PrizeRedemption` — counted per win (per board), not per distinct fan — and nothing is estimated.
-- **The tier drawer** gains the delivery-method dropdown (defaulting to the standard email), the claim button fields (previously uneditable), the GAME-02 fields and the static code when the shared model carries them, URL validation, and a **Preview email** view rendering the unsaved draft through `POST /admin/prizes/email/preview`.
-- **Prize email card** (side column): sender name, reply-to and subject, each showing the real fallback as its placeholder, with the sending address shown read-only when the server knows it. A tenant `org:member` sees the values read-only (the D-059 presentation).
+- **The tier drawer** gains the delivery-method dropdown (defaulting to the standard email), the claim button fields (previously uneditable), the GAME-02 fields and the static code when the shared model carries them, URL validation, and a **Preview email** view rendering the unsaved draft through `POST /admin/prizes/email/preview`. The preview names the tier's contest, so it carries that contest's presenting sponsor (below, "Endpoints").
+- **Prize email card** (side column): sender name, reply-to and subject, each showing the real fallback as its placeholder, with the sending address shown read-only when the server knows it. Its preview sends the selected contest, as the tier drawer's does. A tenant `org:member` sees the values read-only (the D-059 presentation).
 - **Delivery card** unchanged in meaning; "Skipped" is relabelled **"No prize at that count"** so the number explains itself.
 
 ---
@@ -210,6 +225,8 @@ Supersedes the `/prizes` section of admin-games-and-prizes.spec.md where they di
 | PUT | `/admin/prizes/email` | `requireAdmin` + obs staff or tenant `org:admin` | tier-editing grant |
 | POST | `/admin/prizes/email/preview` | `requireAdmin` | any resolved admin scope (renders; changes nothing) |
 | POST | `/admin/delivery-queue/resend` | `requireAdminReverified` | obs staff only |
+
+**The preview's contest.** `POST /admin/prizes/email/preview` takes an optional `contestId` beside `tier` and `settings` (additive: a console that sends none gets the email without a sponsor mark). With it, the preview carries that contest's **contest-wide** prize-popup holder — the one most winners' emails credit; a game-specific holder can only be known once a game is won. The lookup is scoped to the target tenant, so an unknown id, another tenant's contest or a value that is not an id at all simply shows no sponsor.
 
 Changed: `GET /admin/prizes` and `PUT …/prize-tiers` return `unawarded` per contest; the tier write enforces the registry and URL schemes; `GET /admin/delivery-queue` returns resending rows and each row's `state`, `resendCount`, `lastResendAt`. Contracts: `obs-b2b-shared/src/api/admin/{prize-delivery,delivery-queue,prizes}.ts`.
 
@@ -257,6 +274,7 @@ The local worker authenticates to Mongo with the developer's AWS SSO session thr
 7. **A corrected address is fan PII**: never selected by default, never on a wire, never logged, cleared when its attempt concludes and on fan deletion. A fan whose data was erased is never resent to at all.
 8. **No fallback sender.** Without a configured sending address, nothing is sent and the reason is recorded.
 9. **Development transports are refused in production.**
+10. **The email credits the prize popup's sponsor, through the one resolver**, or no sponsor at all. A failed sponsor lookup drops the mark, never the prize.
 
 ---
 
@@ -265,7 +283,7 @@ The local worker authenticates to Mongo with the developer's AWS SSO session thr
 - **Coupon-code batches** — deferred by design; seam above.
 - **Bounces and complaints after acceptance** — SES accepts a message and later bounces it; nothing feeds that back, so such a send reads `fulfilled`. Needs an SES configuration set + SNS → worker path, after domain authentication.
 - **Sending-domain authentication and SES production access** — Nick-gated; see "Deploy dependency".
-- **Sponsor logo in the email** — waits on the sponsor model (Slice 1 of the 2026-09-23 wave); the email will add a "Presented by" mark from the tier's sponsor when that link exists.
+- ~~**Sponsor logo in the email**~~ — **closed 2026-09-23**: the email carries a "Presented by" mark from the prize popup's holder (above, "Presented by"). It waited on the sponsor model; the credit follows the placement where the prize was won rather than a link on the tier.
 - **Resend history per row** — the row keeps its count and last-resend time; the per-attempt history lives in the audit log, not on the row.
 - **Provider message id** — the SES message id is not stored on the redemption yet; bounce correlation (above) will need it, as an additive `PrizeRedemption` field requested through the shared repo at that time. Sends are tagged with tenant, redemption and attempt meanwhile.
 - **Seed fixtures name non-existent methods** (`concessions-demo`, `teamstore-demo`) — they now show "Won't deliver", which is true. The fixture refresh belongs to the Games & Contests work.
