@@ -50,7 +50,7 @@ Order and failure handling:
 
 1. **Validate.** The contract refuses malformed subdomains and `admin`/`obs` (`TEN-C3`); the handler re-checks both defensively (Rule 7's "checked at onboarding" clause). A duplicate `subdomain` is 409 before anything external happens.
 2. **Clerk organization first.** It is the resource with an external owner; if it cannot be created there is nothing to clean up. Failure → 409 with Clerk's reason.
-3. **Database record second.** If this fails, the handler deletes the just-created Clerk organization and reports the rollback; if the cleanup itself fails, the response names the orphaned Clerk org id so the operator can remove it by hand — a loud partial failure, never a silent mismatch.
+3. **Database record second, seeded with the tenant defaults** (see "New tenants start configured" below). If this fails, the handler deletes the just-created Clerk organization and reports the rollback; if the cleanup itself fails, the response names the orphaned Clerk org id so the operator can remove it by hand — a loud partial failure, never a silent mismatch.
 4. **Invitation last, non-fatal.** The first admin is invited as `org:admin`, which since 2026-09-16 carries both invite/remove power and write access to their own organization's configuration — the team configures its workspace from day one, per the provisioning table. An invitation failure does not unwind the tenant (both-or-neither already holds); the response carries `invitation.status: "failed"` and the reason, and OBS re-invites from the Clerk dashboard.
 5. **Audit.** `tenant_create` (`SEC-06` register: who, when, what), detail carrying ids and the invitation status — never the invitee's email.
 
@@ -58,7 +58,30 @@ Order and failure handling:
 
 **This flow supersedes the org-switcher path.** Until now the only way a tenant org came to exist was someone using Clerk's own "Create organization" widget — the path admin-surface Rule 8 requires disabling. With `POST /admin/tenants` shipped, the widget path is superseded, and disabling self-creation on the admin instance (a Clerk dashboard toggle, still open as of 2026-09-15) loses its last excuse. The console's own sidebar switcher carries a **Create organization** entry for obs staff only, and it routes here rather than to Clerk's widget — one provisioning path, reachable from where an operator would look for it, and the only one that keeps the record and the Clerk org a synced pair (admin-surface Rule 10).
 
-`TEN-03`'s budget: this reduces OBS's per-tenant engineering share of onboarding to one form — name, subdomain, auth variant, first admin — well inside the 1–2 hours, with config following through the existing screens.
+`TEN-03`'s budget: this reduces OBS's per-tenant engineering share of onboarding to one form — name, subdomain, first admin — well inside the 1–2 hours, with config following through the existing screens.
+
+**No auth-variant control (ruled 2026-09-24, Arthur).** The form used to offer Email / Phone / Email + phone, but nothing on the fan side reads the value: there is one shared fan sign-in, and phone sign-in does not exist (`IDN-09` is unbuilt). A control with no effect is a control that lies (D-068), so it is gone from the create form and from the tenant drawer. The stored `authVariant` field stays, back-compatibly: the request still accepts it as optional, new tenants are stored as `"email"`, and the public org response still carries it. It comes back as a real control on the day phone sign-in exists.
+
+#### New tenants start configured (2026-09-24)
+
+A tenant created with nothing configured used to open to an empty Fields & Opt-ins screen and a gate that asked fans for nothing but a display name. Every new tenant is now created with a working entry gate:
+
+| What | Requirement | Editable afterwards |
+|---|---|---|
+| Display name | Required (always asked; it is the name on the fan's board) | Its label and placeholder |
+| First name (`firstName`) | Required | Yes — anything, including removal |
+| Last name (`lastName`) | Required | Yes |
+| Phone (`phone`) | Optional | Yes |
+| Birthday (`birthday`) | Optional | Yes |
+| **Overboard Terms & Privacy** opt-in | Required (blocking) | **No** — locked on, on every tenant |
+
+The defaults are one definition in `obs-b2b-shared` (`interfaces/b2b/tenant-defaults.ts`: `DEFAULT_SIGNUP_FIELDS`, `OVERBOARD_TERMS_OPT_IN`, `defaultTenantConfig`), used by the create handler and by the backfill, so a new tenant and a backfilled one are identical. The field ids are the well-known ids, so their labels, formats and export columns are the platform's.
+
+**The Overboard Terms & Privacy opt-in** is the platform's own consent, not the tenant's: optInId `overboard-terms`, kind `tos`, label "Overboard Terms & Privacy", text "I agree to the Overboard Terms of Service and Privacy Policy.", blocking. On the gate, "Terms of Service" and "Privacy Policy" link to the fan app's in-app pages (`/terms`, `/privacy`; see `spec/webapp/entry-gate.spec.md`). Its wording is Overboard's to change, never a tenant's: `PUT /admin/config` always keeps it (first in the list, re-added if a submission omits it) and refuses a submission that alters it. If the platform wording ever changes, the constant changes and the next publish or backfill bumps its `textVersion`, which re-asks every fan — the normal rewording rule.
+
+**Existing tenants: `node-server/scripts/backfill-tenant-defaults.mjs`.** Dry run by default, `--apply` to write, dev-only rails. For every tenant it adds the Overboard opt-in where it is missing (or re-syncs its wording), and for a tenant with **no fields and no opt-ins at all** it also seeds the default fields. A tenant that has configured anything keeps its own fields. Idempotent. Run on `obs-b2b-dev` 2026-09-24 for the three tenants that had nothing (bears, fightinghawks, nuggets). `test` was deliberately left for release: it is the shared test tenant other work reads, and the console already shows its missing Overboard opt-in as a pending addition that its next publish adds. Production runs the script at release, alongside the pin that ships the code.
+
+**Gap, recorded: the legal text itself.** The in-app Terms of Service and Privacy Policy pages have no content yet; the text is pending from Nick. Until it arrives the two pages are a clearly temporary placeholder (title and one line). This blocks a production launch of any tenant, not the build.
 
 ### Contest finalization (`POST /admin/contests/:contestId/finalize`)
 

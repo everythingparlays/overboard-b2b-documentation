@@ -137,7 +137,9 @@ Both writes respond with the updated contest plus a `changes` summary, matching 
 6. **Removing a prize tier never deletes `PrizeRedemption` records.**
 7. **Finalization is not on these screens** and no control here sets `finalized`.
 8. **No list endpoint hides a contest by its status.** `closed` and `finalized` are reported, never filtered on — a contest an operator can no longer see is a contest they cannot fix.
-9. **Turning a game off is reversible.** The candidate window is bounded on both sides, and a games write returns the ids it disabled so they stay togglable. No admin action may leave a contest with no games and no way to add one back.
+9. **Turning a game off is reversible** — until the contest locks. The candidate window is bounded on both sides, and a games write returns the ids it disabled so they stay togglable. No admin action may leave a contest with no games and no way to add one back.
+10. **Once a fan has joined, the contest locks** ([`contest-safety.spec.md`](contest-safety.spec.md)): games can be added but not removed, and prize tiers can be added and reworded but not removed, re-counted (bingos to win) or lowered in value. The server refuses with `409 contest_locked`; the screens show the locked parts read-only with the reason.
+11. **The tiers PUT refuses a finalized contest**, like every other contest write.
 
 ---
 
