@@ -31,9 +31,9 @@ Club Level's editorial voice: a cream sheet, a serif display face over a clean g
 1. **Masthead.** Eyebrow "Game recap · *Sponsor* edition" (or "Game recap" with no sponsor edition), the game date, a short gold rule.
 2. **Headline.** The matchup ("Fighting Hawks vs. Bison"), and a line: contest · final score — the score only when the feed carries it and says `Final`. Right-aligned: the workspace's logo (when branding has one) and name; "Presented with *Sponsor*" and the sponsor's logo when the sponsor record has one — **omitted, never a placeholder mark**, until then.
 3. **KPI band** — four figures under an ink rule: **Boards played**, **Bingos hit**, **Prizes delivered** (with "*n* unresolved" beside it when any won prize is failed or still pending — true, and a sponsor deserves it), **Joined on game night** (memberships created in the game window).
-4. **Prizes** (left) — per tier: prize, lines to win, winners, delivered.
+4. **Prizes** (left) — per tier: prize, its threshold in the game's own unit ("1 bingo", "3 bingos"), winners, delivered.
    **Sponsor audience** (right, sponsor editions only) — the sponsor's opt-in among this game's players, at its current wording: a percentage, a bar, "*accepted* of *players* players". An aggregate, so fans who declined may be counted in it (`RPT-05`).
-5. **Most-picked players** — the five athletes on the most boards: name, position, a share bar, share of boards. Omitted when no board resolves to an athlete.
+5. **Most-picked players** — the five athletes on the most boards: name, position, a share bar, share of boards ("Share of the 842 boards"; "Share of the one board" for a single board). Omitted when no board resolves to an athlete.
 6. **Footer.** "Powered by Overboard · *slug*.overboardsports.com" and, for a sponsor edition, "Prepared for *Sponsor*".
 
 Sections with nothing true to show are absent, and the document closes up around them.
