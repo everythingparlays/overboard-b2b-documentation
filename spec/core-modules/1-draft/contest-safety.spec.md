@@ -124,7 +124,7 @@ Multi-entry, if it ever ships, changes this index (an entry number joins the key
 
 `node-server/scripts/contest-safety-migration.mjs`, dry run by default, `--apply` to write, dev-only rails like every other script:
 
-1. **Duplicate boards.** For each `(contestId, clerkUserId)` holding more than one board, keep the oldest and move the rest into `<prefix>bingo_boards_duplicates_archive` (copied first, then removed from the live collection, each archived row carrying `archivedAt` and `keptBoardId`). Nothing is deleted outright; the archive is the undo. Redemption rows are never touched. On `obs-b2b-dev` (2026-09-24) this is five groups, all `seed_test_fan_*` fixtures in one demo contest, and no redemption references a moved board.
+1. **Duplicate boards.** For each `(contestId, clerkUserId)` holding more than one board, keep the oldest and move the rest into `<prefix>bingo_boards_duplicates_archive` (copied first, then removed from the live collection, each archived row carrying `archivedAt` and `keptBoardId`). Nothing is deleted outright; the archive is the undo. Redemption rows are never touched. Applied to `obs-b2b-dev` on 2026-09-24: five groups (eight boards archived), all `seed_test_fan_*` fixtures in one demo contest, and no redemption referenced a moved board; four contests had `lockedAt` backfilled. A re-run reports nothing to do.
 2. **The unique index**, created after step 1. Creating an existing index is a no-op.
 3. **`lockedAt` backfill**: every contest with boards and no `lockedAt` gets its earliest board's `createdAt`.
 
