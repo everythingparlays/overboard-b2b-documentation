@@ -145,7 +145,7 @@ Fixtures fill whatever the console doesn't send. Their content is fixed here so 
 | Phone | Optional |
 | Birthday | Optional |
 
-There is one consent: "Overboard Terms & Privacy", required and locked, with the text "I agree to the Overboard Terms and Privacy Policy." This is the seeded default consent, per Arthur's ruling. It is not invented legal text. Gate copy falls back to the `resolveGateCopy` defaults.
+There is one consent: "Overboard Terms & Privacy", required and locked, with the text "I agree to the Overboard Terms of Service and Privacy Policy." This is the seeded default consent, per Arthur's ruling. It is not invented legal text. The fixture imports it from the shared seed, where G2 defines it in `obs-b2b-shared/src/interfaces/b2b/tenant-defaults.ts` (the label, the text built from `OVERBOARD_TERMS_LINK_PHRASES`, and the opt-in id), and does not keep a copy. Gate copy falls back to the `resolveGateCopy` defaults.
 
 ### Sample contest (`contest` absent)
 
@@ -396,7 +396,7 @@ In dev builds only (`import.meta.env.DEV`), opening `http://localhost:5324/previ
 - [ ] A `render` without `contest` shows "Sample contest" with the two sample games, the sample players and the three sample tiers, exactly as listed.
 - [ ] For each `bingosHit` from 0 to 8, the board hits the listed squares, the counter reads the listed count (6 for 7), and the listed lines are drawn.
 - [ ] `bingosHit: 12` renders as 8. `prizeTierIndex: 9` with `bingosHit: 3` shows the highest tier reached at 3.
-- [ ] A `render` without `gate` shows the fixture fields and the locked "Overboard Terms & Privacy" consent with its seeded text.
+- [ ] A `render` without `gate` shows the fixture fields and the locked "Overboard Terms & Privacy" consent with the seeded text from `tenant-defaults.ts`, character for character.
 - [ ] A `render` without `sponsors` shows no sponsor anywhere and no empty slot marker.
 - [ ] A real `contest` shows its real name, games and tiers, with sample players still named "Sample Player N".
 - [ ] No scorebug ever shows a score.

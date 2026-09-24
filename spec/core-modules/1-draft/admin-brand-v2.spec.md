@@ -284,23 +284,14 @@ All faces are already in `THEME_FONT_IDS` (`B2BOrganization.ts:224-235`) and `FO
 - **Help:** "Your fans always see this, whatever their phone is set to." `next-themes` is forced to `theme.mode` in the fan app.
 - **Writes:** `mode`, via `patchTheme` (`Branding.tsx:301-306`).
 
-**Ramp swap:**
-- If the draft's neutrals are a known preset ramp or absent, switching mode also swaps them for that preset's ramp in the new mode.
-- If the preset has no ramp for that mode, the neutrals are removed and the resolver's ramp for the mode applies (`resolve.ts:135-156`).
-- Custom neutrals are left alone, and the custom-neutrals note stays visible.
-- Auto colours stay auto.
+**Ramp swap:** the control writes `withMode(draft, newMode)`, the shared pure function in [`fan-decor-system.spec.md`](fan-decor-system.spec.md) ("Light and dark"). The page describes no swap of its own. In short:
+- A draft whose neutrals equal a shipped preset ramp gets that preset's ramp for the new mode. Both shipped presets have both ramps: Prime Time dark and light, Club Level light and dark (`PRESET_RAMPS`).
+- Custom or legacy neutrals don't survive a flip: they are dropped, and the resolver's ramp for the new mode applies. The admin sees the flipped draft in the preview before anything is published.
+- Auto colours stay auto; a tenant's own Live override is kept.
 
 This fixes a defect today: switching a Prime Time tenant to Light keeps the dark `#0A0D14` ground (`Branding.tsx:545-555` writes `mode` only).
 
-**Prime Time light ramp:** Prime Time gains its light counterpart in `presets.ts`. These are the values in [`fan-decor-system.spec.md`](fan-decor-system.spec.md), "Light and dark":
-- ground `#F6F7FA`
-- surface `#FFFFFF`
-- raised `#EEF1F6`
-- text `#12161F` / `#4E5A6E` / `#7A8599`
-- borderBase `#1F2A3D`
-- live `#B3364B`
-
-The ramp is a client constant beside the preset, not a contract field. Club Level has no dark ramp, and none is invented.
+The counterpart ramps (Prime Time light, Club Level dark) and their values are defined in the decor spec. They are constants beside the presets, not contract fields.
 
 ### 5. Logo and marker
 
@@ -420,16 +411,17 @@ export const BRAND_TEXT_MAX: Record<BrandTextKey, number> = {
   startTagline: 60, startCta: 24, homeEmpty: 90, pausedHeading: 40, pausedBody: 160,
 };
 /** Absent, or an absent key, means the platform default. Only the {team} token is allowed. */
-export type BrandingText = Partial<Record<BrandTextKey, string>>;
-export interface BrandingSettings { theme?; assets?; text?: BrandingText; presets? }
+export type BrandText = Partial<Record<BrandTextKey, string>>;
+export interface BrandingSettings { theme?; assets?; text?: BrandText; presets? }
 ```
 
 - **Mongoose:** a typed `_id: false`, `default: undefined` subschema, with each key a `String` with `maxlength` (`models/b2b.ts:190-194` gains `text`). It is not `Mixed` (`THEME-11`).
-- **Defaults:** the default strings live once, in `obs-b2b-shared/src/theme/brand-text.ts` (`BRAND_TEXT_DEFAULTS`), beside `resolveBrandText(text, teamName)`, which substitutes `{team}`. The fan app and the preview both call it. It follows `GATE_COPY`'s single-definition rule (`entry-gate/copy.ts:1-13`).
+- **Shared names, one set everywhere:** `BRAND_TEXT_KEYS`, `BRAND_TEXT_DEFAULTS`, `BRAND_TEXT_MAX`, `brandTextSchema`, `resolveBrandText(text, teamName)` and the type `BrandText`, all exported from `obs-b2b-shared/src/theme/brand-text.ts`. The keys, the type and the max table may be declared in `B2BOrganization.ts` (above) and re-exported from `brand-text.ts`.
+- **Defaults:** the default strings live once, in `brand-text.ts` (`BRAND_TEXT_DEFAULTS`), beside `resolveBrandText(text, teamName)`, which substitutes `{team}`. The fan app and the preview both call it. It follows `GATE_COPY`'s single-definition rule (`entry-gate/copy.ts:1-13`).
 
 **Endpoint change:**
 - `PUT /admin/branding` accepts `text`, with the same three states as `assets` (`util/admin-branding.ts:56-72`): absent leaves the stored text alone, `null` clears it, and an object stores it whole.
-- The schema is `brandingTextSchema`: each key `z.string().trim().max(BRAND_TEXT_MAX[key]).optional()`, plus a refine that rejects any `{…}` other than `{team}` with "only {team} can be used". Like the rest of the branding schemas, unknown keys are stripped.
+- The schema is `brandTextSchema`: each key `z.string().trim().max(BRAND_TEXT_MAX[key]).optional()`, plus a refine that rejects any `{…}` other than `{team}` with "only {team} can be used". Like the rest of the branding schemas, unknown keys are stripped.
 - After trimming, empty keys are dropped. An empty object is not stored, so the key is `$unset`, the way `compactAssets` treats assets (`:46-53`).
 - `changes` gains `textEdited: boolean`. The console summary adds "words updated" (`Branding.tsx:187-193`).
 - `GET /admin/branding` and the `PUT` response both echo `text` when present.
@@ -545,8 +537,9 @@ This spec uses the full count. The reduction is still 22 settings and 29 inputs 
      2. Prime Time dark
      3. Prime Time light
      4. Club Level light
-     5. The gallery
-     6. The tenant's own presets
+     5. Club Level dark
+     6. The gallery
+     7. The tenant's own presets
    - Two ramps match when every key present in either is present in both with the same hex, compared case-insensitively.
    - The first match is the **base preset**. It drives the "In use" ring, Accent's Auto value, the ramp swap and Reset to preset.
    - If the draft has no `neutrals`, the base is the standard look for dark and Club Level for light.
@@ -561,13 +554,13 @@ This spec uses the full count. The reduction is still 22 settings and 29 inputs 
 4. **Custom neutrals note.** Shown when `colors.neutrals` exists and no known ramp matches.
    - A simpler rule ("any of ground, surface or textPrimary is set") is not usable. Every shipped preset and `DEFAULT_THEME` store all three (`presets.ts:39-47`, `:72-80`; `resolve.ts:379-387`), so that rule would flag every tenant who ever applied a preset.
 5. **Decor.**
-   - An absent `decor` block shows the defaults the fan app resolves (field `gridFragments`, band `single`, intensity 0.6, shown as Full).
+   - An absent `decor` block shows the defaults the fan app resolves (field `gridFragments`; band from the `motif.heroMotif` mapping in the decor spec, else `single`; intensity 0.6, shown as Full).
    - An absent `surface.texture` shows None.
 
 **Life for everyone (decision).** The fan app applies the decor defaults to **every tenant immediately**, including tenants who never opened Brand and tenants who never publish again. It does not wait for a republish.
 - "The `decor` block is absent until the tenant publishes again" describes the stored document, not the look. The stored document stays absent until a publish, but the look changes on the day the v2 fan app ships.
 - This is a sanctioned visual change for every tenant, and it is the point of the ruling: splash art and life app-wide.
-- One stored value changes meaning. A tenant who chose "Angled band: Off" (`motif.heroMotif: "none"`, which Club Level also stores, `presets.ts:90`) gets a single band from the v2 fan app until they set Band to Off. That is one click in Fine-tune, and it writes both keys.
+- The band follows the decor spec's back-compat mapping. A tenant who explicitly chose "Angled band: Off" (`motif.heroMotif: "none"`) keeps no band. A tenant who never chose gets `single`. Club Level's shipped preset stores `heroMotif: "none"` today (`presets.ts:90`) and moves to `angledBand`, so a Club Level tenant keeps no band until they re-apply Club Level, and gets a band when they do.
 - The decor spec pins which fan build honours what. This spec states the Brand-side consequence.
 
 **Presets:**
@@ -575,13 +568,14 @@ This spec uses the full count. The reduction is still 22 settings and 29 inputs 
 - The two shipped presets gain `decor`:
   - **Prime Time:** `gridFragments`, `double`, 0.7, texture `none`.
   - **Club Level:** `gridFragments`, `single`, 0.35.
-- Prime Time gains its light ramp constant.
+- Prime Time gains its light ramp and Club Level its dark ramp (`PRESET_RAMPS`, decor spec).
+- Club Level's `motif.heroMotif` moves from `none` to `angledBand`, in step with its `decor.band`.
 - `applyPreset` and `genericizeForGallery` copy `decor` (`presets.ts:133-140`, `:155-162` copy only `type`, `shape`, `surface` and `motif` today).
 - A preset without `decor` applies with `decor` removed, so the fan app's defaults show. It does not keep the previous preset's decor.
 - These are shared-repo changes, requested through the shared owner's queue.
 
 **Schemas that must widen before the page ships:**
-- `themeSettingsSchema` (`branding.ts:57-97`) strips unknown keys today, so a `decor` block sent early would be silently dropped. It widens along with `THEME_TEXTURES`, the Mongoose `themeSurfaceSchema` enum (`models/b2b.ts:139-143`), a new `themeDecorSchema`, and `brandingTextSchema`.
+- `themeSettingsSchema` (`branding.ts:57-97`) strips unknown keys today, so a `decor` block sent early would be silently dropped. It widens along with `THEME_TEXTURES`, the Mongoose `themeSurfaceSchema` enum (`models/b2b.ts:139-143`), a new `themeDecorSchema`, and `brandTextSchema`.
 - The page's Publish is gated on the widened schemas being deployed, and an acceptance test pins it.
 
 **Draft storage bump.**
@@ -598,7 +592,7 @@ This spec uses the full count. The reduction is still 22 settings and 29 inputs 
 **The draft's mode:** the segmented control (§4) sets `mode`, and that is the only way the draft's mode changes. The flash on cold load is G2's fix (`THEME-19`'s seed-then-server order and the dark-only bundled seed, research Q9). This page neither works around it nor re-specifies it.
 
 **The Light/Dark peek toggle** in the preview controls previews the other mode **without changing the draft**.
-- The page builds a peek theme by applying the §4 ramp-swap rule to a copy of the draft and sends that copy as `theme`.
+- The page builds the peek theme with `withMode(draft, otherMode)` (§4) and sends that copy as `theme`.
 - The toggle shows the draft's mode by default. When peeking, the toggle's selected side differs from the §4 control, and the preview controls add the text "Peeking at light" (or dark).
 - The peek is not saved, not published and not remembered, and switching tenant or reloading ends it.
 - Editing while peeking keeps the peek, and each edit re-renders the peeked copy.
@@ -624,7 +618,7 @@ This spec uses the full count. The reduction is still 22 settings and 29 inputs 
 - `render` goes out on `ready` and on every draft change, debounced to about 100 ms (the interface file, 5.6; the figure is S1's to choose).
 - `navigate` goes out when only the screen changes.
 
-**Unavailable:** if the frame never reports `ready`, or reports `error`, the host shows its own plain state. S2's wording is "Preview unavailable" with Retry, and the console never rebuilds a likeness in its place (interface file §5.8). The controls keep working, and Publish is never blocked by the preview.
+**Unavailable:** if the frame never reports `ready`, or reports `error`, the host shows S1's unavailable state: an error card reading "The fan app didn't load." with a Retry button (interface file §5.7 and §5.8). The console never rebuilds a likeness in its place. The controls keep working, and Publish is never blocked by the preview.
 
 **Fonts:** the frame loads its own fonts from `FONT_CATALOG`. The console loads pairing fonts only for the Font cards and the preset thumbnails.
 
@@ -680,7 +674,7 @@ This spec uses the full count. The reduction is still 22 settings and 29 inputs 
 - **`BRAND2-07`: The contrast readout uses the resolver's functions.** `onColor` and `contrastRatio` from `obs-b2b-shared/src/theme/color.ts`, never a console reimplementation (`THEME-03`).
 - **`BRAND2-08`: One font choice.** A pairing writes all five `type` fields together. A stored mix that matches no pairing is preserved as the Custom card and never rewritten unless the admin picks a pairing.
 - **`BRAND2-09`: Pairings are shared data.** `THEME_FONT_PAIRINGS` lives in `obs-b2b-shared` and uses only `THEME_FONT_IDS`.
-- **`BRAND2-10`: Mode switches swap preset ramps.** A known ramp is swapped for the preset's ramp in the new mode, or removed when the preset has none. A custom ramp is left alone.
+- **`BRAND2-10`: Mode switches go through `withMode`.** A shipped preset ramp is swapped for the same preset's ramp in the new mode; custom neutrals are dropped so the resolver's ramp applies (decor spec, `DECOR-23`).
 - **`BRAND2-11`: Thumbnails are swatches, not previews.** Static, built from the shared decor pieces, scoped variables, the tenant's Team colour, no data.
 - **`BRAND2-12`: The real fan app is the only preview.** Brand sends `theme`, `brand` and `device` (and `sample.homeEmpty` while the No contests input is focused), and never a contest, gate, sponsor or invented data.
 - **`BRAND2-13`: The peek never touches the draft.** The Light/Dark peek changes only what is sent to the frame.
@@ -713,7 +707,7 @@ This spec uses the full count. The reduction is still 22 settings and 29 inputs 
    - A tenant with no `secondary` shows Second as Auto with the resolver's derived hex.
    - Overriding Second and choosing Reset to auto publishes a body with no `colors.secondary`.
 7. **Presets keep the palette:** applying Club Level to a Prime Time tenant with Team `#0B162A`, Second `#C83803` and an overridden Accent `#FFB224` keeps all three. (Not `#F5B32E`: that is Prime Time's own accent, so it loads as Auto.) Live, which was Auto, becomes Club Level's.
-8. **Mode swap:** a Prime Time tenant switching to Light gets the Prime Time light ramp (ground `#F6F7FA`). Switching a tenant with a custom ground leaves the ground unchanged and keeps the note.
+8. **Mode swap:** a Prime Time tenant switching to Light gets the Prime Time light ramp (ground `#F6F7FA`). Switching Club Level to Dark gets the Club Level dark ramp (ground `#14130F`). Switching a tenant with a custom ground drops the custom neutrals, and the preview shows the resolver's ramp for the new mode.
 9. **Custom neutrals note:** a Prime Time tenant shows no note. A tenant with `neutrals.ground: "#123456"` and nothing else shows it, and Reset to preset replaces the ramp.
 10. **Font:**
     - A tenant storing Barlow Condensed, Barlow, Plex Mono, uppercase, 600 loads with Broadcast selected.
@@ -760,7 +754,6 @@ This spec uses the full count. The reduction is still 22 settings and 29 inputs 
 - **Logo colours need a readable logo.** A legacy logo hosted without CORS taints the canvas, and "From your logo" is omitted for it. Re-uploading through the tile fixes it.
 - **Orphaned uploads.** An image uploaded and never published stays in storage. A sweep of objects no org references is a later infra task.
 - **Accent Auto depends on a matched base.** A tenant whose ramp matches no preset has no preset accent, so Accent's Auto falls back to absence, which the resolver resolves to Second (`resolve.ts:222`).
-- **Club Level has no dark ramp.** Switching Club Level to Dark falls back to the resolver's platform dark ramp. A designed dark Club Level would be a new preset constant.
 - **Spacing (`shape.density`) has no reader.** It stays stored and unedited, as it was.
 - **Publishing is still last-write-wins between two admins**, as everywhere in the console.
 

@@ -76,7 +76,7 @@ Every mechanic below was read in B2C code. Where B2B differs, the row says so an
 | Today | After this spec |
 |---|---|
 | "Draft Your Squad": up to 8 players from the first scheduled game only (`FAN/pages/contests/ContestPage.tsx:93-101`, tabs commented out `:201-220`) | The board builder, over every game in the contest that has not started |
-| `POST /b2b/board/generate` with `playerIds`, server fills the board with two random fallbacks (`BE/handlers/board/createBoard.ts:62-181`, route `BE/routes/boards/index.ts:62-69`) | **Retired.** The route, `generateB2BBoard` and its fallbacks, and `generateB2BBoardRequestSchema` (`SH/api/b2b/board.ts:3-12`) are removed. `refuseJoin` (`createBoard.ts:38-56`) moves into `POST /b2b/board` unchanged. |
+| `POST /b2b/board/generate` with `playerIds`, server fills the board with two random fallbacks (`BE/handlers/board/createBoard.ts:62-181`, route `BE/routes/boards/index.ts:62-69`) | **Retired.** For one release the route answers 410 with a plain message and never creates a board; the release after, the route, `generateB2BBoard` and its fallbacks, and `generateB2BBoardRequestSchema` (`SH/api/b2b/board.ts:3-12`) are removed. `refuseJoin` (`createBoard.ts:38-56`) moves into `POST /b2b/board` unchanged. |
 | The board's nine positions hold server-chosen props | The same nine positions (`SH/interfaces/b2b/B2BBoard.ts:12-20`) hold fan-chosen props, or `null` |
 | 2-minute poll (`FAN/pages/board/BoardPage.tsx:157-164`) | A live stream with a 20-second poll fallback |
 | The fan app recounts lines itself (`countParlaysHit`, `BoardPage.tsx:30-53`) | The server sends `lineHits[]` and `bingos` |
@@ -91,13 +91,13 @@ Every mechanic below was read in B2C code. Where B2B differs, the row says so an
 
 The detail page is the only way into the builder. Layout belongs to [`fan-app-v2.spec.md`](fan-app-v2.spec.md); the behaviour here is:
 
-- **Status chyron** from the derived status (`SH/interfaces/b2b/B2BContest.ts:134-172`): OPEN, the Upcoming `stringStatus` in capitals ("OPENS IN 2 DAYS", from `:157-164`), CLOSED, FINAL (Finished). LIVE replaces OPEN or CLOSED while any of the contest's games has status `InProgress`.
-- **Closes-at line.** One game: "Board changes close at tip-off, {Sun 10:00 AM}". Several games: "Each square locks when its game tips off. Last tip-off {Sun 10:00 AM}." Omitted once the last game has started. Times are the fan's local time; more than six days away they read "{Oct 4}, 10:00 AM".
+- **Status chyron** from the derived status (`SH/interfaces/b2b/B2BContest.ts:134-172`): OPEN, "OPENS {when}" for Upcoming, computed from `opensAt` with the time formats in [`fan-app-v2.spec.md`](fan-app-v2.spec.md) `FAN-18` (the derived `stringStatus`, `:157-164`, may stay on the wire but is not what the chyron reads), CLOSED, FINAL (Finished). LIVE replaces OPEN or CLOSED while any of the contest's games has status `InProgress`.
+- **Timing line.** Worded and timed by the timing table in [`fan-app-v2.spec.md`](fan-app-v2.spec.md) (Contest detail, "Timing line"): one game closes at its tip-off; with several games, each square locks at its game's tip-off and the line names the first or next tip-off.
 - **Description** (`contestDescription`) as plain paragraphs split on blank lines. Omitted when empty. Never rendered as HTML or markdown.
 - **Games** as scorebug rows (see "Scorebug").
 - **Prize ladder** from the contest's tiers, lowest bingo count first: tier name, "{N} bingo" or "{N} bingos", image thumbnail when set, "Provided by {sponsor}" with logo when the tier names one.
 - **How to play**, exactly: "Fill your 3x3 board with player lines." / "A line hits when the player reaches it." / "Three in a row is a bingo. Bingos win prizes."
-- **Counts**: "{N} playing" always (board count); "· {M} spots left" only when the contest has a player limit.
+- **Counts**: "{N} playing" when `playerCount` is served on the wire; "· {M} spots left" only when it is served and the contest has a player limit.
 - **Standings link** "See standings" once standings are visible (see Standings), or "Final standings" when Finished.
 
 ### CTA states (FLOW-01)
@@ -109,8 +109,8 @@ The primary button is decided by derived status, whether the fan holds a board o
 | Trivia | any | any | none; the Trivia card replaces the CTA area | — | — |
 | Bingo | yes | any | "Open my board" | yes | `/board/:boardId` |
 | Bingo | no | Open, spots left or no limit | "Build my board" | yes | `/contest/:id/build` |
-| Bingo | no | Open, no spots left | "Full" | no | — |
-| Bingo | no | Upcoming | the `stringStatus`, e.g. "Opens in 2 days" | no | — |
+| Bingo | no | Open, no spots left | "Contest full" | no | — |
+| Bingo | no | Upcoming | "Opens in {n} days" / "hours" / "min", computed from `opensAt` by the rounding rule in `fan-app-v2.spec.md` (under 60 minutes: minutes; under 48 hours: hours, rounded up; otherwise days, rounded up) | no | — |
 | Bingo | no | Closed | "Closed" | no | — |
 | Bingo | no | Finished | "Closed" | no | — |
 
@@ -228,7 +228,7 @@ Every refusal carries a `code` beside today's `message`, so the client maps by c
 | Code | HTTP | When | Fan sees |
 |---|---|---|---|
 | `board_exists` | 409 | A board already exists (body carries `boardId`) | Navigates to that board; toast "You already have a board in this contest." |
-| `contest_not_found` | 404 | Missing, other tenant, or hidden | "Contest not found" |
+| `contest_not_found` | 404 | Missing, other tenant, or hidden | The not-found state: "We couldn't find this contest" with the button "See all contests" |
 | `contest_not_playable` | 409 | Not a bingo contest | "This contest can't be played here yet." |
 | `contest_not_open` | 409 | Create while not Open | "This contest isn't open for new players right now." |
 | `contest_full` | 409 | Player limit reached | "This contest is full." |
@@ -277,17 +277,17 @@ All routes are fan routes: `auth: "requireMembership"` as today, the tenant from
 
 | Method | Path | Request | Response | Status |
 |---|---|---|---|---|
-| GET | `/b2b/contest/list-contests` | `?tenant&cursor&limit&q&status[]` (`status` values `open`, `upcoming`, `live`, `past`) | `{ contests[], nextCursor, total }`; each contest also carries `playerCount`, `spotsLeft` (null when no limit), `myBoardId` (null when none) | CHANGED: today it loads every contest and filters in memory (`BE/handlers/contest/listB2BContests.ts:18-36`); cursor paging per G1's convention |
-| GET | `/b2b/contest/:contestId` | `?tenant` | `{ contest: { _id, contestName, contestDescription, gameType, contestStatus, games[], prizeTiers[], playerCount, spotsLeft, myBoardId, standingsVisible } }` | CHANGED: gains `prizeTiers`, `contestStatus`, `gameType`, counts, `myBoardId`; `contestDescription` is already sent (`getB2BContestPlayers.ts:71`). The per-game player lists (`:28-64`) move to the props route. |
-| GET | `/b2b/contest/:contestId/props` | `?tenant&betEventId&q&cursor&limit` (no `betEventId` = all offered games) | `{ games[], players: [{ entityId, displayName, jerseyNumber, position, teamName, photoUri, betEventId, stats: [{ betType, rungs: [{ propId, line, value, multiplier, points, difficulty }] }] }], nextCursor, total }` | NEW |
+| GET | `/b2b/contest/list-contests` | `?tenant&cursor&limit&q&status[]` (`status` values `open`, `upcoming`, `live`, `past`) | `{ contests[], page: { nextCursor, total, limit } }`; each contest also carries `playerCount`, `spotsLeft` (null when no limit), `myBoardId` (null when none) | CHANGED: today it loads every contest and filters in memory (`BE/handlers/contest/listB2BContests.ts:18-36`); cursor paging per G1's convention |
+| GET | `/b2b/contest/:contestId` | `?tenant` | `{ contest: { _id, contestName, contestDescription, gameType, contestStatus, opensAt, games[], prizeTiers[], playerCount, spotsLeft, myBoardId, standingsVisible } }` | CHANGED: gains `prizeTiers`, `contestStatus`, `opensAt`, `gameType`, counts, `myBoardId`; `contestDescription` is already sent (`getB2BContestPlayers.ts:71`). The per-game player lists (`:28-64`) move to the props route. |
+| GET | `/b2b/contest/:contestId/props` | `?tenant&betEventId&q&cursor&limit` (no `betEventId` = all offered games) | `{ games[], players: [{ entityId, displayName, jerseyNumber, position, teamName, photoUri, betEventId, stats: [{ betType, rungs: [{ propId, line, value, multiplier, points, difficulty }] }] }], page: { nextCursor, total, limit } }` | NEW |
 | POST | `/b2b/contest/:contestId/autofill` | `{ cells: (propId \| null)[9] }` | `{ cells: (Prop \| null)[9] }`, props populated with entity and game | NEW; saves nothing |
 | POST | `/b2b/board` | `{ contestId, cells: (propId \| null)[9] }` | 201 `{ success, boardId }`; refusals per FLOW-13 | NEW; replaces `POST /b2b/board/generate` |
 | PUT | `/b2b/board/:boardId/cells` | `{ cells: (propId \| null)[9], expectedUpdatedAt }` | 200 `{ success, board }` (the GET shape) | NEW |
 | GET | `/b2b/board/:boardId` | `?tenant` | today's board (`getB2BBoard.ts:32-49`) plus `bingos`, `points`, `lineHits: boolean[8]`, `cellMeta: { [position]: { locked, gameStatus, state } }`, `awards[]`, `editable`, `editClosesAt` | CHANGED |
 | GET | `/b2b/board/:boardId/stream` | `?tenant`; headers `Authorization`, optional `Last-Event-ID` | `text/event-stream` (see "Live connection") | NEW |
 | POST | `/b2b/board/:boardId/awards/:awardId/seen` | none | 200 `{ seenAt }`; idempotent | NEW |
-| GET | `/b2b/contest/:contestId/standings` | `?tenant&cursor&limit` (limit default 50, max 100; `limit=0` returns only `me` and `total`) | `{ state: "hidden" \| "live" \| "final", total, rows: [{ rank, displayName, bingos, points, cells, isMe }], me, nextCursor }` | NEW |
-| POST | `/b2b/board/generate` | — | — | RETIRED |
+| GET | `/b2b/contest/:contestId/standings` | `?tenant&cursor&limit` (limit default 50, max 100; `limit=0` returns only `me` and `page.total`) | `{ state: "hidden" \| "live" \| "final", rows: [{ rank, displayName, bingos, points, cells, isMe }], me, page: { nextCursor, total, limit } }` | NEW |
+| POST | `/b2b/board/generate` | — | 410 with a plain message; never creates a board | RETIRED: 410 for one release, removed the release after |
 
 Details:
 
@@ -550,7 +550,7 @@ When the contest is finalized:
 7. Entering creates exactly one board; a second create for the same fan and contest, including two simultaneous requests, returns 409 with the first board's id and the app lands on it.
 8. `POST /b2b/board` refuses each of: one line; two lines from one team; a duplicate prop; two lines for one player and stat; a prop from a game that has started; a hidden prop; an Under prop; a prop from a game outside the contest; a closed, finalized, full, hidden or Trivia contest; a member with a blocking consent outstanding; a suspended tenant. Each refusal carries its `code` and the app shows the FLOW-13 copy.
 9. `PUT /b2b/board/:id/cells` accepts replacing, moving and removing unlocked lines, refuses any change to a square whose game has started or whose prop is locked, refuses everything after the last game's tip-off, and refuses a stale `expectedUpdatedAt`.
-10. `POST /b2b/board/generate` no longer exists.
+10. `POST /b2b/board/generate` answers 410 and never creates a board; it is removed the release after.
 11. Given props with each combination of `consensusOutcome`, `isFinal`, `locked` and game status, `squareState` returns the state in the FLOW-27 table, on the server and in the client.
 12. A board whose top row turns Hit while the page is open draws the line, flashes the three squares, bumps the counter and announces "Bingo! 1 of 8" once; reloading draws the line static with no celebration.
 13. With the stream blocked, the board updates by polling every 20 seconds; the dot stays green while polls succeed; after 60 seconds with no stream and no successful poll, "Reconnecting" shows.
@@ -595,7 +595,7 @@ When the contest is finalized:
 
 ## Mocks
 
-Static mocks for this flow, in `overboard-b2b-workspace\mocks\fanapp-v2\`. Each takes `?tenant=bears|hawks&mode=dark|light` (Bears on Prime Time; Fighting Hawks on Prime Time with the double band). Sample teams and players are invented.
+Static mocks for this flow, in `overboard-b2b-workspace\mocks\fanapp-v2\`. Each takes `?tenant=bears|hawks&mode=dark|light` (both tenants on Prime Time (double band)). Sample teams and players are invented.
 
 | File | Shows |
 |---|---|

@@ -56,7 +56,7 @@ every fan is "Tied 1st of N".
 **Preview mode** (`spec/webapp/fan-preview-mode.spec.md`, contract
 `artifacts\wave-2026-09-24\s1-s2-preview-interface.md`). A sessionless `/preview` route in the fan app,
 mounted outside Clerk and never calling the API, rendering the real screens from the console's `render`
-message plus honest fixtures, with a persistent PREVIEW chyron. The admin gets one `FanPreviewFrame` host
+message plus honest fixtures, with a persistent PREVIEW chyron. The admin gets one `FanAppPreview` host
 with the screen switcher; the old Brand and Fields previews retire.
 
 **Brand v2** (`spec/core-modules/1-draft/admin-brand-v2.spec.md`). The admin Brand page rebuilt: presets
@@ -96,7 +96,8 @@ Scope:
   here from `overboard-b2b-template\src\components\layout\HeroBand.tsx` (the template re-exports it).
   Contract: `ThemeSettings.decor`, `THEME_TEXTURES` gains `"bingoGrid"` (`src\interfaces\b2b\B2BOrganization.ts`),
   decor values on Prime Time and Club Level (`src\theme\presets.ts`), light and dark counterparts for every
-  decor alpha (`src\theme\resolve.ts` emits the decor CSS variables), `BrandText` type and schema. Serves the
+  decor alpha (`src\theme\resolve.ts` emits the decor CSS variables), the `src\theme\brand-text.ts` module (`BRAND_TEXT_KEYS`, `BRAND_TEXT_DEFAULTS`, `BRAND_TEXT_MAX`,
+  `brandTextSchema`, `resolveBrandText(text, teamName)`, type `BrandText`). Serves the
   pre-assigned shared needs of the other slices (section 5).
 - Template shell: top bar, menu sheet (`src\components\layout\SideMenu.tsx` rebuilt), error and offline
   patterns, desktop frame, route split, vitest set-up (section 9).
@@ -106,7 +107,7 @@ Scope:
 - Paused: `src\components\SuspendedScreen.tsx` becomes the Paused screen; a 403 with `tenant_suspended`
   from any API call (handled in `src\store\index.ts` base query and `src\lib\errorHandler.ts`) navigates to it.
 - Profile: new `src\pages\profile\` (display name and field edits via `PATCH /b2b/membership`, consents with
-  withdraw for optional ones, Your boards list); `/dashboard` redirects to `/profile`; delete
+  withdraw for optional ones, Your boards list); `/dashboard` redirects to `/profile#boards`; delete
   `src\pages\dashboard\DashboardPage.tsx`.
 - Legal: `/terms` and `/privacy` routes rendering `GET /b2b/legal/:doc`; menu links shown only when the
   document loads; delete the placeholder `src\config\legal.ts`.
@@ -136,7 +137,7 @@ Scope:
   - List paging on `GET /b2b/contest/list-contests` (`listB2BContests.ts`): `cursor`, `limit`, `q`,
     `status[]`, response with `page: { nextCursor, total, limit }` using G1's convention (shared
     `src\api\admin\paging.ts`, served as 4a45307 this wave).
-  - Props pool endpoint (path per the spec; proposed `GET /b2b/contest/:contestId/pool`): players and their
+  - Props pool endpoint `GET /b2b/contest/:contestId/props`: players and their
     ladder of lines by stat for games not yet started, visible and unlocked props only, with multiplier.
   - `POST /b2b/board` with nine cells (prop id or null) and `PUT /b2b/board/:boardId/cells`, both running
     one validator: props belong to the contest's games, visible, unlocked, game not started; one line per
@@ -207,12 +208,12 @@ standings to `artifacts\f3-live-standings\`.
 Worktrees: `template-f4-preview`, `admin-f4-preview`. Spec: fan-preview-mode and the interface file.
 
 Scope:
-- Template: `src\preview\` (new: `PreviewApp.tsx`, `protocol.ts`, `fixtures.ts`, `PreviewRibbon.tsx`); a
+- Template: `src\preview\` (new: `PreviewApp.tsx`, `protocol.ts`, `fixtures.ts`, `PreviewChyron.tsx`); a
   branch in `src\main.tsx` that mounts `PreviewApp` for `/preview` before `ClerkProvider` and before the store
   and tenant context; theme via the existing `src\theme\apply.ts` and `src\theme\fonts.ts`; origin allowlist
   from `VITE_PREVIEW_PARENT_ORIGINS`; the route ships as its own chunk. `vercel.json` gains a `headers`
   entry setting `Content-Security-Policy: frame-ancestors ...` on `/preview` only.
-- Admin: `src\components\preview\FanPreviewFrame.tsx` (iframe host, handshake, origin checks, debounce,
+- Admin: `src\components\preview\FanAppPreview.tsx` (iframe host, handshake, origin checks, debounce,
   loading and unavailable states), `src\components\preview\ScreenSwitcher.tsx`, `src\lib\previewProtocol.ts`,
   env `VITE_FAN_APP_ORIGIN` with `{slug}` substitution. Retire `src\components\GatePreviewPanel.tsx`
   (Fields page swaps to the frame) and the shared `EntryGatePreview` sampler (queue request).
@@ -222,7 +223,7 @@ Scope:
 Deliverables: the route, fixtures that never look real, the host and switcher, the CSP header.
 
 Verification: template unit tests for the protocol (unknown type ignored, unknown `v` answered with
-`error`, full replace, clamped `bingosHit`, out-of-range tier falls back to the first); admin tests for the
+`error`, full replace, clamped `bingosHit`, out-of-range tier falls back to the highest tier `bingosHit` reaches); admin tests for the
 host (origin check, `event.source` check, render on `ready`); a Playwright smoke that opens the admin
 page, waits for `ready`, switches all eight screens and asserts the PREVIEW chyron and no network calls
 from the frame. Screenshots per screen to `artifacts\f4-preview\`.
@@ -235,7 +236,7 @@ Scope:
 - Admin: `src\pages\Branding.tsx` rebuilt into sections under a new `src\pages\branding\` folder (Presets
   shelf with preset thumbnails, Palette with Auto chips, in-page picker with "From your logo" and contrast
   readout, Font pairing cards with a Custom card for legacy mixes, Light/Dark, Logo and marker upload tiles,
-  Words with counters, Fine-tune). Delete `src\components\BrandPreviewPanel.tsx`; mount `FanPreviewFrame`
+  Words with counters, Fine-tune). Delete `src\components\BrandPreviewPanel.tsx`; mount `FanAppPreview`
   once f4 lands (until then the preview column shows nothing rather than a likeness).
 - Migration on load: derive pairing match, auto chips and the "Custom page colours from an earlier setup"
   note from the stored theme. Draft key bump: `DRAFT_SUFFIX` in `Branding.tsx` goes from `":branding"` to
@@ -271,7 +272,7 @@ standings, and Brand v2 editing the preview live. Screenshots to `artifacts\f-in
    start UI once the kit is served.
 3. f4 starts after f1's shell and route split merge on its branch; it wires Home, Contest, Board, Prize and
    Results views as f2 and f3 land them, using fixtures until then.
-4. f5 runs in parallel throughout (admin only); its preview column waits on f4's `FanPreviewFrame`.
+4. f5 runs in parallel throughout (admin only); its preview column waits on f4's `FanAppPreview`.
 5. The integration slice closes the wave.
 
 **Shared repo.** f1 owns `obs-b2b-shared` on `arthur-f1-decor-shell`. Everyone else requests changes through
@@ -333,7 +334,7 @@ and `src\pages\branding\`. S1's console slices own everything else they redesign
 - **Award backfill:** for every board with bingos already reached, create or mark the award record with
   `seenAt = now`, so no old prize pops again. Idempotent, dev DB first, run by hand per environment.
 - **`prize-tier-shown-*` localStorage keys** are ignored and never written again.
-- **`/dashboard`** redirects to `/profile` (kept for one release, then removed).
+- **`/dashboard`** redirects to `/profile#boards` (kept for one release, then removed).
 - **`POST /b2b/board/generate`** returns 410 with a plain message for one release, then is removed.
 - **Brand draft key** bump (`:branding` to `:branding-v2`): old drafts are abandoned, not migrated.
 - **`/test-sign-in`** is removed from the public router.

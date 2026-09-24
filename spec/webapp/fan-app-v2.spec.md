@@ -415,8 +415,8 @@ The hub a member lands on. It answers, in order: is anything of mine live, what 
 
 **Data:**
 - `GET /b2b/membership` → `membership.displayName`.
-- `GET /b2b/board/my-boards` with `cursor`, `limit` (**NEW** paging) → per board (**NEW** projection): `boardId`, `contestId`, `contestName`, `status` (the `FAN-18` inputs: `contestStatus`, `finalized`, `gameType`), `live` (any game in progress), `liveGame` (`homeTeam`, `awayTeam`, `eventTime`, `status`), `bingos` (today `parlaysHit`, renamed on the wire only), `cells` (9 entries, each `hit | miss | pending | empty`), `createdAt`; plus `nextCursor`, `total`. Today the endpoint returns every board with its contest and nine fully populated props, which is far more than Home needs and pages nothing.
-- `GET /b2b/contest/list-contests?status[]=open&joined=false&limit=5` and `?status[]=upcoming&limit=5` (**NEW** params, `FAN-35`) → banner card fields and `total`.
+- `GET /b2b/board/my-boards` with `cursor`, `limit` (**NEW** paging) → per board (**NEW** projection): `boardId`, `contestId`, `contestName`, `status` (the `FAN-18` inputs: `contestStatus`, `finalized`, `gameType`), `live` (any game in progress), `liveGame` (`homeTeam`, `awayTeam`, `eventTime`, `status`), `bingos` (today `parlaysHit`, renamed on the wire only), `cells` (9 entries, each `hit | miss | pending | empty`), `createdAt`; plus `page: { nextCursor, total, limit }`. Today the endpoint returns every board with its contest and nine fully populated props, which is far more than Home needs and pages nothing.
+- `GET /b2b/contest/list-contests?status[]=open&joined=false&limit=5` and `?status[]=upcoming&limit=5` (**NEW** params, `FAN-35`) → banner card fields and `page.total`.
 - `GET /b2b/org/:slug/sponsors` → sign-in placement at `featured`.
 
 **Accessibility:** each section is a `section` with an `h2` (the eyebrow text, visually styled as an eyebrow). The rail is a `list` with horizontal scroll, reachable by keyboard; each tile is a link named "{Contest name}, {n} bingos, {status}". The LIVE NOW card's numeral is announced with its label.
@@ -487,11 +487,11 @@ Default order (server-side, `FAN-35`): live, then open (soonest-closing first), 
 
 **`FAN-33` — Search and filters reset paging.** Typing is debounced 300ms; a new query or chip change discards loaded pages and requests the first page. Searching matches the contest name and the team names of its games, case-insensitively. Search text and chips are kept in the URL (`?q=&status=`) so back navigation and shared links restore them.
 
-**`FAN-34` — Every fan list that can grow uses the same endless-scroll behaviour:** `/contests`, the Your boards rail on Home (horizontal), the Your boards list on Profile, and the standings list (flow spec). Each is backed by `cursor` / `limit` / `nextCursor` / `total`.
+**`FAN-34` — Every fan list that can grow uses the same endless-scroll behaviour:** `/contests`, the Your boards rail on Home (horizontal), the Your boards list on Profile, and the standings list (flow spec). Each is backed by `cursor` and `limit` in the request and `page: { nextCursor, total, limit }` in the response (G1's convention).
 
 **`FAN-35` — Data need: `GET /b2b/contest/list-contests` gains server cursor paging, search and status filters (NEW).**
 - Query: `cursor` (opaque string, absent for the first page), `limit` (1–50, default 20), `q` (trimmed, max 80 characters), `status[]` (any of `open`, `upcoming`, `live`, `past`; OR-ed; absent means all), `joined` (`true` / `false`; absent means both).
-- Response: `contests` (the banner card projection, `FAN-30`), `nextCursor` (null at the end), `total` (count for this query).
+- Response: `contests` (the banner card projection, `FAN-30`) and `page`, per G1's convention: `page.nextCursor` (null at the end), `page.total` (count for this query), `page.limit`.
 - Status meanings: `open` = derived status Open; `upcoming` = Upcoming; `live` = any game in progress and not finalized; `past` = Closed or Finished. A contest can match more than one.
 - Order per the Contests list layout, stable across pages (ties broken by `_id`).
 - The existing `status=upcoming|past` parameter keeps working until the old list is gone. The endless-scroll system (shared list component and the backend cursor convention) is G1's this wave; this endpoint follows that convention.
@@ -685,7 +685,7 @@ There is no `returningCta` key: the seventh `GateCopyOverrides` key in `obs-b2b-
 
 **`FAN-50` — Writers replace `branding.text` as a whole object.** The admin write sets `branding.text` to the full validated record (or unsets it when empty), so a stored record is always one validated whole. Readers treat an absent record, an absent key, and a blank or whitespace-only value identically: the default applies.
 
-**`FAN-51` — One definition of the brand defaults and one resolver, in shared.** `obs-b2b-shared` gains `BRAND_TEXT_KEYS`, `BRAND_TEXT_DEFAULTS`, `BRAND_TEXT_LIMITS`, a zod `brandTextSchema`, and `resolveBrandText(teamName, text)` beside `resolveGateCopy`. The fan app, the preview and the console's Words placeholders all read these; nobody keeps a second table.
+**`FAN-51` — One definition of the brand defaults and one resolver, in shared.** `obs-b2b-shared` gains `src/theme/brand-text.ts` with `BRAND_TEXT_KEYS`, `BRAND_TEXT_DEFAULTS`, `BRAND_TEXT_MAX`, a zod `brandTextSchema`, `resolveBrandText(text, teamName)` and the type `BrandText` (names as in [`admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md), Storage). The fan app, the preview and the console's Words placeholders all read these; nobody keeps a second table.
 
 **`FAN-52` — Validation.** The admin write rejects unknown keys, values over the limit (counted in characters after trimming, with `{team}` counted as written), and any `{...}` token other than `{team}`, each with a plain message on its field. The fan read ignores unknown keys and, if a stored value is somehow over its limit, still renders it (layout wraps; buttons grow to two lines) rather than truncating a tenant's words.
 
@@ -767,7 +767,7 @@ There is no `returningCta` key: the seventh `GateCopyOverrides` key in `obs-b2b-
 21. [ ] A tenant with no contests and a fan with no boards sees "Nothing on the schedule yet" and the tenant's `homeEmpty` text (or the default).
 22. [ ] A banner card for a contest with 3 games shows two games and "+1 more"; with no tiers it shows no prize line; with no player count on the wire it shows no "playing" text.
 23. [ ] A joined contest's card shows JOINED and "Open my board", and the button opens the board directly while the rest of the card opens the detail page.
-24. [ ] `/contests` never requests more than one page at a time, never shows a "load more" button, requests pages with `cursor` and `limit=20`, and shows the server's `total`.
+24. [ ] `/contests` never requests more than one page at a time, never shows a "load more" button, requests pages with `cursor` and `limit=20`, and shows the server's `page.total`.
 25. [ ] Typing in search waits 300ms, resets to the first page, and updates `?q=` in the URL; toggling Live and Past sends `status[]=live&status[]=past`.
 26. [ ] A failed second page shows "We couldn't load more contests." with Retry, and loading resumes after Retry.
 27. [ ] Contest detail shows the admin's Description as paragraphs, and shows nothing in its place when it is empty.
@@ -826,8 +826,9 @@ Everything here is deliberately absent from the screens and must stay unmentione
 ## Mocks
 
 Static HTML mocks live in `overboard-b2b-workspace\mocks\fanapp-v2\` (being built in parallel with this spec). Each takes `?tenant=bears|hawks&mode=dark|light`:
-- **Bears:** Team #0B162A, Second #C83803, Accent #F5B32E, Prime Time preset.
-- **Fighting Hawks:** Team #009A44, Second #1B5E3C, Accent #FFB224, Prime Time with the double band.
+Both tenants are on Prime Time (double band):
+- **Bears:** Team #0B162A, Second #C83803, Accent #F5B32E.
+- **Fighting Hawks:** Team #009A44, Second #1B5E3C, Accent #FFB224.
 
 | File | Screen |
 |---|---|
