@@ -8,6 +8,10 @@
 
 **Revised 2026-09-22** (ruling, Arthur) — customer-visible gap narration is removed from these screens under the **Honesty by omission, not by narration** principle in [`admin-surface.spec.md`](admin-surface.spec.md). The Platform health gap card naming `OBS-01`–`OBS-03`, the delivery queue's "—" for a missing `failureReason`, and its on-screen "visibility-only" note all go; the gaps themselves stay recorded here. Never-fabricate is unchanged.
 
+**Revised 2026-09-24** (ruling, Arthur) — the Delivery queue's screen becomes Prize deliveries in cross-tenant mode ([`admin-prizes.spec.md`](admin-prizes.spec.md)), paged with a cursor, so its 100-row cap goes. Finalization, provisioning, Platform health and Fan actions are unchanged here.
+
+**Revised 2026-09-24** (ruling, Arthur): the tenant detail drawer is replaced by the tenant page ([`admin-tenant-page.spec.md`](admin-tenant-page.spec.md)); the directory keeps its table and rows open that page.
+
 ## Overview
 
 The operator-facing section of the admin console: the four OBS Internal screens the nav has carried as placeholders — All tenants (`/tenants`), Platform health (`/platform-health`), Delivery queue (`/delivery-queue`), Fan actions (`/fan-actions`) — plus the two actions that only OBS may ever perform: **tenant provisioning** (`TEN-05`) and **contest finalization** (`PRIZE-03`, `ADM-06`).
@@ -39,6 +43,8 @@ The fan-actions export blends the two shapes: `?tenant=` **narrows** an already-
 ---
 
 ## All tenants and provisioning (`/tenants`)
+
+*2026-09-24: the drill-in drawer this section and "Contest finalization" describe is now the tenant page at `/obs/tenants/:slug` ([`admin-tenant-page.spec.md`](admin-tenant-page.spec.md)); the create-tenant drawer stays, without its auth-variant control.*
 
 The directory read (`GET /admin/tenants/directory`) returns every tenant with the numbers an operator triages by — fans, contests with derived status, players and per-contest delivery counts, failed sends, config footprint — in one response. A contest's players are its board count, one board per fan per contest — the number Games & Contests shows, read with one aggregate across every contest; the stored `numberParticipants` is never incremented and is not read ([`admin-contests.spec.md`](admin-contests.spec.md), Rule 4). The drill-in reads "N players". The existing `GET /admin/tenants` chooser read stays deliberately names-only; the five scoped screens keep using it.
 
@@ -87,6 +93,8 @@ Two adjacent facts, recorded with it: the SQS dead-letter queues and their ≥1-
 ---
 
 ## Delivery queue (`/delivery-queue`)
+
+*Superseded 2026-09-24 by [`admin-prizes.spec.md`](admin-prizes.spec.md): the queue's UI is now the Prize deliveries page in cross-tenant mode (`/obs/prize-deliveries`, with a Tenant column and filter), read through `POST /admin/all-prize-deliveries/search` with cursor paging, so the 100-row cap and its `truncated` flag go.*
 
 `PRIZE-07`'s reviewable failure surface, platform-wide because failed sends degrade sender reputation for every tenant (`PRIZE-06`'s rationale). One read: totals by redemption status, plus the failed rows newest-first — tenant, fan (display name only; `/fans` owns contact fields), contest, prize, and **why**.
 
