@@ -44,23 +44,25 @@ Why the narrowing is safe: the endpoints are **staff-only**, enforced server-sid
 - **Re-invite the first admin.** When the workspace has no admin who has signed in, a staff-only card names the most recent admin invitation (pending, expired or revoked) and offers **Send a new invitation** — revoking a still-pending one first, so there is only ever one live link. With no invitation on record it offers the invite form pre-set to Admin.
 - **Resend** or **revoke** any pending invitation.
 - Change a member's role or remove them — the same controls a workspace admin has, with the same confirmations.
-- "Overboard staff" on a member row comes from the server's staff flag (`isObsStaff` on the row), not from an email domain.
+- "Overboard staff" on a member row comes from the server's staff flag (`isObsStaff` on the row), not from an email domain. On the client path a workspace user's session cannot read that flag for other people, so no row is labelled there (staff are not members of tenant organizations in the model; they act through the switcher).
 
 **Endpoints (staff only, all `?tenant=` required):**
 
 | Method | Path | |
 |---|---|---|
 | GET | `/admin/team/members` | Paged (`cursor`, `limit`, `q`, `role`). Rows: `{ membershipId, userId, name, email, role, joinedAt, isObsStaff }`. |
-| GET | `/admin/team/invitations` | Paged; pending plus the latest non-pending admin invitation, each `{ invitationId, email, role, status, createdAt }`. |
+| GET | `/admin/team/invitations` | Paged pending invitations, each `{ invitationId, email, role, status, createdAt, expiresAt }`; beside the page, `adminCount` and `latestAdminInvitation` (whatever its status) for the first-admin card, so the list's total stays true. An out-of-date invitation Clerk still calls pending reads `expired`. |
 | POST | `/admin/team/invitations` | `{ email, role }`. |
 | POST | `/admin/team/invitations/:invitationId/resend` | Revokes a pending invitation and sends a fresh one to the same address and role. |
 | DELETE | `/admin/team/invitations/:invitationId` | Revoke. |
-| PATCH | `/admin/team/members/:membershipId` | `{ role }`. |
-| DELETE | `/admin/team/members/:membershipId` | Remove — reverification required, as on the client path. |
+| PATCH | `/admin/team/members/:userId` | `{ role }`. Keyed on the user, because Clerk's server API changes and removes a membership by organization and user. |
+| DELETE | `/admin/team/members/:userId` | Remove — reverification required, as on the client path. |
 
 Every write is audited (`team_invite`, `team_invite_revoke`, `team_role_change`, `team_member_remove`), with ids and roles only — never an email in `detail`.
 
-**Invitation redirect.** Staff-sent invitations use the same redirect URL the Create-tenant flow uses, so the invitee lands on the console's sign-up.
+**Invitation redirect.** Staff-sent invitations pass no redirect URL, exactly like the Create-tenant flow's first-admin invitation, so both land on the console the same way.
+
+**Search on the client path.** Clerk's client organization API searches its own members (`query`), so the workspace's own Team page searches on Clerk too — never over the loaded rows.
 
 ---
 

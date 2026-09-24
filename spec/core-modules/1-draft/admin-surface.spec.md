@@ -274,8 +274,8 @@ Nothing else takes a hue: not status pills, text, numbers, buttons, or tables.
 | Screen | Staff extra |
 |---|---|
 | Shell | **The paused banner follows the chosen workspace**, not the session's active organization: staff choosing a paused workspace see it, worded for staff ("Fans can't play right now. Resume it from the tenant record." with a link). Previously staff never saw it. |
-| Overview | A staff strip: the workspace's status (active / paused), its subdomain, and **Open tenant record**; "Needs attention → failed sends" opens the Delivery queue already filtered to this workspace. |
-| Game day | As before (cross-workspace live strip, raw failure reasons, Finalize shortcut); the failed-sends readiness row opens the Delivery queue filtered to this workspace. |
+| Overview | A staff strip: the workspace's status (live / paused), its subdomain, links to its Team and Support, and **Open tenant record** (or **Resume from the tenant record** when paused); "Needs attention → failed sends" opens the Delivery queue already filtered to this workspace. |
+| Game day | As before (cross-workspace live strip, raw failure reasons); the Finalize shortcut now opens Games & Contests, where the contest drawer carries Finalize; the failed-sends readiness row opens the Delivery queue filtered to this workspace. |
 | Schedule | "All games" marks which games any workspace runs (admin-schedule.spec.md). |
 | Games & Contests | **Finalize** in the contest drawer once every game has ended — the same typed-name confirmation and reverification as the tenant record. (The redesign's banner cards carry it next.) |
 | Prizes | As before (Delivery queue link), now filtered to this workspace. |
@@ -283,7 +283,7 @@ Nothing else takes a hue: not status pills, text, numbers, buttons, or tables.
 | Exports | **Fan actions for this workspace** — a link that opens Fan actions pre-set to it. |
 | Team | **The chosen workspace's team**, with invite, **re-invite the first admin**, resend/revoke invitations, role changes and removal (admin-team.spec.md). |
 | Support | The workspace's reports **including internal ones**, with the triage panel on each report (admin-support.spec.md). The inbox gains a workspace filter. |
-| Operations | "Failed sends" rows open the Delivery queue filtered to that workspace, as the spec always said. |
+| Operations | "Failed sends" rows open the Delivery queue filtered to that workspace, as the spec always said; "ready to finalize" and "paused" rows open that workspace's tenant record directly. |
 
 Identity checks are tidied to the user-level flag everywhere: the paused banner, and Team's "Overboard staff" row label (which used an email domain).
 
