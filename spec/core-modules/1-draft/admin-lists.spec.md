@@ -117,20 +117,20 @@ The same engine for dropdown-like lists, which the ruling names explicitly (Game
 
 | Screen | List | Endpoint | Order | Search | Filters |
 |---|---|---|---|---|---|
-| Fans | Roster | `POST /admin/fans/search` (body `cursor`, `limit`) | joined, newest first | name or email (body `query`) | opt-in state, missing field |
+| Fans | Roster | `POST /admin/fans/search` (body `cursor`, `limit`; the page info rides as `pageInfo`, because this response already used `page` for the page number, which older clients still get) | joined, newest first, in Mongo (index `roster_newest_first`) | name or email (body `query`) — an email match resolves the matching fan identities first, then keeps this workspace's | opt-in state, missing field |
 | Game day | **Game dropdown** → `Combobox` | `GET /admin/live/games` (new) | tip-off, soonest first, around now | team names | window: upcoming / recent |
 | Game day | Live feed | `GET /admin/live/feed?game=` (new, split from `/admin/live`) | newest first; polled head refresh | — | — |
 | Game day | Couldn't be delivered | `GET /admin/live/failures?game=` (new) | most recent failure first | — | — |
 | Games & Contests | **Add games / New contest schedule picker** → `PickerList` | `GET /admin/games/candidates` | tip-off, soonest first | team names | sport, day range (the 30-day window and the 200 cap go) |
 | Exports | Recent exports | `GET /admin/exports/recent` | newest first | — | kind |
 | Exports | Generate drawer: contest select → `Combobox` | `GET /admin/contests/options` (new, light) | newest first | contest name | — |
-| Sponsors & Branding | Sponsors table | `GET /admin/sponsors` | name A–Z | name | — |
+| Sponsors & Branding | Sponsors table | `GET /admin/sponsors/list` (`GET /admin/sponsors` stays whole: the placement schedule needs every sponsor) | name A–Z as people read it (case ignored, numbers in order), computed over the workspace's own sponsors | name | — |
 | Team | Members; pending invitations | Clerk client, infinite pages (own organization); staff-only `GET /admin/team` for a chosen tenant (admin-team.spec.md) | Clerk's order (newest first) | name or email | role |
 | Support | The workspace's reports (admin-support.spec.md) | `GET /admin/support/reports` | newest first | message | status |
 | Shell | Tenant switcher, staff directory | `GET /admin/tenants?view=directory` | name A–Z | name or subdomain | — |
 | Schedule / Season calendar | List view (admin-schedule.spec.md) | `GET /admin/schedule` | tip-off, soonest first, from the chosen day forward | team names | workspace, sport, "All games" |
 | Operations | Recent activity | `GET /admin/audit` (new; replaces the fixed 20 rows) | newest first | — | workspace, kind of change |
-| All tenants | Tenants table | `GET /admin/tenants` | name A–Z | name or subdomain | status |
+| All tenants | Tenants table | `GET /admin/tenants/directory` | name A–Z (database order) | name or subdomain | status |
 | All contests | Contests table | `GET /admin/all-contests` | "This week": live, then soonest game (derived over the seven-day window); Active / Finished / All: newest first | contest or workspace name | This week / Active / Finished / All, workspace |
 | Platform health | Tenants table | `GET /admin/platform-health` | live first, then name (derived over the set of tenants) | name | — |
 | Delivery queue | Failed sends (bulk select) | `GET /admin/delivery-queue` | most recent failure first | prize, contest or workspace name | workspace, reason |
@@ -138,7 +138,11 @@ The same engine for dropdown-like lists, which the ruling names explicitly (Game
 | Support inbox | Reports | `GET /admin/support/inbox` | Open: oldest first; All: newest first | message | workspace, status, reason, pattern |
 | Support inbox | "Same problem as another report?" → `Combobox` | `GET /admin/support/inbox?view=open` | oldest first | message | — |
 
-Bulk selection on an endless list (Delivery queue) selects **loaded** rows; "Select all" says how many it selected ("Selected 100 of 342"), and a resend batch keeps its 100-row cap.
+Bulk selection on an endless list (Delivery queue) selects **loaded** rows; "Select all" says how many it selected ("Selected 100 of 342"), and a resend batch keeps its 100-row cap. The queue's list and count leave out sends whose contest or workspace no longer exists; its total tiles are plain per-status counts.
+
+**Kept for older clients.** `/admin/live` still returns its first 40 feed lines and 25 failures, `GET /admin/exports` still carries its 20 recent exports, and `GET /admin/games` keeps its 30-day, 200-game candidate window for the contest cards the redesign replaces. The console reads the paged endpoints; these stay only so an older console keeps working until it is gone.
+
+**Indexes.** `node-server/scripts/create-list-indexes.mjs` creates the list indexes per environment (dry run by default).
 
 ### Skipped, with the reason
 
