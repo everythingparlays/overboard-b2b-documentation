@@ -8,6 +8,8 @@
 
 **Status:** Draft, written 2026-09-23 with the build (Slice 3 of the 2026-09-23 wave). No open questions.
 
+**Revised 2026-09-24** (ruling, Arthur): the Prizes screen, tier editor and email settings now live in admin-prizes.spec.md; this spec keeps the delivery engine, the method registry and the email template.
+
 ---
 
 ## Overview
@@ -47,6 +49,8 @@ So the resolution is: **one developer-built template, parameterised by the tier.
 
 ### What it merges — and the omission rule
 
+*Revised 2026-09-24 by [`admin-prizes.spec.md`](admin-prizes.spec.md), "What the winner sees": the blocks follow the tier's prize type, "Approximate value" is no longer shown to fans, and the credit reads "Provided by" from the tier.*
+
 The email is built from real, configured data only. **Anything unconfigured is omitted — never placeholdered, never apologised for** (D-068). There is no "N/A", no "See details", no empty heading above a missing section.
 
 | Block | Source | When absent |
@@ -73,6 +77,8 @@ A URL that is not `http:` or `https:` is treated as absent (a `javascript:` or `
 
 ### Presented by
 
+*Superseded 2026-09-24 by [`admin-prizes.spec.md`](admin-prizes.spec.md), "What the winner sees": the credit reads "Provided by" and comes from the tier's `providedBySponsorId` (snapshotted at award), not from the prize-popup placement holder, and the preview renders it from the unsaved tier.*
+
 The email credits the sponsor presenting the prize: **the sponsor holding the `prizePopup` slot where the prize was won** — exactly the sponsor the fan's in-app prize popup credits for the same win ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)). It is decided by the same shared resolver, `resolveSponsorSlots` (`SP-07`), at (the contest, the board's game), so the popup and the email cannot name different sponsors:
 
 - **A game-specific placement overrides the contest-wide one** for the slot (`SP-01`). The board's game is the one game its squares' props come from; a board naming none or several resolves contest-wide placements only. The board is read only when a game-specific placement holds the prize popup at all — otherwise the game cannot change the answer.
@@ -96,6 +102,8 @@ Code: `node-server/src/prize-delivery/prize-sponsor.ts` (the pure resolution bot
 - **One renderer, two callers.** `node-server/src/prize-delivery/` holds the pure renderer (no database, no AWS). The prize worker bundles it to send; the API calls it for the admin preview. The preview therefore is the email, not a picture of it — the Fan's-eye view principle applied to a fan's inbox.
 
 ### Sender identity
+
+*Where these settings are edited is superseded 2026-09-24 by [`admin-prizes.spec.md`](admin-prizes.spec.md): the Emails page under Configuration (`/settings/emails`), not the Prizes screen.*
 
 A tenant configures **how the email presents itself**, not where it comes from:
 
@@ -198,11 +206,15 @@ A fan who typed a bad email can be reached at a corrected one. The address is wr
 
 ### What the queue shows
 
+*The screen is superseded 2026-09-24 by [`admin-prizes.spec.md`](admin-prizes.spec.md): the Delivery queue becomes Prize deliveries, for tenants (their own sends, with a tenant Resend of failed rows) and for staff across every tenant. The endpoint and its rules above are unchanged.*
+
 Failed rows, plus rows **being resent** (`pending` with a resend count) so an operator sees their action land: the row reads "Resending" until the worker reports back, then leaves the list or returns as failed with a fresh reason. The screen offers **Resend** per row (with the corrected-address option) and **Resend selected** for bulk. Reverification is prompted by the server's hint, as for finalization.
 
 ---
 
 ## The Prizes screen
+
+*Superseded 2026-09-24 by [`admin-prizes.spec.md`](admin-prizes.spec.md): the ladder moves to the contest's Prizes tab, the tier drawer becomes a full-page tier editor with live popup and email previews, the Prize email card becomes the Emails settings page, and the delivery counts move to Prize deliveries.*
 
 Supersedes the `/prizes` section of admin-games-and-prizes.spec.md where they differ.
 
@@ -217,6 +229,8 @@ Supersedes the `/prizes` section of admin-games-and-prizes.spec.md where they di
 ---
 
 ## Endpoints
+
+*The preview's contest parameter and the email settings routes are revised 2026-09-24 by [`admin-prizes.spec.md`](admin-prizes.spec.md), "Endpoints": the preview takes the tier's sponsor and an optional `tierId`, and the settings move to `/admin/settings/emails`.*
 
 | Method | Path | Auth | Who |
 |---|---|---|---|

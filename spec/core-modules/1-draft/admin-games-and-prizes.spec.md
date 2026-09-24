@@ -6,7 +6,11 @@
 
 **Status:** Draft.
 
+**Superseded by:** [`admin-contests.spec.md`](admin-contests.spec.md) (contests and games) and [`admin-prizes.spec.md`](admin-prizes.spec.md) (prize tiers), 2026-09-24.
+
 ## Overview
+
+*Superseded 2026-09-24 (ruling, Arthur).* Games & Contests is now a list of contest banner cards opening full contest pages, and prize tiers are edited inside the contest; both are specified in the two specs above. Everything below stays as history of what the first console built and why: the model tables, the endpoint reasoning (the two-sided candidate window, the `:contestId` 404 rule, "no list endpoint hides a contest by its status") and the rules are still cited by the specs that replace this one, and where they differ the newer spec wins.
 
 The two screens an OBS operator uses to answer "what is this tenant running, and what can fans win": Games & Contests at `/games` and Prizes at `/prizes`, plus the `/admin` endpoints behind them.
 

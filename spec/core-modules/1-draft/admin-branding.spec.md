@@ -6,6 +6,8 @@
 
 **Status:** Draft. Written from the fan-theming design contract (directive, 2026-09-22, Arthur). No open questions remain — ready for review.
 
+**Revised 2026-09-24** (ruling, Arthur) — there is one preview in the console: the real fan app running in preview mode, framed by the console's `FanAppPreview` ([`admin-preview.spec.md`](admin-preview.spec.md)) and fed the unsaved Brand draft, with a screen switcher over Gate, Join, Home, Contest, Board and Prize. It replaces this spec's live preview: the `.obs-gate-preview` wrapper, the `EntryGatePreview` plus sampler strip, and `THEME-21` are retired with `BrandPreviewPanel`, and the "no full board preview" gap closes, because the frame shows the fan app's own board. The Brand page itself is redesigned in [`admin-brand-v2.spec.md`](admin-brand-v2.spec.md) (lands with S2's PR this wave), and Sponsors leaves this screen for its own page ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)). The theme contract, derivation, presets, storage, endpoints and fan wire below are unchanged; the sections this revision retires are kept as written, for the record.
+
 ## Overview
 
 A tenant's colors, type, shape, finish and signature moments become real server-side configuration, editable by that tenant's own admins at `/branding`, applied by the fan app at runtime, and previewed in the console against the unsaved draft.
