@@ -51,6 +51,19 @@ Cross-cutting capabilities used across webapp, backend, and workers — most imp
 
 Per-feature behavior. Only read specs in `2-approved/` or `3-active/` for implementation. Feature specs should cite the PRD requirement IDs they implement.
 
+### Fan app v2 (design wave 2026-09-24)
+
+Drafts from the fan-app design wave. Read the build plan first, then the spec for the area you are building.
+
+| Document | When to read |
+|------|--------------|
+| [`fan-app-v2.spec.md`](spec/webapp/fan-app-v2.spec.md) | Fan screens, shell, navigation and copy: gate, auth, join gate restyle, Home, Contests, contest detail, Profile, Terms and Privacy, Paused, and the 12 curated strings |
+| [`fan-contest-flow.spec.md`](spec/webapp/fan-contest-flow.spec.md) | Board builder, server validation, live board and stream, prize popup and award records, standings and results |
+| [`fan-preview-mode.spec.md`](spec/webapp/fan-preview-mode.spec.md) | The sessionless `/preview` route the console frames, its fixtures and the PREVIEW chyron |
+| [`fan-decor-system.spec.md`](spec/core-modules/1-draft/fan-decor-system.spec.md) | The palette roles, the twelve-piece decor kit, the `decor` theme block and the preset ramps |
+| [`admin-brand-v2.spec.md`](spec/core-modules/1-draft/admin-brand-v2.spec.md) | The rebuilt admin Brand page: presets, palette and picker, font pairings, uploads, Words, Fine-tune |
+| [`fan-app-v2-build-plan.md`](documents/HLDs/fan-app-v2-build-plan.md) | How the five specs are built: slices, order, ownership, shared-model changes and verification |
+
 ## Key Constraints
 
 1. **The current codebase is a POC, not a spec-compliant target.** Don't treat existing patterns as correct by default — check whether a layer/concern spec exists and covers it first. See `documents/POC-baseline/`.
