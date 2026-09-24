@@ -28,7 +28,7 @@ When a fan completes a bingo line, the board-evaluator puts a message on the pri
 **Not in scope:**
 
 - **Coupon-code batches** (`PRIZE-05`/`PRIZE-06`'s batch half) — deliberately deferred until the first real sponsor's shape is known. The seam is specified below ("Codes").
-- **Sending-domain authentication** (SPF, DKIM, DMARC, a verified `prizes@` identity). Nick-gated. Everything here is built to work on the current SES identity and to switch domains with one config value. See "Deploy dependency".
+- **Sending-domain authentication** (SPF, DKIM, DMARC, a verified `prizes@` identity). Nick-gated. Production keeps sending from today's address, `nick@overboardsports.com`, until then, and switches with one config value. See "Deploy dependency".
 - **Bounce and complaint processing** (SES notifications feeding back into `PrizeRedemption`). Recorded gap — today a bounce after SES accepted the message is invisible to us.
 - **Deferred end-of-game delivery** (`PRIZE-02`). Unchanged: finalization still dispatches nothing.
 - **Tenant-uploaded HTML templates.** `PRIZE-04` makes templates developer work; a tenant never uploads markup.
@@ -239,8 +239,8 @@ The local worker authenticates to Mongo with the developer's AWS SSO session thr
 
 ## Deploy dependency (Nick)
 
-- **`PRIZE_FROM_ADDRESS` must be an SES-verified identity** in each account. Configured per stage in `lib/config/environments.ts` (`prizeFromAddress`). The dev value remains `nick@overboardsports.com`, the only verified identity today, so dev keeps working; production has **no value** until the domain is authenticated, and the worker refuses to send rather than borrow a personal address. The target is `prizes@overboardsports.com` on a domain with SPF, DKIM and DMARC — one config change once Nick completes SES domain authentication (security checklist, "before production").
-- **SES production access** (leaving the sandbox) for the prod account, so mail reaches unverified fan addresses.
+- **`PRIZE_FROM_ADDRESS` must be an SES-verified identity** in each account. Configured per stage in `lib/config/environments.ts` (`prizeFromAddress`). **Production sends from `nick@overboardsports.com`**, the address it has always used (the pre-overhaul worker hardcoded it), set explicitly so prize emails keep going out through the overhaul (Arthur's ruling, 2026-09-23). The target is `prizes@overboardsports.com` on a domain with SPF, DKIM and DMARC: once Nick completes SES domain authentication and verifies that address in the prod account (security checklist, "before production"), it is a one-value change in `environments.ts`, nothing else. Personal dev stacks carry the same address, but the dev account has no verified SES identity (checked 2026-09-23), so their sends are refused and recorded; the local outbox ("Local delivery loop" above) is how dev sees real emails. The worker never falls back to any address: an unset value sends nothing and records why.
+- **SES production access** (out of the sandbox) must stay on for the prod account, so mail reaches unverified fan addresses. Production already sent prize email before the overhaul; confirm the account's status when the domain moves.
 - The API task now receives `PRIZE_FULFILLMENT_QUEUE_URL` and `sqs:SendMessage` on the prize-fulfillment queue (CDK change in this slice; no manual step).
 
 ---
