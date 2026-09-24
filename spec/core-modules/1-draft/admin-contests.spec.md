@@ -53,7 +53,7 @@ The investigation that preceded this spec found three of the fields above displa
 - **`closed`, and contest status generally**: the fan app only offers *Join* on an Open contest, but `POST /b2b/board/generate` checked nothing — a direct call could start a board on a closed, finalized or not-yet-open contest.
 - **`maxParticipants`**: nothing counted against it.
 
-And one number the console showed was never true: **`numberParticipants` is never incremented by anything**, so every contest read "0 of N entries". Participation is now the contest's **board count**, computed on read — one board per fan per contest makes that exactly the number of fans playing. The stored field is left in place and unread by the console.
+And one number the console showed was never true: **`numberParticipants` is never incremented by anything**, so every contest read "0 of N entries". Participation is now the contest's **board count**, computed on read — one board per fan per contest makes that exactly the number of fans playing. The stored field is left in place and read by nothing: Games & Contests, All contests and the All tenants directory all count players from boards.
 
 All three are now enforced at the two fan entry points, with fan-facing copy that states the situation and nothing else:
 
@@ -189,7 +189,7 @@ The shared dev database (`obs-b2b-dev`, `arthur_` prefix) carried stale contests
 
 - **Multi-entry** (`maxEntriesPerPerson > 1`) needs fan-app support for several boards per contest before it can be offered.
 - **The contest note is console-only.** If fans should see a contest description, the fan app needs a place for it, and the field's label changes with it.
-- **The stored `numberParticipants` is dead data.** It is left in place (other readers — the All-tenants directory — still show it and should move to the board count too).
+- **The stored `numberParticipants` is dead data.** It is left in place, and since 2026-09-23 nothing reads it: the All tenants directory, its last reader, counts players from boards too.
 - **No contest delete** — see Not in scope.
 - **Difficulty read-out** from past boards — see "The difficulty knob".
 - **Name uniqueness is check-then-write.** Two creates or renames to the same name in the same instant can both succeed. The fix, if it ever matters, is a normalized-name field with a unique `{organizationId, key}` index turning the duplicate into the same 409; at console volumes it has not been worth a model change.

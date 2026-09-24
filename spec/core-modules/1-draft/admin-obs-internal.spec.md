@@ -40,7 +40,7 @@ The fan-actions export blends the two shapes: `?tenant=` **narrows** an already-
 
 ## All tenants and provisioning (`/tenants`)
 
-The directory read (`GET /admin/tenants/directory`) returns every tenant with the numbers an operator triages by — fans, contests with derived status and per-contest delivery counts, failed sends, config footprint — in one response. The existing `GET /admin/tenants` chooser read stays deliberately names-only; the five scoped screens keep using it.
+The directory read (`GET /admin/tenants/directory`) returns every tenant with the numbers an operator triages by — fans, contests with derived status, players and per-contest delivery counts, failed sends, config footprint — in one response. A contest's players are its board count, one board per fan per contest — the number Games & Contests shows, read with one aggregate across every contest; the stored `numberParticipants` is never incremented and is not read ([`admin-contests.spec.md`](admin-contests.spec.md), Rule 4). The drill-in reads "N players". The existing `GET /admin/tenants` chooser read stays deliberately names-only; the five scoped screens keep using it.
 
 ### Create tenant (`POST /admin/tenants`)
 
@@ -127,7 +127,7 @@ All six authorize on **user-level obs staff-ness**, whatever organization the ca
 | POST | `/admin/fan-actions/export` | requireAdminReverified | obs staff only |
 | POST | `/admin/contests/:contestId/finalize` | requireAdminReverified | obs staff only, `?tenant=` required |
 
-**`GET /admin/tenants/directory` returns** every tenant with `fanCount`, config counts, `failedSendCount`, and `contests[]` (derived status, `finalized`, game/tier counts, per-status delivery counts).
+**`GET /admin/tenants/directory` returns** every tenant with `fanCount`, config counts, `failedSendCount`, and `contests[]` (derived status, `finalized`, game/tier counts, players — the board count, carried in the `numberParticipants` wire field — and per-status delivery counts).
 
 **`POST /admin/tenants` takes** `{ subdomain, name, authVariant?, firstAdminEmail }` and returns 201 `{ tenant, clerkOrganizationId, invitation: { email, role: "org:admin", status: "sent"|"failed", message? } }`; 400 malformed/reserved, 409 duplicate or Clerk refusal, 500 with rollback (or the orphaned org id) on partial failure.
 
