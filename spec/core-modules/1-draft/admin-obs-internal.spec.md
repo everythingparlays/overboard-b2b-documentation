@@ -19,7 +19,7 @@ The operator-facing section of the admin console: the four OBS Internal screens 
 **Not in scope:**
 
 - **An error-tracking service.** `OBS-01`–`OBS-03` need error events with tenant attribution and alerting; nothing in the stack collects them. The Platform health screen renders no error-rate tile and no note about one — neither an invented number nor an explanation of its absence. Recorded gap (superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md); this previously required the screen to say so on its face).
-- **Retry or resend of failed prize sends.** `PRIZE-07` wants failures "resolved or resent"; the only retry that exists is SQS's own redrive, exhausted before a row ever reads `failed`. The Delivery queue is visibility-only: it ships **no resend control and no note explaining that there isn't one**. A resend control without a resend mechanism would be a button that lies; a caption about the missing button is the screen narrating its own roadmap. Recorded gap.
+- ~~**Retry or resend of failed prize sends.**~~ *Now in scope — superseded 2026-09-23 by [`prize-delivery.spec.md`](prize-delivery.spec.md) "Resend": the Delivery queue resends failed sends, singly or in bulk, optionally to a corrected address, reverification-gated and audited (`prize_resend`). This previously shipped the screen visibility-only, because no resend mechanism existed and a button with nothing behind it would have lied.*
 - **Coupon-code batches.** `PRIZE-05`/`PRIZE-06` code tracking has no model (the games/prizes spec already records the missing sponsor model); the queue cannot show code exhaustion. Recorded gap.
 - **Deferred prize sends on finalization.** The PRD itself scopes this out: finalization "is what will trigger deferred prize sends **when PRIZE-02 is built**". V1 finalization persists the state and the audit record — it dispatches nothing, and fakes nothing. Recorded gap.
 - ~~**Tenant offboarding.** Deleting a production tenant is a legal-and-data question, not a screen.~~ **Superseded 2026-09-15 (ruling, Arthur):** offboarding *is* a screen — suspend, rename, and delete ship as the tenant lifecycle module, with delete behind reverification and a server-checked typed confirmation. See [`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md); the dev script survives as developer tooling only.
@@ -94,7 +94,7 @@ Two adjacent facts, recorded with it: the SQS dead-letter queues and their ≥1-
 
 *Superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md) (Rule 13): this previously required legacy rows to render an "—" placeholder. A dash is a caption saying "we don't have this", which is narration; the empty cell says the same thing without claiming the screen owes the reader an explanation.*
 
-Visibility-only, and **not stated on the screen**: resolution is manual in V1, which the operator learns from the absence of any resolve control, not from a line of copy about it. See Not-in-scope for why there is no retry button. (Superseded 2026-09-22 by the omission principle — this previously required the limitation to be stated on screen.)
+**Resend** (superseded 2026-09-23 by [`prize-delivery.spec.md`](prize-delivery.spec.md)): each failed row carries a Resend action — to the fan's account email or, for one row at a time, a corrected address — and rows can be selected for a bulk resend. A resent row stays on the list reading "Resending" until the worker reports back. The action is OBS-only, reverification-gated, audited before it changes anything, and conditional on the row's resend count, so it cannot send one prize twice. (This screen was previously visibility-only, and before 2026-09-22 was required to say so on screen.)
 
 ---
 
@@ -123,6 +123,7 @@ All six authorize on **user-level obs staff-ness**, whatever organization the ca
 | POST | `/admin/tenants` | requireAdmin | obs staff only |
 | GET | `/admin/platform-health` | requireAdmin | obs staff only |
 | GET | `/admin/delivery-queue` | requireAdmin | obs staff only |
+| POST | `/admin/delivery-queue/resend` | requireAdminReverified | obs staff only (see [`prize-delivery.spec.md`](prize-delivery.spec.md)) |
 | POST | `/admin/fan-actions/export` | requireAdminReverified | obs staff only |
 | POST | `/admin/contests/:contestId/finalize` | requireAdminReverified | obs staff only, `?tenant=` required |
 
@@ -160,8 +161,8 @@ All six are obs-only, on user-level obs staff-ness. On the future Clerk-permissi
 - **Error tracking (`OBS-01`–`OBS-03`)**: no error-capture substrate exists in either repo; per-tenant error rates, spike alerting and PII-stripped capture all need it. Platform health ships neither a number nor a gap card — the tile is simply absent until the substrate exists (superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md); the gap card is deleted). Three of §14.2's four criteria are unmet.
 - **Alert recipient**: the DLQ CloudWatch alarms publish to SNS with no subscriber (`dlqAlertPhoneNumber` unset). `OBS-03`'s "defined recipient" does not exist yet.
 - **SQS DLQ depth**: not surfaced in-app; the queue screen reads Mongo `failed` rows, which is the durable superset but not the queue itself.
-- **Retry/resend (`PRIZE-07` second half)**: no mechanism; visibility-only, and not stated on-screen — the screen carries no resend control and no note about lacking one (superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md)).
-- **Coupon-code batches (`PRIZE-05`/`PRIZE-06`)**: no model; exhaustion and duplicate-assignment tracking cannot be shown.
+- ~~**Retry/resend (`PRIZE-07` second half)**~~: closed 2026-09-23 — see [`prize-delivery.spec.md`](prize-delivery.spec.md) "Resend".
+- **Coupon-code batches (`PRIZE-05`/`PRIZE-06`)**: no model; exhaustion and duplicate-assignment tracking cannot be shown. Deferred deliberately; seam in [`prize-delivery.spec.md`](prize-delivery.spec.md) "Codes".
 - **Deferred sends on finalize (`PRIZE-02`)**: unbuilt; finalization is state + audit only.
 - **Fan-actions telemetry**: tile interactions, near-misses, session activity unrecorded; export limited to join/board/prize events.
 - **`failureReason` is forward-only**: rows failed before the worker change have no reason, and their cell renders empty — no "—" and no explanatory caption (superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md)).
