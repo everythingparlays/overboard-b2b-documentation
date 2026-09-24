@@ -4,7 +4,7 @@
 
 **Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — the organization topology, the two-role V1 model, the three-tier provisioning ladder and its delegation boundary, the `/team` nav destination, and the reverification list. [`admin-fans.spec.md`](admin-fans.spec.md) — the `useReverification` client precedent (the server-side middleware defined there is *not* used by this module; see "No endpoints").
 
-**Status:** Draft.
+**Status:** Draft. Revised 2026-09-24 on `arthur-g1-console` — see "Revision 2026-09-24", which wins wherever it and an older section disagree.
 
 ## Overview
 
@@ -21,6 +21,46 @@ The Team screen at `/team`: who can administer this organization, and the invite
 - **A last-admin guard.** `admin-surface.spec.md` settles this: "Last-admin removal is unguarded [P2] (decision, 2026-09)." The screen surfaces Clerk's outcome and does not pre-empt it. Building the guard here would contradict an accepted decision and re-implement a boundary we deliberately delegate.
 - **Custom roles.** V1 has exactly `org:admin` and `org:member` (admin-surface, "Roles and permissions"). The role picker offers those two and is not a general role editor.
 - **MFA enrollment status and last sign-in per member.** Both appear in the mock; neither is reachable. See "What the mock asks for that Clerk's client cannot give".
+
+
+## Revision 2026-09-24 — Team shows the chosen workspace, with staff extras
+
+Arthur's walkthrough ruling: "The Team page always shows the tenant **selected in the switcher**, with staff-only extras. Today it wrongly shows the staff org for staff." That reverses this spec's "OBS sees its own org, and ignores the tenant selection" and narrows D-061. This section wins wherever an older one disagrees.
+
+**Two sources, one screen.**
+
+| Who is looking | Whose team | Source |
+|---|---|---|
+| A workspace user | Their active workspace (which the switcher already sets) | Clerk's client APIs, as before — unchanged boundary, unchanged permission check |
+| Staff with a workspace chosen | **That workspace's team** | Staff-only endpoints backed by Clerk's server API (below). Staff are not members of the tenant's Clerk organization, so the client APIs cannot reach it. |
+| Staff with no workspace chosen | The Overboard staff organization | Clerk's client APIs, as before |
+
+Why the narrowing is safe: the endpoints are **staff-only**, enforced server-side by the user-level staff check (D-064), and take the tenant from `?tenant=` exactly like every other staff read. A workspace user still never names an organization, and their own team still goes through Clerk alone, so D-061's reason — not re-implementing Clerk's delegation boundary for tenant admins — stands.
+
+**No silent cap.** Members and pending invitations both load page by page as the reader scrolls (admin-lists.spec.md) with a real total, through Clerk's infinite pages on the client path and offset-in-cursor paging on the staff path. The 20-member ceiling is gone.
+
+**Staff extras on a workspace's Team:**
+- **Invite** an admin or member into that workspace.
+- **Re-invite the first admin.** When the workspace has no admin who has signed in, a staff-only card names the most recent admin invitation (pending, expired or revoked) and offers **Send a new invitation** — revoking a still-pending one first, so there is only ever one live link. With no invitation on record it offers the invite form pre-set to Admin.
+- **Resend** or **revoke** any pending invitation.
+- Change a member's role or remove them — the same controls a workspace admin has, with the same confirmations.
+- "Overboard staff" on a member row comes from the server's staff flag (`isObsStaff` on the row), not from an email domain.
+
+**Endpoints (staff only, all `?tenant=` required):**
+
+| Method | Path | |
+|---|---|---|
+| GET | `/admin/team/members` | Paged (`cursor`, `limit`, `q`, `role`). Rows: `{ membershipId, userId, name, email, role, joinedAt, isObsStaff }`. |
+| GET | `/admin/team/invitations` | Paged; pending plus the latest non-pending admin invitation, each `{ invitationId, email, role, status, createdAt }`. |
+| POST | `/admin/team/invitations` | `{ email, role }`. |
+| POST | `/admin/team/invitations/:invitationId/resend` | Revokes a pending invitation and sends a fresh one to the same address and role. |
+| DELETE | `/admin/team/invitations/:invitationId` | Revoke. |
+| PATCH | `/admin/team/members/:membershipId` | `{ role }`. |
+| DELETE | `/admin/team/members/:membershipId` | Remove — reverification required, as on the client path. |
+
+Every write is audited (`team_invite`, `team_invite_revoke`, `team_role_change`, `team_member_remove`), with ids and roles only — never an email in `detail`.
+
+**Invitation redirect.** Staff-sent invitations use the same redirect URL the Create-tenant flow uses, so the invitee lands on the console's sign-up.
 
 ---
 
