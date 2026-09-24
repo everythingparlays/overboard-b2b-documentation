@@ -66,7 +66,7 @@ All three are now enforced at the two fan entry points, with fan-facing copy tha
 
 The one-board-per-fan 409 keeps its existing place *before* these checks, so a fan who already holds a board is still sent to it whatever state the contest is in.
 
-**Deploy note (production).** Enforcing the player limit is new behaviour on existing data. Every contest stored before this change carries some `maxParticipants` value that was never enforced; if a live contest's stored limit is below its real board count, new joins stop on deploy. Before merging to production, check each live contest's `maxParticipants` against its board count and set it to `0` (no limit) where it was never meant as a cap. The console now shows "412 of 100 players" for such a contest, so it is visible, but it should not be found that way.
+**Deploy note (production).** Enforcing visibility, entries and the player limit is new behaviour on existing data: all three were stored and never enforced. Before merging to production, check every live contest for (a) `showContest: false` — it disappears from fans on deploy, (b) `closed: true` — it stops taking joins, and (c) a `maxParticipants` below its real board count — new joins stop. Fix the ones that were never meant that way (`showContest: true`, `closed: false`, `maxParticipants: 0` for no limit). The console now shows each of these states plainly, but they should not be found that way.
 
 ---
 
@@ -89,7 +89,7 @@ Body: `{ contestName, contestDescription?, betEventIds?, maxParticipants?, visib
 Body: any of `{ contestName, contestDescription, maxParticipants, visible, closed }`, plus the `expectedUpdatedAt` precondition shared with the games and tiers PUTs. Only present keys change; `contestDescription: null` or `""` clears the note. An empty edit is a 400.
 
 - `:contestId` must belong to the target tenant → 404 otherwise (games spec Rule 1).
-- **A finalized contest refuses every edit** → 409 "This contest is finalized, so its settings can't change." Finalization is permanent; editing the settings of a settled contest would rewrite what fans played under.
+- **A finalized contest refuses every edit** → 409 "This contest is finalized, so its settings can't change." Finalization is permanent; editing the settings of a settled contest would rewrite what fans played under. "Not finalized" is part of the write filter itself, not only a check before it, so a finalization landing between the load and the write cannot be overwritten — even by a caller that sent no precondition. The games PUT gets the same guard: which games a settled contest ran at is part of what was settled, and the Games screen shows a finalized contest's games as state, with no toggles.
 - Name uniqueness as for create, excluding the contest itself.
 - Lowering the player limit below the current board count is allowed: nobody is removed, new joins simply stop. The console states the consequence before saving.
 - The precondition and the write are one filter (`preconditionFilter`), so a stale edit is refused with the shared 409 `stale_contest` and changes nothing.
@@ -192,6 +192,7 @@ The shared dev database (`obs-b2b-dev`, `arthur_` prefix) carried stale contests
 - **The stored `numberParticipants` is dead data.** It is left in place (other readers — the All-tenants directory — still show it and should move to the board count too).
 - **No contest delete** — see Not in scope.
 - **Difficulty read-out** from past boards — see "The difficulty knob".
+- **Name uniqueness is check-then-write.** Two creates or renames to the same name in the same instant can both succeed. The fix, if it ever matters, is a normalized-name field with a unique `{organizationId, key}` index turning the duplicate into the same 409; at console volumes it has not been worth a model change.
 - **Player-limit enforcement is count-then-insert**, not transactional: two fans joining in the same instant at the last free place can both get in. At V1 volumes and caps this overshoots by a board at most; an atomic slot counter is the fix if a sponsor ever needs a hard cap.
 
 ## References
