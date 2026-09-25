@@ -399,7 +399,7 @@ A fan entering a bad email address is not OBS's fault, but accumulated bounces a
 ### 11.1 Requirements
 
 **RPT-01 [V1] — "Who played" export (sponsor-facing).**
-Per game, a roster of fans who participated. Includes at minimum: fan identity/contact fields, game date, and the players/props each fan picked. Delivered as a raw file export (CSV).
+Per game, a roster of fans who participated. Includes at minimum: fan identity/contact fields and the game date. The players/props each fan picked are **not** included (decision, 2026-09-21): gameplay content is not what the DPA buys, and a sponsor roster does not need it. Delivered as a raw file export (CSV).
 
 **RPT-02 [V1] — Detailed fan-actions export (internal only).**
 Granular event-level activity log — tile interactions, near-misses, session activity — for OBS product analysis. Not shared with teams or sponsors.
