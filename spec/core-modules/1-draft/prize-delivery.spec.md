@@ -174,6 +174,10 @@ Transient failures retry through SQS redrive only when the error proves nothing 
 
 ---
 
+### The tier snapshot (2026-09-24)
+
+The worker no longer reads a win's tier at send time. When it first handles a win it copies the paying tier onto the redemption row (`tierSnapshot`, conditional, before any claim), and every send of that win — the original and every resend — renders from the copy. Editing or removing the tier afterwards changes nothing for a fan who has already won. The delivery method comes from the snapshot too, falling back to the same tier's current method only when the snapshotted one is no longer available (the operator's fix). Full rules: [`contest-safety.spec.md`](contest-safety.spec.md), "The prize snapshot".
+
 ## Resend
 
 `PRIZE-07`: failed sends are "reviewable so they can be resolved or resent". The Delivery queue now resolves them.

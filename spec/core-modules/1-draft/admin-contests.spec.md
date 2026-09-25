@@ -25,7 +25,7 @@ Until this spec, no path anywhere created a contest. The only writer was a devel
 **Not in scope:**
 
 - **Deleting a contest.** Boards, prize redemptions and audit rows reference a contest by id, and a redemption is the record that a fan won something (games spec Rule 6). A contest an operator is done with is **hidden and closed**, which removes it from fans and stops joins while keeping its history. A real delete is a teardown with the same shape as fan deletion and belongs with it, if it is ever needed.
-- **Finalization.** Unchanged: OBS-only, permanent, in OBS Internal (games spec, "Where finalization lives"). Nothing here sets `finalized`, and a finalized contest refuses every edit.
+- **Finalization.** OBS-only and permanent. Since the 2026-09-24 ruling, Overboard staff also get **Finalize** in the contest drawer once every game has ended, with the tenant record's typed-name confirmation and reverification ([`admin-surface.spec.md`](admin-surface.spec.md), staff extras). It never renders for a workspace user. Nothing else here sets `finalized`, and a finalized contest refuses every edit.
 - **Prize tiers.** Owned by `/prizes`. The contest detail drawer *shows* the contest's tiers and links there; it never edits them.
 - **A second game.** Only the groundwork below.
 
@@ -136,7 +136,7 @@ Each contest card's header carries a **Settings** button (every role — members
 - **Entries** — *Close entries* / *Reopen entries* as its own immediate action, because it is an operational switch rather than an edit of the contest's description.
 - **Prize tiers** — the contest's tiers, read from `GET /admin/prizes` (name, bingos to win, approximate value when stated), with a link to Prizes on this contest. None → the Incomplete line and the link.
 - **Sponsors** — who is placed at this contest, each by name with where it runs: "Every game" for a contest-wide placement, else "N games". Contest-wide sponsors first, then the rest, each group by name. The link "Edit on Sponsors & Branding" goes to the schedule; with nobody placed the section says "No sponsor is placed at this contest." and the link reads "Place sponsors on Sponsors & Branding". Read-only here — placements are edited only on the Sponsors tab ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)).
-- **Finalized** contests render the whole drawer read-only with a *Finalized* badge; nothing on it links to finalization (games spec).
+- **Finalized** contests render the whole drawer read-only with a *Finalized* badge. Before that, staff see **Finalize** in the drawer once every game has ended; workspace users never do.
 - **View-only** (`org:member`) gets the same layout with static values in place of controls — the Fields & Opt-ins presentation, reused.
 
 The per-game drawer's "In this contest" toggle and the table's toggles are unchanged.
@@ -194,10 +194,11 @@ The shared dev database (`obs-b2b-dev`, `arthur_` prefix) carried stale contests
 7. **`ranAtBetEvents` only grows.** Every writer that adds to `allowedBetEvents` adds to it; nothing removes from it; readers go through `ranAtBetEventIds`.
 8. **Game type is a contest property**, read through `contestGameType`; bingo-only code checks it.
 9. **Contests are not deleted from the console** — hidden and closed instead.
+10. **A contest locks when its first fan joins** ([`contest-safety.spec.md`](contest-safety.spec.md)). Name, description, visibility, entries, the player limit and adding games stay editable; removing games, the contest type, board rules, bingos to win and removing or lowering prize tiers lock. Locked controls read as values with one plain line saying why.
 
 ## Known gaps (recorded, not blocking)
 
-- **Multi-entry** (`maxEntriesPerPerson > 1`) needs fan-app support for several boards per contest before it can be offered.
+- **Multi-entry** (`maxEntriesPerPerson > 1`) needs fan-app support for several boards per contest before it can be offered, and a change to the one-board-per-fan unique index ([`contest-safety.spec.md`](contest-safety.spec.md)).
 - **The contest note is console-only.** If fans should see a contest description, the fan app needs a place for it, and the field's label changes with it.
 - **The stored `numberParticipants` is dead data.** It is left in place, and since 2026-09-23 nothing reads it: the All tenants directory, its last reader, counts players from boards too.
 - **No contest delete** — see Not in scope.

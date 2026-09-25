@@ -210,22 +210,24 @@ One nav structure, three sections. Same screens for both actor classes (`ADM-01`
 | Section | Destination | Route | Implements |
 |---|---|---|---|
 | Workspace | Overview | `/` | `ADM-06`, `ADM-07` (games, KPIs, reporting surfaced on one screen) |
+| | Game day | `/live` | `OBS-04`, `OBS-05` — [`admin-game-day.spec.md`](admin-game-day.spec.md) |
+| | Schedule | `/schedule` | The workspace's season, and All games — [`admin-schedule.spec.md`](admin-schedule.spec.md) |
 | | Games & Contests | `/games` | `ADM-04`, `BRAND-02`, `GAME-01`–`GAME-04` — [`admin-games-and-prizes.spec.md`](admin-games-and-prizes.spec.md), contest lifecycle in [`admin-contests.spec.md`](admin-contests.spec.md) |
 | | Prizes | `/prizes` | `ADM-04`, `PRIZE-05`–`PRIZE-07` |
 | | Fans | `/fans` | `RPT-02` view, scoped — not the export itself |
 | | Exports | `/exports` | `ADM-07`, `RPT-01`–`RPT-06` |
-| | Game day | `/live` | `OBS-04`, `OBS-05` — [`admin-game-day.spec.md`](admin-game-day.spec.md) |
+| | Support | `/support`, `/support/:reportId` | The workspace's reports and their threads — [`admin-support.spec.md`](admin-support.spec.md) |
 | Configuration | Fields & Opt-ins | `/config` | `ADM-05`, `AUTH-02`, `OPT-01`–`OPT-05` |
 | | Sponsors & Branding | `/branding/sponsors`, `/branding` | `BRAND-01`–`BRAND-04`, `TEN-04` — [`admin-sponsors.spec.md`](admin-sponsors.spec.md) (Sponsors tab), [`admin-branding.spec.md`](admin-branding.spec.md) (Brand tab, `THEME-03`–`THEME-23`) |
-| | Team | `/team` | Org membership — invite/remove within the caller's own org (see "Provisioning and delegation") |
+| | Team | `/team` | The chosen workspace's membership; staff extras per [`admin-team.spec.md`](admin-team.spec.md) (revision 2026-09-24) |
 | OBS Internal | Operations | `/operations` | The staff home — [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) |
 | | All tenants | `/tenants` | Cross-tenant tenant list/switcher target |
 | | All contests | `/contests` | [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) |
-| | Season calendar | `/schedule` | `OBS-04` at planning horizon — [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) |
+| | Season calendar | `/season` | `OBS-04` at planning horizon — [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md), [`admin-schedule.spec.md`](admin-schedule.spec.md) |
 | | Platform health | `/platform-health` | `OBS-01`–`OBS-05` |
 | | Delivery queue | `/delivery-queue` | `PRIZE-06`/`PRIZE-07` dead-letter visibility |
 | | Fan actions | `/fan-actions` | `RPT-02`, `org:fan_data:export` |
-| | Support inbox | `/support` | [`admin-support.spec.md`](admin-support.spec.md) — rendered as Your reports for a workspace's own users; not in their nav |
+| | Support inbox | `/inbox` | [`admin-support.spec.md`](admin-support.spec.md) — every workspace's reports; rows open `/support/:reportId` |
 
 Not in the nav, reached from a game: **Game recap** (`/recap`, [`admin-sponsor-recap.spec.md`](admin-sponsor-recap.spec.md)). An Overboard staffer with no tenant chosen lands on Operations rather than on Overview's "Pick a tenant" card.
 
@@ -238,6 +240,52 @@ Not in the nav, reached from a game: **Game recap** (`/recap`, [`admin-sponsor-r
 **The "Pick a tenant" empty states stay** as the fallback for a deep link that arrives with no tenant chosen. Hiding a nav section does not make its routes unreachable, and a bookmarked URL must land somewhere honest.
 
 ---
+
+## Hues (ruling, 2026-09-24)
+
+Arthur's walkthrough ruling: every sidebar destination gets a hue, shown as a thin bar on its **right edge**, so icons and text never shift; in-page coloured sections use the Overview KPI tile's top-wrapping outline, never little squares; **visible to everyone**, not a staff toggle. This supersedes D-067's "Signal wayfinding" overlay as an opt-in axis: hues are now part of the default console, and the "Hues" control leaves the staff "Console look" switcher (the Display control stays).
+
+**One hue per family, every destination in a family.** Alarm red stays exclusively status; no hue is red. Every hue clears 4.5:1 on the card surface.
+
+| Family | Destinations |
+|---|---|
+| Home | Overview |
+| Live | Game day, Operations |
+| Games | Schedule, Games & Contests, All contests, Season calendar |
+| Prizes | Prizes, Delivery queue |
+| Fans | Fans, Fan actions |
+| Consents | Fields & Opt-ins, Exports |
+| Brand | Sponsors & Branding |
+| People | Team, All tenants |
+| Support | Support, Support inbox |
+| Health | Platform health |
+
+**Placement.**
+1. **Sidebar:** a 3px bar inside the item's right edge, rounded, full item height minus the item's vertical padding. Resting at reduced strength, full strength on hover and on the active item. Absolutely positioned — the item's icon, label and badge never move, and the active item's existing left bar is untouched.
+2. **In-page sections about one family:** the KPI tile's 2px top-wrapping inset outline (`KpiTile`), applied to any `Card` given `entity=`. The 6px square before card titles is removed everywhere.
+3. **Chart series:** unchanged.
+
+Nothing else takes a hue: not status pills, text, numbers, buttons, or tables.
+
+## Staff extras (sweep, 2026-09-24)
+
+"Identity is per user, not per screen": when staff have a workspace chosen, that workspace's screens show staff-only extras. Every workspace screen was swept on 2026-09-24. What each one now offers staff, beyond what the workspace's own people see:
+
+| Screen | Staff extra |
+|---|---|
+| Shell | **The paused banner follows the chosen workspace**, not the session's active organization: staff choosing a paused workspace see it, worded for staff ("Fans can't play right now. Resume it from the tenant record." with a link). Previously staff never saw it. |
+| Overview | A staff strip: the workspace's status (live / paused), its subdomain, links to its Team and Support, and **Open tenant record** (or **Resume from the tenant record** when paused); "Needs attention → failed sends" opens the Delivery queue already filtered to this workspace. |
+| Game day | As before (cross-workspace live strip, raw failure reasons); the Finalize shortcut now opens Games & Contests, where the contest drawer carries Finalize; the failed-sends readiness row opens the Delivery queue filtered to this workspace. |
+| Schedule | "All games" marks which games any workspace runs (admin-schedule.spec.md). |
+| Games & Contests | **Finalize** in the contest drawer once every game has ended — the same typed-name confirmation and reverification as the tenant record. (The redesign's banner cards carry it next.) |
+| Prizes | As before (Delivery queue link), now filtered to this workspace. |
+| Fans | As before (Delete fan); the fan drawer's prize list shows **why a delivery failed**, as Game day does. |
+| Exports | **Fan actions for this workspace** — a link that opens Fan actions pre-set to it. |
+| Team | **The chosen workspace's team**, with invite, **re-invite the first admin**, resend/revoke invitations, role changes and removal (admin-team.spec.md). |
+| Support | The workspace's reports **including internal ones**, with the triage panel on each report (admin-support.spec.md). The inbox gains a workspace filter. |
+| Operations | "Failed sends" rows open the Delivery queue filtered to that workspace, as the spec always said; "ready to finalize" and "paused" rows open that workspace's tenant record directly. |
+
+Identity checks are tidied to the user-level flag everywhere: the paused banner, and Team's "Overboard staff" row label (which used an email domain).
 
 ## Principles
 

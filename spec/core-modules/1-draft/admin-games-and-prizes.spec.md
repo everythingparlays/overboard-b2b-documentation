@@ -75,7 +75,7 @@ The delivery method (`handlerId`) is chosen from a dropdown fed by the delivery-
 2. **It is irreversible and requires reverification** (`IDN-13`). The admin-surface spec lists finalizing a contest beside exporting fan data and deleting a fan's data. Those live in OBS Internal (`/fan-actions`). An action that triggers real, unrecallable prize sends belongs with its peers behind the same reverification affordance, not one click from a config toggle.
 3. **Its blast radius is platform-wide, not tenant-wide** (`PRIZE-06`). A failed send degrades sender reputation for every tenant. The admin-surface spec's own test — "whose mistake does it become?" — puts it with OBS.
 
-If a finalize affordance appears on these screens in a later mock, it must not render for tenant scope, and it should be a *link* to the OBS Internal surface rather than the control itself. The screens do show `finalized` as a status badge: tenants **view** contest state, OBS **operates** finalization.
+**Superseded for staff by the 2026-09-24 ruling:** Overboard staff get Finalize on the contest itself (today the contest drawer on Games & Contests, next the contest page and All contests rows), with the same typed-name confirmation and reverification as the tenant record. It still never renders for tenant scope. The screens do show `finalized` as a status badge: tenants **view** contest state, OBS **operates** finalization.
 
 ---
 
@@ -137,7 +137,9 @@ Both writes respond with the updated contest plus a `changes` summary, matching 
 6. **Removing a prize tier never deletes `PrizeRedemption` records.**
 7. **Finalization is not on these screens** and no control here sets `finalized`.
 8. **No list endpoint hides a contest by its status.** `closed` and `finalized` are reported, never filtered on — a contest an operator can no longer see is a contest they cannot fix.
-9. **Turning a game off is reversible.** The candidate window is bounded on both sides, and a games write returns the ids it disabled so they stay togglable. No admin action may leave a contest with no games and no way to add one back.
+9. **Turning a game off is reversible** — until the contest locks. The candidate window is bounded on both sides, and a games write returns the ids it disabled so they stay togglable. No admin action may leave a contest with no games and no way to add one back.
+10. **Once a fan has joined, the contest locks** ([`contest-safety.spec.md`](contest-safety.spec.md)): games can be added but not removed, and prize tiers can be added and reworded but not removed, re-counted (bingos to win) or lowered in value. The server refuses with `409 contest_locked`; the screens show the locked parts read-only with the reason.
+11. **The tiers PUT refuses a finalized contest**, like every other contest write.
 
 ---
 
