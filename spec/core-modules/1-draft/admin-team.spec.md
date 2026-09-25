@@ -4,7 +4,7 @@
 
 **Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — the organization topology, the two-role V1 model, the three-tier provisioning ladder and its delegation boundary, the `/team` nav destination, and the reverification list. [`admin-fans.spec.md`](admin-fans.spec.md) — the `useReverification` client precedent (the server-side middleware defined there is *not* used by this module; see "No endpoints").
 
-**Status:** Draft.
+**Status:** Draft. Revised 2026-09-24 on `arthur-g1-console` — see "Revision 2026-09-24", which wins wherever it and an older section disagree.
 
 ## Overview
 
@@ -21,6 +21,48 @@ The Team screen at `/team`: who can administer this organization, and the invite
 - **A last-admin guard.** `admin-surface.spec.md` settles this: "Last-admin removal is unguarded [P2] (decision, 2026-09)." The screen surfaces Clerk's outcome and does not pre-empt it. Building the guard here would contradict an accepted decision and re-implement a boundary we deliberately delegate.
 - **Custom roles.** V1 has exactly `org:admin` and `org:member` (admin-surface, "Roles and permissions"). The role picker offers those two and is not a general role editor.
 - **MFA enrollment status and last sign-in per member.** Both appear in the mock; neither is reachable. See "What the mock asks for that Clerk's client cannot give".
+
+
+## Revision 2026-09-24 — Team shows the chosen workspace, with staff extras
+
+Arthur's walkthrough ruling: "The Team page always shows the tenant **selected in the switcher**, with staff-only extras. Today it wrongly shows the staff org for staff." That reverses this spec's "OBS sees its own org, and ignores the tenant selection" and narrows D-061. This section wins wherever an older one disagrees.
+
+**Two sources, one screen.**
+
+| Who is looking | Whose team | Source |
+|---|---|---|
+| A workspace user | Their active workspace (which the switcher already sets) | Clerk's client APIs, as before — unchanged boundary, unchanged permission check |
+| Staff with a workspace chosen | **That workspace's team** | Staff-only endpoints backed by Clerk's server API (below). Staff are not members of the tenant's Clerk organization, so the client APIs cannot reach it. |
+| Staff with no workspace chosen | The Overboard staff organization | Clerk's client APIs, as before |
+
+Why the narrowing is safe: the endpoints are **staff-only**, enforced server-side by the user-level staff check (D-064), and take the tenant from `?tenant=` exactly like every other staff read. A workspace user still never names an organization, and their own team still goes through Clerk alone, so D-061's reason — not re-implementing Clerk's delegation boundary for tenant admins — stands.
+
+**No silent cap.** Members and pending invitations both load page by page as the reader scrolls (admin-lists.spec.md) with a real total, through Clerk's infinite pages on the client path and offset-in-cursor paging on the staff path. The 20-member ceiling is gone.
+
+**Staff extras on a workspace's Team:**
+- **Invite** an admin or member into that workspace.
+- **Re-invite the first admin.** When the workspace has no admin who has signed in, a staff-only card names the most recent admin invitation (pending, expired or revoked) and offers **Send a new invitation** — revoking a still-pending one first, so there is only ever one live link. With no invitation on record it offers the invite form pre-set to Admin.
+- **Resend** or **revoke** any pending invitation.
+- Change a member's role or remove them — the same controls a workspace admin has, with the same confirmations.
+- "Overboard staff" on a member row comes from the server's staff flag (`isObsStaff` on the row), not from an email domain. On the client path a workspace user's session cannot read that flag for other people, so there the row uses the company email domain as a presentation hint (it labels the row and withholds its buttons; Clerk and the server still decide every write), and the viewer's own row uses the server's flag.
+
+**Endpoints (staff only, all `?tenant=` required):**
+
+| Method | Path | |
+|---|---|---|
+| GET | `/admin/team/members` | Paged (`cursor`, `limit`, `q`, `role`). Rows: `{ membershipId, userId, name, email, role, joinedAt, isObsStaff }`. |
+| GET | `/admin/team/invitations` | Paged pending invitations, each `{ invitationId, email, role, status, createdAt, expiresAt }`; beside the page, `adminCount` and `latestAdminInvitation` (whatever its status) for the first-admin card, so the list's total stays true. An out-of-date invitation Clerk still calls pending reads `expired`. |
+| POST | `/admin/team/invitations` | `{ email, role }`. |
+| POST | `/admin/team/invitations/:invitationId/resend` | Revokes a pending invitation and sends a fresh one to the same address and role. |
+| DELETE | `/admin/team/invitations/:invitationId` | Revoke. |
+| PATCH | `/admin/team/members/:userId` | `{ role }`. Keyed on the user, because Clerk's server API changes and removes a membership by organization and user. |
+| DELETE | `/admin/team/members/:userId` | Remove — reverification required, as on the client path. |
+
+Every write is audited (`team_invite`, `team_invite_revoke`, `team_role_change`, `team_member_remove`), with ids and roles only — never an email in `detail`.
+
+**Invitation redirect.** Staff-sent invitations pass no redirect URL, exactly like the Create-tenant flow's first-admin invitation, so both land on the console the same way.
+
+**Search on the client path.** Clerk's client organization API searches its own members (`query`), so the workspace's own Team page searches on Clerk too — never over the loaded rows.
 
 ---
 
@@ -47,7 +89,7 @@ So the screen calls Clerk from the browser:
 | Need | Clerk client API |
 |---|---|
 | Member list | `useOrganization({ memberships: … })` → `OrganizationMembershipResource[]` |
-| Pending invitations | `useOrganization({ invitations: { status: ["pending"] } })` |
+| Pending invitations | `useOrganization({ invitations: { status: ["pending"] } })` — asked for only when the caller may manage memberships (see "Permissions") |
 | Invite | `organization.inviteMember({ emailAddress, role })` |
 | Revoke invitation | `invitation.revoke()` |
 | Remove member | `membership.destroy()` |
@@ -134,7 +176,8 @@ This is the same mechanism as the other modules from the operator's side and a s
 
 | Control | Gate | Who holds it in V1 |
 |---|---|---|
-| View the member list | Clerk renders memberships to any member of the org | tenant `org:admin` + `org:member`; obs `org:admin` + `org:member` |
+| View the member list | Clerk renders memberships to any member of the org (`org:sys_memberships:read`, on both V1 roles) | tenant `org:admin` + `org:member`; obs `org:admin` + `org:member` |
+| View pending invitations | `org:sys_memberships:manage` — Clerk lists invitations to nobody else | `org:admin` only |
 | Invite admin | `has({ permission: "org:sys_memberships:manage" })` | `org:admin` only (Clerk's default role mapping) |
 | Remove member | same | `org:admin` only |
 | Change role | same | `org:admin` only |
@@ -144,11 +187,15 @@ This is the same mechanism as the other modules from the operator's side and a s
 
 **A tenant `org:member` sees the full screen and no mutating controls.** Not a truncated page and not a permission error — the member list is legitimately readable by any member, and `ADM-01` asks for one screen for both actor classes. The difference is which buttons exist, which is what the permission gate is for.
 
+**A member's screen never asks Clerk for pending invitations** (corrected 2026-09-23). Clerk lists an organization's invitations only to callers holding `org:sys_memberships:manage` and answers everyone else with a 403. The screen used to ask regardless, so every member's Team screen lost its member list to that refusal and showed Clerk's sentence in its place. The permission is now read first and the invitations are requested only when it is held; a member sees the members and no invitation rows. This depends on no Clerk dashboard setting: both V1 roles carry `org:sys_memberships:read` by Clerk's default, and invitations are simply not requested where they cannot be read. Should a role ever lack the read permission, the member list is left out rather than replaced by an error — there is nothing to retry and nothing honest to draw.
+
+**Clerk's own wording never reaches the screen** (`admin-surface.spec.md`, Rule 13). A failed load says the member list didn't load, in the console's words. A refused action shows a known outcome in plain words — the organization needs at least one admin, the person is already a member, the address is not valid, the organization has reached its member limit, only an admin can do that — and anything else says only that the action didn't happen.
+
 **The gate is read from Clerk, never inferred from our scope.** The screen does not reason "tenant scope, therefore admin"; it asks `has()` and renders the answer. A tenant `org:admin` and an obs `org:admin` take the same path through this screen, because the boundary that separates them is the active organization, not a branch in our code.
 
 ### Last-admin removal
 
-Unguarded, per `admin-surface.spec.md`'s recorded decision. If a tenant's only `org:admin` removes themselves or is removed, Clerk performs or refuses the operation on its own terms, and the screen shows that outcome — a success that empties the admin role, or Clerk's error message, whichever Clerk returns. We add no pre-flight count, no confirmation copy about being the last admin, and no disabled state derived from the roster.
+Unguarded, per `admin-surface.spec.md`'s recorded decision. If a tenant's only `org:admin` removes themselves or is removed, Clerk performs or refuses the operation on its own terms, and the screen shows that outcome — a success that empties the admin role, or Clerk's refusal, said in the console's words ("An organization needs at least one admin. Make someone else an admin first."). We add no pre-flight count, no confirmation copy about being the last admin, and no disabled state derived from the roster.
 
 This is a real decision with a real cost (recovery is OBS re-inviting), accepted knowingly. A guard here would also be the wrong shape twice over: it would be advisory only — Clerk's Dashboard and API remain open — and it would be our code adjudicating a membership rule, which is the boundary this module exists not to cross.
 
@@ -159,7 +206,7 @@ This is a real decision with a real cost (recovery is OBS re-inviting), accepted
 1. **No endpoint, no contract, and no collection for membership.** Clerk's client APIs, scoped to the session's active organization, are the implementation. A future `/admin/team*` route must first explain why `org:sys_memberships:manage` is insufficient.
 2. **The screen never names an organization.** No org id or slug is passed to any Clerk membership call, no tenant selection is read, no `?tenant=`, and nothing on this screen creates or renames an organization (`admin-surface.spec.md`, "Provisioning and delegation").
 3. **Every mutating control is gated on `has({ permission: "org:sys_memberships:manage" })`** — Clerk's answer, rendered; never a role string we compare ourselves, and never inferred from `adminScope`.
-4. **No last-admin guard** (`admin-surface.spec.md` decision, 2026-09). Clerk's outcome is displayed as returned.
+4. **No last-admin guard** (`admin-surface.spec.md` decision, 2026-09). Clerk's outcome is displayed as it happened, in the console's words, never Clerk's.
 5. **Removal and role change go through `useReverification`** (`IDN-13`); invitation does not.
 6. **Roles offered are exactly `org:admin` and `org:member`** — V1's two (`admin-surface.spec.md`, "Roles and permissions").
 7. **Per-member MFA state and last sign-in are not displayed**, because the client cannot see them and serving them means a Backend API read of other users' security attributes. The instance-wide MFA rule is stated once, in the banner.

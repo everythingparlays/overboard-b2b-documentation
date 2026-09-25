@@ -18,7 +18,7 @@ The landing screen, real: `mockOverview.ts` is deleted and every number on `/` n
 
 - **The Finalize button the mock draws on the live banner.** Settled: `PRIZE-03` finalization is obs-only and lives on OBS Internal's `/tenants` drill-in. Overview is the one screen both actor classes share; an obs-only irreversible control does not belong on it.
 - **A time-range selector.** The mock's "Last 1/3/5 games" ranges need per-game attribution windows the platform does not compute. Deltas are fixed 14-day windows from creation timestamps instead — spec wins over mock, as with the exports cadence line. Recorded gap.
-- **Signup conversion.** No entry-gate visit counting exists, so there is no denominator — the exports spec's recorded gap, inherited here. The tile renders an explicit "not measured yet" state; the wire value is `null`, never a number.
+- **Signup conversion.** No entry-gate visit counting exists, so there is no denominator — the exports spec's recorded gap, inherited here. The wire value is `null`, never a number, and **a `null` renders no tile at all**: the KPI row is one tile shorter until visit counting exists. *Superseded 2026-09-22 by the "Honesty by omission, not by narration" principle in [`admin-surface.spec.md`](admin-surface.spec.md) (Rule 13): this previously required an explicit on-screen "not measured yet" state. A tile whose only content is the reason it has no content is gap narration; the honest form is its absence, recorded here.*
 
 ---
 
@@ -52,14 +52,15 @@ Tenant users land on their own numbers with no parameter, as everywhere. An OBS 
 
 ## Rules
 
-1. **No number on Overview is fabricated.** A metric without a substrate ships as `null` and renders as a stated gap, never as a plausible value.
+1. **No number on Overview is fabricated, and no absence is narrated.** A metric without a substrate ships as `null` and renders **nothing** — not a plausible value, and not a tile explaining why the value is missing. The tile appears when the number is real (ruling 2026-09-22, admin-surface Rule 13; this previously required a `null` to render as a stated gap).
 2. **Failed-send counts come from the redemption rows** — the same source as `/delivery-queue` and Platform health.
 3. **Contest status is the derived status**, computed server-side once.
 4. **No finalize affordance on Overview.** The action is obs-only and lives on `/tenants` (admin-obs-internal).
+5. **Head actions follow the write rule.** "Export fans" is for everyone (Exports shows members its view-only presentation). "Enable games" is an edit, so it renders only for someone who can change contests (`useCanWrite`: Overboard staff, or the tenant's `org:admin` in an active workspace); a view-only member is not offered it (integration, 2026-09-23).
 
 ## Known gaps (recorded, not blocking)
 
-- **Signup conversion**: no entry-gate visit telemetry; `signupConversionPct` is `null` and the tile says why.
+- **Signup conversion**: no entry-gate visit telemetry; `signupConversionPct` is `null` and no tile renders (superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md) — the tile previously said why).
 - **Per-game time ranges**: the mock's range selector is dropped; deltas are fixed 14-day windows.
 - **Live-game detail**: no clock/quarter — the reference feed exposes lifecycle only.
 - **Code-batch attention item**: omitted; no code-batch model exists (`PRIZE-05`/`PRIZE-06`, recorded in the games/prizes spec).

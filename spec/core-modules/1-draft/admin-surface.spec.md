@@ -6,6 +6,10 @@
 
 **Revised 2026-09-16** (ruling, Nick) — tenant self-service ships now, OBS-ness is a property of the user rather than the active organization, and the console has one switcher. The sections marked with that date carry the change; nothing else in this spec moved.
 
+**Revised 2026-09-16** (ruling, Arthur) — a third principle, **Fan's-eye view**: where configuration reflects onto the fan app, the console shows the fan's view of it, rendered from the fan product's own code. Principles, Rule 12, and the reflect-point inventory carry the change.
+
+**Revised 2026-09-22** (ruling, Arthur) — a fourth principle, **Honesty by omission, not by narration**: the console never fabricates and never narrates its own gaps — an unmeasured stat gets no tile, an unwired feature gets no card, a real number gets no provenance caveat. Principles and Rule 13 carry the change, and it supersedes any requirement in a sibling spec to disclose a gap on screen.
+
 ## Overview
 
 The access framework for the internal/tenant admin application: who can sign in, what they can reach, and how the backend tells them apart from fans.
@@ -192,7 +196,7 @@ A **separate application and deployment** at `admin.overboardsports.com`, not a 
 The fan template is tenant-branded and deployed per tenant; admin is one deployment serving all tenants, with its own Clerk publishable key, its own theme, and an org switcher instead of tenant resolution. Sharing a bundle would ship admin code to every fan and put two Clerk instances in one page.
 
 - **One switcher, in the sidebar** (ruling, 2026-09-16). The console previously had two selectors — Clerk's `<OrganizationSwitcher>` in the sidebar for *who you are*, and an "Acting on tenant" pill in the top bar for *which tenant you act on*. Two controls for one question is one too many, and which of the two applied depended on whether the target happened to be an org you were a member of — an implementation detail from the operator's side. **The top-bar pill is removed and Clerk's switcher is replaced by a custom sidebar switcher.**
-- **What the switcher lists.** Every user sees their real Clerk organization memberships; selecting one calls Clerk's `setActive`, semantics unchanged. **OBS staff additionally see every tenant from `GET /admin/tenants`** — the DB tenant directory, which is the source of truth for what tenants exist. Selecting a tenant they hold a Clerk membership in switches the active org (`setActive`); selecting one they do not sets the internal acting-on context instead. **One deduped list**: a tenant that appears both as a membership and as a directory entry shows once, and the two cases look and feel identical. Which mechanism fires is ours to know, not the operator's to learn.
+- **What the switcher lists.** Every user sees their real Clerk organization memberships; selecting one calls Clerk's `setActive`, semantics unchanged. **OBS staff additionally see every tenant from `GET /admin/tenants`** — the DB tenant directory, which is the source of truth for what tenants exist. Selecting a tenant they hold a Clerk membership in switches the active org (`setActive`); selecting one they do not sets the internal acting-on context instead. **One deduped list**: a tenant that appears both as a membership and as a directory entry shows once, and the two cases look and feel identical. Which mechanism fires is ours to know, not the operator's to learn. **Pending invitations are listed too**, after the user's own organizations: choosing one accepts the invitation and switches to that organization, the same way picking a membership does, and a join that fails says so and leaves the user where they were. The switcher is the console's one place to accept an invitation — Clerk's sign-in step offers invitations only while no organization is active, and the active one survives sign-out, so without it a user invited to a second organization would stay locked into their first. The same reasoning decides who gets a switcher at all: a user with one organization and nowhere else to go sees it as a fixed card, and a pending invitation counts as somewhere else, so it earns the switcher in place of the card.
 - **The acting-on machinery stays as wiring; only its UI goes.** The `TenantContext` that held the console-wide choice is unchanged underneath — set once, applies to every per-tenant screen, survives routes and reloads, dropped at sign-out, reset when the stored slug no longer appears in `GET /admin/tenants`. It changes nothing about the wire: **every OBS request still names the tenant explicitly as `?tenant=<slug>`**, including when the operator is acting on their own active tenant org. Explicit, never implicit.
 - **"Create organization" appears for OBS staff only**, and routes to the console's own All-tenants Create-tenant flow (`POST /admin/tenants`, OBS Internal spec) — never Clerk's widget, which creates a Clerk org with no `B2BOrganization` behind it and breaks the synced-pair invariant. A non-obs user never sees the entry, and Rule 8 still stands: self-creation is disabled instance-wide, so the entry is a link to the one provisioning path rather than a second one.
 - **Cross-tenant screens are not filtered by the selection.** All tenants, Platform health and Delivery queue answer questions about the set of tenants and ignore it (the All-tenants drawer flows the other way: it *sets* the selection and opens that tenant's Overview). Fan actions already had a tenant filter, so the selection pre-fills it, with "All tenants" still available. Team ignores it — membership reads the active organization from the session, not a tenant slug.
@@ -206,17 +210,26 @@ One nav structure, three sections. Same screens for both actor classes (`ADM-01`
 | Section | Destination | Route | Implements |
 |---|---|---|---|
 | Workspace | Overview | `/` | `ADM-06`, `ADM-07` (games, KPIs, reporting surfaced on one screen) |
-| | Games & Contests | `/games` | `ADM-04`, `BRAND-02`, `GAME-01`–`GAME-04` |
+| | Game day | `/live` | `OBS-04`, `OBS-05` — [`admin-game-day.spec.md`](admin-game-day.spec.md) |
+| | Schedule | `/schedule` | The workspace's season, and All games — [`admin-schedule.spec.md`](admin-schedule.spec.md) |
+| | Games & Contests | `/games` | `ADM-04`, `BRAND-02`, `GAME-01`–`GAME-04` — [`admin-games-and-prizes.spec.md`](admin-games-and-prizes.spec.md), contest lifecycle in [`admin-contests.spec.md`](admin-contests.spec.md) |
 | | Prizes | `/prizes` | `ADM-04`, `PRIZE-05`–`PRIZE-07` |
 | | Fans | `/fans` | `RPT-02` view, scoped — not the export itself |
 | | Exports | `/exports` | `ADM-07`, `RPT-01`–`RPT-06` |
+| | Support | `/support`, `/support/:reportId` | The workspace's reports and their threads — [`admin-support.spec.md`](admin-support.spec.md) |
 | Configuration | Fields & Opt-ins | `/config` | `ADM-05`, `AUTH-02`, `OPT-01`–`OPT-05` |
-| | Branding | `/branding` | `BRAND-01` (view/set-once, not per-game) |
-| | Team | `/team` | Org membership — invite/remove within the caller's own org (see "Provisioning and delegation") |
-| OBS Internal | All tenants | `/tenants` | Cross-tenant tenant list/switcher target |
+| | Sponsors & Branding | `/branding/sponsors`, `/branding` | `BRAND-01`–`BRAND-04`, `TEN-04` — [`admin-sponsors.spec.md`](admin-sponsors.spec.md) (Sponsors tab), [`admin-branding.spec.md`](admin-branding.spec.md) (Brand tab, `THEME-03`–`THEME-23`) |
+| | Team | `/team` | The chosen workspace's membership; staff extras per [`admin-team.spec.md`](admin-team.spec.md) (revision 2026-09-24) |
+| OBS Internal | Operations | `/operations` | The staff home — [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) |
+| | All tenants | `/tenants` | Cross-tenant tenant list/switcher target |
+| | All contests | `/contests` | [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) |
+| | Season calendar | `/season` | `OBS-04` at planning horizon — [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md), [`admin-schedule.spec.md`](admin-schedule.spec.md) |
 | | Platform health | `/platform-health` | `OBS-01`–`OBS-05` |
 | | Delivery queue | `/delivery-queue` | `PRIZE-06`/`PRIZE-07` dead-letter visibility |
 | | Fan actions | `/fan-actions` | `RPT-02`, `org:fan_data:export` |
+| | Support inbox | `/inbox` | [`admin-support.spec.md`](admin-support.spec.md) — every workspace's reports; rows open `/support/:reportId` |
+
+Not in the nav, reached from a game: **Game recap** (`/recap`, [`admin-sponsor-recap.spec.md`](admin-sponsor-recap.spec.md)). An Overboard staffer with no tenant chosen lands on Operations rather than on Overview's "Pick a tenant" card.
 
 **Sections render by identity** (ruling, 2026-09-16), not by which part of the console the user is standing in.
 
@@ -228,13 +241,90 @@ One nav structure, three sections. Same screens for both actor classes (`ADM-01`
 
 ---
 
+## Hues (ruling, 2026-09-24)
+
+Arthur's walkthrough ruling: every sidebar destination gets a hue, shown as a thin bar on its **right edge**, so icons and text never shift; in-page coloured sections use the Overview KPI tile's top-wrapping outline, never little squares; **visible to everyone**, not a staff toggle. This supersedes D-067's "Signal wayfinding" overlay as an opt-in axis: hues are now part of the default console, and the "Hues" control leaves the staff "Console look" switcher (the Display control stays).
+
+**One hue per family, every destination in a family.** Alarm red stays exclusively status; no hue is red. Every hue clears 4.5:1 on the card surface.
+
+| Family | Destinations |
+|---|---|
+| Home | Overview |
+| Live | Game day, Operations |
+| Games | Schedule, Games & Contests, All contests, Season calendar |
+| Prizes | Prizes, Delivery queue |
+| Fans | Fans, Fan actions |
+| Consents | Fields & Opt-ins, Exports |
+| Brand | Sponsors & Branding |
+| People | Team, All tenants |
+| Support | Support, Support inbox |
+| Health | Platform health |
+
+**Placement.**
+1. **Sidebar:** a 3px bar inside the item's right edge, rounded, full item height minus the item's vertical padding. Resting at reduced strength, full strength on hover and on the active item. Absolutely positioned — the item's icon, label and badge never move, and the active item's existing left bar is untouched.
+2. **In-page sections about one family:** the KPI tile's 2px top-wrapping inset outline (`KpiTile`), applied to any `Card` given `entity=`. The 6px square before card titles is removed everywhere.
+3. **Chart series:** unchanged.
+
+Nothing else takes a hue: not status pills, text, numbers, buttons, or tables.
+
+## Staff extras (sweep, 2026-09-24)
+
+"Identity is per user, not per screen": when staff have a workspace chosen, that workspace's screens show staff-only extras. Every workspace screen was swept on 2026-09-24. What each one now offers staff, beyond what the workspace's own people see:
+
+| Screen | Staff extra |
+|---|---|
+| Shell | **The paused banner follows the chosen workspace**, not the session's active organization: staff choosing a paused workspace see it, worded for staff ("Fans can't play right now. Resume it from the tenant record." with a link). Previously staff never saw it. |
+| Overview | A staff strip: the workspace's status (live / paused), its subdomain, links to its Team and Support, and **Open tenant record** (or **Resume from the tenant record** when paused); "Needs attention → failed sends" opens the Delivery queue already filtered to this workspace. |
+| Game day | As before (cross-workspace live strip, raw failure reasons); the Finalize shortcut now opens Games & Contests, where the contest drawer carries Finalize; the failed-sends readiness row opens the Delivery queue filtered to this workspace. |
+| Schedule | "All games" marks which games any workspace runs (admin-schedule.spec.md). |
+| Games & Contests | **Finalize** in the contest drawer once every game has ended — the same typed-name confirmation and reverification as the tenant record. (The redesign's banner cards carry it next.) |
+| Prizes | As before (Delivery queue link), now filtered to this workspace. |
+| Fans | As before (Delete fan); the fan drawer's prize list shows **why a delivery failed**, as Game day does. |
+| Exports | **Fan actions for this workspace** — a link that opens Fan actions pre-set to it. |
+| Team | **The chosen workspace's team**, with invite, **re-invite the first admin**, resend/revoke invitations, role changes and removal (admin-team.spec.md). |
+| Support | The workspace's reports **including internal ones**, with the triage panel on each report (admin-support.spec.md). The inbox gains a workspace filter. |
+| Operations | "Failed sends" rows open the Delivery queue filtered to that workspace, as the spec always said; "ready to finalize" and "paused" rows open that workspace's tenant record directly. |
+
+Identity checks are tidied to the user-level flag everywhere: the paused banner, and Team's "Overboard staff" row label (which used an email domain).
+
 ## Principles
 
-Two named principles sit above the rules. They are not route-specific, and a change that satisfies every numbered rule can still violate one of them.
+Four named principles sit above the rules. They are not route-specific, and a change that satisfies every numbered rule can still violate one of them.
 
 **Seamlessness.** *What parts of the app a user is shown is calculated per user — from their identity and memberships — never from what part of the frontend they happen to be standing in.* An operator does not gain or lose capabilities by navigating; the console renders the same answer to "what may this person do" on every screen, because it asks the same question. This is what makes the one switcher and the identity-driven nav sections coherent rather than two features that happen to agree. And it is convenience only: **UI hiding is never the boundary**. Every one of these decisions is enforced again server-side, and a user who reconstructs a hidden route by hand meets the same refusal they would have met anyway.
 
 **Plain product language.** *No developer jargon and no spec identifiers in customer-visible copy.* No requirement ids (`RPT-05`, `ADM-03`), no implementation vocabulary ("dead-letter", "hard bounce", "structural refusal"), and no over-explaining the mechanism behind a result. The reader is a team's marketing staffer, and the copy should read as normal to them. Spec ids belong in specs, code comments, and API documentation — never in UI text. This governs new copy from now; the existing screens get their own sweep, which is not this change.
+
+**Fan's-eye view** (ruling 2026-09-16, Arthur). *Where a configuration screen changes what a fan sees, the console shows the fan's view of the change, rendered from the fan product's own code.* A team's staffer configuring signup fields or prize tiers is editing a screen they never look at; without a view of it their only way to see their own work is to publish and go find it — which turns a deliberate publish into a preview mechanism on screens explicitly designed so that publishing is deliberate.
+
+Two halves, and the second is what makes the first worth having:
+
+- **Shown.** Configuration that reflects onto the fan app gets a view of the result, alongside the controls that produce it and bound to the unsaved draft, not to the last publish.
+- **Rendered, not drawn.** The view runs the fan app's own components, copy, and validation, shared through `obs-b2b-shared`. A hand-built likeness is a second implementation of a screen, and second implementations drift — which is not a hypothetical here: the signup field catalog's labels were copied into three files and two of them had already disagreed.
+
+Where the console cannot honestly know something the fan sees, **it shows less rather than guessing**. A view renders only what it can render truthfully, and it does not caption the rest — copying the fan app's palettes into the console would buy a view that looks right while being wrong, and annotating the shortfall on screen trades one violation for another. (Superseded 2026-09-22 by the omission principle below: this previously required the preview to render the default palette *under a caption saying so*. The caption goes; what the view cannot honestly show is simply absent, and the gap is recorded in the spec. For the palette specifically the question is now moot — [`admin-branding.spec.md`](admin-branding.spec.md) makes tenant colors real configuration the console does know.)
+
+This is a direction, not a retrofit order. It governs new configuration screens, and the inventory below names the existing ones in the order they are worth doing.
+
+**Honesty by omission, not by narration** (ruling 2026-09-22, Arthur). *The console never fabricates, and it never narrates its own gaps: what it cannot show honestly, it simply does not show.* Nothing is invented — no placeholder numbers, no controls that pretend to work. But the other half is new: **the UI does not explain what is missing from it.** A stat we do not measure gets no tile. A feature that is not wired gets no card. A real number carries no caveat about where it came from. What is on screen is true; what cannot be true is absent, and absence is not annotated.
+
+The reader is a team's marketing staffer, and a screen that catalogues its own incompleteness reads as a product still under construction — which is the impression a dash-and-caption tile creates whether or not the caption is accurate. Disclosure is owed to the people building the console, not to the people using it: **gap disclosure lives in specs and code comments, never on screen.** A spec must still say plainly what is unbuilt — that is what specs are for, and nothing here narrows it.
+
+**This supersedes any earlier requirement to disclose a gap in the UI.** Where a sibling spec requires a placeholder tile, an unwired-feature card, a caveat caption under a metric, or a rendered spec id, the requirement is now the omission: the element is absent until the data behind it exists. The element appears when it can be populated, and it arrives without commentary about having been missing.
+
+### Reflect points (noted, not built)
+
+Everywhere a console setting reaches the fan app today, and how good a candidate each is:
+
+| Configuration | Fan surface | Status |
+|---|---|---|
+| **Signup fields & opt-ins** | The entry gate | **Built first** — [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md), the flagship |
+| **Prize tiers** (`Prizes.tsx`) | `PrizeModal.tsx`, `BoardPage.tsx` | **Best next candidate.** The shared `B2BPrizeTier` type is already used verbatim by the fan app, so the projection is nearly free. One thing to settle first: `PrizeModal` headlines `prizeDescription` and uses `prizeName` only as image alt text — a preview would make that visible, which is the argument for doing it |
+| **Games enabled per contest** (`Games.tsx`) | `ContestPage.tsx` tabs | Candidate. Small surface, and the reflection is a tab strip rather than a screen |
+| **Contest visibility** | Server-filtered; the fan gets a generic empty state | Weak candidate. What the fan sees is an absence, and a preview of an absence teaches little |
+| **Tenant name** | Nothing — **a broken link** | Not a preview problem. An admin rename never reaches the fan app at all, which reads its local registry. Recorded here because it looks like a missing reflect point and is actually a missing write path |
+| **Sponsors & Branding** (`/branding`) | Every fan screen | **Specced** — [`admin-branding.spec.md`](admin-branding.spec.md) for the Brand tab (the data model, endpoints and live preview; `BRAND-01`'s hardcode-permitted classification is superseded by it) and [`admin-sponsors.spec.md`](admin-sponsors.spec.md) for the Sponsors tab |
+| **`authVariant`** | The fan sign-in | Blocked, and worth flagging: the value is configurable while the fan sign-in hardcodes email — configuration with no effect, which a preview would expose but not fix |
 
 ---
 
@@ -251,11 +341,15 @@ Two named principles sit above the rules. They are not route-specific, and a cha
 9. **`org:contest:finalize` never appears on a tenant org role set**, and fan-data deletion stays with OBS (decision 2026-09; reaffirmed 2026-09-16). Neither is waiting on anything.
 10. **A `B2BOrganization` record and its Clerk organization are a synced pair at all times** — created, changed, and deleted together or not at all. The DB directory is the source of truth for what tenants exist; three records violate this today and are recorded above as data debt. The rule governs the pair's existence and identity (slug, name); **tenant suspension is deliberately outside it** — a database-side status with no Clerk half, because Clerk has no suspend primitive and inventing one by deleting the org would destroy exactly what the rule protects ([`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md), 2026-09-15).
 11. **OBS staff-ness is resolved from the user, not the active organization.** Active `obs` proves it from the signed token; anything else verifies membership against Clerk, cached 5 minutes, failing closed on error.
+12. **A view of the fan product inside the console renders the fan product's own code**, shared through `obs-b2b-shared` — never a likeness rebuilt in console markup, and never an embed of the live fan site. The console references the fan product; it does not host it, and it does not redraw it.
+13. **The console never fabricates a value and never narrates a gap** (ruling 2026-09-22). An unmeasured stat renders no tile, an unwired feature renders no card, and a real number renders no caveat about its provenance — the element is absent until the data behind it exists, and absence is not captioned. Gap disclosure belongs in specs and code comments. This supersedes any earlier requirement to disclose a gap in the UI.
 
 ---
 
 ## References
 
 - HLD: [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) — `IDN-10`–`IDN-13`
+- HLD: [`b2b-shared-deps.md`](../../../documents/HLDs/b2b-shared-deps.md) — the shared package's `ui/` layer, and the test a component must pass to live there
+- [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the first instance of the Fan's-eye view principle
 - PRD: [`TEN-03`, `TEN-05`, `TEN-C3`, `ADM-01`–`ADM-09`, `BRAND-02`, `GAME-01`, `PRIZE-03`, `RPT-01`–`RPT-05`, `SEC-07`, `SEC-08`, `OBS-04`](../../../documents/PRD/OBS_B2B_Platform_PRD.md)
 - [`multi-tenant-identity-auth.spec.md`](multi-tenant-identity-auth.spec.md) — the fan-side model this deliberately does not share

@@ -6,6 +6,8 @@
 
 **Status:** Draft.
 
+**Revised 2026-09-22** (ruling, Arthur) — customer-visible gap narration is removed from these screens under the **Honesty by omission, not by narration** principle in [`admin-surface.spec.md`](admin-surface.spec.md). The Platform health gap card naming `OBS-01`–`OBS-03`, the delivery queue's "—" for a missing `failureReason`, and its on-screen "visibility-only" note all go; the gaps themselves stay recorded here. Never-fabricate is unchanged.
+
 ## Overview
 
 The operator-facing section of the admin console: the four OBS Internal screens the nav has carried as placeholders — All tenants (`/tenants`), Platform health (`/platform-health`), Delivery queue (`/delivery-queue`), Fan actions (`/fan-actions`) — plus the two actions that only OBS may ever perform: **tenant provisioning** (`TEN-05`) and **contest finalization** (`PRIZE-03`, `ADM-06`).
@@ -16,8 +18,8 @@ The operator-facing section of the admin console: the four OBS Internal screens 
 
 **Not in scope:**
 
-- **An error-tracking service.** `OBS-01`–`OBS-03` need error events with tenant attribution and alerting; nothing in the stack collects them. The Platform health screen says so on its face rather than rendering an invented error rate. Recorded gap.
-- **Retry or resend of failed prize sends.** `PRIZE-07` wants failures "resolved or resent"; the only retry that exists is SQS's own redrive, exhausted before a row ever reads `failed`. The Delivery queue is visibility-only, and says so. A resend control without a resend mechanism would be a button that lies. Recorded gap.
+- **An error-tracking service.** `OBS-01`–`OBS-03` need error events with tenant attribution and alerting; nothing in the stack collects them. The Platform health screen renders no error-rate tile and no note about one — neither an invented number nor an explanation of its absence. Recorded gap (superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md); this previously required the screen to say so on its face).
+- ~~**Retry or resend of failed prize sends.**~~ *Now in scope — superseded 2026-09-23 by [`prize-delivery.spec.md`](prize-delivery.spec.md) "Resend": the Delivery queue resends failed sends, singly or in bulk, optionally to a corrected address, reverification-gated and audited (`prize_resend`). This previously shipped the screen visibility-only, because no resend mechanism existed and a button with nothing behind it would have lied.*
 - **Coupon-code batches.** `PRIZE-05`/`PRIZE-06` code tracking has no model (the games/prizes spec already records the missing sponsor model); the queue cannot show code exhaustion. Recorded gap.
 - **Deferred prize sends on finalization.** The PRD itself scopes this out: finalization "is what will trigger deferred prize sends **when PRIZE-02 is built**". V1 finalization persists the state and the audit record — it dispatches nothing, and fakes nothing. Recorded gap.
 - ~~**Tenant offboarding.** Deleting a production tenant is a legal-and-data question, not a screen.~~ **Superseded 2026-09-15 (ruling, Arthur):** offboarding *is* a screen — suspend, rename, and delete ship as the tenant lifecycle module, with delete behind reverification and a server-checked typed confirmation. See [`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md); the dev script survives as developer tooling only.
@@ -38,7 +40,7 @@ The fan-actions export blends the two shapes: `?tenant=` **narrows** an already-
 
 ## All tenants and provisioning (`/tenants`)
 
-The directory read (`GET /admin/tenants/directory`) returns every tenant with the numbers an operator triages by — fans, contests with derived status and per-contest delivery counts, failed sends, config footprint — in one response. The existing `GET /admin/tenants` chooser read stays deliberately names-only; the five scoped screens keep using it.
+The directory read (`GET /admin/tenants/directory`) returns every tenant with the numbers an operator triages by — fans, contests with derived status, players and per-contest delivery counts, failed sends, config footprint — in one response. A contest's players are its board count, one board per fan per contest — the number Games & Contests shows, read with one aggregate across every contest; the stored `numberParticipants` is never incremented and is not read ([`admin-contests.spec.md`](admin-contests.spec.md), Rule 4). The drill-in reads "N players". The existing `GET /admin/tenants` chooser read stays deliberately names-only; the five scoped screens keep using it.
 
 ### Create tenant (`POST /admin/tenants`)
 
@@ -48,7 +50,7 @@ Order and failure handling:
 
 1. **Validate.** The contract refuses malformed subdomains and `admin`/`obs` (`TEN-C3`); the handler re-checks both defensively (Rule 7's "checked at onboarding" clause). A duplicate `subdomain` is 409 before anything external happens.
 2. **Clerk organization first.** It is the resource with an external owner; if it cannot be created there is nothing to clean up. Failure → 409 with Clerk's reason.
-3. **Database record second.** If this fails, the handler deletes the just-created Clerk organization and reports the rollback; if the cleanup itself fails, the response names the orphaned Clerk org id so the operator can remove it by hand — a loud partial failure, never a silent mismatch.
+3. **Database record second, seeded with the tenant defaults** (see "New tenants start configured" below). If this fails, the handler deletes the just-created Clerk organization and reports the rollback; if the cleanup itself fails, the response names the orphaned Clerk org id so the operator can remove it by hand — a loud partial failure, never a silent mismatch.
 4. **Invitation last, non-fatal.** The first admin is invited as `org:admin`, which since 2026-09-16 carries both invite/remove power and write access to their own organization's configuration — the team configures its workspace from day one, per the provisioning table. An invitation failure does not unwind the tenant (both-or-neither already holds); the response carries `invitation.status: "failed"` and the reason, and OBS re-invites from the Clerk dashboard.
 5. **Audit.** `tenant_create` (`SEC-06` register: who, when, what), detail carrying ids and the invitation status — never the invitee's email.
 
@@ -56,7 +58,30 @@ Order and failure handling:
 
 **This flow supersedes the org-switcher path.** Until now the only way a tenant org came to exist was someone using Clerk's own "Create organization" widget — the path admin-surface Rule 8 requires disabling. With `POST /admin/tenants` shipped, the widget path is superseded, and disabling self-creation on the admin instance (a Clerk dashboard toggle, still open as of 2026-09-15) loses its last excuse. The console's own sidebar switcher carries a **Create organization** entry for obs staff only, and it routes here rather than to Clerk's widget — one provisioning path, reachable from where an operator would look for it, and the only one that keeps the record and the Clerk org a synced pair (admin-surface Rule 10).
 
-`TEN-03`'s budget: this reduces OBS's per-tenant engineering share of onboarding to one form — name, subdomain, auth variant, first admin — well inside the 1–2 hours, with config following through the existing screens.
+`TEN-03`'s budget: this reduces OBS's per-tenant engineering share of onboarding to one form — name, subdomain, first admin — well inside the 1–2 hours, with config following through the existing screens.
+
+**No auth-variant control (ruled 2026-09-24, Arthur).** The form used to offer Email / Phone / Email + phone, but nothing on the fan side reads the value: there is one shared fan sign-in, and phone sign-in does not exist (`IDN-09` is unbuilt). A control with no effect is a control that lies (D-068), so it is gone from the create form and from the tenant drawer. The stored `authVariant` field stays, back-compatibly: the request still accepts it as optional, new tenants are stored as `"email"`, and the public org response still carries it. It comes back as a real control on the day phone sign-in exists.
+
+#### New tenants start configured (2026-09-24)
+
+A tenant created with nothing configured used to open to an empty Fields & Opt-ins screen and a gate that asked fans for nothing but a display name. Every new tenant is now created with a working entry gate:
+
+| What | Requirement | Editable afterwards |
+|---|---|---|
+| Display name | Required (always asked; it is the name on the fan's board) | Its label and placeholder |
+| First name (`firstName`) | Required | Yes — anything, including removal |
+| Last name (`lastName`) | Required | Yes |
+| Phone (`phone`) | Optional | Yes |
+| Birthday (`birthday`) | Optional | Yes |
+| **Overboard Terms & Privacy** opt-in | Required (blocking) | **No** — locked on, on every tenant |
+
+The defaults are one definition in `obs-b2b-shared` (`interfaces/b2b/tenant-defaults.ts`: `DEFAULT_SIGNUP_FIELDS`, `OVERBOARD_TERMS_OPT_IN`, `defaultTenantConfig`), used by the create handler and by the backfill, so a new tenant and a backfilled one are identical. The field ids are the well-known ids, so their labels, formats and export columns are the platform's.
+
+**The Overboard Terms & Privacy opt-in** is the platform's own consent, not the tenant's: optInId `overboard-terms`, kind `tos`, label "Overboard Terms & Privacy", text "I agree to the Overboard Terms of Service and Privacy Policy.", blocking. On the gate, "Terms of Service" and "Privacy Policy" link to the fan app's in-app pages (`/terms`, `/privacy`; see `spec/webapp/entry-gate.spec.md`). Its wording is Overboard's to change, never a tenant's: `PUT /admin/config` always keeps it (first in the list, re-added if a submission omits it) and refuses a submission that alters it. If the platform wording ever changes, the constant changes and the next publish or backfill bumps its `textVersion`, which re-asks every fan — the normal rewording rule.
+
+**Existing tenants: `node-server/scripts/backfill-tenant-defaults.mjs`.** Dry run by default, `--apply` to write, dev-only rails. For every tenant it adds the Overboard opt-in where it is missing (or re-syncs its wording), and for a tenant with **no fields and no opt-ins at all** it also seeds the default fields. A tenant that has configured anything keeps its own fields. A tenant-owned `tos` opt-in whose text is Overboard's exact sentence (a stand-in from before the platform opt-in existed) is replaced by the platform opt-in rather than kept beside it, so the gate never asks for the same agreement twice; fans' past answers to it stay on record. A tenant's own terms in its own words stay. Idempotent. Run on `obs-b2b-dev` 2026-09-24 for the three tenants that had nothing (bears, fightinghawks, nuggets), and later that day for `test` at integration, where it replaced the tenant's own `tos` copy of Overboard's sentence. Production runs the script at release, alongside the pin that ships the code.
+
+**Gap, recorded: the legal text itself.** The in-app Terms of Service and Privacy Policy pages have no content yet; the text is pending from Nick. Until it arrives the two pages are a clearly temporary placeholder (title and one line). This blocks a production launch of any tenant, not the build.
 
 ### Contest finalization (`POST /admin/contests/:contestId/finalize`)
 
@@ -76,7 +101,11 @@ Semantics: 404 for a contest the named tenant does not own (the standard probe a
 
 `OBS-04` asks whether a tenant's app is healthy before and during a game; `OBS-05` asks that prize failures surface in the same view. The screen ships what the database genuinely answers: per tenant — fans, contests, enabled games in the next 24 hours, whether a game is live now, failed and pending sends, and the most recent board (the closest recorded signal to "the app is being used"). Failed-send counts read the same rows as `/delivery-queue` — one source, two screens, no drift.
 
-What it does not ship, on its face: error rates. The screen carries an explicit gap card in place of `OBS-01`–`OBS-03`, because the alternative is a fabricated number on a health dashboard — the one place fabrication is most dangerous. Of §14.2's four acceptance criteria, only the prize-failure one is met; the other three need the error-tracking substrate. Recorded gap. Two adjacent facts, recorded with it: the SQS dead-letter queues and their ≥1-message alarms exist in CDK, but no alert recipient is configured (`dlqAlertPhoneNumber` unset in every environment), and DLQ depth is visible only in AWS — the app surfaces Mongo `failed` rows, not queue depth.
+What it does not ship: error rates. **The screen renders nothing at all in their place** — no tile, no gap card, no mention of `OBS-01`–`OBS-03`. Fabricating a number on a health dashboard is the most dangerous fabrication on the platform, and it stays forbidden; but the honest alternative is the absence itself, not a card explaining the absence. An error-rate tile appears on this screen when there is an error-tracking substrate behind it, and not before. Of §14.2's four acceptance criteria, only the prize-failure one is met; the other three need that substrate. Recorded gap — here, which is the only place it belongs.
+
+*Superseded 2026-09-22 by the "Honesty by omission, not by narration" principle in [`admin-surface.spec.md`](admin-surface.spec.md) (Rule 13): this previously required an explicit on-screen gap card naming `OBS-01`–`OBS-03`. The card is deleted from the UI; the gap is recorded in this spec instead.*
+
+Two adjacent facts, recorded with it: the SQS dead-letter queues and their ≥1-message alarms exist in CDK, but no alert recipient is configured (`dlqAlertPhoneNumber` unset in every environment), and DLQ depth is visible only in AWS — the app surfaces Mongo `failed` rows, not queue depth.
 
 ---
 
@@ -84,9 +113,11 @@ What it does not ship, on its face: error rates. The screen carries an explicit 
 
 `PRIZE-07`'s reviewable failure surface, platform-wide because failed sends degrade sender reputation for every tenant (`PRIZE-06`'s rationale). One read: totals by redemption status, plus the failed rows newest-first — tenant, fan (display name only; `/fans` owns contact fields), contest, prize, and **why**.
 
-"Why" is new: `PrizeRedemption.failureReason`, written by the prize-worker at the moment it marks a row failed (contest missing, unknown handler, or the fulfillment error itself). Rows that failed before the field existed render an honest "—". The seed fixtures give the demo tenant two failed sends with realistic reasons so the screen is real in dev.
+"Why" is new: `PrizeRedemption.failureReason`, written by the prize-worker at the moment it marks a row failed (contest missing, unknown handler, or the fulfillment error itself). Rows that failed before the field existed have no reason to show, so **the cell is empty — no "—", no "reason not recorded", no footnote about the field being forward-only**. The row is still true: it names a failed send, and says nothing it cannot say. The seed fixtures give the demo tenant two failed sends with realistic reasons so the screen is real in dev.
 
-Visibility-only, stated on the screen: resolution is manual in V1. See Not-in-scope for why there is no retry button.
+*Superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md) (Rule 13): this previously required legacy rows to render an "—" placeholder. A dash is a caption saying "we don't have this", which is narration; the empty cell says the same thing without claiming the screen owes the reader an explanation.*
+
+**Resend** (superseded 2026-09-23 by [`prize-delivery.spec.md`](prize-delivery.spec.md)): each failed row carries a Resend action — to the fan's account email or, for one row at a time, a corrected address — and rows can be selected for a bulk resend. A resent row stays on the list reading "Resending" until the worker reports back. The action is OBS-only, reverification-gated, audited before it changes anything, and conditional on the row's resend count, so it cannot send one prize twice. (This screen was previously visibility-only, and before 2026-09-22 was required to say so on screen.)
 
 ---
 
@@ -115,10 +146,11 @@ All six authorize on **user-level obs staff-ness**, whatever organization the ca
 | POST | `/admin/tenants` | requireAdmin | obs staff only |
 | GET | `/admin/platform-health` | requireAdmin | obs staff only |
 | GET | `/admin/delivery-queue` | requireAdmin | obs staff only |
+| POST | `/admin/delivery-queue/resend` | requireAdminReverified | obs staff only (see [`prize-delivery.spec.md`](prize-delivery.spec.md)) |
 | POST | `/admin/fan-actions/export` | requireAdminReverified | obs staff only |
 | POST | `/admin/contests/:contestId/finalize` | requireAdminReverified | obs staff only, `?tenant=` required |
 
-**`GET /admin/tenants/directory` returns** every tenant with `fanCount`, config counts, `failedSendCount`, and `contests[]` (derived status, `finalized`, game/tier counts, per-status delivery counts).
+**`GET /admin/tenants/directory` returns** every tenant with `fanCount`, config counts, `failedSendCount`, and `contests[]` (derived status, `finalized`, game/tier counts, players — the board count, carried in the `numberParticipants` wire field — and per-status delivery counts).
 
 **`POST /admin/tenants` takes** `{ subdomain, name, authVariant?, firstAdminEmail }` and returns 201 `{ tenant, clerkOrganizationId, invitation: { email, role: "org:admin", status: "sent"|"failed", message? } }`; 400 malformed/reserved, 409 duplicate or Clerk refusal, 500 with rollback (or the orphaned org id) on partial failure.
 
@@ -145,17 +177,18 @@ All six are obs-only, on user-level obs staff-ness. On the future Clerk-permissi
 7. **The fan-actions export carries platform identifiers only** — no contact fields — and excludes declined fans (`RPT-05`) from identified rows.
 8. **The delivery queue and every failure count elsewhere read the same redemption rows.** One source; screens may not disagree.
 9. **A platform-scoped audit row omits `organizationId` and names its tenants in `detail`.** One action, one row.
+10. **These screens never narrate what they cannot show** (ruling 2026-09-22, admin-surface Rule 13). No gap card, no placeholder dash, no "manual in V1" note, no rendered `OBS-*` id. A metric with no honest source renders no tile; a missing control is simply not drawn. Every such gap is recorded under "Known gaps" below — that is where an operator's question gets answered, not the screen.
 
 ## Known gaps (recorded, not blocking)
 
-- **Error tracking (`OBS-01`–`OBS-03`)**: no error-capture substrate exists in either repo; per-tenant error rates, spike alerting and PII-stripped capture all need it. Platform health ships a gap card, not a number. Three of §14.2's four criteria are unmet.
+- **Error tracking (`OBS-01`–`OBS-03`)**: no error-capture substrate exists in either repo; per-tenant error rates, spike alerting and PII-stripped capture all need it. Platform health ships neither a number nor a gap card — the tile is simply absent until the substrate exists (superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md); the gap card is deleted). Three of §14.2's four criteria are unmet.
 - **Alert recipient**: the DLQ CloudWatch alarms publish to SNS with no subscriber (`dlqAlertPhoneNumber` unset). `OBS-03`'s "defined recipient" does not exist yet.
 - **SQS DLQ depth**: not surfaced in-app; the queue screen reads Mongo `failed` rows, which is the durable superset but not the queue itself.
-- **Retry/resend (`PRIZE-07` second half)**: no mechanism; visibility-only, stated on-screen.
-- **Coupon-code batches (`PRIZE-05`/`PRIZE-06`)**: no model; exhaustion and duplicate-assignment tracking cannot be shown.
+- ~~**Retry/resend (`PRIZE-07` second half)**~~: closed 2026-09-23 — see [`prize-delivery.spec.md`](prize-delivery.spec.md) "Resend".
+- **Coupon-code batches (`PRIZE-05`/`PRIZE-06`)**: no model; exhaustion and duplicate-assignment tracking cannot be shown. Deferred deliberately; seam in [`prize-delivery.spec.md`](prize-delivery.spec.md) "Codes".
 - **Deferred sends on finalize (`PRIZE-02`)**: unbuilt; finalization is state + audit only.
 - **Fan-actions telemetry**: tile interactions, near-misses, session activity unrecorded; export limited to join/board/prize events.
-- **`failureReason` is forward-only**: rows failed before the worker change render "—".
+- **`failureReason` is forward-only**: rows failed before the worker change have no reason, and their cell renders empty — no "—" and no explanatory caption (superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md)).
 - **Clerk org self-creation is still enabled** on the admin instance (admin-surface Rule 8, observed violated 2026-09-15); the dashboard toggle remains an operator to-do this flow now supersedes.
 - **Three tenants violate the synced-pair invariant** (admin-surface Rule 10): `warriors` and `fightinghawks` have records with no Clerk organization, and `bears` has a self-created Clerk org that is not the pair of its record. Reconciling them is queued as its own task; `POST /admin/tenants` is what stops the list growing.
 
