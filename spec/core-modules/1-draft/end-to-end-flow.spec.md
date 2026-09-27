@@ -75,6 +75,24 @@ matches `fullDocument.consensusOutcome === "Hit"` and feeds each prop id to the 
   a cold start with no token.
 - **Finalize-only hits count.** D2C's finalize step resolves Manual and un-updated Over props without sending anything
   to SQS. A change stream sees those writes too, so dev scores them. The production gap is recorded in §9.
+- **One scorer per prefix.** Every server with scoring on sees every hit. Before this rule, each one evaluated the same
+  boards and queued its own prize copy before one of them won the claim, so the prize landed in whichever server's outbox
+  got there first. Now scoring is **leased** per prefix, in `${prefix}dev_scoring_state`:
+  - A server that starts takes the lease, so the server you just started is the one that scores.
+  - The holder renews the lease every 10 s. A holder that finds the lease taken stops watching and logs
+    `standing by: <host:port (pid)> scores <prefix> now`.
+  - A server standing by takes over once the lease lapses (30 s without a renewal) or is released on a clean stop, and
+    resumes from the saved position. Only the holder saves the resume token.
+  - Replay (§5) is not leased: it is a request to one server, answered by that server.
+- **Two copies of one win.** A server still on older code, or a crash mid-claim, can still put two copies of a win in two
+  prize folders. The prize worker treats a claim younger than its 60 s delivery limit as a send in flight: the second copy
+  steps aside instead of recording the first copy's live send as "interrupted". A claim older than the limit is still an
+  interruption. Production never delivers a copy inside that window: FIFO deduplication and a 120 s visibility timeout.
+- **How fast (measured 2026-09-27, NFL Sunday).** A PES write reaches the mirror and the watcher in under a second. Each
+  `prop hit` log line carries the time and `msSincePesWrote`, measured from the mirrored prop's own `updatedAt`.
+  - **During a game,** D2C's updates move only the team totals and anytime-TD props.
+  - **Player yardage and reception props** resolve when D2C finalizes the game, roughly 3 to 3.5 hours after kickoff.
+  - So on a real game, most bingos arrive at finalize.
 
 ### 1.4 Impossible outside dev
 
