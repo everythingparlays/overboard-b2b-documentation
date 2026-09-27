@@ -98,9 +98,9 @@ refused. A stored `testMode: true` on a contest is ignored wherever the gate is 
   promised tier snapshot, or the live tier when the worker has not snapshotted it yet. It is shown once per award
   (remembered per board and bingo count). A line the evaluator claimed before the worker recorded the award shows as a
   bingo with no popup until the award exists.
-- The "Test Bingo" and "Prize Modal" preview buttons stay, strictly for development builds (`import.meta.env.DEV`, which
-  a production build compiles out). Arthur uses them to preview the popup. They only ever change what the screen draws
-  for the person clicking. They never touch the real count or a real award.
+- The development-only "Test Bingo", "Prize Modal" and "Clear prize storage" buttons are **removed** (Arthur, 2026-09-27).
+  They manufactured exactly the false wins this section forbids. Bingos and prizes are tested for real: by changing prop
+  progress in PES on a game no D2C contest uses (the manual recipe), or by the read-only replay tool (the harness).
 - The board polls every 30 seconds while focused, down from 2 minutes.
 
 ---
