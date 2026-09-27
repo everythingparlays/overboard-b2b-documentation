@@ -98,8 +98,9 @@ refused. A stored `testMode: true` on a contest is ignored wherever the gate is 
   promised tier snapshot, or the live tier when the worker has not snapshotted it yet. It is shown once per award
   (remembered per board and bingo count). A line the evaluator claimed before the worker recorded the award shows as a
   bingo with no popup until the award exists.
-- The development-only "Test Bingo" and "Prize Modal" buttons are removed: they manufactured exactly the false wins this
-  section forbids.
+- The "Test Bingo" and "Prize Modal" preview buttons stay, strictly for development builds (`import.meta.env.DEV`, which
+  a production build compiles out). Arthur uses them to preview the popup. They only ever change what the screen draws
+  for the person clicking. They never touch the real count or a real award.
 - The board polls every 30 seconds while focused, down from 2 minutes.
 
 ---
@@ -347,8 +348,10 @@ The dev routes accept a tenant's `org:admin` or OBS staff, and refuse `org:membe
    - an `.eml` for it is in the outbox;
    - `GET /b2b/board/:id` returns the award.
 7. **Screenshots** of each stage go to `artifacts/w3-e2e/`, using Playwright with real sessions.
-8. **Clean up**: the harness deletes its contest through the new contest delete. The fixture fan and its membership stay
-   for the next run.
+8. **Leave the result**: the run's contest and its scored board stay on `test`, so anyone can open a real bingo and prize
+   on the board afterwards. The run prints the board's URL. At the start of the next run, the previous run's contest is
+   deleted through the new contest delete, so exactly one harness contest exists at a time. The fixture fan and its
+   membership stay.
 
 The manual recipe for Arthur and Nick, with real upcoming games, lives in `documents/runbooks/end-to-end-on-dev.md`.
 
