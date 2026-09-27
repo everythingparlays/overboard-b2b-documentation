@@ -335,22 +335,23 @@ The dev routes accept a tenant's `org:admin` or OBS staff, and refuse `org:membe
 (backend, console, fan app, prize worker in local mode). Its steps:
 
 1. **Preflight**: `GET /admin/dev/status` answers, and scoring is `local`.
-2. **Pick a real finished game**: one with at least 9 visible props and at least 3 Hits, among recent NFL games in the
-   mirror.
-3. **Console creates the contest**, signed in as the `test` tenant's admin test account:
-   - `POST /admin/contests` in state `open` with that game;
-   - one prize tier at 1 bingo, naming a library prize (one is created if the library has none);
-   - test mode on.
-4. **A fan joins and builds a board**, as a dedicated fixture fan on the fan Clerk dev instance (created once, with
-   Backend API sign-in tickets, because fan-instance test mode may be off):
+2. **Create the contest in the console's API**, signed in as the `test` tenant's admin test account: `POST
+   /admin/contests` as a Draft, then test mode on (`PUT /admin/dev/contests/:id/test-mode`).
+3. **Pick a real finished game**: the most recent finished NFL game from the test-mode picker (finished between 14 days
+   and 6 hours ago), or the one `--game <betEventId>` names. Then add the game, one prize tier at 1 bingo naming a
+   library prize (created once and reused), and publish (Draft → Open).
+4. **A fan joins and builds a board**, as a dedicated fixture fan on the fan Clerk dev instance. The fixture is created
+   once through the Clerk Backend API (Frontend API sign-up sits behind a captcha) and signs in with its password and
+   the test-mode code 424242; the run refuses to start if fan-instance test mode is off.
    - joins the tenant through the gate;
    - `POST /b2b/board/generate` with drafted players.
+   - If the board has no line it could win, the run deletes that contest and tries the next game (up to 5).
 5. **Replay** the game.
 6. **Assert**:
-   - the board's `claimedLineIndices` is non-empty;
-   - a `PrizeRedemption` exists for the board;
+   - the board's `claimedLineIndices` holds every winnable line;
+   - a `PrizeRedemption` exists for the board, with the tier's prize;
    - the worker marked it fulfilled;
-   - an `.eml` for it is in the outbox;
+   - the email for it is in the outbox (`.html`, `.txt` and `.json`);
    - `GET /b2b/board/:id` returns the award.
 7. **Screenshots** of each stage go to `artifacts/w3-e2e/`, using Playwright with real sessions.
 8. **Leave the result**: the run's contest and its scored board stay on `test`, so anyone can open a real bingo and prize
