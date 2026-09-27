@@ -37,7 +37,7 @@ the shell you start from.
 | `PORT` | your backend port |
 | `FRONTEND_ORIGIN` | your console and fan app origins, e.g. `http://localhost:5251,http://localhost:5351` |
 | `ADMIN_AUTHORIZED_PARTIES` | your console origin only, e.g. `http://localhost:5251` |
-| `DEV_TOOLS` | `on` (not in `.env.example`; add it) |
+| `DEV_TOOLS` | `on` (commented out in `.env.example`; uncomment it) |
 | `PRIZE_LOCAL_QUEUE_DIR` | a folder the worker also reads, e.g. `../.prize-dev/queue` |
 | Clerk keys, `MONGODB_CONNECTION_STRING`, `AWS_PROFILE` | as in `.env.example` |
 
