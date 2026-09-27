@@ -6,9 +6,9 @@
 
 **Supersedes:** the "visibility-only" posture of the Delivery queue (admin-obs-internal, Not in scope + Known gaps); the free-text `handlerId` field on the Prizes screen (admin-games-and-prizes, `/prizes`); and the per-handler hardcoded HTML templates in `prize-worker/src/email_templates/`.
 
-**Status:** Draft, written 2026-09-23 with the build (Slice 3 of the 2026-09-23 wave); revised 2026-09-27 — see "Revision 2026-09-27 — the prize library", which wins wherever it and an older section disagree. No open questions.
+**Status:** Draft, written 2026-09-23 with the build (Slice 3 of the 2026-09-23 wave); revised 2026-09-27 — see "Revision 2026-09-27 — the prize library" and "Revision 2026-09-27 (Wave 4)", which win wherever they and an older section disagree. No open questions.
 
-**Revised 2026-09-24** (ruling, Arthur): the Prizes screen, tier editor and email settings now live in admin-prizes.spec.md; this spec keeps the delivery engine, the method registry and the email template.
+**Revised 2026-09-24** (ruling, Arthur): the console's prize screens and the email settings live in [`admin-prizes.spec.md`](admin-prizes.spec.md) (rebuilt on the prize library in its Wave 4 revision); this spec keeps the delivery engine, the method registry and the email template.
 
 ---
 
@@ -30,7 +30,7 @@ When a fan completes a bingo line, the board-evaluator puts a message on the pri
 **Not in scope:**
 
 - **Coupon-code batches** (`PRIZE-05`/`PRIZE-06`'s batch half) — deliberately deferred until the first real sponsor's shape is known. The seam is specified below ("Codes").
-- **Sending-domain authentication** (SPF, DKIM, DMARC, a verified `prizes@` identity). Nick-gated. Production keeps sending from today's address, `nick@overboardsports.com`, until then, and switches with one config value. See "Deploy dependency".
+- **Sending-domain authentication** (SPF, DKIM, DMARC, a verified `prizes@` identity). Nick-gated; switching to it is one config value. See "Deploy dependency".
 - **Bounce and complaint processing** (SES notifications feeding back into `PrizeRedemption`). Recorded gap — today a bounce after SES accepted the message is invisible to us.
 - **Deferred end-of-game delivery** (`PRIZE-02`). Unchanged: finalization still dispatches nothing.
 - **Tenant-uploaded HTML templates.** `PRIZE-04` makes templates developer work; a tenant never uploads markup.
@@ -60,6 +60,34 @@ cheaper prize is refused as "value lowered", and lowering or clearing a prize's 
 
 ---
 
+## Revision 2026-09-27 (Wave 4)
+
+The console redesign, built on the library ([`admin-prizes.spec.md`](admin-prizes.spec.md)), changes four things here.
+The engine (claim, attempts, registry, resend, local loop) is unchanged.
+
+1. **The prize has a type, a credit and a button on every type.** `B2BPrize` gains `prizeType` (pickup, code, link,
+   shipped), `providedBySponsorId` and `shipsWithinDays`, and `PRIZE_CONTENT_FIELDS` gains all three, so every tier copy
+   and every award snapshot carries them. The claim button (`prizeClaimButtonLinkUrl`, `prizeClaimButtonText`) is
+   optional on every type and required only for Link; nothing drops it.
+2. **The email follows the type** (admin-prizes, "What the winner sees"): a pickup lead line, a code block, the button
+   on any type, a shipping line. **"Approximate value" leaves the email**; it is never shown to fans. **The credit reads
+   "Provided by" and comes from the snapshot's `providedBy`**, copied from the prize's sponsor at award time. The worker
+   no longer resolves a `prizePopup` placement at send time, so `DeliveryContext.sponsor()` and `loadPrizeSponsor` go;
+   a failed sponsor lookup at award time drops the credit, never the prize.
+3. **The snapshot records which prize was paid**: `tierSnapshot` gains `prizeId`, `prizeType`, `shipsWithinDays` and
+   `providedBy { sponsorId, name, logoUrl?, websiteUrl? }`. Finalized contests are final: a prize edit refreshes only
+   tiers held by non-finalized contests ([`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §8.4), and no edit
+   reaches a snapshot.
+4. **Where things are edited and seen.** The email settings (sender name, reply-to, subject) are the **Prize email**
+   card on Prizes → Deliveries, still through `GET/PUT /admin/prizes/email`. The Delivery queue is Prizes → Deliveries
+   for a tenant and `/obs/prize-deliveries` for staff. `POST /admin/prizes/email/preview` takes
+   `{ prize, prizeId?, threeInARows, settings? }`; its `contestId` is retired.
+
+Rule 10 below changes accordingly: **the email credits the prize's "Provided by" sponsor as snapshotted, or no
+sponsor at all.**
+
+---
+
 ## Where `PRIZE-04` and D-066 meet
 
 `PRIZE-04` says "one HTML template per prize … template creation and upload is performed by developers". Read literally, every new prize would need an engineer — which contradicts `GAME-04` ("which prizes attach to a game must never require a code change") and `TEN-03` (≤1–2 engineering hours per tenant). D-066 settled the product question: OBS's job is to notify and to guarantee assignment; the sponsor's value lives in the tier's own fields.
@@ -72,7 +100,7 @@ So the resolution is: **one developer-built template, parameterised by the tier.
 
 ### What it merges — and the omission rule
 
-*Revised 2026-09-24 by [`admin-prizes.spec.md`](admin-prizes.spec.md), "What the winner sees": the blocks follow the tier's prize type, "Approximate value" is no longer shown to fans, and the credit reads "Provided by" from the tier.*
+*Revised by [`admin-prizes.spec.md`](admin-prizes.spec.md), "What the winner sees" (Wave 4): the blocks follow the prize's type, "Approximate value" is no longer shown to fans, the button may appear on any type, and the credit reads "Provided by" from the prize, as snapshotted at award time.*
 
 The email is built from real, configured data only. **Anything unconfigured is omitted — never placeholdered, never apologised for** (D-068). There is no "N/A", no "See details", no empty heading above a missing section.
 
@@ -100,7 +128,7 @@ A URL that is not `http:` or `https:` is treated as absent (a `javascript:` or `
 
 ### Presented by
 
-*Superseded 2026-09-24 by [`admin-prizes.spec.md`](admin-prizes.spec.md), "What the winner sees": the credit reads "Provided by" and comes from the tier's `providedBySponsorId` (snapshotted at award), not from the prize-popup placement holder, and the preview renders it from the unsaved tier.*
+*Superseded by [`admin-prizes.spec.md`](admin-prizes.spec.md), "What the winner sees" (Wave 4): the credit reads "Provided by" and comes from the library prize's `providedBySponsorId` (copied to the tier and snapshotted at award as `providedBy`), not from the prize-popup placement holder; the preview renders it from the unsaved prize.*
 
 The email credits the sponsor presenting the prize: **the sponsor holding the `prizePopup` slot where the prize was won** — exactly the sponsor the fan's in-app prize popup credits for the same win ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)). It is decided by the same shared resolver, `resolveSponsorSlots` (`SP-07`), at (the contest, the board's game), so the popup and the email cannot name different sponsors:
 
@@ -126,7 +154,7 @@ Code: `node-server/src/prize-delivery/prize-sponsor.ts` (the pure resolution bot
 
 ### Sender identity
 
-*Where these settings are edited is superseded 2026-09-24 by [`admin-prizes.spec.md`](admin-prizes.spec.md): the Emails page under Configuration (`/settings/emails`), not the Prizes screen.*
+*Where these settings are edited: the **Prize email** card on Prizes → Deliveries ([`admin-prizes.spec.md`](admin-prizes.spec.md), Wave 4). There is no separate Emails page.*
 
 A tenant configures **how the email presents itself**, not where it comes from:
 
@@ -154,7 +182,7 @@ The catalog lives in `node-server/src/prize-delivery/handler-catalog.ts` and is 
 |---|---|---|---|
 | `standard-email` | Prize email | standard | every tenant |
 
-`handler_001` and `handler_002` (the retired Nike templates) are **aliases of `standard-email`**. Tiers stored with them — UND's in production — keep delivering, now with their own real content instead of the Nike copy, and show as "Prize email" on screen; the console writes `standard-email` the next time that tier is saved (the API accepts either, since both resolve to the same method). `email`, `email-test`, `webhook` and `barcode` (the removed stubs) are **not** aliases: they never sent anything, so there is no behavior to preserve, and a tier naming one keeps failing loudly until an operator chooses a real method.
+`handler_001` and `handler_002` (the retired Nike templates) are **aliases of `standard-email`**. Tiers stored with them keep delivering, now with their own real content instead of the Nike copy, and show as "Prize email" on screen; the console writes `standard-email` the next time that tier is saved (the API accepts either, since both resolve to the same method). `email`, `email-test`, `webhook` and `barcode` (the removed stubs) are **not** aliases: they never sent anything, so there is no behavior to preserve, and a tier naming one keeps failing loudly until an operator chooses a real method.
 
 **Custom methods are tenant-scoped.** `GET /admin/prizes/handlers?tenant=` returns the standard methods plus the custom methods registered for that tenant only. A custom method's name can identify another team's sponsor; on a white-label platform that is a leak.
 
@@ -233,7 +261,7 @@ A fan who typed a bad email can be reached at a corrected one. The address is wr
 
 ### What the queue shows
 
-*The screen is superseded 2026-09-24 by [`admin-prizes.spec.md`](admin-prizes.spec.md): the Delivery queue becomes Prize deliveries, for tenants (their own sends, with a tenant Resend of failed rows) and for staff across every tenant. The endpoint and its rules above are unchanged.*
+*The screen is superseded by [`admin-prizes.spec.md`](admin-prizes.spec.md): the Delivery queue becomes the **Deliveries** tab of Prizes for tenants (their own sends, with a tenant Resend of failed rows) and `/obs/prize-deliveries` for staff across every tenant. The endpoint and its rules above are unchanged.*
 
 Failed rows, plus rows **being resent** (`pending` with a resend count) so an operator sees their action land: the row reads "Resending" until the worker reports back, then leaves the list or returns as failed with a fresh reason. The screen offers **Resend** per row (with the corrected-address option) and **Resend selected** for bulk. Reverification is prompted by the server's hint, as for finalization.
 
@@ -241,7 +269,7 @@ Failed rows, plus rows **being resent** (`pending` with a resend count) so an op
 
 ## The Prizes screen
 
-*Superseded twice. 2026-09-24: [`admin-prizes.spec.md`](admin-prizes.spec.md) took over the Prizes screen, the tier editor and the email settings. 2026-09-27: the prize library revision above made `/prizes` the library of prizes (name, description, image, claim copy, delivery method, value, redemption terms), with tiers picking a library prize and a bingo count. admin-prizes.spec.md (Wave 4 revision) specifies the resulting screens: Prizes with Library and Deliveries tabs, the full-page prize editor, and the contest's Prizes tab. The bullets below describe the pre-library layout and are kept for history only.*
+*Superseded twice. 2026-09-24: [`admin-prizes.spec.md`](admin-prizes.spec.md) took over the Prizes screen, the tier editor and the email settings. 2026-09-27: the prize library revision above made `/prizes` the library of prizes (name, description, image, claim copy, delivery method, value, redemption terms), with tiers picking a library prize and a bingo count. [`admin-prizes.spec.md`](admin-prizes.spec.md) (Wave 4 revision) specifies the resulting screens: Prizes with Library and Deliveries tabs (the email settings on Deliveries), each prize on its own full page, and the contest's Prizes tab as a numbered ladder of bingo count plus library prize. The bullets below describe the pre-library layout and are kept for history only.*
 
 Supersedes the `/prizes` section of admin-games-and-prizes.spec.md where they differ.
 
@@ -257,7 +285,7 @@ Supersedes the `/prizes` section of admin-games-and-prizes.spec.md where they di
 
 ## Endpoints
 
-*The preview's contest parameter and the email settings routes are revised 2026-09-24 by [`admin-prizes.spec.md`](admin-prizes.spec.md), "Endpoints": the preview takes the tier's sponsor and an optional `tierId`, and the settings move to `/admin/settings/emails`.*
+*Revised by [`admin-prizes.spec.md`](admin-prizes.spec.md), "Endpoints" (Wave 4): the preview takes `{ prize, prizeId?, threeInARows, settings? }` and credits the draft prize's sponsor; the settings routes stay `GET/PUT /admin/prizes/email`, with `reply_to_in_use` added.*
 
 | Method | Path | Auth | Who |
 |---|---|---|---|
@@ -267,7 +295,7 @@ Supersedes the `/prizes` section of admin-games-and-prizes.spec.md where they di
 | POST | `/admin/prizes/email/preview` | `requireAdmin` | any resolved admin scope (renders; changes nothing) |
 | POST | `/admin/delivery-queue/resend` | `requireAdminReverified` | obs staff only |
 
-**The preview's input, since the prize library.** `POST /admin/prizes/email/preview` takes a library prize plus the `threeInARows` count it is being previewed at (the bingo line the email states), rather than a full tier object — the prize is where the emailed content and the delivery method now live; the bingo count contributes only the "You hit N bingos" line. **The preview's contest.** The endpoint also takes an optional `contestId` beside `tier` and `settings` (additive: a console that sends none gets the email without a sponsor mark). With it, the preview carries that contest's **contest-wide** prize-popup holder — the one most winners' emails credit; a game-specific holder can only be known once a game is won. The lookup is scoped to the target tenant, so an unknown id, another tenant's contest or a value that is not an id at all simply shows no sponsor.
+**The preview's input, since the prize library.** `POST /admin/prizes/email/preview` takes a library prize plus the `threeInARows` count it is being previewed at (the bingo line the email states), rather than a full tier object — the prize is where the emailed content and the delivery method now live; the bingo count contributes only the "You hit N bingos" line. **The preview's contest** (retired, Wave 4). The credit now comes from the draft prize's `providedBySponsorId`, resolved within the target tenant; a `contestId` sent by an older console is accepted and ignored.
 
 Changed: `GET /admin/prizes` and `PUT …/prize-tiers` return `unawarded` per contest; the tier write enforces the registry and URL schemes; `GET /admin/delivery-queue` returns resending rows and each row's `state`, `resendCount`, `lastResendAt`. Contracts: `obs-b2b-shared/src/api/admin/{prize-delivery,delivery-queue,prizes}.ts`.
 
@@ -298,9 +326,9 @@ The local worker authenticates to Mongo with the developer's AWS SSO session thr
 
 ## Deploy dependency (Nick)
 
-- **`PRIZE_FROM_ADDRESS` must be an SES-verified identity** in each account. Configured per stage in `lib/config/environments.ts` (`prizeFromAddress`). **Production sends from `nick@overboardsports.com`**, the address it has always used (the pre-overhaul worker hardcoded it), set explicitly so prize emails keep going out through the overhaul (Arthur's ruling, 2026-09-23). The target is `prizes@overboardsports.com` on a domain with SPF, DKIM and DMARC: once Nick completes SES domain authentication and verifies that address in the prod account (security checklist, "before production"), it is a one-value change in `environments.ts`, nothing else. Personal dev stacks carry the same address, but the dev account has no verified SES identity (checked 2026-09-23), so their sends are refused and recorded; the local outbox ("Local delivery loop" above) is how dev sees real emails. The worker never falls back to any address: an unset value sends nothing and records why.
-- **SES production access** (out of the sandbox) must stay on for the prod account, so mail reaches unverified fan addresses. Production already sent prize email before the overhaul; confirm the account's status when the domain moves.
-- The API task now receives `PRIZE_FULFILLMENT_QUEUE_URL` and `sqs:SendMessage` on the prize-fulfillment queue (CDK change in this slice; no manual step).
+- **`PRIZE_FROM_ADDRESS` must be an SES-verified identity** in the account that sends. It is configured per stage in `lib/config/environments.ts` (`prizeFromAddress`). The target is `prizes@overboardsports.com` on a domain with SPF, DKIM and DMARC: once Nick completes SES domain authentication and verifies that address, it is a one-value change in `environments.ts`, nothing else. The dev account has no verified SES identity (checked 2026-09-23), so sends from personal dev stacks are refused and recorded; the local outbox ("Local delivery loop" above) is how dev sees real emails. The worker never falls back to any address: an unset value sends nothing and records why.
+- **SES out of the sandbox** is needed before mail reaches unverified fan addresses; it goes with the domain work.
+- The API task receives `PRIZE_FULFILLMENT_QUEUE_URL` and `sqs:SendMessage` on the prize-fulfillment queue (CDK change in this slice; no manual step).
 
 ---
 
@@ -315,7 +343,7 @@ The local worker authenticates to Mongo with the developer's AWS SSO session thr
 7. **A corrected address is fan PII**: never selected by default, never on a wire, never logged, cleared when its attempt concludes and on fan deletion. A fan whose data was erased is never resent to at all.
 8. **No fallback sender.** Without a configured sending address, nothing is sent and the reason is recorded.
 9. **Development transports are refused in production.**
-10. **The email credits the prize popup's sponsor, through the one resolver**, or no sponsor at all. A failed sponsor lookup drops the mark, never the prize.
+10. **The email credits the prize's "Provided by" sponsor, as snapshotted at award time**, or no sponsor at all (Wave 4; previously the prize popup's placement holder, through the one resolver). A failed sponsor lookup drops the mark, never the prize.
 
 ---
 
@@ -323,9 +351,9 @@ The local worker authenticates to Mongo with the developer's AWS SSO session thr
 
 - **Coupon-code batches** — deferred by design; seam above.
 - **Bounces and complaints after acceptance** — SES accepts a message and later bounces it; nothing feeds that back, so such a send reads `fulfilled`. Needs an SES configuration set + SNS → worker path, after domain authentication.
-- **Sending-domain authentication and SES production access** — Nick-gated; see "Deploy dependency".
-- ~~**Sponsor logo in the email**~~ — **closed 2026-09-23**: the email carries a "Presented by" mark from the prize popup's holder (above, "Presented by"). It waited on the sponsor model; the credit follows the placement where the prize was won rather than a link on the tier.
-- **Resend history per row** — the row keeps its count and last-resend time; the per-attempt history lives in the audit log, not on the row.
+- **Sending-domain authentication and leaving the SES sandbox** — Nick-gated; see "Deploy dependency".
+- ~~**Sponsor logo in the email**~~ — **closed 2026-09-23**: the email carries a sponsor mark. Since Wave 4 it is the prize's "Provided by" sponsor, snapshotted at award, rather than the placement where the prize was won.
+- **Resend history per row** — the row keeps its count and last-resend time; the per-attempt history lives in the audit log. Wave 4 adds `PrizeRedemption.attempts[]`, written forward ([`admin-prizes.spec.md`](admin-prizes.spec.md)).
 - **Provider message id** — the SES message id is not stored on the redemption yet; bounce correlation (above) will need it, as an additive `PrizeRedemption` field requested through the shared repo at that time. Sends are tagged with tenant, redemption and attempt meanwhile.
 - **Seed fixtures name non-existent methods** (`concessions-demo`, `teamstore-demo`) — they now show "Won't deliver", which is true. The fixture refresh belongs to the Games & Contests work.
 - **DLQ depth** — messages that exhaust redrive still land in the SQS dead-letter queue, which nothing in-app reads; the Mongo row is the operator's view and is always written first.

@@ -8,7 +8,7 @@
 
 **Revised 2026-09-22** (ruling, Arthur) — customer-visible gap narration is removed from these screens under the **Honesty by omission, not by narration** principle in [`admin-surface.spec.md`](admin-surface.spec.md). The Platform health gap card naming `OBS-01`–`OBS-03`, the delivery queue's "—" for a missing `failureReason`, and its on-screen "visibility-only" note all go; the gaps themselves stay recorded here. Never-fabricate is unchanged.
 
-**Revised 2026-09-24** (ruling, Arthur) — the Delivery queue's screen becomes Prize deliveries in cross-tenant mode ([`admin-prizes.spec.md`](admin-prizes.spec.md)), paged with a cursor, so its 100-row cap goes. Finalization, provisioning, Platform health and Fan actions are unchanged here.
+**Revised 2026-09-24** (ruling, Arthur) — the Delivery queue's screen becomes the cross-tenant **Prize deliveries** view (`/obs/prize-deliveries`), paged with a cursor, so its 100-row cap goes. Since the Wave 4 revision (2026-09-27) it is the staff view of the Deliveries tab of Prizes ([`admin-prizes.spec.md`](admin-prizes.spec.md)). Finalization, provisioning, Platform health and Fan actions are unchanged here.
 
 **Revised 2026-09-24** (ruling, Arthur): the tenant detail drawer is replaced by the tenant page ([`admin-tenant-page.spec.md`](admin-tenant-page.spec.md)); the directory keeps its table and rows open that page.
 
@@ -85,9 +85,9 @@ The defaults are one definition in `obs-b2b-shared` (`interfaces/b2b/tenant-defa
 
 **The Overboard Terms & Privacy opt-in** is the platform's own consent, not the tenant's: optInId `overboard-terms`, kind `tos`, label "Overboard Terms & Privacy", text "I agree to the Overboard Terms of Service and Privacy Policy.", blocking. On the gate, "Terms of Service" and "Privacy Policy" link to the fan app's in-app pages (`/terms`, `/privacy`; see `spec/webapp/entry-gate.spec.md`). Its wording is Overboard's to change, never a tenant's: `PUT /admin/config` always keeps it (first in the list, re-added if a submission omits it) and refuses a submission that alters it. If the platform wording ever changes, the constant changes and the next publish or backfill bumps its `textVersion`, which re-asks every fan — the normal rewording rule.
 
-**Existing tenants: `node-server/scripts/backfill-tenant-defaults.mjs`.** Dry run by default, `--apply` to write, dev-only rails. For every tenant it adds the Overboard opt-in where it is missing (or re-syncs its wording), and for a tenant with **no fields and no opt-ins at all** it also seeds the default fields. A tenant that has configured anything keeps its own fields. A tenant-owned `tos` opt-in whose text is Overboard's exact sentence (a stand-in from before the platform opt-in existed) is replaced by the platform opt-in rather than kept beside it, so the gate never asks for the same agreement twice; fans' past answers to it stay on record. A tenant's own terms in its own words stay. Idempotent. Run on `obs-b2b-dev` 2026-09-24 for the three tenants that had nothing (bears, fightinghawks, nuggets), and later that day for `test` at integration, where it replaced the tenant's own `tos` copy of Overboard's sentence. Production runs the script at release, alongside the pin that ships the code.
+**Existing tenants: `node-server/scripts/backfill-tenant-defaults.mjs`.** Dry run by default, `--apply` to write, dev-only rails. For every tenant it adds the Overboard opt-in where it is missing (or re-syncs its wording), and for a tenant with **no fields and no opt-ins at all** it also seeds the default fields. A tenant that has configured anything keeps its own fields. A tenant-owned `tos` opt-in whose text is Overboard's exact sentence (a stand-in from before the platform opt-in existed) is replaced by the platform opt-in rather than kept beside it, so the gate never asks for the same agreement twice; fans' past answers to it stay on record. A tenant's own terms in its own words stay. Idempotent. Run on `obs-b2b-dev` 2026-09-24 for the three tenants that had nothing (bears, fightinghawks, nuggets), and later that day for `test` at integration, where it replaced the tenant's own `tos` copy of Overboard's sentence.
 
-**Gap, recorded: the legal text itself.** The in-app Terms of Service and Privacy Policy pages have no content yet; the text is pending from Nick. Until it arrives the two pages are a clearly temporary placeholder (title and one line). This blocks a production launch of any tenant, not the build.
+**Gap, recorded: the legal text itself.** The in-app Terms of Service and Privacy Policy pages have no content yet; the text is pending from Nick. Until it arrives the two pages are a clearly temporary placeholder (title and one line). This blocks launching any tenant, not the build.
 
 ### Contest finalization (`POST /admin/contests/:contestId/finalize`)
 
@@ -117,7 +117,7 @@ Two adjacent facts, recorded with it: the SQS dead-letter queues and their ≥1-
 
 ## Delivery queue (`/delivery-queue`)
 
-*Superseded 2026-09-24 by [`admin-prizes.spec.md`](admin-prizes.spec.md): the queue's UI is now the Prize deliveries page in cross-tenant mode (`/obs/prize-deliveries`, with a Tenant column and filter), read through `POST /admin/all-prize-deliveries/search` with cursor paging, so the 100-row cap and its `truncated` flag go.*
+*Superseded by [`admin-prizes.spec.md`](admin-prizes.spec.md) (Wave 4): the queue's UI is the cross-tenant view of Prizes → Deliveries, at `/obs/prize-deliveries` (OBS Internal nav item "Prize deliveries"; `/delivery-queue` redirects there), with a Tenant column and filter, Status defaulting to Failed, and **Resend selected**; it has no email settings card, since those are per tenant. It reads through `POST /admin/all-prize-deliveries/search` with cursor paging, so the 100-row cap and its `truncated` flag go. A tenant's own failures are on its Deliveries tab, where its admins can resend them.*
 
 `PRIZE-07`'s reviewable failure surface, platform-wide because failed sends degrade sender reputation for every tenant (`PRIZE-06`'s rationale). One read: totals by redemption status, plus the failed rows newest-first — tenant, fan (display name only; `/fans` owns contact fields), contest, prize, and **why**.
 
@@ -153,7 +153,7 @@ All six authorize on **user-level obs staff-ness**, whatever organization the ca
 | GET | `/admin/tenants/directory` | requireAdmin | obs staff only (403 otherwise) |
 | POST | `/admin/tenants` | requireAdmin | obs staff only |
 | GET | `/admin/platform-health` | requireAdmin | obs staff only |
-| GET | `/admin/delivery-queue` | requireAdmin | obs staff only |
+| GET | `/admin/delivery-queue` | requireAdmin | obs staff only; replaced by `POST /admin/all-prize-deliveries/search` ([`admin-prizes.spec.md`](admin-prizes.spec.md)) |
 | POST | `/admin/delivery-queue/resend` | requireAdminReverified | obs staff only (see [`prize-delivery.spec.md`](prize-delivery.spec.md)) |
 | POST | `/admin/fan-actions/export` | requireAdminReverified | obs staff only |
 | POST | `/admin/contests/:contestId/finalize` | requireAdminReverified | obs staff only, `?tenant=` required |
