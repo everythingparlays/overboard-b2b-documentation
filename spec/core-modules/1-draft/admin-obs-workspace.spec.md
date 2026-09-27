@@ -8,6 +8,8 @@
 
 **Revised 2026-09-24** (ruling, Arthur) — All contests keeps its table, but a row now opens the contest's own page acting as that tenant, and carries Finalize. The `/contests` section carries the change; [`admin-contests.spec.md`](admin-contests.spec.md) owns the page and the Finalize rule.
 
+**Revised 2026-09-27** (Wave 4) — pointers only: contests have a stored state (Draft, Open, Closed; [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §3.1) in place of visibility, so All contests shows State and the attention rows read it; the Delivery queue is now Prize deliveries (all workspaces) at `/obs/prize-deliveries`, and a tenant's prize tiers are on the contest page's Prizes tab.
+
 ## Overview
 
 With no tenant chosen, an Overboard operator used to land on a void: "pick a tenant". The operator's real questions are platform-shaped — *what is live, what is about to go wrong, what changed* — and answering them took N tenant switches. This module gives staff a home and the two cross-tenant screens the platform was missing.
@@ -22,7 +24,7 @@ With no tenant chosen, an Overboard operator used to land on a void: "pick a ten
 - **An All config screen.** The useful version is drift detection (flag the workspace with six required fields where peers have two). Recorded as its own idea.
 - **A dedicated cross-tenant audit/exports view** (what you hand a sponsor's security reviewer). The Recent activity band reads the same log; a filtered, exportable view is the next step. Recorded.
 - **`/tenants` deepened into an account view** (health, season summary, configuration-completeness checklist, audit feed, open reports). Mostly assembly of what this module builds; recorded.
-- **Delivery queue filters.** The Prizes overhaul owns that screen this wave.
+- **Delivery queue filters.** The screen is now Prize deliveries (all workspaces), owned by [`admin-prizes.spec.md`](admin-prizes.spec.md).
 - **Attention rows the platform cannot detect** — coupon exhaustion (no coupon model), error spikes (no error substrate), missed export cadence (no delivery log). The concept listed these "named as absent"; **superseded by the omission ruling**: they are absent from the screen and recorded here.
 
 ---
@@ -40,10 +42,10 @@ Four bands, top to bottom:
    | Kind | Detects | Links to |
    |---|---|---|
    | `game-not-ready` | A game in the next **24 hours** whose readiness is not clean — the pre-kickoff row, the highest-value one | That workspace's game day, on that game (the checklist links to each fix) |
-   | `failed-sends` | A workspace with prizes sitting failed | Delivery queue |
-   | `no-prize-tiers` | A contest with games enabled and no prize attached | Prizes, in that workspace, open on that contest (`?contest=`) |
-   | `no-games-enabled` | A visible, open contest with no games | Games & Contests, in that workspace |
-   | `ready-to-finalize` | An unfinalized contest all of whose games have **ended** | All tenants (finalization's home) |
+   | `failed-sends` | A workspace with prizes sitting failed | Prize deliveries (all workspaces), filtered to that workspace |
+   | `no-prize-tiers` | A contest that isn't a Draft, with games and no prize tier | That contest's Prizes tab (`/contests/:id/prizes`), in that workspace |
+   | `no-games-enabled` | An Open contest with no games | That contest's Games tab, in that workspace |
+   | `ready-to-finalize` | An unfinalized contest all of whose games have **ended** | That contest's page, where staff Finalize |
    | `paused-workspace` | A paused workspace, with how long | All tenants |
    | `support-reports` | Unresolved Tell Overboard reports, with the oldest's age | Support inbox |
 
@@ -52,9 +54,9 @@ Four bands, top to bottom:
 
 ## `/contests` — All contests
 
-"What's running this weekend across all clients" used to take N tenant switches. One row per contest on the platform: contest and workspace, game type, derived status, visibility, next game with its readiness dot, games, prize tiers, players, delivered / failed, and a Live badge. Filters: **This week** (a game live or in the next 7 days — the default), **Active** (not finalized), **Finished**, **All**; and a search over contest and workspace names. Row links: the contest → Games & Contests in that workspace; the next game → game day; the last game → its recap.
+"What's running this weekend across all clients" used to take N tenant switches. One row per contest on the platform: contest and workspace, contest type, state (with the Finalized badge), next game with its readiness dot, games, prize tiers, players, delivered / failed, and a Live badge. Filters: **This week** (a game live or in the next 7 days — the default), **Active** (not finalized), **Finished**, **All**; and a search over contest and workspace names. Row links: the contest → its contest page in that workspace; the next game → game day; the last game → its recap.
 
-**Revised 2026-09-24.** A row now opens the contest page itself, `/contests/:contestId?tenant=<slug>`, which sets the console's acting tenant to that workspace before it reads, so the page, the sidebar and every link on it act as that tenant; its back link returns to All contests. The game-type column reads "Contest type". Each row carries **Finalize** under the same rule as the contest cards: shown only when the contest is published, not finalized, and every one of its games has ended (the test behind the `ready-to-finalize` attention row), and absent rather than disabled otherwise. It opens the same reverified, typed-name dialog as everywhere else ([`admin-contests.spec.md`](admin-contests.spec.md), "Finalize, wherever it appears"). The next-game and recap links are unchanged.
+**Revised 2026-09-24.** A row now opens the contest page itself, `/contests/:contestId?tenant=<slug>`, which sets the console's acting tenant to that workspace before it reads, so the page, the sidebar and every link on it act as that tenant; its back link returns to All contests. The game-type column reads "Contest type". Each row carries **Finalize** under the same rule as the contest cards: shown only when the contest isn't finalized and every one of its games has ended (the test behind the `ready-to-finalize` attention row), and absent rather than disabled otherwise. It opens the same reverified, typed-name dialog as everywhere else ([`admin-contests.spec.md`](admin-contests.spec.md), "Finalize, wherever it appears"). The next-game and recap links are unchanged.
 
 ## `/schedule` — the season calendar
 
