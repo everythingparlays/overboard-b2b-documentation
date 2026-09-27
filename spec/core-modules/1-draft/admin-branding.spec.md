@@ -6,6 +6,14 @@
 
 **Status:** Draft. Written from the fan-theming design contract (directive, 2026-09-22, Arthur). No open questions remain — ready for review.
 
+## Revision 2026-09-27 (Wave 3) — Satoshi everywhere
+
+The type controls leave the screen (Arthur, 2026-09-27: "Satoshi is the font everywhere… Remove the font option from
+Brand"). `resolveTheme` resolves every font slot to Satoshi, which both hosts self-host. `THEME-04`'s allowlist stays on the
+wire so stored themes keep validating, but nothing reads a stored font. The "Type" group loses Headline, Body and Number
+font and keeps ALL-CAPS headlines and Headline weight. See [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §7. The
+theme resolver also derives a contrast-guarded hit colour (§4 there).
+
 **Revised 2026-09-24** (ruling, Arthur) — there is one preview in the console: the real fan app running in preview mode, framed by the console's `FanAppPreview` ([`admin-preview.spec.md`](admin-preview.spec.md)) and fed the unsaved Brand draft, with a screen switcher over Gate, Join, Home, Contest, Board and Prize. It replaces this spec's live preview: the `.obs-gate-preview` wrapper, the `EntryGatePreview` plus sampler strip, and `THEME-21` are retired with `BrandPreviewPanel`, and the "no full board preview" gap closes, because the frame shows the fan app's own board. The Brand page itself is redesigned in `admin-brand-v2.spec.md` (Wave 5; see the 2026-09-27 note below, which keeps this preview and that redesign off main), and Sponsors leaves this screen for its own page ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)). The theme contract, derivation, presets, storage, endpoints and fan wire below are unchanged; the sections this revision retires are kept as written, for the record.
 
 **Revised 2026-09-27 (Wave 4)** (rulings, Arthur) — the Brand page v2 (`admin-brand-v2.spec.md` on the unmerged `arthur-s2-fanapp-spec` docs branch, as mocked with the fan-app v2 mocks) is **not** built on main in Wave 4: it is built in Wave 5, on the fan-app overhaul's own long-lived branch, which is never merged. On main the Brand page stays as it is built today, with two changes and no others:
