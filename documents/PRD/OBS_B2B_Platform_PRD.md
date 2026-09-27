@@ -634,6 +634,14 @@ These are unresolved and should be raised rather than assumed:
 
 ---
 
+## Revision notes (2026-09-27, the console redesign)
+
+- `ADM-03`, `ADM-04`: a contest is **Draft**, **Open** or **Closed** (one stored state replaces the visible and entries switches). Tenant admins may **delete any contest that isn't finalized**, after typing its name and, once fans have joined, reverifying; finalized contests stay. See `spec/core-modules/1-draft/admin-contests.spec.md` and `end-to-end-flow.spec.md` §3.
+- `GAME-02`: the 1–3 tier cap stands for bingo. Each tier names a prize from the tenant's prize library (see the 2026-09-27 clarification under `ADM-04`); the prize carries its type, its "Provided by" sponsor and its claim button. A finalized contest keeps the prizes it was finalized with. See `admin-prizes.spec.md`.
+- `OPT-05`: every opt-in may carry its own documents (Terms, Privacy, marketing terms, a sponsor's data-sharing agreement), stored with the opt-in, edited in the console and shown inside the fan app over the gate; nothing links out of the app. Every published version's wording and documents are kept. Opt-in categories are retired: an opt-in is linked to a sponsor or it isn't. See `admin-fields-and-optins.spec.md` and `spec/webapp/entry-gate.spec.md`.
+- `BRAND-03`: a sponsor may hold several data-sharing agreements; a sponsor export is run per agreement. Each placement slot shows one sponsor at a time: one for the whole contest, optionally a different one for a single game. See `admin-sponsors.spec.md` and `admin-exports.spec.md`.
+- Asset fields (sponsor artwork, prize images, brand images) are uploaded as files, never typed as URLs. See `admin-uploads.spec.md`.
+
 ## Revision notes (2026-09-24)
 
 - `GAME-02`: prize tiers are configured per contest, not per game (ruling, Arthur, 2026-09-24). A contest spans one or more games and its 1–3 tiers apply to every game in it; tiers that differ between two games are two contests. See `spec/core-modules/1-draft/admin-contests.spec.md` and `admin-prizes.spec.md`.
