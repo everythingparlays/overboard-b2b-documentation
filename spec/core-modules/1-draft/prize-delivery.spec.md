@@ -35,6 +35,13 @@ When a fan completes a bingo line, the board-evaluator puts a message on the pri
 
 ---
 
+## Revision 2026-09-27 (Wave 3) — scoring in dev, and awards the fan app trusts
+
+See [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §1 and §8. The evaluators' logic moves into `obs-b2b-shared/src/scoring/`
+and claims lines with a conditional write. A dev-only prop watcher feeds dev stacks and local servers the production
+message (§1.3). The fan app shows bingos and the prize popup only from what the server recorded (§1.5). Four prize-library
+fixes follow in §8: migration scoping, deleting a prize from a removed tier, tenant delete, and finalized contests.
+
 ## Revision 2026-09-27 — the prize library
 
 A prize is no longer authored on a tier: it is a tenant-owned record in a **prize library** (`${prefix}prizes`),
