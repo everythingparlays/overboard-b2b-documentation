@@ -4,7 +4,7 @@
 
 **Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — `resolveAdminScope`, the permission table, the `/config` nav destination, and the reflect-point principle the live preview implements. [`multi-tenant-identity-auth.spec.md`](multi-tenant-identity-auth.spec.md) — the `signupFields` / `optIns` shapes this writes and the field-definition guardrails. [`../../webapp/entry-gate.spec.md`](../../webapp/entry-gate.spec.md) — the fan-side gate that makes an admin edit here reach fans. [`admin-exports.spec.md`](admin-exports.spec.md) — the per-tenant exportable set this screen's field list defines, and the sponsor scopes a field deletion prunes. **`obs-b2b-shared/src/entry-gate/` and `obs-b2b-shared/src/ui/entry-gate/`** — the gate's field resolution, copy, validation, and React components, which this screen renders rather than imitates ([`b2b-shared-deps.md`](../../../documents/HLDs/b2b-shared-deps.md), layer table).
 
-**Status:** Draft. Rewritten for **editor v2** (directive, 2026-09-21, Arthur) — the open field model, the field editor, and page copy. The v1 sections that survive unchanged are marked where it matters; everything about the closed catalog is superseded here and in the three specs listed above.
+**Status:** Draft. **Revised 2026-09-27 (Wave 4)**: opt-in categories removed, every published version's wording kept, and opt-in documents added (section "Revision 2026-09-27 (Wave 4)"). Rewritten for **editor v2** (directive, 2026-09-21, Arthur) — the open field model, the field editor, and page copy. The v1 sections that survive unchanged are marked where it matters; everything about the closed catalog is superseded here and in the three specs listed above.
 
 ## Overview
 
@@ -19,7 +19,7 @@ The first real admin feature: the Fields & Opt-ins screen at `/config`, and the 
 **Not in scope:**
 
 - **Export cadence** (`RPT-06`). The mock places a cadence selector on this screen; cadence configures when *exports* are produced, not what signup collects, and no data model for it exists. It belongs to the Exports module — the screen omits it (spec wins over mock).
-- **Sponsor records themselves** — [`admin-sponsors.spec.md`](admin-sponsors.spec.md). *(Superseded 2026-09-23: this screen offered no sponsor picker because no sponsor collection existed. It now does: a `kind: "sponsor"` opt-in's drawer has a **Sponsor** picker listing the tenant's sponsors and "Not linked", which sets `sponsorId` — argued in the sponsor spec, `SP-04`.)*
+- **Sponsor records themselves** — [`admin-sponsors.spec.md`](admin-sponsors.spec.md). *(Superseded 2026-09-23: this screen offered no sponsor picker because no sponsor collection existed. It now does: a `kind: "sponsor"` opt-in's drawer has a **Sponsor** picker listing the tenant's sponsors and "Not linked", which sets `sponsorId` — argued in the sponsor spec, `SP-04`. Since 2026-09-27 every tenant opt-in has the picker and there is no kind.)*
 - **Concurrency control.** Publishing is last-write-wins between two concurrent admins. Acceptable at V1's operator count; revisit if OBS staffing grows.
 - **`SEC-05`'s IP address and consent method** on `ConsentRecord` — a pre-existing gap in the fan-side record, not something an admin write path can close. Flagged, not fixed here.
 
@@ -68,7 +68,7 @@ That is the honest position for a platform in this shape: OBS does not hold the 
 
 **That second rule only terminates because the gate serializes every rendered checkbox explicitly** (ruling, 2026-09-21): a box that was shown and left unchecked submits `false`, not nothing. A box the fan saw and did not tick is an answer — the same semantics as declining a non-blocking opt-in, which is recorded precisely so a declining fan is not asked forever. Without that, an optional checkbox would be the one field a fan can never finish: never ticked, never stored, returned by `missingFields` on every entry for the rest of the season, clearable only by ticking and unticking it. A required checkbox is unaffected and still blocks until it is ticked, because `false` does not satisfy it — the serialization decides what is *stored*, not what counts as satisfied.
 
-**Label, description, caption, placeholder, options, order, every `gateCopy` string, and an opt-in's label and kind appear nowhere in that derivation, nor in consent matching.** Editing them therefore *cannot* re-prompt anyone. That is a property of the model, not a convention someone has to remember — there is no code path by which a cosmetic edit reaches a fan's obligations, because the obligation function never reads those props. Pinned by tests on both the shared package and the backend: edit a label, a description, a caption, a placeholder, or any page copy, publish, and every fan's `pendingFields` and `pendingConsents` are byte-identical and no `textVersion` moves.
+**Label, description, caption, placeholder, options, order, every `gateCopy` string, and an opt-in's label, sponsor link and link phrases appear nowhere in that derivation, nor in consent matching.** Editing them therefore *cannot* re-prompt anyone. That is a property of the model, not a convention someone has to remember — there is no code path by which a cosmetic edit reaches a fan's obligations, because the obligation function never reads those props. Pinned by tests on both the shared package and the backend: edit a label, a description, a caption, a placeholder, or any page copy, publish, and every fan's `pendingFields` and `pendingConsents` are byte-identical and no `textVersion` moves.
 
 This is the answer to the obvious objection to a rich editor — "an admin fixing a typo will re-prompt the whole fanbase." Structurally, that edit cannot.
 
@@ -78,10 +78,10 @@ This is the answer to the obvious objection to a rich editor — "an admin fixin
 |---|---|
 | Adding a field | No stored value → `missingFields` returns it on next entry |
 | Optional → required, for fans without a value | Same derivation, now unsatisfied |
-| Editing an opt-in's `text` | Server-owned `textVersion` bump; `(optInId, textVersion)` no longer matches |
+| Editing an opt-in's `text` or a linked document | Server-owned `textVersion` bump; `(optInId, textVersion)` no longer matches |
 | Adding an opt-in | Starts at `textVersion: 1`; nobody has a matching record |
 
-**Opt-in text remains the only versioned string on the platform.** It is versioned because `OPT-04`/`OPT-05` need to prove *which wording* a fan agreed to; no field label ever carries that burden, so nothing else needs a version. Adding a second versioned string would mean a second re-prompt trigger to reason about, and the first one is the one that matters legally.
+**Opt-in text (with its linked documents, since 2026-09-27) remains the only versioned content on the platform.** It is versioned because `OPT-04`/`OPT-05` need to prove *which wording* a fan agreed to; no field label ever carries that burden, so nothing else needs a version. Adding a second versioned string would mean a second re-prompt trigger to reason about, and the first one is the one that matters legally.
 
 **Dropdown `options` edits are descriptive.** Removing an option does not invalidate the answers already given under it: existing values stand, and option membership is checked at collection time only. The alternative — treating a removed option as making a stored value unsatisfying — would turn trimming a list into a mass re-prompt, and would also, quietly, be the platform second-guessing a fan's own past answer.
 
@@ -97,6 +97,122 @@ The editor writes fully-explicit definitions on the next publish, so a tenant co
 
 ---
 
+## Revision 2026-09-27 (Wave 4)
+
+Arthur's rulings of 2026-09-27, after research into what opt-in categories and versions actually drive. **Where this section and anything below disagree, this section wins.** Three changes: categories go, versions stay and now keep their old wording, and every opt-in can carry the full document its checkbox refers to.
+
+### 1. Opt-in categories are gone
+
+`kind` (`tos`, `privacy`, `sponsor`, `marketing`) drove one thing: whether an opt-in could link a sponsor, and through that the exports, the recap and the fan-actions exclusion. `privacy` and `marketing` were labels only, and the platform Terms opt-in is identified by its id. The one real distinction is **linked to a sponsor or not**, so that replaces the category.
+
+- **The console** has no Kind control and shows no category. Every opt-in except the platform Terms row carries the **Sponsor** picker ("Not linked", or one of the tenant's sponsors); a linked row's collapsed line reads "Data sharing · Northside Credit Union".
+- **The write contract** drops `kind`: `adminOptInInputSchema` is `{ optInId, label?, text, blocking, sponsorId?, documents? }`. A body that still sends `kind` is accepted and the value ignored, so a console tab left open across the deploy does not fail.
+- **The read contracts** drop it too: `adminOptInSchema` and `adminOverviewConsentSchema` (which gains `sponsorId?` for the Overview tone) no longer carry `kind`. `publicOptInSchema` never did.
+- **The model reads old documents.** In `models/b2b.ts` the opt-in's `kind` becomes optional with no enum and is never written. Stored values stay in the database and nothing reads them. `OptInDefinition` keeps `kind?: string` marked "stored by older writes; read by nothing" until a cleanup script unsets it.
+- **Several opt-ins may link one sponsor** (a sponsor's several data-sharing agreements, [`admin-sponsors.spec.md`](admin-sponsors.spec.md) `SP-04`). `validateSponsorLinks` keeps its refusal of an unknown sponsor and of a link on the platform opt-in, and drops the wrong-kind and one-per-sponsor refusals.
+- **Deleting a sponsor unlinks its opt-ins** in the same delete ([`admin-sponsors.spec.md`](admin-sponsors.spec.md) `SP-14`): `sponsorId` is removed in one organization write, and each opt-in keeps its wording, documents, fans' answers, field scope and reference. No `textVersion` moves, since nothing the fan agreed to changed, and the opt-in stays exportable as an agreement while it carries a scope.
+- **The platform Terms opt-in stays identified by id** (`OVERBOARD_TERMS_OPT_IN_ID`). `OVERBOARD_TERMS_OPT_IN` drops `kind`, and `matchesPlatformOptIn` compares id, label, text, blocking and its links. The finished G2 migration script, which recognised a tenant's own terms copy by `kind === "tos"`, has already run and is left as the record of what it did.
+
+**Every former reader of `kind`**, and what it reads instead. "Agreement" means `isDataSharingAgreement(optIn)` in `obs-b2b-shared`: linked to a sponsor, **or** carrying a stored field scope (an agreement whose sponsor was unlinked or deleted stays exportable by its opt-in; [`admin-exports.spec.md`](admin-exports.spec.md)).
+
+| Where (origin/main) | Was | Now |
+|---|---|---|
+| `node-server/src/util/admin-config.ts` `validateSponsorLinks` | a link needs `kind: "sponsor"`; one opt-in per sponsor | any tenant opt-in may link; several may link one sponsor |
+| `node-server/src/util/admin-config.ts` `toWireOptIns`, `util/admin-overview.ts` | pass `kind` through | pass `sponsorId` |
+| `node-server/src/handlers/admin/exports.ts` `resolveSponsor` | 404 unless `kind === "sponsor"` | 404 unless an agreement |
+| `node-server/src/handlers/admin/exports.ts` `recentSponsor` | first sponsor-kind opt-in | the row's own `optInId`, then its stored names |
+| `node-server/src/util/admin-exports.ts` `sponsorOptIns` | sponsor-kind, linked or not | agreements |
+| `node-server/src/util/admin-fan-actions.ts` `isExcludedByDataShare` | declined any sponsor-kind opt-in | declined any agreement |
+| `node-server/src/handlers/admin/recap.ts` editions and audience | sponsor-kind opt-ins | sponsors (editions) and each sponsor's agreements (audience lines) |
+| `node-server/src/util/admin-sponsors.ts` consent lookup | the one sponsor-kind opt-in linked to it | every opt-in linked to it |
+| `obs-b2b-shared/src/interfaces/b2b/tenant-defaults.ts` `matchesPlatformOptIn` | compares `kind` | does not |
+| `obs-b2b-admin-frontend/src/lib/fieldsDraft.ts` (`KIND_OPTIONS`, `KIND_LABELS`, new-row default, `sponsorId` only for sponsor kind) | category model | removed; `sponsorId` sent for any linked row |
+| `obs-b2b-admin-frontend/src/components/fields/OptInEditor.tsx` | Kind select; Sponsor picker for sponsor kind | no Kind; Sponsor picker on every tenant row |
+| `obs-b2b-admin-frontend/src/pages/FieldsOptins.tsx` row meta | `KIND_LABELS[kind]` | "Data sharing · {sponsor}" when linked |
+| `obs-b2b-admin-frontend/src/pages/Overview.tsx` badge tone | `kind === "sponsor"` | `sponsorId` present |
+
+The fan app never read `kind`; nothing changes for fans.
+
+### 2. Versions stay, and every version's wording is kept
+
+Research confirmed versioning is real: a wording change mints a version on the server, fans are asked again, a blocking opt-in blocks play until the new version is accepted, and exports and fan filters count only acceptances of the current version. It stays exactly as it is. Two gaps close:
+
+**Every published version is stored, immutably.** A new collection, **`${prefix}consent_versions`**, holds one row per published version of every opt-in:
+
+```ts
+interface ConsentVersion<TId = string> {
+  _id?: TId;
+  organizationId: TId | null;   // null: the platform Terms opt-in, shared by every tenant
+  optInId: string;
+  textVersion: number;
+  label?: string;
+  text: string;                 // the checkbox wording fans saw at this version
+  documents: {                  // the linked documents at this version, possibly none
+    linkId: string;             // stable within the opt-in: "terms", "privacy", or a slug
+    linkText: string;           // the words in `text` that open it
+    title: string;
+    body: string;
+  }[];
+  publishedAt: Date;
+  publishedBy: { userId: string; name: string } | null;   // null for backfilled rows
+}
+```
+
+Unique index `{ organizationId, optInId, textVersion }`. **Rows are never updated or deleted**; no endpoint edits one, and only tenant deletion removes a tenant's rows. The name is "versions", not the research note's "documents", because every row keeps the checkbox wording even when there is no document.
+
+- **Written at publish.** When `applyConfigUpdate` mints a version (new opt-in, changed text, changed documents), the same `PUT /admin/config` inserts that version's row **before** it writes the organization. A row for a version the organization never reached (the org write failed) is replaced by the retry, which is safe because no fan can have answered a version that was never published.
+- **Kept out of the organization document.** The org is read on every fan request; document bodies are long. The org's opt-in carries only the current version's link phrases and titles (below); bodies are read from `consent_versions`.
+- **Backfill** (in `node-server/scripts/consent-versions-migration.mjs`, dry-run by default, `--apply` writes, idempotent, shared dev database): one row per existing opt-in at its current `textVersion`, with its current text and no documents, `publishedBy: null`. Wording from before this change was never stored and cannot be recovered; the fan page says nothing about it and shows no wording for those answers.
+
+**Each fan's answers are kept per version.** `B2BFanMembership` gains **`consentHistory: ConsentRecord[]`**, append-only: every consent write (`POST /b2b/join`, `POST /b2b/consent`) pushes the new records onto it in the same update that `mergeConsents` rewrites `consents`. `consents` stays the current answer per opt-in, so every reader of it (the gate, exports, stats, fan filters) is unchanged. The admin fan read's `consentHistory[]`, which today is computed from `consents` and so has lost every earlier answer, reads the stored history (falling back to `consents` for a membership written before the change). The backfill copies each membership's `consents` into `consentHistory`. It is cheap: tens of records per fan at most, and fan deletion (`SEC-07`) removes it with the membership.
+
+**What bumps a version:** a changed checkbox `text`, or a linked document added, removed, retitled or re-worded. A changed label, sponsor link, blocking flag or link phrase (which words are underlined) does not: none of them changes what the fan agrees to. The consequence note names the cause: "Text edited: publishing creates version 4 and asks every fan to accept it again." / "Document edited: publishing creates version 4 and asks every fan to accept it again."
+
+### 3. Opt-in documents
+
+Every opt-in may link its full document (the terms, the privacy policy, the sponsor's data-sharing agreement, the marketing terms) to words in its checkbox text. The document is stored in the database beside the text, edited in the console beside the text, and shown in the fan app over the gate. **Nothing links out of the app.**
+
+**On the opt-in** (`OptInDefinition`, current version only, small): `links?: { linkId: string; linkText: string; title: string }[]`, at most three. **The bodies** live in the current version's `consent_versions` row.
+
+**Validation (`PUT /admin/config`, 400 in plain words):**
+
+- `linkText` must appear in `text` exactly (case-sensitive), once; two links may not overlap: "The linked words “Privacy Policy” aren't in the checkbox text any more."
+- `title` 1–120 characters; `body` 1–50,000 characters.
+- At most three documents per opt-in; `linkId` unique within the opt-in (the console generates a slug from the title once and keeps it).
+
+**The body format** is plain text with a small formatting set, so a pasted policy reads well and nothing can escape the app: a line starting `# ` or `## ` is a heading; a blank line separates paragraphs; lines starting `- ` form a list; `**words**` are bold. No links, no images, no HTML: a URL in the text renders as plain text. One parser, `parseConsentDocument` in `obs-b2b-shared/src/entry-gate/` (React-free), and one renderer, `ConsentDocumentView` in `obs-b2b-shared/src/ui/entry-gate/`, used by the fan app, the gate preview and the console's editor preview.
+
+**The console editor.** In the expanded opt-in row (v3's inline editor), under **Checkbox text**:
+
+- **"Linked documents"**, a list. Each entry shows its linked words and its title, "Edit" and "Remove".
+- **"Link a document"**: the admin selects words in the checkbox text box and presses it (with no selection it is disabled, with the hint "Select the words fans tap to open it"). A new entry opens with **Linked words** (the selection, read-only), **Title** (defaulting to the linked words) and **Document** (a tall text area, the format hint "Use # for headings, - for lists and **bold**", and a word count).
+- The gate preview underlines the linked words at once and opens the document over the preview when they are clicked, exactly as the fan app does.
+- The version line under the text reads "Version 3 · published Sep 12, 2026" as today, and the consequence note appears once text or a document differs from the published version.
+
+**The platform Terms opt-in** keeps its fixed checkbox text ("I agree to the Overboard Terms of Service and Privacy Policy.") and has two documents, `terms` ("Terms of Service") and `privacy` ("Privacy Policy"), shared by every tenant (`organizationId: null`). Tenant admins see its row read-only, with the two documents readable. **OBS staff** get "Edit Overboard's documents" on that row, which opens the same document editor for the two documents and publishes them through a staff-only endpoint (below), separately from the tenant's draft, because it changes every tenant at once. Its consequence dialog: title "Publish Overboard's documents?", body "Every fan on every team is asked to accept Overboard's terms again before their next board.", buttons "Publish for every team" and "Cancel"; reverified.
+
+**Endpoints (added):**
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/admin/config` | unchanged | Each opt-in gains `links` and, for the current version, `documents[]` with bodies (one read of `consent_versions`), for the editor |
+| PUT | `/admin/config` | unchanged | Each opt-in may carry `documents: { linkId?, linkText, title, body }[]`; absent keeps the stored ones, `[]` removes them all |
+| GET | `/admin/config/consent-versions/:optInId` | `requireAdmin` | Every stored version of one opt-in, newest first (text, documents' titles, publishedAt, publishedBy); `?version=` returns one with bodies. For the fan page's "Show wording" |
+| PUT | `/admin/platform-consent` | `requireAdminReverified`, OBS staff only | `{ documents: [{ linkId: "terms" \| "privacy", title, body }] }`. Writes the next platform version row, then sets the platform opt-in's `textVersion` and `publishedAt` on every tenant in one `updateMany`. Audited `platform_consent_publish` (version, staff user). |
+| GET | `/b2b/org/:subdomain/consent-document/:optInId/:linkId` | public | `?version=N` optional. Returns `{ optInId, linkId, textVersion, title, body, publishedAt }`; 404 when there is none. A versioned read is immutable and cached for a day; the current read is cached 60 seconds beside the org cache and cleared by a publish |
+
+**Why this path, not the research note's `GET /b2b/consent-document/:optInId`:** the tenant comes from the subdomain like every other public fan read; `linkId` is needed because the platform opt-in has two documents; and `version` lets the gate show the document **as of the wording it displayed**, the same frozen-version discipline the consent submission already follows.
+
+**`publicOptInSchema`** gains `links?: { linkId, linkText, title }[]`, so the gate knows which words to link without loading any body.
+
+**Audit.** Config publishes stay unaudited (the published version rows are the record of every wording change, with who published it). The platform publish is audited because it changes every tenant.
+
+**Tests.**
+
+- Shared: `parseConsentDocument` (headings, lists, bold, no links, a URL stays text, HTML is text); `consentTextSegments` links a tenant opt-in's phrases and the platform's two; `isDataSharingAgreement`; the config schemas refuse a missing link phrase, overlapping phrases, a fourth document; `kind` is accepted and ignored on write and absent on read.
+- Backend: a text change and a document change each mint a version and insert its row with the right content; a label, sponsor, blocking or link-phrase change mints nothing and inserts nothing; an old version's row is unchanged after a new publish; a consent write appends to `consentHistory` and replaces in `consents`; the platform publish bumps every tenant's platform version and re-prompts a fan on two tenants; the public document read returns the displayed version when asked and 404 for another tenant's opt-in id; every former `kind` reader behaves as the table says (an unlinked agreement with a scope still exports; an opt-in with neither link nor scope is 404 on export).
+- Console: no Kind control anywhere; the Sponsor picker on every tenant row; select words, link a document, see the underline and the overlay in the preview; the consequence note for a document edit.
+
 ## The screen, v3 (ruled 2026-09-24, Arthur)
 
 Arthur's walkthrough ruling reshapes the screen. **Where this section and the v2 sections below disagree, this section wins**; the v2 text stays as the record of what it replaced and why.
@@ -107,7 +223,7 @@ Arthur's walkthrough ruling reshapes the screen. **Where this section and the v2
 
 **Rows (Sign-up fields and Opt-ins).**
 
-- **Collapsed:** a drag handle, the label, the type or kind in plain product language, the Required/Optional (fields) or Required/Optional-to-accept (opt-ins) badge, and a delete button. The row toggles expansion.
+- **Collapsed:** a drag handle, the label, the type in plain product language (fields) or "Data sharing · {sponsor}" when linked (opt-ins, 2026-09-27; there is no kind), the Required/Optional (fields) or Required/Optional-to-accept (opt-ins) badge, and a delete button. The row toggles expansion.
 - **Drag moves the whole row, visibly.** The row lifts with a shadow and the list makes room as it passes (a sortable list, not a drag image), with pointer, touch and keyboard sensors (space to lift, arrows to move, space to drop, escape to cancel, and a spoken announcement of each step). **The move-up/move-down arrows are gone**; the keyboard sensor is what replaces them for keyboard users. The preview reorders live.
 - **Delete sits on the row, replacing the arrows.** It edits the draft (v2's reasoning stands: nothing reaches a fan until Publish, so no confirmation dialog); the consequence note says what the publish will do.
 - **Type size is larger than v2** (row label ≥ 15px, editor labels ≥ 14px, helper lines ≥ 13px) and the craft bar is the B2C survey builder: calm spacing, clear focus rings, smooth expand/collapse, no layout jumps.
@@ -115,7 +231,7 @@ Arthur's walkthrough ruling reshapes the screen. **Where this section and the v2
 **Fixed rows.** Two rows cannot be dragged, deleted or retyped, and say so by their shape (a lock glyph where the handle would be, no delete button), not by disabled controls:
 
 - **Display name**, pinned first on Sign-up fields: "Short text · Required · always asked — it's the name on the fan's board." Expanded, it edits its **label and placeholder** (stored as `gateCopy.displayNameLabel` / `gateCopy.displayNamePlaceholder`; blank means the standard wording).
-- **Overboard Terms & Privacy**, pinned first on Opt-ins: "Required on every team." Expanded, it shows its text with the two links, read-only, and one line: "Overboard's own terms. Every team asks them, and they can't be edited or removed."
+- **Overboard Terms & Privacy**, pinned first on Opt-ins: "Required on every team." Expanded, it shows its text with the two links, read-only, and one line: "Overboard's own terms. Every team asks them, and they can't be edited or removed." (2026-09-27: the two documents are readable here, and OBS staff can publish new versions of them; revision section 3.)
 
 **The email row is removed.** Email is collected when the fan creates their account, before the gate ever shows; listing it among the gate's fields described a question the gate never asks.
 
@@ -314,9 +430,9 @@ Options being rejected on a non-dropdown is not pedantry: a list of choices atta
 
 ### Contracts
 
-**`GET /admin/config` returns** the tenant `{ slug, name }`, `signupFields`, `gateCopy`, full `optIns` (admin sees `kind`, `label`, `publishedAt` — unlike the fan-facing `publicOptInSchema`), and **stats** computed with the same entry-gate helpers the fan surface uses, so the numbers shown are exactly what the gate will do: `memberCount`, per-opt-in `{ accepted, declined, pending }` at the *current* `textVersion`, and per-configured-field `missingCount` (members whose stored value does not satisfy the definition — the N in the newly-required warning). Under v2 that map is keyed by `fieldId` string over the tenant's *configured* set; there is no longer a fixed seven-row catalog to compute it for, and computing it for a field nobody configured would be computing it for a field nobody can name.
+**`GET /admin/config` returns** the tenant `{ slug, name }`, `signupFields`, `gateCopy`, full `optIns` (admin sees `label`, `publishedAt`, `sponsorId` and, since 2026-09-27, each opt-in's `links` and current `documents` — unlike the fan-facing `publicOptInSchema`), and **stats** computed with the same entry-gate helpers the fan surface uses, so the numbers shown are exactly what the gate will do: `memberCount`, per-opt-in `{ accepted, declined, pending }` at the *current* `textVersion`, and per-configured-field `missingCount` (members whose stored value does not satisfy the definition — the N in the newly-required warning). Under v2 that map is keyed by `fieldId` string over the tenant's *configured* set; there is no longer a fixed seven-row catalog to compute it for, and computing it for a field nobody configured would be computing it for a field nobody can name.
 
-**`PUT /admin/config` takes** the desired state — `signupFields` (full replacement, no duplicate `fieldId`s), `gateCopy` (optional; blank values dropped, an empty object unsets the field), and `optIns` as `{ optInId, kind, label?, text, blocking, sponsorId? }` (no duplicate `optInId`s). `sponsorId`: a value links the opt-in to that sponsor, `""` unlinks it, and absence preserves whatever is stored (so an older client cannot strip a link it never saw). A linked id must be one of the tenant's sponsors, only a `kind: "sponsor"` opt-in may carry one, and no two opt-ins may link the same sponsor — each a 400 in plain words (`SP-04`). **`textVersion` and `publishedAt` are not accepted from the client** — see the rules below.
+**`PUT /admin/config` takes** the desired state — `signupFields` (full replacement, no duplicate `fieldId`s), `gateCopy` (optional; blank values dropped, an empty object unsets the field), and `optIns` as `{ optInId, label?, text, blocking, sponsorId?, documents? }` (no duplicate `optInId`s; `kind` retired 2026-09-27, ignored if sent). `sponsorId`: a value links the opt-in to that sponsor, `""` unlinks it, and absence preserves whatever is stored (so an older client cannot strip a link it never saw). A linked id must be one of the tenant's sponsors and the platform opt-in carries none; several opt-ins may link the same sponsor (`SP-04`, revised 2026-09-27). `documents` follows the revision's section 3. **`textVersion` and `publishedAt` are not accepted from the client** — see the rules below.
 
 Its 400s, each with a plain message: a duplicate `fieldId`; a reserved id; a custom field missing a label or a type; a dropdown with no options; options on a non-dropdown; and a type change on an existing `fieldId`.
 
@@ -341,9 +457,9 @@ Responds with the updated config plus a `changes` summary — `optInsAdded` / `o
 The fan-side machinery (entry-gate spec) already re-prompts on `(optInId, textVersion)` mismatch and asks for missing fields on next entry. Admin edits must *drive* that machinery, never bypass it:
 
 1. **The server owns `textVersion`.** A publish that changes an opt-in's `text` increments `textVersion` and stamps `publishedAt`; the client cannot send either. The bump "that must never be skipped" (multi-tenant spec Rule 4) is structural, not a convention.
-2. **Only `text` bumps.** Editing `label`, `kind`, `blocking`, or `sponsorId` changes nothing about what the fan agreed to, so prior consents stand. Flipping blocking ↔ non-blocking takes effect at each fan's next entry through the existing gate (`OPT-03`'s config-only acceptance criterion).
+2. **Only `text` and linked documents bump.** Editing `label`, `blocking`, `sponsorId` or which words are linked changes nothing about what the fan agreed to, so prior consents stand. Each bump stores the new version's wording and documents in `consent_versions` (2026-09-27). Flipping blocking ↔ non-blocking takes effect at each fan's next entry through the existing gate (`OPT-03`'s config-only acceptance criterion).
 3. **A new opt-in** starts at `textVersion: 1` with `publishedAt` now; every member is pending it on next entry (`IDN-05` — the "sponsor added mid-season" case, already free).
-4. **A removed opt-in** leaves the active set; fans' `ConsentRecord`s for it are never deleted (`OPT-04` is an audit record, and `OPT-06` depends on history surviving).
+4. **A removed opt-in** leaves the active set; fans' `ConsentRecord`s for it are never deleted (`OPT-04` is an audit record, and `OPT-06` depends on history surviving), and its stored versions stay in `consent_versions`.
 5. **A field newly required** is asked on next entry and blocks play until provided; newly optional is asked but never blocks (`AUTH-02`). No admin-side mechanism needed — `missingFields` already evaluates per entry.
 6. **A publish mid-fan-session is safe.** The fan surface rejects stale `textVersion`s with 409 and the fan re-fetches — the admin edit cannot record agreement to wording the fan never saw.
 7. **A descriptive edit reaches fans without asking them anything.** Rewording a label, adding a description, changing the order, editing the options list, or rewriting the page copy changes what the next fan sees and changes nobody's obligations — fields carry no version, so there is nothing to mismatch on. This is the one mid-season rule with no mechanism behind it, because it is the absence of one.
@@ -364,7 +480,7 @@ The fan-side machinery (entry-gate spec) already re-prompts on `(optInId, textVe
 9. **The fan theme's variables are scoped to `.obs-gate-preview`, never the document root**, and only gate components render inside that wrapper.
 10. **The preview cannot reach the network, by construction.** No `fetch`, Clerk, RTK Query, or router import exists anywhere under `obs-b2b-shared/src/ui/`. "Nothing you type here is saved" is then a property of the code rather than a promise in the copy — the data layer stays in `JoinTenant.tsx`, which is the only consumer that has one.
 11. **Deleting a field prunes its id from every opt-in's `exportFields`, in the same write.** A field id that no longer exists must not sit in a sponsor's DPA scope waiting for someone to re-create the id and inherit a permission nobody granted. Fail closed: the scope is re-granted by a human or it is not granted.
-12. **A descriptive edit cannot change any fan's obligations, and this is enforced by the model rather than by review.** Label, description, caption, placeholder, options, order, `gateCopy`, and an opt-in's label and kind appear in no obligation derivation and in no consent match. Anything that would make one of them matter to `missingFields` or to `pendingConsents` breaks this rule, whatever else it is called.
+12. **A descriptive edit cannot change any fan's obligations, and this is enforced by the model rather than by review.** Label, description, caption, placeholder, options, order, `gateCopy`, and an opt-in's label, sponsor link and link phrases appear in no obligation derivation and in no consent match. Anything that would make one of them matter to `missingFields` or to `pendingConsents` breaks this rule, whatever else it is called.
 13. **A published field's type never changes.** 400 on the wire, no control in the editor; delete-then-add is the path. Stored answers were written under the published type and nothing reinterprets them.
 14. **The draft lives in the browser or nowhere.** `sessionStorage`, keyed to user and tenant, discarded when its baseline no longer matches the server, cleared on publish, Discard, and sign-out. There is no server-side draft — the only config the server holds is the published one.
 
@@ -373,7 +489,10 @@ The fan-side machinery (entry-gate spec) already re-prompts on `(optInId, textVe
 ## Known gaps (recorded, not blocking)
 
 - PRD §7 (`OPT-01` "once, at signup", `OPT-06` "do not implement mid-season consent prompting") predates the 2026-09 mid-season decision that §6/`AUTH-02` and `ADM-05` reflect; the shipped per-entry gate and this spec follow the newer text (contradiction rule: more features + postdates).
-- `SEC-05` wants IP + consent method on consent records; `ConsentRecord` has neither.
+- `SEC-05` wants IP + consent method on consent records; `ConsentRecord` has neither. (Since 2026-09-27 each fan's answers are kept per version in `consentHistory`; IP and method are still absent.)
+- **Wording from before 2026-09-27 is not recoverable.** The backfill stores each opt-in's version current at migration time; earlier versions were never kept.
+- **Tenant documents are not in the fan app's side menu yet.** They open from the gate. The side menu's Terms and Privacy read the platform documents; listing each tenant document there is part of the on-hold fan-app overhaul.
+- **The platform documents' text comes from Nick.** Until staff publish them, the platform opt-in has no documents: its two phrases render as plain words, and the side menu shows no Terms or Privacy entry (nothing is shown that cannot be shown honestly).
 - Admin Clerk instance configuration (custom permissions, org self-creation off per admin-surface Rule 8) is dashboard work, tracked outside this spec.
 - **The preview cannot show a tenant's real colors or logo**, because nothing server-side has them. `multi-tenant-identity-auth.spec.md` already places branding server-side — "Data Model / Today" names its absence on `B2BOrganization` as a structural problem, and the route-disposition table has `GET /b2b/org/:subdomain` returning branding — and it is unbuilt; until then the preview renders the platform default palette and says nothing about the difference (superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md); the caption is removed, and [`admin-branding.spec.md`](admin-branding.spec.md) now closes the underlying gap). There is a tension to settle here and this spec does not settle it: PRD `BRAND-01` is a set-once branding requirement, while the POC baseline records the per-tenant compile-time config as "hardcoded as intended". Which of those V1 follows is **Arthur's call**, and the backlog's standing instruction is not to start `/branding` on a guess. Recorded so the preview's default palette is understood as a consequence of an open question rather than a design choice of its own — recorded here precisely because it is no longer captioned on screen.
 - **The preview's Returning mode assumes existing fans completed everything previously required.** It is the same assumption the "N existing fans will be asked" counts already make, and the counts are the accurate number; a fan who somehow owes an older field sees more than the preview showed. Worth naming because the preview is more literally read than a count is.

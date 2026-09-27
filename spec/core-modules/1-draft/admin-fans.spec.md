@@ -4,7 +4,7 @@
 
 **Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — `resolveAdminScope`, the `/fans` nav destination, the reverification list. [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the tenant-targeting rule and the consent-stats vocabulary (`accepted` / `declined` / `pending`) this reuses unchanged. [`admin-exports.spec.md`](admin-exports.spec.md) — the sibling module sharing the reverification middleware and the audit log.
 
-**Status:** Draft.
+**Status:** Draft. **Revised 2026-09-27 (Wave 4):** opt-in categories are gone, every published version's wording and documents are stored, and each fan's answers are kept per version, so the fan page shows the wording (and documents) of any answer given since that change ([`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md), revision 2026-09-27).
 
 **Revised 2026-09-24** (ruling, Arthur) — "Full pages instead of drawers": the fan detail drawer is replaced by the **fan page** at `/fans/:membershipId`, with a URL a support report or a colleague can link to. The roster becomes an endless-scroll list on cursor paging ([`admin-lists.spec.md`](admin-lists.spec.md), which lands with G1's PR this wave), and its rows open the page. "The fan page" below replaces the drawer section; the endpoints gain three additive changes ("Changes for the fan page"); every rule stands, and Rules 8–10 are new.
 
@@ -60,12 +60,12 @@ A full page inside the console shell. `:membershipId` is the membership id, whic
 
 | Column | Content |
 |---|---|
-| Opt-in | The opt-in's label, with its kind ("Terms", "Sponsor: Acme") |
+| Opt-in | The opt-in's label, with "Data sharing · Acme" beneath when it is linked to a sponsor (there are no categories since 2026-09-27) |
 | Answer | "Accepted", "Declined", or "Not answered yet" |
 | Wording | "Version 3", and "Current" when that is the version live now, or "Earlier wording" when the tenant has published a newer one since |
 | When | The date of that answer |
 
-A row answered on the current version offers "Show wording", which expands the current consent text in place. An answer given on an earlier version shows no wording: the platform keeps the version number the fan agreed to, not the superseded text (recorded gap). Beneath the table, **"Consent history"** expands the fan's full append-only record, newest first: each entry's opt-in, decision, version and date, including answers to opt-ins the tenant has since removed.
+A row offers "Show wording", which expands, in place, the checkbox text of the version that answer was given on, and the titles of that version's linked documents, each opening the document as it read then (`GET /admin/config/consent-versions/:optInId?version=`). Since 2026-09-27 every published version is stored, so this works for earlier versions too; an answer given on a version published before that change and since replaced has no stored wording, and the row simply offers no "Show wording". Beneath the table, **"Consent history"** expands the fan's append-only record (`consentHistory`, kept per version since 2026-09-27; before that only the latest answer per opt-in survived), newest first: each entry's opt-in, decision, version and date, including answers to opt-ins the tenant has since removed.
 
 **4. Contests & boards.** A table, newest board first:
 
@@ -138,7 +138,7 @@ All under `/admin`, admin Clerk instance only, scope from `req.adminScope` (admi
 
 All additive; nothing an existing client sends changes meaning.
 
-- **`GET /admin/fans/:membershipId`** gains, beside today's totals: `boards[]` — `{ boardId, contestId, contestName, settled, bingos, createdAt }`, newest first; `prizes[]` — `{ redemptionId, contestId, contestName, prizeName, prizeType?, status, failureReason?, awardedAt }`, newest first, where `prizeName` and `prizeType` come from the award's snapshot of its tier and `failureReason` is present for staff callers only (tenant callers get the Prize deliveries category instead); and per current opt-in `{ optInId, label, kind, currentTextVersion, answer?: { decision, textVersion, agreedAt } }` beside the existing `consentHistory[]`. One fan's records are tens at most, so these arrive whole, not paged.
+- **`GET /admin/fans/:membershipId`** gains, beside today's totals: `boards[]` — `{ boardId, contestId, contestName, settled, bingos, createdAt }`, newest first; `prizes[]` — `{ redemptionId, contestId, contestName, prizeName, prizeType?, status, failureReason?, awardedAt }`, newest first, where `prizeName` and `prizeType` come from the award's snapshot of its tier and `failureReason` is present for staff callers only (tenant callers get the Prize deliveries category instead); and per current opt-in `{ optInId, label, sponsorName?, currentTextVersion, answer?: { decision, textVersion, agreedAt, wordingStored: boolean } }` beside the existing `consentHistory[]`, which since 2026-09-27 reads the membership's stored `consentHistory` (falling back to `consents` for a membership written before it) rather than rebuilding it from `consents`, where earlier answers were overwritten. `kind` is retired. One fan's records are tens at most, so these arrive whole, not paged.
 - **`POST /admin/fans/search`** accepts an optional `membershipId` in the body, narrowing the result to that one membership. This is how the fan page reveals: it re-runs the search for its own fan with `reveal: true`, under the same reverification and the same `fan_pii_reveal` audit entry (row count 1). Reveal stays on one endpoint (Rule 2), and the page gains it without a second unmasked path.
 - **`POST /admin/fan-actions/export`** accepts an optional `membershipId` in the body, with `?tenant=` then required: the export narrowed to one fan. Same reverification, same identifier-only columns, same `RPT-05` exclusion, same `fan_actions_export` audit action with the membership id in `detail`. It is the existing internal export (`RPT-02`) narrowed, not the "Export this view" roster export this spec rejects: it adds no PII and no new recipient.
 
@@ -207,7 +207,7 @@ Reads: every resolved admin scope — `ADM-01`'s shared-screen model; the roster
 - **`SEC-05`**: consent records still lack IP and consent method (pre-existing, flagged by the fields spec) — the drawer shows what exists.
 - **In-memory listing**: search/filter loads the tenant's memberships and filters in process — the same precedent as `computeConfigStats`, fine at V1 tenant sizes; an aggregation pipeline is the scale path.
 - **No rate limiting on search** (`SEC-08` names it for sensitive endpoints) — platform-wide concern, not solved per-module.
-- **Superseded consent wording is not kept.** A consent record stores the `textVersion` the fan agreed to, and the opt-in stores only its current text, so the fan page can show the wording for current-version answers only. Showing what a fan agreed to under an earlier version needs a text archive per `(optInId, textVersion)`, written at publish; the Fields & Opt-ins publish path is where it belongs.
+- ~~**Superseded consent wording is not kept.**~~ **Closed 2026-09-27**: every published version's wording and documents are stored at publish (`consent_versions`), and each fan's answers per version (`consentHistory`). Versions replaced before that change stay unrecoverable.
 - **The prize snapshot is G2's.** The fan page's prize names read the award's snapshot of its tier; until G2's snapshot lands, the detail read shows the tier as it is now (today's behaviour), which can differ from what the fan was promised if the tier was edited after the award.
 
 ## References

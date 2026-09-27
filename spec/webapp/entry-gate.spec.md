@@ -6,6 +6,8 @@
 
 **Status:** Implemented 2026-09-11, merged 2026-09-14 — this spec described shipped behavior. Contracts in [`obs-b2b-shared#1`](https://github.com/everythingparlays/obs-b2b-shared/pull/1), enforcement in [`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3), the screen in [`overboard-b2b-template#2`](https://github.com/everythingparlays/overboard-b2b-template/pull/2).
 
+**Revised 2026-09-27 (Wave 4):** every opt-in may link words in its text to a document stored in the database, which opens in the same tab, over the gate (section "Opt-in documents" below; the model is [`admin-fields-and-optins.spec.md`](../core-modules/1-draft/admin-fields-and-optins.spec.md), revision 2026-09-27). The bundled Terms and Privacy placeholder pages go.
+
 **Superseded in part by entry-gate editor v2 (directive, 2026-09-21, Arthur).** The closed field catalog is retired: a tenant now defines its own typed fields, with the seven platform fields as defaults rather than a boundary, and the gate's page copy is overridable per tenant. The model and its reasoning are in [`admin-fields-and-optins.spec.md`](../core-modules/1-draft/admin-fields-and-optins.spec.md); what changes on *this* screen is Rendering and the acceptance criteria below. **Everything else in this spec stands** — blocking behavior, the two entry points, submission, the 409 discipline, and every existing acceptance criterion are untouched by v2, and a tenant that never opens the new editor sees no change at all.
 
 ## Overview
@@ -98,15 +100,32 @@ Do not navigate on success. The mutation invalidates the membership cache tag an
 
 ## Platform terms, legal pages and the tenant's name (2026-09-24)
 
-**The Overboard Terms & Privacy opt-in.** Every tenant carries the platform's own blocking opt-in (`overboard-terms`; defined in `obs-b2b-shared` `interfaces/b2b/tenant-defaults.ts`, rules in `admin-obs-internal.spec.md`, "New tenants start configured"). The gate renders it like any other opt-in, except that the phrases "Terms of Service" and "Privacy Policy" in its text are links to the fan app's in-app pages. `EntryGateForm` takes `legalLinks: { termsHref, privacyHref }` for that; the console preview passes none, and the phrases render as inert underlined text. Links open in a new tab, so the gate keeps everything the fan has typed; following a link never ticks the box (a link inside the consent card's label is interactive content, which browsers never forward to the checkbox).
+**The Overboard Terms & Privacy opt-in.** Every tenant carries the platform's own blocking opt-in (`overboard-terms`; defined in `obs-b2b-shared` `interfaces/b2b/tenant-defaults.ts`, rules in `admin-obs-internal.spec.md`, "New tenants start configured"). The gate renders it like any other opt-in, except that the phrases "Terms of Service" and "Privacy Policy" in its text are links to the fan app's in-app pages. `EntryGateForm` takes `legalLinks: { termsHref, privacyHref }` for that; the console preview passes none, and the phrases render as inert underlined text. *(Superseded: Wave 3 opens them in the same tab over the gate, and the section below generalises that to every opt-in.)* Links open in a new tab, so the gate keeps everything the fan has typed; following a link never ticks the box (a link inside the consent card's label is interactive content, which browsers never forward to the checkbox).
 
-**In-app `/terms` and `/privacy`.** Public routes in the fan app (no sign-in, no membership needed, because the gate links to them before either exists), themed like the rest of the app, with a Back action. Their text is pending from Nick and is not invented: until it lands each page shows its title and one temporary line. The side menu's Terms and Privacy links point at these pages instead of the old external placeholders.
+**In-app `/terms` and `/privacy`.** *(2026-09-27: they now read the platform documents from the server; below.)* Public routes in the fan app (no sign-in, no membership needed, because the gate links to them before either exists), themed like the rest of the app, with a Back action. Their text is pending from Nick and is not invented: until it lands each page shows its title and one temporary line. The side menu's Terms and Privacy links point at these pages instead of the old external placeholders.
 
 **The sign-up "I agree" checkbox is removed.** It sat on the account-creation screen, bound to nothing: no state, not required, not recorded, no link. The real, recorded, versioned agreement is the Overboard opt-in at the gate, which every fan passes before playing anywhere. A second, unrecorded checkbox before it would be a control that lies (D-068).
 
 **The team's name comes from the server.** The fan app used to take the tenant's display name from its bundled seed configs, so a tenant missing from the bundle (any tenant created in the console, e.g. Denver Nuggets) showed "Overboard" in the gate heading, the start screen, the side menu and the paused screen. The name now comes from `GET /b2b/org/:subdomain` (`organization.name`) and overrides the bundled value whenever the server answers, including for a paused tenant. The bundled name is only a fallback while the request is in flight or when it fails.
 
 **No light-mode flash.** On a cold load the app used to paint its light default for a moment before the tenant's theme applied. The document now starts in the last theme mode this browser saw for this tenant (a tiny inline script reads it before first paint, falling back to dark, the platform's default mode), and the theme is re-applied when the server's answer arrives.
+
+## Opt-in documents (2026-09-27, Wave 4)
+
+**Any opt-in can link words in its checkbox text to a full document**: a tenant's terms, its privacy policy, a sponsor's data-sharing agreement, marketing terms, and Overboard's own Terms of Service and Privacy Policy. The documents are stored in the database with each published version of the opt-in and edited in the console beside the checkbox text ([`admin-fields-and-optins.spec.md`](../core-modules/1-draft/admin-fields-and-optins.spec.md), revision 2026-09-27). **Nothing links out of the app.**
+
+**What the gate receives.** Each pending opt-in in the membership response carries `links?: { linkId, linkText, title }[]` (at most three), and no bodies. `consentTextSegments` in `obs-b2b-shared/src/entry-gate/copy.ts` splits any opt-in's text at its `linkText` phrases, not only the platform opt-in's two fixed phrases; the platform opt-in's phrases now come from its stored links like every other.
+
+**Opening one.** Tapping linked words opens the document **in the same tab, over the gate**, through Wave 3's overlay (`JoinTenant.tsx`, a `fixed` full-screen `role="dialog"` over the gate, which stays mounted and `inert`):
+
+- The overlay is keyed in the URL as `?doc=<optInId>.<linkId>`, so it has its own history entry: the browser's Back, or the overlay's own Back, closes it, and the gate underneath was never unmounted, so everything typed and ticked is intact. Wave 3's `?doc=terms` and `?doc=privacy` stay as aliases for the platform's two.
+- Following a link never ticks the box (a link inside the consent card's label is interactive content, which browsers never forward to the checkbox).
+- The overlay loads `GET /b2b/org/:subdomain/consent-document/:optInId/:linkId?version=<displayed textVersion>`: the document **as of the wording on screen**, the same frozen-version discipline the consent submission follows. While it loads it shows the title and a spinner; if it fails, the title, "This didn't load." and "Try again", with Back still working.
+- It renders the title and the body through the shared `ConsentDocumentView` (headings, paragraphs, lists, bold; a URL is plain text), themed like the rest of the app, scrollable, with Back at the top.
+
+**The side menu's Terms and Privacy** open the same component on the in-app routes `/terms` and `/privacy`, reading the platform documents' current version. They replace the bundled `src/config/legal.ts` placeholders. When the platform documents have not been published yet, the side menu shows neither entry and the platform opt-in's two phrases render as plain words: nothing is shown that cannot be shown honestly. Tenant documents are reached from the gate only; listing them in the side menu is part of the on-hold fan-app overhaul.
+
+**The console preview** passes an `onOpen` that opens the same `ConsentDocumentView` over the preview with the draft's document, so the admin reads exactly what fans will.
 
 ## Acceptance criteria
 
@@ -130,6 +149,14 @@ Added by v2:
 - [ ] A tenant's `gateCopy` override replaces the matching default string, and an override that is blank or only whitespace falls back to the default.
 - [ ] **An admin edit that only changes a label, a description, a caption, a placeholder, an options list, the field order, or the page copy re-asks no returning fan anything** — the gate finds nothing outstanding and the fan goes straight in.
 - [ ] Deleting a field stops it being asked and stops it being shown, and a fan's previously given answer is not destroyed.
+
+Added 2026-09-27 (opt-in documents):
+
+- [ ] A tenant opt-in with a linked document shows its linked words as a link; tapping it opens the document in the same tab, over the gate.
+- [ ] Back (browser or overlay) closes the document and returns to the gate with everything typed and ticked intact; no new tab ever opens.
+- [ ] The document shown is the version whose wording is on screen, even if the tenant publishes a newer one while the fan reads.
+- [ ] Editing a linked document and publishing re-asks returning fans that opt-in (a new version), exactly like a wording change.
+- [ ] The side menu's Terms and Privacy show Overboard's stored documents, and are absent until they are published.
 
 ---
 
