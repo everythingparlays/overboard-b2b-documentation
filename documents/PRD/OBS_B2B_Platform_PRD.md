@@ -333,6 +333,8 @@ A tenant configures which games/events the activation runs at, drawn from the ga
 **GAME-02 [V1] — Prize tier configuration.**
 Each game supports 1–3 prize tiers. Each tier is configured with: display name, description, approximate value, redemption window, difficulty target (approximate number of winners per game), redemption method, and redemption location.
 
+**Clarified 2026-09-27.** What a tier pays is now authored once, in a tenant's **prize library**, and a tier names one of those library prizes rather than carrying its own name/description/value/redemption fields — so the same prize can be awarded from more than one tier or contest (and, per `TRV-49`, from a game type with no bingo count at all) without re-entering it. Delivery method is a property of the library prize, not of the tier. `GAME-02`'s requirement is unchanged in substance: a tenant still configures, per tier, which prize it pays and at what difficulty target; only where the prize's own fields are entered has moved.
+
 **GAME-03 [V1] — Difficulty tuning.**
 Prize tier difficulty is tunable so OBS and the sponsor can approximately control how many fans win each tier per game. Sponsors have consistently raised predictable redemption volume as a requirement.
 
@@ -592,6 +594,8 @@ The team-user role gains the ability to make the changes it can currently only v
 
 **`ADM-04` [V1] — Per-game configuration through the admin surface.**
 OBS staff create and update active games, prize tiers, and sponsor assets for any tenant through the admin surface, replacing direct database edits. This is what `BRAND-04` and `GAME-04` require. Which prize-fulfillment handler (`PRIZE-05`) applies to a given tier is selected here; building a new handler remains developer work.
+
+**Clarified 2026-09-27.** "Prize tiers" here means authoring a tier's bingo count and pointing it at a prize; the prize itself — including its fulfillment handler — is created and edited once in the tenant's prize library and awarded from any tier (or, for a second game type, any band) that names it (`GAME-02`, `TRV-49`). The admin surface still requires no code change to change which prize a tier pays or how that prize is delivered.
 
 **`ADM-05` [V1] — Signup fields and opt-in catalog through the admin surface.**
 OBS staff manage a tenant's signup field configuration (`AUTH-02`) and opt-in catalog — definitions, labels, enforcement behavior, and consent text (`OPT-01`–`OPT-05`) — through the admin surface. Editing consent text still produces a new version and re-prompts fans on their next entry exactly as before (`OPT-05`); the admin surface changes who can make the edit and how it's tracked, not the underlying consent behavior.

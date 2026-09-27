@@ -4,7 +4,7 @@
 
 **Depends on:** [`admin-contests.spec.md`](admin-contests.spec.md) (the settings PATCH), [`admin-games-and-prizes.spec.md`](admin-games-and-prizes.spec.md) (the games PUT, the tiers PUT, the `expectedUpdatedAt` precondition), [`prize-delivery.spec.md`](prize-delivery.spec.md) (the worker's claim and attempts).
 
-**Status:** Draft. Written 2026-09-24 (wave G2).
+**Status:** Draft. Written 2026-09-24 (wave G2); revised 2026-09-27 — see "Revision 2026-09-27 — the prize library" note under "What stays editable, and what locks" and under "The prize snapshot".
 
 ## Overview
 
@@ -39,6 +39,15 @@ The ruling rejects versioning (the survey-style "mint a new version" model) in f
 | Prize tiers: bingos to win (`threeInARows`) | Editable | **Locked** |
 | Prize tiers: the stated value (`approximateValueCents`) lowered or cleared | Editable | **Locked** (raising it is fine) |
 | Prize tiers: wording, image, claim steps, button, delivery method, redemption details | Editable | **Editable** |
+
+**Revision 2026-09-27 — the prize library.** A tier's name, description, image, claim copy, delivery method and
+value are no longer authored on the tier: they live on a library prize the tier references by `prizeId`
+(`admin-games-and-prizes.spec.md`, `prize-delivery.spec.md`). The table above still holds — "the stated value"
+is the value of the prize a tier names — with two consequences the lock now has to cover: re-pointing a locked
+contest's tier at a different, cheaper prize is a value decrease and is refused exactly as lowering the value in
+place would be; and lowering or clearing a prize's own value is refused (`409 prize_value_locked`) while any
+tier naming that prize sits on a locked contest, even if the edit is made from the prize library rather than the
+contest. Raising a prize's value, or re-pointing a locked tier at a more valuable prize, is still always allowed.
 
 Why tier wording stays open: a correction ("Signed jesrey") cannot be told apart from a downgrade by a machine, and blocking corrections would push operators into worse workarounds. The snapshot (below) is what makes this safe: whatever an operator does to a tier's wording, every fan who has already won keeps exactly what they were shown when they won.
 
@@ -77,6 +86,9 @@ The contest wire shapes carry the state: `locked: boolean` and `lockedAt?: strin
 ### What is stored
 
 Every `PrizeRedemption` that pays a tier carries `tierSnapshot`: the tier as it stood when the prize was awarded.
+Since the prize library (2026-09-27), the tier's own fields are themselves a server-written copy of its library
+prize, kept current by cascading prize edits — so the snapshot freezes a copy of a copy, and is unaffected by
+what happens to the prize record afterwards.
 
 ```ts
 tierSnapshot?: {

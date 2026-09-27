@@ -6,7 +6,7 @@
 
 **Supersedes:** the "visibility-only" posture of the Delivery queue (admin-obs-internal, Not in scope + Known gaps); the free-text `handlerId` field on the Prizes screen (admin-games-and-prizes, `/prizes`); and the per-handler hardcoded HTML templates in `prize-worker/src/email_templates/`.
 
-**Status:** Draft, written 2026-09-23 with the build (Slice 3 of the 2026-09-23 wave). No open questions.
+**Status:** Draft, written 2026-09-23 with the build (Slice 3 of the 2026-09-23 wave); revised 2026-09-27 — see "Revision 2026-09-27 — the prize library", which wins wherever it and an older section disagree. No open questions.
 
 ---
 
@@ -32,6 +32,22 @@ When a fan completes a bingo line, the board-evaluator puts a message on the pri
 - **Bounce and complaint processing** (SES notifications feeding back into `PrizeRedemption`). Recorded gap — today a bounce after SES accepted the message is invisible to us.
 - **Deferred end-of-game delivery** (`PRIZE-02`). Unchanged: finalization still dispatches nothing.
 - **Tenant-uploaded HTML templates.** `PRIZE-04` makes templates developer work; a tenant never uploads markup.
+
+---
+
+## Revision 2026-09-27 — the prize library
+
+A prize is no longer authored on a tier: it is a tenant-owned record in a **prize library** (`${prefix}prizes`),
+carrying every field this spec previously described as living on the tier — including `handlerId`, the delivery
+method, which is now **the prize's own property, decided once, with no per-contest override**. `B2BPrizeTier`
+keeps `threeInARows` and gains `prizeId`; the tiers PUT resolves the named prize within the tenant and writes the
+tier's content fields as a copy of it, kept current by a `PATCH` to the prize cascading onto every tier naming
+it. This changes what the Prizes screen edits and what the email preview takes as input, below, and nothing else
+in this spec: the tier's fields are still what the worker's `loadTiers`, the award-time snapshot, the email
+renderer and the delivery-queue search all read, because they read a copy of the prize that is always current.
+The lock rule is unchanged in effect and now phrased against the prize: re-pointing a locked contest's tier at a
+cheaper prize is refused as "value lowered", and lowering or clearing a prize's value is refused
+(`409 prize_value_locked`) while any tier naming it sits on a locked contest.
 
 ---
 
@@ -174,9 +190,9 @@ Transient failures retry through SQS redrive only when the error proves nothing 
 
 ---
 
-### The tier snapshot (2026-09-24)
+### The tier snapshot (2026-09-24; unchanged in semantics by the 2026-09-27 prize library)
 
-The worker no longer reads a win's tier at send time. When it first handles a win it copies the paying tier onto the redemption row (`tierSnapshot`, conditional, before any claim), and every send of that win — the original and every resend — renders from the copy. Editing or removing the tier afterwards changes nothing for a fan who has already won. The delivery method comes from the snapshot too, falling back to the same tier's current method only when the snapshotted one is no longer available (the operator's fix). Full rules: [`contest-safety.spec.md`](contest-safety.spec.md), "The prize snapshot".
+The worker no longer reads a win's tier at send time. When it first handles a win it copies the paying tier onto the redemption row (`tierSnapshot`, conditional, before any claim), and every send of that win — the original and every resend — renders from the copy. Editing or removing the tier afterwards changes nothing for a fan who has already won. The delivery method comes from the snapshot too, falling back to the same tier's current method only when the snapshotted one is no longer available (the operator's fix). Since the prize library, the tier's own fields are already a server-written copy of its prize, so the snapshot is a copy of a copy: taking it at award time still freezes exactly what the fan was shown, whatever the prize record does afterwards. Full rules: [`contest-safety.spec.md`](contest-safety.spec.md), "The prize snapshot".
 
 ## Resend
 
@@ -208,7 +224,13 @@ Failed rows, plus rows **being resent** (`pending` with a resend count) so an op
 
 ## The Prizes screen
 
-Supersedes the `/prizes` section of admin-games-and-prizes.spec.md where they differ.
+Supersedes the `/prizes` section of admin-games-and-prizes.spec.md where they differ. *Superseded in turn,
+2026-09-27, by the prize library revision above: `/prizes` now edits library prizes (name, description, image,
+claim copy, delivery method, value, redemption terms) rather than per-contest tiers — the per-contest switcher
+and the bingo ladder described below move to the contest drawer on Games & Contests, which is where a tier now
+picks a library prize and a bingo count. The bullets below describe the pre-library layout; where they name a
+tier field that now lives on the prize (delivery method, claim copy, value, redemption terms), read it as edited
+on the prize drawer instead.*
 
 - **One contest at a time.** A switcher at the top (segmented control for up to four contests, a select beyond that), remembered per tenant for the session. Default: the most recently created contest that is not finalized, else the most recent. Every contest used to render at once, which buried the one being worked on.
   - **A link can name the contest.** `/prizes?contest=<id>` opens on that contest — Games & Contests' tier links and Operations' "has games but no prizes" item send it. It outranks the remembered choice (it is the newer one: the operator just chose that contest elsewhere) and becomes the remembered choice. Picking another contest in the switcher drops the parameter from the address, so a reload does not contradict the switcher. An id that is not one of this tenant's contests is ignored and the usual order applies: this visit's pick, the remembered contest, the default.
@@ -230,7 +252,7 @@ Supersedes the `/prizes` section of admin-games-and-prizes.spec.md where they di
 | POST | `/admin/prizes/email/preview` | `requireAdmin` | any resolved admin scope (renders; changes nothing) |
 | POST | `/admin/delivery-queue/resend` | `requireAdminReverified` | obs staff only |
 
-**The preview's contest.** `POST /admin/prizes/email/preview` takes an optional `contestId` beside `tier` and `settings` (additive: a console that sends none gets the email without a sponsor mark). With it, the preview carries that contest's **contest-wide** prize-popup holder — the one most winners' emails credit; a game-specific holder can only be known once a game is won. The lookup is scoped to the target tenant, so an unknown id, another tenant's contest or a value that is not an id at all simply shows no sponsor.
+**The preview's input, since the prize library.** `POST /admin/prizes/email/preview` takes a library prize plus the `threeInARows` count it is being previewed at (the bingo line the email states), rather than a full tier object — the prize is where the emailed content and the delivery method now live; the bingo count contributes only the "You hit N bingos" line. **The preview's contest.** The endpoint also takes an optional `contestId` beside `tier` and `settings` (additive: a console that sends none gets the email without a sponsor mark). With it, the preview carries that contest's **contest-wide** prize-popup holder — the one most winners' emails credit; a game-specific holder can only be known once a game is won. The lookup is scoped to the target tenant, so an unknown id, another tenant's contest or a value that is not an id at all simply shows no sponsor.
 
 Changed: `GET /admin/prizes` and `PUT …/prize-tiers` return `unawarded` per contest; the tier write enforces the registry and URL schemes; `GET /admin/delivery-queue` returns resending rows and each row's `state`, `resendCount`, `lastResendAt`. Contracts: `obs-b2b-shared/src/api/admin/{prize-delivery,delivery-queue,prizes}.ts`.
 

@@ -4,7 +4,7 @@
 
 **Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — `resolveAdminScope`, the permission table, the `/games` and `/prizes` nav destinations. [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the tenant-targeting rule, the write allow-list, and the `org:member` view-only presentation this reuses verbatim.
 
-**Status:** Draft.
+**Status:** Draft — revised 2026-09-27 — see "Revision 2026-09-27 — the prize library", which wins wherever it and an older section disagree.
 
 ## Overview
 
@@ -23,6 +23,30 @@ The two screens an OBS operator uses to answer "what is this tenant running, and
 - **Creating contests and editing their settings.** Moved to [`admin-contests.spec.md`](admin-contests.spec.md) (2026-09-23), which supersedes this spec's earlier "created at tenant onboarding, still a manual write": contests are created and managed in the console, on this same `/games` screen. Deleting a contest stays out of scope there too.
 - **Difficulty tuning** (`GAME-03`) beyond `threeInARows`. The tier's difficulty knob in the data model *is* `threeInARows` (1–8 bingos). `GAME-02`'s richer tier fields — approximate value, redemption window, redemption method and location — have no columns on `B2BPrizeTier`; adding them is a model change this spec does not make. Recorded as a gap.
 - **Export cadence** (`RPT-06`) — the Exports module, as in the Fields & Opt-ins spec.
+
+---
+
+## Revision 2026-09-27 — the prize library
+
+A prize is no longer authored on a tier. `B2BPrizeTier` keeps `threeInARows` and gains `prizeId`, pointing at a
+tenant-owned `${prefix}prizes` record (`B2BPrizeTier` and `prizeName`/`prizeDescription`/etc. — see
+`PRIZE_CONTENT_FIELDS` in `obs-b2b-shared`) that carries everything about *what the fan wins*: name,
+description, image, claim instructions/button, `handlerId` (delivery method — one per prize, no per-contest
+override), approximate value, redemption window/method/location, and the static redemption code. A tier's own
+copy of those fields is written by the server, not the operator: `PUT /admin/contests/:contestId/prize-tiers`
+now takes `{ tiers: [{ prizeTierId?, threeInARows, prizeId? }] }`, resolves each `prizeId` against the tenant's
+library and writes the tier as `{ threeInARows, prizeId, ...a copy of the prize's content }`. A stored tier sent
+by id with no `prizeId` is kept as-is (a tier from before the library, or one whose prize did not change); a new
+tier with no `prizeId` is refused. Editing a prize (`PATCH /admin/prize-library/:prizeId`) cascades its changed
+fields onto every tier naming it, so the tier's copy is always current.
+
+The `/prizes` screen is the library, not a per-contest tier editor: it lists every prize tenant-wide — delivery
+method, value, and an "Awarded from" list of the contests/tiers naming it — with **New prize** and **Edit**
+opening a drawer that holds the fields this section used to describe as tier fields. Adding, removing and
+rewording a tier still happens on `/games`, in the contest drawer, by choosing a library prize; see
+[`admin-contests.spec.md`](admin-contests.spec.md) and [`prize-delivery.spec.md`](prize-delivery.spec.md) for the
+tier UI and the delivery mechanics respectively. This section's older description of `/prizes` as the tier
+editor, and of a tier as carrying its own authored content, is superseded wherever it conflicts below.
 
 ---
 
@@ -57,7 +81,7 @@ The contest header carries participation (players — the contest's board count,
 
 ### `/prizes` — Prizes
 
-The tenant's prize tiers, grouped by contest, each showing name, `threeInARows`, description, the fulfillment handler (`handlerId`), and delivery counts for that tier drawn from `PrizeRedemption`. **Add, edit and remove tiers** via a drawer, for obs staff and the tenant's own `org:admin`.
+*Superseded 2026-09-27 (see "Revision 2026-09-27 — the prize library" above): this now describes the prize library, not a per-contest tier editor. The tenant's prizes, each showing name, description, the fulfillment handler (`handlerId`), value, and delivery counts drawn from `PrizeRedemption`, plus which contests/tiers award it. **Add, edit and remove library prizes** via a drawer, for obs staff and the tenant's own `org:admin`; adding, editing and removing a contest's tiers — which now only pick a library prize and a bingo count — happens in the contest drawer on Games & Contests.*
 
 A **Delivery** card summarises the tenant's `PrizeRedemption` records — fulfilled, pending, failed, skipped — with a link to `/delivery-queue` for the failures themselves. This is the honest, model-backed half of the mock's two right-hand cards; the code-batch card is the half with no model.
 
@@ -111,7 +135,7 @@ Neither changes what is stored: `allowedBetEvents` remains the whole of the stat
 
 **`PUT .../games` takes** `{ betEventIds: string[] }` — the desired enabled set, whole, mirroring the config PUT's replacement semantics. Ids must be distinct and must exist as reference events; unknown ids are 400 rather than silently dropped, because silently dropping is how a game quietly fails to run.
 
-**`PUT .../prize-tiers` takes** the desired tier list, whole: `{ tiers: [{ _id?, threeInARows, handlerId, prizeName, prizeDescription, ... }] }`. A tier with an `_id` is updated, one without is created, and a stored tier absent from the list is removed from the contest. **1–3 tiers** (`GAME-02`: "Each game supports 1–3 prize tiers"), `threeInARows` 1–8 (the model's own comment), distinct `threeInARows` per contest — two tiers awarding at the same bingo count is ambiguous to the evaluator, which resolves a board's win to one tier.
+**`PUT .../prize-tiers` takes** the desired tier list, whole: `{ tiers: [{ prizeTierId?, threeInARows, prizeId? }] }` *(superseded 2026-09-27 — see "Revision 2026-09-27 — the prize library": a tier now names a library prize by `prizeId` instead of carrying its own content fields; the server resolves the prize within the tenant and writes the tier's content as a copy of it)*. A tier with a `prizeTierId` is updated, one without is created, and a stored tier absent from the list is removed from the contest. **1–3 tiers** (`GAME-02`: "Each game supports 1–3 prize tiers"), `threeInARows` 1–8 (the model's own comment), distinct `threeInARows` per contest — two tiers awarding at the same bingo count is ambiguous to the evaluator, which resolves a board's win to one tier.
 
 Both writes respond with the updated contest plus a `changes` summary, matching the config PUT's precedent so the UI can confirm what actually happened.
 
@@ -132,7 +156,7 @@ Both writes respond with the updated contest plus a `changes` summary, matching 
 1. **No admin handler takes a tenant identifier except the verified OBS `?tenant=` parameter.** `:contestId` is verified against the resolved tenant and 404s on mismatch.
 2. **`BetEvent` is read-only.** These endpoints select events into a contest; they never create, edit, or delete one. B2B does not own that collection.
 3. **Contest status is derived by `getB2BContestStatus`**, never stored or recomputed screen-side.
-4. **Prize tiers are per contest.** No endpoint or screen implies a per-game tier set.
+4. **Prize tiers are per contest.** No endpoint or screen implies a per-game tier set. *(Revised 2026-09-27: a tier still belongs to a contest, but it names a prize authored once in the tenant's prize library rather than carrying its own content — see "Revision 2026-09-27 — the prize library".)*
 5. **Writes require obs staff or the contest's own tenant `org:admin`**, enforced server-side; the view-only presentation for `org:member` is UX, not the boundary.
 6. **Removing a prize tier never deletes `PrizeRedemption` records.**
 7. **Finalization is not on these screens** and no control here sets `finalized`.

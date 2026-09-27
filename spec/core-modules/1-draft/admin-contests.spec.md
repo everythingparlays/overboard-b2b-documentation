@@ -4,7 +4,19 @@
 
 **Depends on:** [`admin-games-and-prizes.spec.md`](admin-games-and-prizes.spec.md) — the `/games` screen, its read endpoint, the games PUT, tenant targeting, the `:contestId` 404 rule, the `expectedUpdatedAt` precondition. [`admin-surface.spec.md`](admin-surface.spec.md) — scope resolution, the write grant (`org:tenant_config:manage`, held by tenant `org:admin` and OBS staff since 2026-09-16), Principles and Rule 13 (honesty by omission).
 
-**Status:** Draft. Written 2026-09-23 for the Games & Contests overhaul.
+**Status:** Draft. Written 2026-09-23 for the Games & Contests overhaul; revised 2026-09-27 — see "Revision 2026-09-27 — the prize library", which wins wherever it and an older section disagree.
+
+## Revision 2026-09-27 — the prize library
+
+Prize tiers are authored from a **prize library** (`admin-games-and-prizes.spec.md`, `prize-delivery.spec.md`): a
+tier no longer carries its own name, description, image, claim copy, delivery method or value — it names a
+library prize (`prizeId`) alongside `threeInARows`. This spec's "Not in scope" line, "the contest detail drawer
+*shows* the contest's tiers and links there; it never edits them", is superseded: **the contest drawer is now
+where tiers are edited** — Add prize tier / Edit opens a bingo-count-and-prize-picker, not a trip to Prizes. The
+create drawer gains a prizes step for the same reason. `/prizes` itself narrows to the library — authoring and
+editing what a prize actually is — and no longer switches per contest. See the sections below for the specifics;
+where they still describe the contest drawer's tiers section as a read-only link to Prizes, or the create drawer
+as lacking a prizes step, this revision is what changed.
 
 ## Overview
 
@@ -26,7 +38,7 @@ Until this spec, no path anywhere created a contest. The only writer was a devel
 
 - **Deleting a contest.** Boards, prize redemptions and audit rows reference a contest by id, and a redemption is the record that a fan won something (games spec Rule 6). A contest an operator is done with is **hidden and closed**, which removes it from fans and stops joins while keeping its history. A real delete is a teardown with the same shape as fan deletion and belongs with it, if it is ever needed.
 - **Finalization.** OBS-only and permanent. Since the 2026-09-24 ruling, Overboard staff also get **Finalize** in the contest drawer once every game has ended, with the tenant record's typed-name confirmation and reverification ([`admin-surface.spec.md`](admin-surface.spec.md), staff extras). It never renders for a workspace user. Nothing else here sets `finalized`, and a finalized contest refuses every edit.
-- **Prize tiers.** Owned by `/prizes`. The contest detail drawer *shows* the contest's tiers and links there; it never edits them.
+- ~~**Prize tiers.** Owned by `/prizes`. The contest detail drawer *shows* the contest's tiers and links there; it never edits them.~~ **Superseded 2026-09-27:** tiers are now edited in the contest drawer (and the create drawer) by picking a bingo count and a library prize; `/prizes` owns the library itself — see "Revision 2026-09-27 — the prize library".
 - **A second game.** Only the groundwork below.
 
 ---
@@ -124,8 +136,9 @@ One drawer, top to bottom in the order an operator thinks:
 3. **Player limit** — *No limit* / *Limit to* with a number.
 4. **Visibility** — *Hidden* (default) / *Listed*, with one line saying what each means for fans.
 5. **Note** — optional, labelled as console-only.
+6. **Prizes** *(added 2026-09-27, prize library)* — the same tier picker as the contest drawer's Prize tiers section: **Add prize tier** opens a bingo-count-and-prize picker drawing from the tenant's prize library; optional, a contest can be created with none.
 
-Validation answers beside the input (the server's field errors land in the same place, including the name clash). On success the drawer closes, the new contest's card appears at the top with the row-flash cue, and a single confirmation line names the next step: it is hidden until listed, and it has no prize tiers until they are added on Prizes (only the parts that are true are said). Its "Add its prize tiers" link opens Prizes on the new contest (below, "Links into Prizes").
+Validation answers beside the input (the server's field errors land in the same place, including the name clash). On success the drawer closes, the new contest's card appears at the top with the row-flash cue, and a single confirmation line names the next step: it is hidden until listed, and — only when no tier was added in step 6 — that it has no prize tiers yet (only the parts that are true are said). *(Superseded 2026-09-27: since tiers can be added in the create drawer itself, the "Add its prize tiers" link into Prizes described below no longer applies to the create flow; see "Revision 2026-09-27 — the prize library".)*
 
 ### The contest detail drawer
 
@@ -134,7 +147,7 @@ Each contest card's header carries a **Settings** button (every role — members
 - **Summary** — status badge, players (with the limit when there is one), games enabled, games run, created.
 - **Settings** — name, note, player limit, visibility: one form, one Save, dirty-tracked, the precondition echoed. Lowering the limit below the current player count is stated inline before saving ("412 are already playing — nobody is removed; new fans can't join").
 - **Entries** — *Close entries* / *Reopen entries* as its own immediate action, because it is an operational switch rather than an edit of the contest's description.
-- **Prize tiers** — the contest's tiers, read from `GET /admin/prizes` (name, bingos to win, approximate value when stated), with a link to Prizes on this contest. None → the Incomplete line and the link.
+- **Prize tiers** *(editor, 2026-09-27 — superseded from a read-only list with a link to Prizes)* — the contest's tiers, each a bingo count and a library prize (name, delivery method, approximate value when stated, or **Won't deliver** when the prize's handler doesn't resolve). **Add prize tier** opens the bingo-count-and-prize picker; **Edit** reopens it for a stored tier; **Remove** as before, subject to the lock (below). None → the Incomplete line and the same **Add prize tier** action, in place of the old link to Prizes.
 - **Sponsors** — who is placed at this contest, each by name with where it runs: "Every game" for a contest-wide placement, else "N games". Contest-wide sponsors first, then the rest, each group by name. The link "Edit on Sponsors & Branding" goes to the schedule; with nobody placed the section says "No sponsor is placed at this contest." and the link reads "Place sponsors on Sponsors & Branding". Read-only here — placements are edited only on the Sponsors tab ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)).
 - **Finalized** contests render the whole drawer read-only with a *Finalized* badge. Before that, staff see **Finalize** in the drawer once every game has ended; workspace users never do.
 - **View-only** (`org:member`) gets the same layout with static values in place of controls — the Fields & Opt-ins presentation, reused.
@@ -145,9 +158,14 @@ The per-game drawer's "In this contest" toggle and the table's toggles are uncha
 
 Each contest card's stats line is followed by **"Sponsors: A, B"** — every sponsor placed at the contest, in the drawer's order (contest-wide first, then by name). No line when nobody is placed. The screen reads the tenant's sponsor schedule (`GET /admin/sponsors`) on its own, beside the games read and never holding it up; if that read fails, the card line and the drawer's Sponsors section are both left out rather than guessed at. A placement naming a sponsor the schedule no longer lists is skipped, never shown as an id. Placements at a game the contest no longer runs are dormant and not counted, as on the schedule itself.
 
-### Links into Prizes
+### Links into Prizes — retired 2026-09-27
 
-Every link from this screen to Prizes — the drawer's tier link and the create confirmation's "Add its prize tiers" — names the contest (`/prizes?contest=<id>`), and Prizes opens on that contest rather than on whichever contest it last showed ([`prize-delivery.spec.md`](prize-delivery.spec.md), "The Prizes screen").
+~~Every link from this screen to Prizes — the drawer's tier link and the create confirmation's "Add its prize
+tiers" — names the contest (`/prizes?contest=<id>`), and Prizes opens on that contest rather than on whichever
+contest it last showed ([`prize-delivery.spec.md`](prize-delivery.spec.md), "The Prizes screen").~~ Superseded by
+the prize library: tiers are now added and edited in this screen's own drawers, so there is no per-contest
+Prizes view to link into or open on a contest. Prizes is reached only to author or edit a library prize itself,
+and carries no contest context.
 
 ---
 
@@ -164,7 +182,7 @@ Every link from this screen to Prizes — the drawer's tier link and the create 
 
 - Collection names `*_bingo_boards`, `*_bingo_prize_tiers`, `*_bingo_prize_redemptions`. A second game gets its own collections for its own entry records; the shared ones are not renamed.
 - The board model's nine named cells and the evaluator's eight hard-coded lines — bingo's own shape; a second game has its own entry model and evaluator, dispatched on `gameType`.
-- Prize tiers keyed on `threeInARows`. A tier's threshold is bingo's unit. The second game needs either a game-neutral threshold beside it (`threshold`, interpreted per `gameType`) or its own tier fields; the choice belongs with that game's scoring design.
+- ~~Prize tiers keyed on `threeInARows`. A tier's threshold is bingo's unit. The second game needs either a game-neutral threshold beside it (`threshold`, interpreted per `gameType`) or its own tier fields; the choice belongs with that game's scoring design.~~ **Resolved by the prize library (2026-09-27):** what a tier pays now lives on a shared library prize, referenced by `prizeId`; only the *threshold* stays game-specific — bingo keeps `threeInARows`, trivia gets its own finishing-position bands on the contest — each naming a prize from the same library, so no prize is ever authored twice.
 - "bingos" in existing wire fields and CSV columns (`tierIndex` in the prize pipeline is really a bingo count). Existing contracts keep their names; new ones do not add to them.
 - The fan app's contest card and board routes assume bingo. The fan-side games list (`GAME-F1`'s "shared homepage") is the second game's navigation work.
 - The prize pipeline's `threeInARows` → tier match.
@@ -194,7 +212,7 @@ The shared dev database (`obs-b2b-dev`, `arthur_` prefix) carried stale contests
 7. **`ranAtBetEvents` only grows.** Every writer that adds to `allowedBetEvents` adds to it; nothing removes from it; readers go through `ranAtBetEventIds`.
 8. **Game type is a contest property**, read through `contestGameType`; bingo-only code checks it.
 9. **Contests are not deleted from the console** — hidden and closed instead.
-10. **A contest locks when its first fan joins** ([`contest-safety.spec.md`](contest-safety.spec.md)). Name, description, visibility, entries, the player limit and adding games stay editable; removing games, the contest type, board rules, bingos to win and removing or lowering prize tiers lock. Locked controls read as values with one plain line saying why.
+10. **A contest locks when its first fan joins** ([`contest-safety.spec.md`](contest-safety.spec.md)). Name, description, visibility, entries, the player limit and adding games stay editable; removing games, the contest type, board rules, bingos to win and removing or lowering a tier's prize value lock. *(Revised 2026-09-27: "lowering prize tiers" means lowering or clearing the value of the library prize a locked tier names — re-pointing a locked tier at a cheaper prize is refused the same way, and lowering a prize's own value is refused while any tier naming it sits on a locked contest.)* Locked controls read as values with one plain line saying why.
 
 ## Known gaps (recorded, not blocking)
 
