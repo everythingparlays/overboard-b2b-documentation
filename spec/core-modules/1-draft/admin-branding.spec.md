@@ -6,6 +6,14 @@
 
 **Status:** Draft. Written from the fan-theming design contract (directive, 2026-09-22, Arthur). No open questions remain — ready for review.
 
+## Revision 2026-09-27 (Wave 3) — Satoshi everywhere
+
+The type controls leave the screen (Arthur, 2026-09-27: "Satoshi is the font everywhere… Remove the font option from
+Brand"). `resolveTheme` resolves every font slot to Satoshi, which both hosts self-host. `THEME-04`'s allowlist stays on the
+wire so stored themes keep validating, but nothing reads a stored font. The "Type" group loses Headline, Body and Number
+font and keeps ALL-CAPS headlines and Headline weight. See [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §7. The
+theme resolver also derives a contrast-guarded hit colour (§4 there).
+
 ## Overview
 
 A tenant's colors, type, shape, finish and signature moments become real server-side configuration, editable by that tenant's own admins at `/branding`, applied by the fan app at runtime, and previewed in the console against the unsaved draft.

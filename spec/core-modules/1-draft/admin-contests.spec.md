@@ -6,6 +6,18 @@
 
 **Status:** Draft. Written 2026-09-23 for the Games & Contests overhaul; revised 2026-09-27 — see "Revision 2026-09-27 — the prize library", which wins wherever it and an older section disagree.
 
+## Revision 2026-09-27 (Wave 3) — states, deletion, joining
+
+[`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §3 supersedes these parts of this spec:
+
+- **Visibility and Entries become one state: Draft → Open → Closed** (§3.1). "Visibility — Listed / Hidden", Rule 2
+  ("created hidden") and the Entries switch now read as the state: new contests are **Draft**, Publish opens them, and
+  Close/Reopen entries move between Open and Closed. A contest fans have joined can't go back to Draft.
+- **Contests can be deleted** by tenant admins and staff, unless finalized (§3.2). This supersedes "Not in scope:
+  Deleting a contest", Rule 9 and the "No contest delete" known gap.
+- **Join refusals carry a code**, and the fan app words each one truthfully (§3.4). A contest whose open games have no
+  props refuses the join rather than saving an empty board (§3.3).
+
 ## Revision 2026-09-27 — the prize library
 
 Prize tiers are authored from a **prize library** (`admin-games-and-prizes.spec.md`, `prize-delivery.spec.md`): a
