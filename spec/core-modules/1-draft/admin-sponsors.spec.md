@@ -2,11 +2,13 @@
 
 **Implements:** PRD `BRAND-02`, `BRAND-03`, `BRAND-04`, `TEN-02`, `TEN-04`, `RPT-04`, `SEC-02`, `ADM-03`, and Arthur's 2026-09-24 ruling on sponsors (WAVE-RULES, "Sponsors"). The field-by-field classification is [`documents/PRD/branding-field-split.md`](../../../documents/PRD/branding-field-split.md); this spec builds what it classifies, with one change to it: the prize popup is no longer a placement slot (below, "Retiring the `prizePopup` slot").
 
-**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — scope, targeting, the reverification list ("deleting the sponsor does"), Rule 13. [`admin-lists.spec.md`](admin-lists.spec.md) — the cursor-paging convention and the endless-scroll components every list here uses (lands with G1's PR this wave). [`admin-contests.spec.md`](admin-contests.spec.md) — the contest page whose Sponsors tab hosts the placements grid, and the lock (S1, same wave). [`admin-prizes.spec.md`](admin-prizes.spec.md) — the tier editor and its "Provided by" control, the award snapshot's `providedBy`, and the tier migration whose step 3 converts the `prizePopup` credit (S1, same wave). [`admin-preview.spec.md`](admin-preview.spec.md) — `FanAppPreview`, which the sponsor page and the contest Preview tab host. [`admin-exports.spec.md`](admin-exports.spec.md) — the DPA field scope this model absorbs. [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the opt-in a sponsor's consent lives on. [`prize-delivery.spec.md`](prize-delivery.spec.md) — the prize email whose credit mark this spec re-sources.
+**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — scope, targeting, the reverification list ("deleting the sponsor does"), Rule 13. [`admin-lists.spec.md`](admin-lists.spec.md) — the cursor-paging convention and the endless-scroll components every list here uses. [`admin-contests.spec.md`](admin-contests.spec.md) — the contest page whose Sponsors tab hosts the slot editor, and the lock. [`admin-prizes.spec.md`](admin-prizes.spec.md) — the prize page and its "Provided by" control, the award snapshot's `providedBy`, and the prize-type migration whose step 2 converts the `prizePopup` credit. [`admin-preview.spec.md`](admin-preview.spec.md) — `FanAppPreview`, which the sponsor page and the contest Preview tab host. [`admin-exports.spec.md`](admin-exports.spec.md) — the DPA field scope this model absorbs. [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the opt-in a sponsor's consent lives on. [`prize-delivery.spec.md`](prize-delivery.spec.md) — the prize email whose credit mark this spec re-sources.
 
 **Supersedes:** in [`prize-delivery.spec.md`](prize-delivery.spec.md), the "Presented by" section's source of the credit (the prize-popup placement holder), by `SP-11`, together with [`admin-prizes.spec.md`](admin-prizes.spec.md). In [`admin-sponsor-recap.spec.md`](admin-sponsor-recap.spec.md), the "Sponsor editions" keying by opt-in and its two sponsor gaps, by `SP-13`. In [`admin-branding.spec.md`](admin-branding.spec.md) and [`admin-surface.spec.md`](admin-surface.spec.md), the **Sponsors & Branding** destination: Sponsors becomes its own sidebar item.
 
 **Status:** Draft, written 2026-09-23 with the build. No open questions.
+
+**Revised 2026-09-27 (Wave 4)** — rulings: each slot has a **Whole contest** holder and optional **Different sponsor for one game** overrides (no "Inherited"), and an override without usable artwork falls back to the whole-contest holder; deleting a sponsor cascades instead of refusing; a sponsor may have several data-sharing agreements, each an opt-in linked to it with its own shared fields, reference and export; opt-in categories are gone; artwork fields are uploads ([`admin-uploads.spec.md`](admin-uploads.spec.md)). Edited in place below.
 
 **Revised 2026-09-24** (ruling, Arthur) — sponsors get their own page, separate from Brand, and each sponsor gets a full page showing its artwork at real size in the fan-app spots it fills and where it appears. The sponsor drawer is retired; editing is inline on the page. Placements move to the contest page's Sponsors tab and keep three slots (Sign-in, Board banner, Slider) per contest and game. The `prizePopup` slot is retired: a prize tier names the sponsor that provides it, and that "Provided by" drives the credit in the prize popup and the prize email. The sponsor recap credits a sponsor for its placements and the prizes it provides; opt-ins are a metric, not an attribution. Every rule of the 2026-09-23 spec that is still true is kept below, renumbered where the list grew.
 
@@ -19,7 +21,7 @@ The 2026-09-23 build turned a sponsor from a string in a tenant's source file in
 - **Three notions of "this game's sponsor".** Slots credited placements, the popup and email credited a slot, and the recap credited sponsors through their consent opt-ins (contradiction 6 in the 2026-09-24 prizes review).
 - **Buried.** Sponsors lived as a tab under Branding, with the schedule grid for every contest on the same tab.
 
-**The whole change, in one line:** sponsors get a page of their own and a full page each, where the artwork is shown at true size in the fan app's own screens; placements move onto each contest as three slots; and the prize credit moves from a fourth slot to the tier, which names the sponsor that provides it.
+**The whole change, in one line:** sponsors get a page of their own and a full page each, where the artwork is shown at true size in the fan app's own screens; placements move onto each contest as three slots; and the prize credit moves from a fourth slot to the prize, which names the sponsor that provides it.
 
 **In scope:**
 
@@ -27,21 +29,22 @@ The 2026-09-23 build turned a sponsor from a string in a tenant's source file in
 - The prize credit rule (`SP-11`), the retirement of `prizePopup` and its migration (`SP-12`), and the attribution rule that settles contradiction 6 (`SP-13`).
 - The Sponsors page (`/sponsors`), the sponsor page (`/sponsors/new`, `/sponsors/:id`) and the contest page's Sponsors tab.
 - Endpoints: the cursor-paged sponsor list, sponsor read/create/edit/delete, placements per contest, the "where it appears" read, and the public fan read. Contracts in `obs-b2b-shared/src/api/admin/sponsors.ts` and `api/b2b/sponsors.ts`.
-- Everything the 2026-09-23 spec carried that still holds: the move of `exportFields` off the opt-in, the opt-in link, the fan wire's allowlist and render rules.
+- Data-sharing agreements: opt-ins linked to a sponsor, several per sponsor, each with its own field scope and reference (revised 2026-09-27).
+- Everything the 2026-09-23 spec carried that still holds: the opt-in link, the fan wire's allowlist and render rules.
 
 **Not in scope:**
 
-- **The tier editor.** Its "A sponsor provides this prize" toggle and "Provided by" picker are specced in [`admin-prizes.spec.md`](admin-prizes.spec.md); this spec owns what the credit means for sponsors.
-- **The fan app's screens.** How the slots and the credit render on the fan side is S2's (`spec/webapp/fan-app-v2.spec.md`, `fan-contest-flow.spec.md`, landing with S2's PR this wave); this spec states the contract they read.
-- **The preview frame.** [`admin-preview.spec.md`](admin-preview.spec.md) and the S1/S2 interface file.
-- **Image upload.** Assets stay pasted https URLs in this change (Known gaps).
+- **The prize page.** Its "A sponsor provides this prize" checkbox and "Provided by" picker are specced in [`admin-prizes.spec.md`](admin-prizes.spec.md); this spec owns what the credit means for sponsors.
+- **The fan app's screens.** The current fan app renders the slots and the credit ("Render rules" below); the fan-app overhaul is Wave 5's, on its own branch. This spec states the contract both read.
+- **The preview frame.** [`admin-preview.spec.md`](admin-preview.spec.md) and [`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md).
+- **The upload mechanics.** Every artwork field is an upload field; the route, the bucket and the checks are [`admin-uploads.spec.md`](admin-uploads.spec.md)'s.
 - **Coupon codes and code batches** (the prizes work's seam), **sponsor sign-in** (`IDN-11` stands: sponsors receive exports and documents, they never log in), and **the free square** (a game-rules change, field-split doc).
 
 ---
 
 ## The model
 
-### `B2BSponsor` — `${prefix}sponsors` (unchanged)
+### `B2BSponsor` — `${prefix}sponsors` (revised 2026-09-27: the data fields moved to the agreements)
 
 ```ts
 interface B2BSponsor<TId = string> {
@@ -50,8 +53,7 @@ interface B2BSponsor<TId = string> {
   name: string;                 // 1–60 chars, unique per tenant, case-insensitively
   websiteUrl?: string;          // "visit our sponsor" — https only
   assets?: SponsorAssets;       // the kit: the seven BRAND-02 assets (five built)
-  exportFields?: string[];      // DPA field scope (RPT-04), moved here from OptInDefinition
-  dpaReference?: string;        // which signed agreement the scope follows — free text, ≤200
+  // exportFields and dpaReference moved to each agreement (OptInDefinition) on 2026-09-27
   createdAt?: Date; updatedAt?: Date;
 }
 interface SponsorAssets {
@@ -62,13 +64,13 @@ interface SponsorAssets {
 }
 ```
 
-Every image is an https URL pasted into its field, as before. `prizePopupLogo` keeps its name although no placement holds the prize popup any more: it is still the image the popup and the email show when the sponsor provides a prize, and renaming a stored field to follow a label would move data for no gain. The console calls it "Prize logo".
+Every image is an https URL, as before. Since 2026-09-27 the console fills it by upload, never by pasting ([`admin-uploads.spec.md`](admin-uploads.spec.md)); the stored value is still the URL, so no reader changes. `prizePopupLogo` keeps its name although no placement holds the prize popup any more: it is still the image the popup and the email show when the sponsor provides a prize, and renaming a stored field to follow a label would move data for no gain. The console calls it "Prize logo".
 
-**A collection, not a subdocument on the org.** A sponsor is an entity: it has an id that other records reference (the opt-in's `sponsorId`, every placement, every tier's `providedBySponsorId`, every `fan_export` audit row), its own lifecycle, and it is read without the rest of the org (the fan schedule, Exports, the recap). `optIns` stays on the org because an opt-in is none of those things (the test [`admin-branding.spec.md`](admin-branding.spec.md) applies in `THEME-11`/`THEME-12`, coming out the other way).
+**A collection, not a subdocument on the org.** A sponsor is an entity: it has an id that other records reference (the opt-in's `sponsorId`, every placement, every library prize's `providedBySponsorId`, every `fan_export` audit row), its own lifecycle, and it is read without the rest of the org (the fan schedule, Exports, the recap). `optIns` stays on the org because an opt-in is none of those things (the test [`admin-branding.spec.md`](admin-branding.spec.md) applies in `THEME-11`/`THEME-12`, coming out the other way).
 
-**`dpaReference` names the agreement.** A free-text line ("Coca-Cola DPA v3, signed 2026-08-01") beside the scope it governs. Free text because OBS does not hold the DPAs and cannot validate one; its value is that the next admin can find the document.
+**The agreement reference moved to the agreement.** `dpaReference` (a free-text line, "Coca-Cola DPA v3, signed 2026-08-01") now sits on each data-sharing agreement beside the scope it governs (below, "Data-sharing agreements"), because a sponsor with two agreements has two signed documents. Free text because OBS does not hold the DPAs and cannot validate one; its value is that the next admin can find the document.
 
-**The sponsor's mark** (list cards, the recap, the placements grid) is `sponsorMarkUrl(assets)` in `obs-b2b-shared`: the sign-in logo, else the prize logo, else the board banner.
+**The sponsor's mark** (list cards, the recap, the Sponsors tab) is `sponsorMarkUrl(assets)` in `obs-b2b-shared`: the sign-in logo, else the prize logo, else the board banner.
 
 | Asset | Console label | Where fans see it | Rendered size in the fan app |
 |---|---|---|---|
@@ -101,11 +103,13 @@ interface B2BSponsorPlacement<TId = string> {
 
 **A join record, not a restructuring of `allowedBetEvents`.** Per-game sponsor config is keyed by (contest, game); turning `allowedBetEvents` into an array of objects would rewrite the most-read field on the most-read B2B document and touch the board evaluator's path. A separate collection keyed by `contestId` touches none of it.
 
-**Contest-wide placements.** A placement with no `betEventId` holds its slots at every game in the contest, including games added later. That is the common case, a season sponsor; without it a twenty-game contest is twenty identical rows that drift the first time one is edited. The console calls it "All games".
+**Contest-wide placements.** A placement with no `betEventId` holds its slots at every game in the contest, including games added later. That is the common case, a season sponsor; without it a twenty-game contest is twenty identical rows that drift the first time one is edited. The console calls it **"Whole contest"**, and a per-game placement **"a different sponsor for one game"** (revised 2026-09-27; "All games" and "Inherited" are retired).
 
-**`SP-01` — One sponsor per slot per game.** Within a contest, a slot is held by at most one contest-wide placement, and at most one placement per game. A game-specific holder overrides the contest-wide holder *of that slot* only. `BRAND-03` (several sponsors per game) is several sponsors in different slots; the visual-overload concern is answered by construction.
+**`SP-01` — One sponsor per slot, at every game.** Within a contest, a slot has at most one whole-contest holder and at most one per-game holder per game; a per-game holder replaces the whole-contest holder *of that slot* at that game only. This follows the fan app, not a console preference: the current fan app renders exactly one sponsor per slot (`StartScreen.tsx` renders one `PresentedBy`; `BoardPage.tsx` one `SponsorBanner`; the slider's `ProgressMarker` shows the first image of a fallback chain, sponsor icon then team marker), and `resolveSponsorSlots` returns one sponsor per slot. Several sponsors in one slot would need a rotation rule and a fan-app change, which waits for the fan-app overhaul. `BRAND-03` (several sponsors per game) is several sponsors in different slots.
 
-**`SP-02` — A slot is placeable only when the sponsor has its artwork.** `signIn` needs a logo or a tagline, `boardBanner` a banner, `slider` an icon. The write refuses anything else (400, naming the sponsor and the missing piece): a placement that renders nothing is a control that lies. If the artwork is later cleared from a placed sponsor, the edit is allowed and the fan app omits the slot; the placements grid marks the cell so the admin can see why it stopped showing.
+The contract already enforces it (`putAdminSponsorPlacementsRequestSchema`: one row per sponsor per scope, one holder per slot per scope). **Added 2026-09-27:** it also refuses a per-game holder that is the same sponsor as that slot's whole-contest holder (400 "Northside Credit Union already holds this for the whole contest."), because it would change nothing a fan sees; when the console makes a sponsor the whole-contest holder, it drops that sponsor's now-identical per-game rows in the same save.
+
+**`SP-02` — A slot is placeable only when the sponsor has its artwork.** `signIn` needs a logo or a tagline, `boardBanner` a banner, `slider` an icon. The write refuses anything else (400, naming the sponsor and the missing piece): a placement that renders nothing is a control that lies. If the artwork is later cleared from a placed sponsor, the edit is allowed. Where that sponsor is a per-game holder, fans at that game see the whole-contest holder instead (`SP-07`); where it is the whole-contest holder, games without their own holder show nothing in that slot. The Sponsors tab marks the row so the admin can see why.
 
 **A removed game keeps its placements, dormant.** Placements for a game no longer in the contest are not deleted (adding the game back brings them back) and are neither returned to the console nor resolved for fans.
 
@@ -113,39 +117,39 @@ interface B2BSponsorPlacement<TId = string> {
 
 ### The prize credit: "Provided by"
 
-A prize tier carries `providedBySponsorId?: TId`, one of the tenant's sponsors. The field sits on `B2BPrizeTier` and is edited in the tier editor ("A sponsor provides this prize" → "Provided by", [`admin-prizes.spec.md`](admin-prizes.spec.md)); what it means for sponsors is stated here.
+A library prize (`B2BPrize`) carries `providedBySponsorId?: TId`, one of the tenant's sponsors (revised 2026-09-27: under the prize library the credit is the prize's, not the tier's). `PRIZE_CONTENT_FIELDS` copies it onto every tier that awards the prize, so a tier awards the provider of the prize it points at. It is edited on the prize page ("A sponsor provides this prize" → "Provided by", [`admin-prizes.spec.md`](admin-prizes.spec.md)); what it means for sponsors is stated here.
 
-**`SP-11` — The prize credit follows the tier.** The prize popup and the prize email credit exactly the sponsor the tier names as its provider, and nobody when it names none. `SP-07` still holds and is why this is safe: the popup and the email agree because they read the same field, not because two pieces of code resolve a slot the same way.
+**`SP-11` — The prize credit follows the prize.** The prize popup and the prize email credit exactly the sponsor the awarded prize names as its provider, and nobody when it names none. `SP-07` still holds and is why this is safe: the popup and the email agree because they read the same field, not because two pieces of code resolve a slot the same way.
 
-- **The awarded prize is a snapshot.** Every awarded prize snapshots the tier as promised (G2's tier snapshot), and the snapshot copies the provider at award time: `providedBy: { sponsorId, name, logoUrl, websiteUrl }` ([`admin-prizes.spec.md`](admin-prizes.spec.md)). The email reads the snapshot, so a resend credits the sponsor the fan was promised, as it looked then, even if the tier's provider was changed, re-logoed or deleted since. The popup renders at the moment of the win, when tier and snapshot agree.
+- **The awarded prize is a snapshot.** Every awarded prize snapshots the tier as promised (G2's tier snapshot), and the snapshot copies the provider at award time: `providedBy: { sponsorId, name, logoUrl, websiteUrl }` ([`admin-prizes.spec.md`](admin-prizes.spec.md)). The email reads the snapshot, so a resend credits the sponsor the fan was promised, as it looked then, even if the prize's provider was changed, re-logoed or deleted since. The popup renders at the moment of the win, when tier and snapshot agree.
 - **What the credit shows.** The sponsor's prize logo when it has one; its name as text when it does not. Any of the tenant's sponsors can be named as provider, artwork or not, because providing a prize is a fact about who pays for it, not a place on a screen; `SP-02`'s reasoning (a control that renders nothing) does not apply to a credit that always renders something. The logo links to the sponsor's website when one is set.
 - **One word for one relation.** The credit reads "Provided by" in the popup, the fan app's prize ladder and the email. The prize email's label changes from "Presented by" to "Provided by" with this ruling; "Presented by" stays on the sign-in screen, where a sponsor presents the experience rather than a prize.
-- **A live tier naming a deleted sponsor credits nobody** in the fan app (reachable only for finalized contests, `SP-14`); awarded prizes keep their snapshot's credit.
-- **On the fan wire** a tier carries `providedBySponsorId` as an id, and the sponsor reaches the fan app through the public sponsor read, whose `sponsors[]` includes every sponsor a visible tier names (below, "The fan wire"). The preview receives the provider the same way and, in the render document only, also as the resolved `providedBy` in the snapshot's shape above ([`admin-preview.spec.md`](admin-preview.spec.md), the interface's section 5.5).
+- **Deleting a sponsor clears it as a provider** on every library prize and tier copy (`SP-14`), so a prize credits nobody rather than a missing record; awarded prizes keep their snapshot's credit.
+- **On the fan wire** a tier carries `providedBySponsorId` as an id, and the sponsor reaches the fan app through the public sponsor read, whose `sponsors[]` includes every sponsor a tier fans can see names (below, "The fan wire"). The preview receives the provider the same way and, for the prize page's standalone prize, also as the resolved `providedBy` in the snapshot's shape above ([`admin-preview.spec.md`](admin-preview.spec.md)).
 
 ### Retiring the `prizePopup` slot
 
 **Argued.** A placement slot is a place on a screen a sponsor has bought at a game. The prize credit is a statement about who funds a prize. Modelling the second as the first made the same tier "presented by" different sponsors at different games, left the tier editor unable to say who would be credited, and gave the recap no clean way to say which sponsor a prize belonged to. The ruling puts the credit where the prize is.
 
-**`SP-12` — The retirement migrates the credit, lists what it cannot migrate, and removes nothing.** The conversion is step 3 of the tier migration, `node-server/scripts/prize-tier-migration.mjs` ([`admin-prizes.spec.md`](admin-prizes.spec.md), "Migration"), dry-run by default, idempotent, and run before anything stops reading the slot:
+**`SP-12` — The retirement migrates the credit, lists what it cannot migrate, and removes nothing.** The conversion is step 2 of the prize-type migration, `node-server/scripts/prize-type-migration.mjs` ([`admin-prizes.spec.md`](admin-prizes.spec.md), "Migration"), dry-run by default, idempotent, and run before anything stops reading the slot:
 
-1. **Contest-wide holders become providers.** For every contest with a contest-wide placement holding `prizePopup`, the tiers of that contest get `providedBySponsorId` set to that holder.
-2. **Game-level holders are listed, not converted.** A game-level `prizePopup` placement credited one game's winners; a tier has one provider for every game, so there is nothing faithful to convert it to. The migration's report lists each such row (tenant, contest, game, sponsor, and the contest-wide holder it overrode, if any) for OBS to review and set a tier's provider by hand where it matters. A contest with only game-level holders gets no provider and is listed.
+1. **Contest-wide holders become providers.** Each library prize gets `providedBySponsorId` set to the contest-wide `prizePopup` holder of the contests that award it, when every one of those contests has the same holder. When they disagree, the prize is listed and left without a provider.
+2. **Game-level holders are listed, not converted.** A game-level `prizePopup` placement credited one game's winners; a prize has one provider wherever it is awarded, so there is nothing faithful to convert it to. The migration's report lists each such row (tenant, contest, game, sponsor, and the contest-wide holder it overrode, if any) for OBS to review and set a prize's provider by hand where it matters. A contest with only game-level holders gets no provider and is listed.
 3. **Nothing is removed.** Stored `prizePopup` values stay in their placements' `slots` until the cleanup step (Known gaps).
 
 **The transition, stated so no reader credits the wrong sponsor:**
 
-- **Order on deploy day:** the migration runs before the new readers ship. A tenant whose migration has not run shows no credit, never a wrong one.
-- **Readers** never resolve `prizePopup` as a placement. The worker's credit (from the snapshot), the popup's credit and the recap read the tier's provider only.
-- **Writes** refuse `prizePopup` in a placements body (400 "The prize credit is set on the prize tier."). A stored `prizePopup` value is not part of the grid, and a placements save carries it over untouched, so an older deployment reading the shared dev database keeps its credit until cleanup.
+- **Order:** the migration runs before the new readers ship. A tenant whose migration has not run shows no credit, never a wrong one.
+- **Readers** never resolve `prizePopup` as a placement. The worker's credit (from the snapshot), the popup's credit and the recap read the prize's provider only (through the tier's copy).
+- **Writes** refuse `prizePopup` in a placements body (400 "The prize credit is set on the prize."). A stored `prizePopup` value is not shown on the Sponsors tab, and a placements save carries it over untouched, so an older deployment reading the shared dev database keeps its credit until cleanup.
 - **The public fan read** stops sending `prizePopup` from the first deploy (below, "The fan wire").
-- **`prizePopup` stays a `SponsorSlot` value.** It no longer names a placement slot, but it still names a place on screen: the preview's `sponsors.highlight` points at the popup credit with `slot: "prizePopup"` ([`admin-preview.spec.md`](admin-preview.spec.md); the S1/S2 interface file, section 5.5). `PLACEMENT_SLOTS` is what placement writes validate against.
+- **`prizePopup` stays a `SponsorSlot` value.** It no longer names a placement slot, but it still names a place on screen: the preview's `view.highlight` points at the popup credit with `slot: "prizePopup"` ([`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md), "The highlight"). `PLACEMENT_SLOTS` is what placement writes validate against.
 
 ### Attribution: which sponsors a game credits
 
 **`SP-13` — A sponsor is attributed to a game by its placements and the prizes it provides; opt-ins are a metric.** A sponsor is attributed to (contest, game) when it holds a placement there (a game-level placement for that game, or a contest-wide one at a contest that runs the game) or provides one of the contest's tiers. Dormant placements do not count. This settles contradiction 6: there is one notion of "this activation's sponsor", and it is the one the fan saw.
 
-**Why opt-ins are not attribution.** A fan accepting a sponsor's opt-in is a result the sponsor bought, not proof the sponsor was on the game. Keying the recap by opt-in meant a sponsor with a consent line but no artwork got an edition, and a sponsor on the board banner with no consent line got none. The opt-in stays exactly where it is useful: as the audience number in that sponsor's section of the recap (the share of the game's players who accepted it at its current wording, an aggregate under `RPT-05`).
+**Why opt-ins are not attribution.** A fan accepting a sponsor's opt-in is a result the sponsor bought, not proof the sponsor was on the game. Keying the recap by opt-in meant a sponsor with a consent line but no artwork got an edition, and a sponsor on the board banner with no consent line got none. The opt-in stays exactly where it is useful: as the audience numbers in that sponsor's section of the recap (per agreement, the share of the game's players who accepted it at its current wording, an aggregate under `RPT-05`).
 
 One pure helper, `attributedSponsors(placements, tiers, betEventId)` in `obs-b2b-shared`, decides it. The recap uses it for a game; the "Where it appears" read asks the same relation from the sponsor's side.
 
@@ -153,29 +157,38 @@ One pure helper, `attributedSponsors(placements, tiers, betEventId)` in `obs-b2b
 
 - **Editions are keyed by sponsor record.** The switcher lists the game's attributed sponsors by name, with their mark.
 - **The default edition** is the board banner's holder at the game, else the sign-in holder, else the slider holder, else the provider of the lowest tier. With none, the recap is the team's own edition.
-- **The audience panel** shows only when the edition's sponsor has a linked consent opt-in.
+- **The audience panel** shows one line per data-sharing agreement of the edition's sponsor (its label and the share of the game's players who accepted it at its current wording), and is left out when the sponsor has none.
 - **In a sponsor's edition**, the tiers it provides carry "Provided by {sponsor}" in the Prizes section.
-- **`?sponsor=`** takes a sponsor id. An opt-in id still resolves, to the sponsor it links, so recap links already sent keep working. A sponsor-kind opt-in with no linked sponsor record no longer gets an edition.
+- **`?sponsor=`** takes a sponsor id. An opt-in id still resolves, to the sponsor it links, so recap links already sent keep working. An opt-in linked to no sponsor record no longer gets an edition.
 
 ---
 
-## Moving `exportFields` off the opt-in
+## Data-sharing agreements (revised 2026-09-27)
 
-The DPA scope lives on the sponsor. The shared dev database is also read by older deployments whose code reads `OptInDefinition.exportFields` and knows nothing of sponsor records, and production is in the same position on deploy day. So the move is **additive, dual-written, and never destructive**.
+*Replaces "Moving `exportFields` off the opt-in" (2026-09-23), whose sponsor-side scope and write-through mirror existed to keep older deployments exporting correctly. There is no older deployment to protect.*
 
-1. **Migration, idempotent, dry-run by default** — `node-server/scripts/migrate-sponsor-records.mjs`. For every `kind: "sponsor"` opt-in whose `sponsorId` does not name a sponsor record of that tenant, create one (`name` from the opt-in's label, `exportFields` copied) and set the opt-in's `sponsorId`. It never unsets or rewrites an opt-in's `exportFields`, never deletes anything, and a second run changes nothing.
-2. **Reads prefer the sponsor.** A sponsor's scope is `sponsor.exportFields`, falling back to its linked opt-in's `exportFields` when the sponsor has none stored.
-3. **Writes mirror.** A field-scope save writes the sponsor **and** copies the same list onto its linked opt-in, so older code exports exactly what the new code would. Deleting a field prunes both. The mirror is temporary (Known gaps).
-4. **Unmigrated data keeps working.** A `kind: "sponsor"` opt-in with no sponsor record still appears on Exports as a row of its own, exportable and scope-editable exactly as before.
-5. **The Exports contract only grows.** Every row and request stays keyed by the consent opt-in (`optInId`, required); the record reaches the screen through optional fields (`sponsorId`, `dpaReference`). Every existing field keeps its type, so a consumer pinned to an older shared package still compiles.
+**An agreement is an opt-in linked to a sponsor.** `OptInDefinition.sponsorId` names a sponsor record. The opt-in's checkbox text is what the fan accepts, and its linked document (the full agreement text, stored in the database and shown in the fan app; [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md), revision 2026-09-27) is what they can read before accepting. Opt-in categories (`kind`) are gone: "linked to a sponsor or not" is the only distinction, and it is the one every reader needs.
 
-**`SP-03` — Fail closed is unchanged.** No stored scope, on the sponsor or its opt-in, means no export (409). A sponsor with **no linked consent opt-in** has no fan who agreed to share anything with it, so it has no export and **does not appear on Exports** until it is linked.
+**`SP-04` — A sponsor may have several agreements; an opt-in links at most one sponsor.** The one-opt-in-per-sponsor refusal is lifted. `PUT /admin/config` still refuses (400) a `sponsorId` that is not one of the tenant's sponsors, and any link on the platform Terms opt-in. Linking and unlinking never bump `textVersion`: they change nothing the fan read. A sponsor with a newsletter agreement and a prize-shipping agreement is two opt-ins, each accepted or declined on its own.
 
-### The opt-in ↔ sponsor link
+**Each agreement carries its own data terms.** The field scope (`exportFields`) and the agreement reference (`dpaReference`, free text, ≤200 characters) live on the agreement, that is on the opt-in, and no longer on the sponsor. Two agreements are two signed documents that may release different fields (an email address for a newsletter; a name and address to ship a prize); one scope per sponsor would release the wider set under the narrower consent. Both are edited together on Exports through `PUT /admin/exports/field-scope` (`{ optInId, exportFields, dpaReference? }`, [`admin-exports.spec.md`](admin-exports.spec.md)); Fields & Opt-ins never sends them and a publish preserves them.
 
-`OptInDefinition.sponsorId` names a sponsor record. The Fields & Opt-ins editor offers a **Sponsor** picker on `kind: "sponsor"` opt-ins, listing the tenant's sponsors plus "Not linked". A picker rather than a free id field because the only legal values are this tenant's sponsors, and a picker cannot offer anything else. The link is how a sponsor's export finds its consent records (`RPT-05`), how Exports can call a row "Coca-Cola" rather than "Share my data with Coca-Cola", and how the recap finds a sponsor's audience number.
+**`SP-03` — Fail closed, per agreement.** An agreement with no stored field scope has no export (409 "No DPA field scope configured"). A sponsor with no agreement has nothing to export and does not appear on Exports.
 
-**`SP-04` — One consent opt-in per sponsor, and only sponsor-kind opt-ins link.** `PUT /admin/config` refuses (400) a `sponsorId` that is not one of the tenant's sponsors, a `sponsorId` on a non-sponsor opt-in, and two opt-ins linked to the same sponsor. One, because the row filter needs exactly one consent to test. Linking and unlinking do not bump `textVersion`: they change nothing the fan read.
+**An unlinked agreement stays exportable by its opt-in.** When an admin unlinks an opt-in, or the sponsor is deleted (`SP-14`), the opt-in keeps its wording, its fans' answers, its field scope and its reference. Exports keeps listing it under its label and exports it by `optInId`, exactly as the per-opt-in export works today: the fans agreed to that wording, a named admin ticked that scope, and the export must stay reproducible. **An opt-in is a data-sharing agreement when it is linked to a sponsor or carries a stored field scope**: `isDataSharingAgreement(optIn)` in `obs-b2b-shared`, the one test every former reader of `kind === "sponsor"` now uses. The platform Terms opt-in is never one (it can carry neither).
+
+**What each reader does when a sponsor has several agreements:**
+
+| Reader | Rule |
+|---|---|
+| "Who played" export (`RPT-01`, `RPT-05`) | Per agreement. The operator picks one (preselected when the sponsor has one); rows are fans who accepted **that** agreement at its current `textVersion`; columns are **that** agreement's scope. This is today's per-opt-in export unchanged ([`admin-exports.spec.md`](admin-exports.spec.md)). |
+| Sponsor page, Data sharing | One row per agreement, each with its own counts and its own Export link. |
+| Recap audience panel (`SP-13`) | One line per agreement of the edition's sponsor. |
+| Fan actions export (`RPT-02`), "declined data sharing" | A fan declined data sharing when they declined **any** data-sharing agreement, at any version; not answering yet is not declining. Today's rule, with "sponsor-kind" replaced by `isDataSharingAgreement`. |
+| Fans screen and fan page | Unchanged: one chip or row per opt-in. |
+| Sponsor consent lookup (`util/admin-sponsors.ts`) | Returns every opt-in linked to the sponsor, not the first. |
+
+**Migration** (`node-server/scripts/agreement-scope-migration.mjs`: dry-run by default, `--apply` writes, idempotent, run on the shared dev database): for every sponsor with a stored `exportFields` or `dpaReference`, copy them onto each linked opt-in that has none of its own (the old mirror means most already match). Readers then stop reading `B2BSponsor.exportFields` and `dpaReference`, the mirror write is removed, and both fields leave the sponsor's interface and admin contract. The stored values stay in the documents, unread.
 
 ---
 
@@ -191,26 +204,31 @@ All under `/admin`, admin Clerk only, scope from `req.adminScope`, the usual tar
 | GET | `/admin/sponsors/:sponsorId` | `requireAdmin` | One sponsor, with its counts |
 | POST | `/admin/sponsors` | `requireAdmin` + write | Create |
 | PATCH | `/admin/sponsors/:sponsorId` | `requireAdmin` + write | Partial edit; `expectedUpdatedAt` precondition |
-| DELETE | `/admin/sponsors/:sponsorId` | `requireAdminReverified` + write | 409 while referenced; audited `sponsor_delete` |
+| DELETE | `/admin/sponsors/:sponsorId` | `requireAdminReverified` + write | Cascades (`SP-14`); audited `sponsor_delete` |
 | GET | `/admin/sponsors/:sponsorId/appearances` | `requireAdmin` | "Where it appears", cursor-paged |
-| GET | `/admin/contests/:contestId/placements` | `requireAdmin` | One contest's placements grid |
+| GET | `/admin/contests/:contestId/placements` | `requireAdmin` | One contest's placements (the Sponsors tab) |
 | PUT | `/admin/contests/:contestId/placements` | `requireAdmin` + write | One contest's placements, whole |
 | GET | `/b2b/org/:subdomain/sponsors` | public | The fan read (below, "The fan wire") |
 
-**`SP-05` — Only deletion is audited.** Create, edit and placement are configuration, reversible by editing again (the branding module's line, `THEME-10`). Deleting a sponsor is irreversible; the `sponsor_delete` row carries the sponsor id, how many placements went with it, and nothing else.
+**`SP-05` — Only deletion is audited.** Create, edit and placement are configuration, reversible by editing again (the branding module's line, `THEME-10`). Deleting a sponsor is irreversible; the `sponsor_delete` row carries the sponsor id, its name (so history stays readable once the record is gone) and what went with it (`SP-14`), and nothing else.
 
 ### `GET /admin/sponsors`
 
-The Sponsors page and every sponsor picker (the placements grid's popover, the tier editor's "Provided by", the Fields & Opt-ins link). Paged by [`admin-lists.spec.md`](admin-lists.spec.md): `cursor`, `limit` (default 50, pickers 30), `q` (name, case-insensitive, anywhere). Order: name A–Z case-insensitively, then id. Index `{ organizationId, name, _id }`.
+The Sponsors page and every sponsor picker (the Sponsors tab's picker, the prize editor's "Provided by", the Fields & Opt-ins link). Paged by [`admin-lists.spec.md`](admin-lists.spec.md): `cursor`, `limit` (default 50, pickers 30), `q` (name, case-insensitive, anywhere). Order: name A–Z case-insensitively, then id. Index `{ organizationId, name, _id }`.
 
-- **`slot`** (optional: `signIn`, `boardBanner` or `slider`): each row gains `fillsSlot: boolean` (`SP-02`'s test) and the order becomes sponsors that fill the slot first, then name. The grid's picker uses it.
-- **Response:** `{ sponsors: SponsorListRow[], page }`, where a row is `{ sponsorId, name, websiteUrl?, markUrl?, signInLogo?, prizePopupLogo?, counts: { contests, placements, prizes }, linkedOptIn?: { optInId, label }, fillsSlot?, updatedAt }`. The card uses `signInLogo` and `markUrl`; the tier editor's "Provided by" picker shows `prizePopupLogo`.
-- **Counts** are the references that matter now, and exactly the ones that block deletion (`SP-14`): `contests` is the number of contests that are not finalized in which the sponsor is attributed (`SP-13`); `placements` counts slots (one slot at one scope is one placement) at live games of those contests; `prizes` counts those contests' tiers that name it. Computed for the page's rows only.
+- **`slot`** (optional: `signIn`, `boardBanner` or `slider`): each row gains `fillsSlot: boolean` (`SP-02`'s test) and the order becomes sponsors that fill the slot first, then name. The Sponsors tab's picker uses it.
+- **Response:** `{ sponsors: SponsorListRow[], page }`, where a row is `{ sponsorId, name, websiteUrl?, markUrl?, signInLogo?, prizePopupLogo?, counts: { contests, placements, prizes, agreements }, fillsSlot?, updatedAt }`. The card uses `signInLogo` and `markUrl`; the prize page's "Provided by" picker shows `prizePopupLogo`.
+- **Counts** say where the sponsor is in use now: `contests` is the number of contests that are not finalized in which the sponsor is attributed (`SP-13`); `placements` counts slots (one slot at one scope is one placement) at live games of those contests; `prizes` counts the library prizes it provides; `agreements` counts the opt-ins linked to it. Computed for the page's rows only. (Today's wire carries `placementCount`, placement documents per sponsor, and `linkedOptIn`; both are replaced.)
 - **Transition:** today's response also carries `contests[]` (every contest with its games and placements) and `featured`. Their only reader is the retired Sponsors & Branding tab; they are dropped when it goes.
 
 ### `GET /admin/sponsors/:sponsorId`
 
-The sponsor page. Returns every `B2BSponsor` field except `organizationId`, with `exportFields` as read (the sponsor's, else its linked opt-in's), `linkedOptIn`, the same `counts` as the list, `activeContests` (contests attributed and not Finished, for the header), and `updatedAt`. 404 for another tenant's id.
+The sponsor page. Returns every `B2BSponsor` field except `organizationId`, the same `counts` as the list, `activeContests` (contests attributed and not finalized, for the header), `updatedAt`, and:
+
+- **`agreements[]`**, one per opt-in linked to it, in the tenant's opt-in order: `{ optInId, label, textVersion, publishedAt, memberCount, accepted, exportFields, dpaReference? }`, where `accepted` counts members who accepted it at its current `textVersion` (the Fields & Opt-ins stat, one vocabulary) and `exportFields` is that agreement's scope (empty when none is stored).
+- **`deleteCounts`**: `{ placements, contests, prizes, agreements }`, exactly what a delete would remove, clear or unlink (`SP-14`), counting every placement including finished and finalized contests', so the dialog can say it.
+
+404 for another tenant's id.
 
 ### `POST /admin/sponsors`
 
@@ -218,45 +236,45 @@ Body `{ name, websiteUrl? }`. `name` trimmed, 1–60 characters, unique per tena
 
 ### `PATCH /admin/sponsors/:sponsorId`
 
-The sponsor page saves one field at a time. Body: any of `name`, `websiteUrl`, `assets` (a partial `SponsorAssets`: only the keys sent change), `dpaReference`, plus the required `expectedUpdatedAt`. `null` clears a field (`$unset`, so cleared and never-set are one state).
+The sponsor page saves one field at a time. Body: any of `name`, `websiteUrl`, `assets` (a partial `SponsorAssets`: only the keys sent change; an image key's value is the URL an upload returned), plus the required `expectedUpdatedAt`. `null` clears a field (`$unset`, so cleared and never-set are one state).
 
-- **Validation** as POST; every image and link https only, ≤2000; `signInTagline` ≤80; `dpaReference` ≤200. Field errors come back keyed by field and render under that field.
+- **Validation** as POST; every image and link https only, ≤2000; `signInTagline` ≤80. Field errors come back keyed by field and render under that field.
 - **Precondition:** an `expectedUpdatedAt` that does not match is 409 `stale_sponsor`.
 - **Clearing placed artwork is allowed** (`SP-02`, last paragraph).
-- **Not here:** `exportFields`, which Exports edits (`PUT /admin/exports/field-scope`, with its mirror).
+- **Not here:** an agreement's `exportFields` and `dpaReference`, which Exports edits per agreement (`PUT /admin/exports/field-scope`).
 - Responds with the sponsor as the GET returns it.
 
-The whole-profile `PUT /admin/sponsors/:sponsorId` stays while the retired drawer's code is deployed, then goes.
+The whole-profile `PUT /admin/sponsors/:sponsorId` goes with the retired drawer.
 
 ### `DELETE /admin/sponsors/:sponsorId`
 
-Reverified (admin-surface: "deleting the sponsor does"). Checks in order: 404 for another tenant's id; the write gate; reverification; then references.
+Reverified (admin-surface: "deleting the sponsor does"). Body `{ confirmName }`, the sponsor's name as typed in the dialog (trimmed, case ignored; 400 when it differs). Checks in order: 404 for another tenant's id; the write gate; reverification; the name.
 
-**`SP-14` — A sponsor can't be deleted while anything current refers to it.** Refused with 409 `sponsor_in_use` and `{ placements, prizes, linkedOptIn }` while it holds a placement at a live game of a contest that is not finalized, provides a tier of such a contest, or is linked from a consent opt-in. Those are the references an admin can remove, and removing them first is the point: a sponsor silently vanishing from a live board or a live prize credit is exactly the surprise reverification exists to prevent. References that cannot be edited any more do not block: placements at games the contest no longer runs are deleted with the sponsor (the audit row counts them), placements in finalized contests are deleted, and a finalized contest's tiers keep the id, which then credits nobody (`SP-11`).
+**`SP-14` — Deleting a sponsor just works: it cascades** (ruling 2026-09-27; replaces the 2026-09-24 rule that refused while anything referred to it, and today's `sponsor_linked` refusal). Nothing is refused because the sponsor is in use. In order:
 
-The response message follows the counts:
+1. **Audit first.** `sponsor_delete` with `{ sponsorId, name, placementsRemoved, contestsAffected, prizesCleared, agreementsUnlinked }`. A failed audit write stops the delete (500), as today.
+2. **Placements.** Every placement naming it is deleted, in every contest: live, dormant, finished and finalized alike. At a live game its slot falls back to the whole-contest holder or empties, at once (the caches are cleared in step 5).
+3. **Prizes.** `providedBySponsorId` is cleared on every library prize naming it and on every tier copy naming it, finalized contests' tiers included, since a reference to a record that no longer exists would resolve to nothing anyway ([`admin-prizes.spec.md`](admin-prizes.spec.md) states the prize side). Award snapshots are never touched: prizes already won keep the credit they were given (`SP-11`).
+4. **Agreements.** Every opt-in linked to it is unlinked (`sponsorId` removed) in one organization write. The opt-ins stay, with their wording, their document, their fans' answers, their field scope and their reference; no `textVersion` moves; they stay exportable by opt-in (`SP-03`).
+5. **The record.** The sponsor is deleted; the org cache and the sponsor-schedule cache are cleared.
 
-| References | Message |
-|---|---|
-| Placements only | "Remove it from 3 placements first." |
-| Prizes only | "Remove it from 1 prize first." |
-| Both | "Remove it from 3 placements and 1 prize first." |
-| Opt-in link only | "Unlink it from its opt-in on Fields & Opt-ins first." |
-| Placements or prizes, and the link | "Remove it from 3 placements and 1 prize, and unlink it from its opt-in on Fields & Opt-ins, first." |
+Steps 2 to 5 run in that order without a cross-collection transaction. Each step is idempotent, so a failure part-way is finished by deleting again; once the record is gone the answer is 404 and the tombstone already records the delete.
 
-Singular and plural follow the count ("1 placement", "2 prizes").
+**History stays readable.** Every new `fan_export` audit row stores `sponsorName` and the agreement's `optInLabel` beside the ids. "Recent exports" names a row from the live record, else the row's stored name, else the `sponsor_delete` tombstone's name, and only then the raw id. A recap link carrying a deleted sponsor's id opens the team's own edition.
+
+Response 200: `{ deleted: { sponsorId, placementsRemoved, contestsAffected, prizesCleared, agreementsUnlinked } }`.
 
 ### `GET /admin/sponsors/:sponsorId/appearances`
 
 "Where it appears". `kind=placements` or `kind=provides`, paged by the convention.
 
-- **`placements`** rows: `{ contestId, contestName, contestStatus, betEventId | null, game?: { label, eventTime }, slot }`, one row per slot at one scope. Order: contest newest first, then "All games" before games, games by tip-off, slots in grid order (Sign-in, Board banner, Slider).
-- **`provides`** rows: `{ contestId, contestName, contestStatus, tierIndex, prizeName }`. Order: contest newest first, then tier order.
-- Finished and finalized contests are included (they are history the recap still attributes); dormant placements are not. `contestStatus` is the derived status the contest page shows.
+- **`placements`** rows: `{ contestId, contestName, contestState, finalized, betEventId | null, game?: { label, eventTime }, slot }`, one row per slot at one scope. Order: contest newest first, then "Whole contest" before games, games by tip-off, slots in grid order (Sign-in, Board banner, Slider).
+- **`provides`** rows: `{ contestId, contestName, contestState, finalized, tierIndex, prizeName }`, one per tier awarding a prize it provides. Order: contest newest first, then tier order.
+- Closed and finalized contests are included (they are history the recap still attributes); dormant placements are not. `contestState` is the stored state (Draft, Open, Closed) the contest page shows, with `finalized` for its badge.
 
 ### `GET /admin/contests/:contestId/placements`
 
-The Sponsors tab and the builder's Sponsors step. Returns:
+The Sponsors tab and the builder's Sponsors step (both render the slot editor below). Returns:
 
 ```ts
 {
@@ -275,16 +293,16 @@ The Sponsors tab and the builder's Sponsors step. Returns:
 
 ### `PUT /admin/contests/:contestId/placements`
 
-Body `{ placements: { betEventId: string | null; sponsorId: string; slots: PlacementSlot[] }[] }`, the contest's whole schedule of the three slots. The grid sends it after every pick, so each cell change is one write.
+Body `{ placements: { betEventId: string | null; sponsorId: string; slots: PlacementSlot[] }[] }`, the contest's whole schedule of the three slots. The slot editor sends it after every pick or removal, so each change is one write.
 
-- **Validation, 400:** `SP-01` (one holder per slot per scope), `SP-02` ("Coca-Cola has no board banner."), every `betEventId` is a game the contest runs, every `sponsorId` is the tenant's, no `prizePopup` ("The prize credit is set on the prize tier.").
+- **Validation, 400:** `SP-01` (one holder per slot per scope; a per-game holder that repeats the whole-contest holder is refused), `SP-02` ("Coca-Cola has no board banner."), every `betEventId` is a game the contest runs, every `sponsorId` is the tenant's, no `prizePopup` ("The prize credit is set on the prize.").
 - **409:** a finalized contest ("This contest is finalized, so its settings can't change.").
 - **Replace semantics:** the three slots at live games are replaced; dormant placements and stored `prizePopup` values are carried over untouched.
 - Responds as the GET.
 
-The old `PUT /admin/sponsors/placements` (`{ contestId, placements[] }`) stays as an alias while the retired schedule card is deployed, with the same validation.
+The old `PUT /admin/sponsors/placements` (`{ contestId, placements[] }`) goes with the retired schedule card.
 
-**Tenant deletion sweeps both collections**, like every other tenant-owned collection.
+**Tenant deletion sweeps both collections**, like every other tenant-owned collection. **Contest deletion** removes the contest's placements (Wave 3, `end-to-end-flow.spec.md` §3.2).
 
 ---
 
@@ -292,13 +310,13 @@ The old `PUT /admin/sponsors/placements` (`{ contestId, placements[] }`) stays a
 
 ### Navigation
 
-**Sponsors is its own sidebar item** under Configuration, at `/sponsors`, with its own hue (the per-item hue treatment G1 builds: a thin bar on the item's right edge, and the KpiTile top outline on the page's hued cards). **Brand** keeps `/branding`. The Sponsors & Branding label and its tab strip go; `/branding/sponsors` redirects to `/sponsors`.
+**Sponsors is its own sidebar item** under Configuration, after Fields & Opt-ins and before Brand (admin-surface's Navigation table and the console mocks), at `/sponsors`, with its own hue (the per-item hue treatment G1 builds: a thin bar on the item's right edge, and the KpiTile top outline on the page's hued cards). **Brand** keeps `/branding`. The Sponsors & Branding label and its tab strip go; `/branding/sponsors` redirects to `/sponsors`.
 
 **Argued.** The 2026-09-23 spec put sponsors beside the brand because both answer "what does the fan app look like". In use they are different jobs on different clocks: the brand is set for a season and edited as one draft; sponsors are records, each with its own artwork and its own list of contests, and they change when deals change. The ruling separates them, and the separation also removes the old tab's second job (the schedule grid for every contest), which now lives on each contest where the question "who is on this game" is asked.
 
 ### `/sponsors` — Sponsors
 
-**Head:** eyebrow "Configuration", H1 "SPONSORS", primary "New sponsor" (writers only).
+**Head:** eyebrow "Workspace", H1 "SPONSORS", primary "New sponsor" (writers only).
 
 **Toolbar** (sticky, from the list kit): search ("Search sponsors") and the count ("8 sponsors", "1 sponsor").
 
@@ -327,7 +345,7 @@ The sponsor page's header in create form: back link "Sponsors", eyebrow "New spo
 
 **Header:** back link "Sponsors"; eyebrow "Sponsor"; H1 the name; under it the website; a status line from `activeContests`: "Active in 2 contests" / "Active in 1 contest", or "Not in any contest". For writers the name and the website are inline-editable: a click turns the text into its field, Enter or leaving the field saves, Escape restores.
 
-**Saving is inline, everywhere on the page.** A text field saves when it loses focus or on Enter; a URL field saves when it loses focus. Each save is one `PATCH` with the sponsor's `updatedAt`. The section's header then shows the confirmation line "Saved." (the console's publish-line idiom, success text colour), which clears after four seconds or on the next edit. Errors answer under the field that caused them. A 409 `stale_sponsor` shows under the section header: "This sponsor changed since you opened it." with "Reload". Nothing is a draft: a sponsor has no publish step, and every value on the page is live once saved.
+**Saving is inline, everywhere on the page.** A text field saves when it loses focus or on Enter; a link field saves when it loses focus; an upload saves when it completes. Each save is one `PATCH` with the sponsor's `updatedAt`. The section's header then shows the confirmation line "Saved." (the console's publish-line idiom, success text colour), which clears after four seconds or on the next edit. Errors answer under the field that caused them. A 409 `stale_sponsor` shows under the section header: "This sponsor changed since you opened it." with "Reload". Nothing is a draft: a sponsor has no publish step, and every value on the page is live once saved.
 
 The page is four sections, top to bottom.
 
@@ -339,12 +357,14 @@ Two columns at ≥1280px: the slot blocks on the left, and `FanAppPreview` on th
 
 | Block | Line | Fields |
 |---|---|---|
-| "Sign-in" | "Beneath the headline fans see before they join, and on Home." | "Logo" (URL); "Tagline" (≤80, with a counter "32/80") |
-| "Board banner" | "Across the board, between the header and the squares." | "Banner" (URL); "Banner link" (URL, hint "Where the banner leads. Leave it blank to use the website.") |
-| "Slider" | "The marker that moves along the prize slider, in place of the team's own marker." | "Icon" (URL) |
-| "Prize logo" | "With a prize this sponsor provides, in the prize popup and the prize email." | "Logo" (URL) |
+| "Sign-in" | "Beneath the headline fans see before they join, and on Home." | "Logo" (upload); "Tagline" (≤80, with a counter "32/80") |
+| "Board banner" | "Across the board, between the header and the squares." | "Banner" (upload, wide); "Banner link" (link, hint "Where the banner leads. Leave it blank to use the website.") |
+| "Slider" | "The marker that moves along the prize slider, in place of the team's own marker." | "Icon" (upload) |
+| "Prize logo" | "With a prize this sponsor provides, in the prize popup and the prize email." | "Logo" (upload) |
 
-**The frame shows each slot in its real spot.** Focusing a block, or any field in it, switches the frame to the screen that holds that slot and rings it with the preview's highlight: Sign-in on Gate, Board banner and Slider on Board, Prize logo on Prize (`sponsors.highlight` with `slot: "prizePopup"`). What the frame renders is the fan app itself, on the tenant's saved brand, with this sponsor's artwork as typed: a valid https URL in a field is sent to the frame at once, before it is saved, so pasting a link shows the image in place. The frame's contest is chosen from a select above it listing the contests in "Where it appears", defaulting to the one with the next game; a sponsor that appears in no contest previews against the fan app's sample contest with this sponsor placed in the slot being looked at. The mechanics (the render document, the contest-wide resolution for the selected game, the highlight) are [`admin-preview.spec.md`](admin-preview.spec.md)'s and the interface file's (section 5.5).
+**Every image field is the console's upload field** ([`admin-uploads.spec.md`](admin-uploads.spec.md)): a box to drop an image on or click to browse, with the accepted types, the 5 MB limit and the fan app's box size as its hint ("PNG, JPG, SVG or WebP · up to 5 MB · shown 40 px tall"). Filled, it shows the image, its file name and size, "Replace" and "Remove"; Remove saves `null`. There is no URL box.
+
+**The frame shows each slot in its real spot.** Focusing a block, or any field in it, switches the frame to the screen that holds that slot and rings it with the preview's highlight: Sign-in on Start, Board banner and Slider on Board, Prize logo on Prize (`view.highlight` with `slot: "prizePopup"`). What the frame renders is the fan app itself, on the tenant's saved brand, with this sponsor's artwork as saved: an upload saves when it completes, and the frame shows the new image at once. The frame's contest is chosen from a select above it listing the contests in "Where it appears", defaulting to the one with the next game. A sponsor that appears in no contest has no frame (there is no sample contest to show it in): the slot blocks, their measured lines and the prize email's mark stand alone, and "Where it appears" says how to place it. The mechanics (the render document, the contest-wide resolution for the selected game, the highlight) are [`admin-preview.spec.md`](admin-preview.spec.md)'s.
 
 **The prize email's mark** is not a fan-app screen, so the Prize logo block also shows it directly: "In the prize email", the logo at the email's exact box (32px tall, up to 160px wide) on the email card's white. This is the one sample drawn in console markup, and it is narrow by design: the email's card is white by construction ([`prize-delivery.spec.md`](prize-delivery.spec.md), "How it is built"), and the question the admin has is whether the logo survives on white, which a logo at its exact size on that white answers truthfully.
 
@@ -357,14 +377,14 @@ Two columns at ≥1280px: the slot blocks on the left, and `FanAppPreview` on th
 | Slider icon | a fixed 36×36 box, contained | never: the box is fixed | "300×300 · will show at 36×36"; "400×200 · will show at 36×18" |
 | Prize logo | popup 48px tall up to 176px; email 32px tall up to 160px | both fit: "600×200 · fits" | each surface named: "800×200 · will show at 176×44 in the popup · fits the email" |
 
-Sizes are CSS pixels. The banner's are at the fan app's widest column, 480px; on a 390px phone, as in the frame, the column is 358px and the banner scales with it. While an image is loading the line is empty. An image that does not load reads "This image didn't load." A value that is not an https URL is refused under the field: "Use a link that starts with https://".
+Sizes are CSS pixels. The banner's are at the fan app's widest column, 480px; on a 390px phone, as in the frame, the column is 358px and the banner scales with it. While an image is loading the line is empty. An image that does not load reads "This image didn't load." An upload the server refuses (type, size, too small) answers in the upload field, with the upload spec's messages. The measured line uses the natural size the upload returned, so it shows at once.
 
 #### 2. Where it appears
 
 A flush card, "Where it appears", with a table (endless scroll, `kind=placements`): **Contest** · **Game** · **Slot** · a "Preview" link.
 
-- **Contest** is the contest's name with its status badge when it is Finished; it links to that contest's Sponsors tab (`/contests/:id/sponsors`).
-- **Game** is "All games" for a contest-wide placement, else the matchup and tip-off ("vs Denver · Sat 7:00 PM").
+- **Contest** is the contest's name with its state chip, and the Finalized badge when finalized; it links to that contest's Sponsors tab (`/contests/:id/sponsors`).
+- **Game** is "Whole contest" for a contest-wide placement, else the matchup and tip-off ("vs Denver · Sat 7:00 PM").
 - **Slot** is "Sign-in", "Board banner" or "Slider".
 - **"Preview"** opens the contest's Preview tab on that slot's screen and game, with this sponsor's artwork highlighted (`/contests/:id/preview?screen=board&game=<id>&sponsor=<sponsorId>&slot=boardBanner`).
 
@@ -372,21 +392,34 @@ Under the table, the prizes it provides (endless, `kind=provides`), one line eac
 
 Empty: "Not placed in any contest. Place sponsors on a contest's Sponsors tab." When it provides prizes but holds no placement, the table is left out and the provides lines stand alone.
 
-#### 3. Data
+#### 3. Data sharing
 
-A card, "Data", with the fields that were the drawer's "Data agreement" group:
+A flush card, "Data sharing" (revised 2026-09-27; it replaces the "Data" card and its inline "Data agreement" field). One row per agreement from `agreements[]`:
 
-- **"Data agreement"** (`dpaReference`, ≤200, inline-saved): hint "Which signed agreement its data sharing follows, so the next admin can find it."
-- **"Consent opt-in"**: the linked opt-in's label, linking to Fields & Opt-ins, or "Not linked to an opt-in", with "Link one on Fields & Opt-ins".
-- **"Shared fields"**: the export field scope as a read-only list of field names, with "Edit on Exports". Omitted when the sponsor has no linked opt-in, since it has no export (`SP-03`).
+- **The agreement's label**, linking to its row on Fields & Opt-ins (`/config?tab=optins&optIn=<optInId>`), with its version beneath ("Version 3 · Sep 12, 2026").
+- **Agreed:** "412 of 1,284 fans" (accepted at the current wording, of all members).
+- **Shared fields:** the scope as field labels ("First name · Last name · Email"), or "No fields chosen yet" when none is stored, in which case it has no export (`SP-03`).
+- **Agreement:** the reference, or nothing when none is stored.
+- **"Export"**: opens Exports with this agreement chosen in the "Who played" generator (`/exports?agreement=<optInId>`). Absent when no fields are chosen.
+- **"Edit on Exports"** under the rows, to the field scope card with the first agreement selected.
+
+Under the rows, the quiet line "Link another agreement on Fields & Opt-ins", to the Opt-ins tab. With no agreement, the card reads "No data-sharing agreement yet." and the same link says "Link one on Fields & Opt-ins".
 
 #### 4. Danger zone
 
-A danger card, "Danger zone": "Deleting a sponsor can't be undone." and the danger button "Delete sponsor".
+A danger card, "Danger zone": "Deleting a sponsor can't be undone." and the danger button "Delete sponsor". Never disabled (`SP-14`).
 
-- **Blocked** (`SP-14`): the button is disabled and the line under it gives the table's message for the current counts ("Remove it from 3 placements and 1 prize first."); the counts link to "Where it appears".
-- **Allowed:** the button runs reverification, then a centred dialog: title "Delete Coca-Cola?", body "It comes off every past contest it was part of, and past recaps no longer offer its edition. This can't be undone.", a field "Type Coca-Cola to confirm", and the danger button "Delete sponsor" (enabled once the name matches). On success the console returns to `/sponsors`, whose head shows the line "Deleted Coca-Cola.".
-- A 409 that arrives anyway (someone placed it meanwhile) closes the dialog and shows the message in the blocked line.
+The button opens a centred dialog built from `deleteCounts`:
+
+- Title: "Delete Northside Credit Union?"
+- Body: "This removes it everywhere:" and a short list of what applies, each with its count and leaving out any that is zero:
+  - "3 placements in 2 contests. Those spots show the whole-contest sponsor or nothing."
+  - "It's credited on 2 prizes. They'll show no sponsor."
+  - "2 data-sharing agreements are unlinked. The opt-ins stay, and fans' answers are kept."
+  - Then: "Past exports and prize emails keep its name. This can't be undone."
+- A field "Type Northside Credit Union to confirm", and the danger button "Delete sponsor", enabled once the name matches; "Cancel". Confirming runs reverification, then the delete (admin-surface: reverification follows the dialog's confirm).
+
+On success the console returns to `/sponsors`, whose head shows the line "Deleted Northside Credit Union.". A cancelled reverification leaves the dialog open with the quiet line "Nothing was deleted." A failure shows "Couldn't delete this sponsor. Try again." in the dialog.
 
 **States of the page**
 
@@ -398,65 +431,72 @@ A danger card, "Danger zone": "Deleting a sponsor can't be undone." and the dang
 | Load failed | The load-failure card, "Couldn't load this sponsor.", with Retry and Tell Overboard |
 | Member, or a paused tenant | The same page as a view-only presentation (below) |
 
-### The contest's Sponsors tab — the placements grid
+### The contest's Sponsors tab — the slot editor
 
-On the contest page ([`admin-contests.spec.md`](admin-contests.spec.md)) at `/contests/:id/sponsors`, and as step 5 of the create builder (optional: Continue is never blocked, and the Review checklist counts "Sponsors (n placements)").
+On the contest page ([`admin-contests.spec.md`](admin-contests.spec.md)) at `/contests/:id/sponsors`, and as the builder's Sponsors step (optional: Continue is never blocked, and the review counts "Sponsors (n placements)"). **Revised 2026-09-27:** the slots-by-games grid and its "Inherited" cells are replaced by one card per slot, because a grid cell that shows a sponsor it does not hold needed a label to explain itself, and the ruling asked for a model that needs none.
 
-**The grid.** Rows are the three slots, each with a caption: "Sign-in" ("Before fans join"), "Board banner" ("Across the board"), "Slider" ("On the prize slider"). Columns are "All games", then one per game in tip-off order, headed with the matchup and tip-off ("vs Denver", "Sat 7:00 PM") and a "Live" or "Final" badge when the game is under way or over. The slot column and the All games column stay pinned while the game columns scroll sideways.
+**Three slot cards**, in the order a fan meets them: "Sign-in" ("Beneath the headline fans see before they join"), "Board banner" ("Across the board, between the header and the squares"), "Slider" ("The marker on the prize slider"). Each card has rows:
 
-**A cell** shows the holder's artwork as a thumbnail at the slot's shape (sign-in logo 24px tall up to 104px wide, or the name alone for a tagline-only sponsor; banner in a 4:1 box, 112×28; icon 28×28) and the sponsor's name beneath it.
+1. **"Whole contest"** (sub-line "Every game, including games added later"), always first: the slot's whole-contest holder, shown as its artwork at the slot's shape (sign-in logo 24px tall up to 104px wide, or the name alone for a tagline-only sponsor; banner in a 4:1 box, 112×28; icon 28×28) with the sponsor's name, then "Change" and "Remove". With no holder: "No sponsor" and the button **"Add sponsor"**.
+2. **One row per game with its own sponsor**, in tip-off order: the game ("vs Denver · Fri 7:00 PM", with "Live" or "Final" when under way or over), then its holder, "Change" and "Remove".
+3. **"Different sponsor for one game"**, a ghost button with a plus, at the foot of the card. It shows while at least one of the contest's games has no row of its own in this slot, and can be used again and again. It adds a new row with a **game picker** (the contest's games that have no row in this slot yet, in tip-off order) and a **sponsor picker**; the row saves once both are chosen, and "Cancel" drops it.
 
-- **Empty:** "Add".
-- **Inherited:** a game cell with no holder of its own shows the All games holder muted, labelled "Inherited", so the inheritance is visible rather than implied.
-- **Artwork gone** (`SP-02`, the cleared-after-placing case): the name with a warning badge, "No logo", "No banner" or "No icon", and the tooltip "Fans won't see this until Coca-Cola has a board banner."
+That is the whole model: a slot has one sponsor for the whole contest, and a game may have a different one. No row, label or tooltip says "inherited"; a game with no row of its own simply shows the whole-contest sponsor, which is what the first row says.
 
-**Picking.** A cell opens a popover anchored to it, titled with the slot and the column ("Board banner · vs Denver", "Board banner · All games"). Inside: search ("Search sponsors") over an endless list of the tenant's sponsors (`GET /admin/sponsors?slot=`), each with its mark and name. Sponsors that fill the slot come first; the rest are listed after them, disabled, with the missing piece ("No board banner"). Choosing one saves at once. A cell that has a holder of its own adds "Remove" at the popover's foot; removing a game cell's holder returns it to the inherited one.
+**Where more sponsors are allowed, there is an Add.** "Add sponsor" when the whole contest has none; "Different sponsor for one game" while a game has none of its own. There is no second sponsor at one scope, because the fan app shows one per slot (`SP-01`).
 
-**Saving.** Each pick or removal sends the whole grid (`PUT /admin/contests/:contestId/placements`). The cell shows its new holder straight away with a quiet pending mark; on success the tab's header shows "Saved." On failure the cell returns to what it was and the message shows under the grid: the server's 400 ("Coca-Cola has no board banner."), a finalized contest ("This contest is finalized, so its settings can't change."), or "Couldn't save. Try again." for anything else.
+**The sponsor picker.** A popover anchored to the button, titled with the slot and the scope ("Board banner · Whole contest", "Board banner · vs Denver · Sat"). Search ("Search sponsors") over an endless list of the tenant's sponsors (`GET /admin/sponsors?slot=`), each with its mark and name. **It leaves out the sponsor fans already see in that slot at that scope:** the current whole-contest holder when choosing for the whole contest; when choosing for one game, that game's own holder if it has one, else the whole-contest holder. Choosing either would change nothing. Sponsors that fill the slot come first; the rest are listed after them, disabled, with the missing piece ("No board banner"). Choosing one saves at once.
 
-**Provided by.** Under the grid, a card "Provided by" lists the contest's tiers in ladder order: the tier's name, "3 bingos", and its provider's mark and name, or "No sponsor". Read-only here; "Edit on Prizes" links to the Prizes tab. With no tiers: "No prize tiers yet." with "Add one on Prizes".
+**Making a sponsor the whole-contest holder** removes, in the same save, any per-game row that names the same sponsor in that slot (it would repeat the whole contest, `SP-01`); the rows disappear with the change.
 
-**Preview.** A line of links under the Provided by card: "Preview the sign-in screen" (the Preview tab on Gate), then one link per game ("vs Denver") opening the Preview tab on Board for that game.
+**Artwork gone** (`SP-02`, the cleared-after-placing case): the row shows the name with a warning badge ("No logo", "No banner" or "No icon") and one line: on a game row, "Fans at this game see the whole-contest sponsor until Red River Pizza Co. has a board banner."; on the whole-contest row, "Fans don't see this until Northside Credit Union has a board banner."
+
+**Saving.** Each pick or removal sends the whole schedule (`PUT /admin/contests/:contestId/placements`). The row shows its new holder straight away with a quiet pending mark; on success the tab's header shows "Saved." On failure the row returns to what it was and the message shows under that card: the server's 400 ("Coca-Cola has no board banner."), a finalized contest ("This contest is finalized, so its settings can't change."), or "Couldn't save. Try again." for anything else.
+
+**Provided by.** Under the slot cards, a card "Provided by" lists the contest's tiers in ladder order: "Tier 1", the prize's name, "3 bingos", and its provider's mark and name, or "No sponsor". Read-only here; "Edit on Prizes" links to the Prizes tab. With no tiers: "No prize tiers yet." with "Add one on Prizes".
+
+**Preview.** A line of links under the Provided by card: "Preview the sign-in screen" (the Preview tab on Start), then one link per game ("vs Denver · Fri") opening the Preview tab on Board for that game.
 
 | State | What shows |
 |---|---|
-| Loading | A skeleton grid: three rows by All games plus up to four game columns |
-| Ready | Grid, Provided by, Preview links |
-| The tenant has no sponsors | In place of the grid: "No sponsors yet. Add one on the Sponsors page." with the link (writers), "No sponsors yet." (members) |
-| The contest has no games | The grid with the All games column only, and under it "Add games on the Games tab to place a sponsor at one game." |
+| Loading | Three skeleton slot cards, each with two skeleton rows |
+| Ready | Slot cards, Provided by, Preview links |
+| The tenant has no sponsors | In place of the cards: "No sponsors yet. Add one on the Sponsors page." with the link (writers), "No sponsors yet." (members) |
+| The contest has no games | Each card shows its Whole contest row only, and under the cards "Add games on the Games tab to use a different sponsor at one game." |
+| Every game has its own sponsor in a slot | That card has no "Different sponsor for one game" button |
 | Finalized | View-only presentation; the contest page's finalized treatment applies |
 | Locked (a fan has joined) | Unchanged: placements stay editable |
 | Load failed | The load-failure card, "Couldn't load this contest's sponsors.", with Retry and Tell Overboard |
 
 ### The view-only presentation
 
-`org:member`, and every user of a paused tenant, see the same Sponsors page, sponsor page and grid as state (D-059), with the console's read-only line in the page head: "Read-only — only organization admins can change sponsors" (a paused tenant sees the paused banner instead). No "New sponsor"; names, websites and fields are static text; an empty grid cell reads "None" and cells do not open; the Danger zone is absent. `FanAppPreview` works exactly as for an admin, because a preview writes nothing.
+`org:member`, and every user of a paused tenant, see the same Sponsors page, sponsor page and Sponsors tab as state (D-059), with the console's read-only line in the page head: "Read-only — only organization admins can change sponsors" (a paused tenant sees the paused banner instead). No "New sponsor"; names, websites and fields are static text; images show without the upload box; an empty holder reads "None" and the Sponsors tab has no Add, Change, Remove or "Different sponsor for one game"; the Danger zone is absent. `FanAppPreview` works exactly as for an admin, because a preview writes nothing.
 
 ### Exports and Fields & Opt-ins
 
-- **Exports** lists each sponsor opt-in under its sponsor record's name when linked (its label otherwise). The field scope card shows the Data agreement line beneath the checklist when one is stored. Every request is still keyed by the opt-in; the server applies the record's scope and mirrors every scope save onto both.
-- **Fields & Opt-ins** carries the Sponsor picker on sponsor-kind opt-ins (above), using the paged sponsor list.
+- **Exports** lists each data-sharing agreement: under its sponsor's name when linked ("Northside Credit Union · Share my info with Northside"), under its own label when not. The field scope card edits one agreement's scope and its agreement reference together. The "Who played" generator picks an agreement (grouped by sponsor, preselected when the page was opened with `?agreement=` or the tenant has one). Every request is keyed by the opt-in ([`admin-exports.spec.md`](admin-exports.spec.md)).
+- **Fields & Opt-ins** carries a **Sponsor** picker on every opt-in except the platform Terms row ("Not linked", or one of the tenant's sponsors, from the paged sponsor list), and no category control ([`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md), revision 2026-09-27).
 
 ### Copy
 
 | Where | String |
 |---|---|
-| Sidebar, page head | "Sponsors", eyebrow "Configuration", H1 "SPONSORS" |
+| Sidebar, page head | "Sponsors", eyebrow "Workspace", H1 "SPONSORS" |
 | List | "New sponsor" · "Search sponsors" · "8 sponsors" / "1 sponsor" · "Appears in 2 contests · 3 placements · provides 1 prize" · "Not in any contest" · "No sponsors yet." · "No sponsors match." · "Clear search" · "Couldn't load sponsors." · "Deleted Coca-Cola." |
 | Create | "New sponsor" · "Name" · "Website" · "Linked from the sponsor's logos and banner." · "Create sponsor" · "A sponsor with this name already exists." |
 | Sponsor header | "Sponsors" (back) · "Sponsor" · "Active in 2 contests" / "Active in 1 contest" · "Not in any contest" |
-| Saving | "Saved." · "This sponsor changed since you opened it." · "Reload" · "Use a link that starts with https://" |
-| Artwork | "Sign-in" · "Board banner" · "Slider" · "Prize logo" · the four lines in the block table · "Logo" · "Tagline" · "32/80" · "Banner" · "Banner link" · "Where the banner leads. Leave it blank to use the website." · "Icon" · "In the prize email" |
+| Saving | "Saved." · "This sponsor changed since you opened it." · "Reload" · "Use a link that starts with https://" (link fields only) |
+| Artwork | "Sign-in" · "Board banner" · "Slider" · "Prize logo" · the four lines in the block table · "Logo" · "Tagline" · "32/80" · "Banner" · "Banner link" · "Where the banner leads. Leave it blank to use the website." · "Icon" · "In the prize email" · the upload field's strings ([`admin-uploads.spec.md`](admin-uploads.spec.md)): "Drop an image here or browse" · "PNG, JPG, SVG or WebP · up to 5 MB · shown 40 px tall" · "Replace" · "Remove" |
 | Measured line | "1200×300 · fits" · "300×300 · will show at 36×36" · "800×200 · will show at 176×44 in the popup · fits the email" · "This image didn't load." |
-| Where it appears | "Where it appears" · "Contest" · "Game" · "Slot" · "All games" · "Sign-in" · "Board banner" · "Slider" · "Preview" · "Provides: Free hot dog in Hawks 2026" · "Not placed in any contest. Place sponsors on a contest's Sponsors tab." |
-| Data | "Data" · "Data agreement" · "Which signed agreement its data sharing follows, so the next admin can find it." · "Consent opt-in" · "Not linked to an opt-in" · "Link one on Fields & Opt-ins" · "Shared fields" · "Edit on Exports" |
-| Danger zone | "Danger zone" · "Deleting a sponsor can't be undone." · "Delete sponsor" · the `SP-14` messages · "Delete Coca-Cola?" · "It comes off every past contest it was part of, and past recaps no longer offer its edition. This can't be undone." · "Type Coca-Cola to confirm" |
+| Where it appears | "Where it appears" · "Contest" · "Game" · "Slot" · "Whole contest" · "Sign-in" · "Board banner" · "Slider" · "Preview" · "Provides: Free hot dog in Hawks 2026" · "Not placed in any contest. Place sponsors on a contest's Sponsors tab." |
+| Data sharing | "Data sharing" · "Version 3 · Sep 12, 2026" · "Agreed" · "412 of 1,284 fans" · "Shared fields" · "No fields chosen yet" · "Agreement" · "Export" · "Edit on Exports" · "Link another agreement on Fields & Opt-ins" · "No data-sharing agreement yet." · "Link one on Fields & Opt-ins" |
+| Danger zone | "Danger zone" · "Deleting a sponsor can't be undone." · "Delete sponsor" · "Delete Coca-Cola?" · "This removes it everywhere:" · "3 placements in 2 contests. Those spots show the whole-contest sponsor or nothing." · "It's credited on 2 prizes. They'll show no sponsor." · "2 data-sharing agreements are unlinked. The opt-ins stay, and fans' answers are kept." · "Past exports and prize emails keep its name. This can't be undone." · "Type Coca-Cola to confirm" · "Cancel" · "Nothing was deleted." · "Couldn't delete this sponsor. Try again." |
 | Page states | "This sponsor doesn't exist." · "Back to sponsors" · "Couldn't load this sponsor." |
-| Grid | "Before fans join" · "Across the board" · "On the prize slider" · "All games" · "Add" · "Inherited" · "No logo" / "No banner" / "No icon" · "Fans won't see this until Coca-Cola has a board banner." · "Board banner · vs Denver" · "Search sponsors" · "No board banner" · "Remove" · "Saved" · "Coca-Cola has no board banner." · "This contest is finalized, so its settings can't change." · "Couldn't save. Try again." · "None" |
-| Grid, below | "Provided by" · "3 bingos" · "No sponsor" · "Edit on Prizes" · "No prize tiers yet." · "Add one on Prizes" · "Preview the sign-in screen" · "vs Denver" |
-| Grid states | "No sponsors yet. Add one on the Sponsors page." · "No sponsors yet." · "Add games on the Games tab to place a sponsor at one game." · "Couldn't load this contest's sponsors." |
+| Sponsors tab | "Sign-in" · "Beneath the headline fans see before they join" · "Board banner" · "Across the board, between the header and the squares" · "Slider" · "The marker on the prize slider" · "Whole contest" · "Every game, including games added later" · "No sponsor" · "Add sponsor" · "Change" · "Remove" · "Different sponsor for one game" · "Game" · "Sponsor" · "Choose a game" · "Choose a sponsor" · "Cancel" · "Live" / "Final" · "No logo" / "No banner" / "No icon" · "Fans at this game see the whole-contest sponsor until Red River Pizza Co. has a board banner." · "Fans don't see this until Northside Credit Union has a board banner." · "Board banner · vs Denver · Sat" · "Board banner · Whole contest" · "Search sponsors" · "No board banner" · "Saved." · "Coca-Cola has no board banner." · "This contest is finalized, so its settings can't change." · "Couldn't save. Try again." · "None" |
+| Sponsors tab, below | "Provided by" · "Tier 1" · "3 bingos" · "No sponsor" · "Edit on Prizes" · "No prize tiers yet." · "Add one on Prizes" · "Preview" · "Preview the sign-in screen" · "vs Denver · Fri" |
+| Sponsors tab states | "No sponsors yet. Add one on the Sponsors page." · "No sponsors yet." · "Add games on the Games tab to use a different sponsor at one game." · "Couldn't load this contest's sponsors." |
 | View-only | "Read-only — only organization admins can change sponsors" |
-| Server refusals shown as-is | "The prize credit is set on the prize tier." · the `SP-14` table |
+| Server refusals shown as-is | "The prize credit is set on the prize." · "Northside Credit Union already holds this for the whole contest." |
 
 ---
 
@@ -475,17 +515,17 @@ No reverification except delete: placing and editing are undone by editing again
 
 ## The fan wire
 
-**`GET /b2b/org/:subdomain/sponsors`** — unauthenticated, like the org endpoint, because the sign-in screen renders before a fan exists. Response unchanged in shape: `configured` (the tenant has at least one sponsor record), the public sponsor projection, the placements for visible, unfinalized contests, the `featured` game, and the `nextGame` it describes. Cached 60 seconds beside the org cache and cleared by the same writes.
+**`GET /b2b/org/:subdomain/sponsors`** — unauthenticated, like the org endpoint, because the sign-in screen renders before a fan exists. Response unchanged in shape: `configured` (the tenant has at least one sponsor record), the public sponsor projection, the placements for contests fans can see (Open or Closed) that aren't finalized, the `featured` game, and the `nextGame` it describes. Cached 60 seconds beside the org cache and cleared by the same writes.
 
 **What changes:** placements carry only `signIn`, `boardBanner` and `slider`. The server filters stored `prizePopup` values out of every placement and drops a placement left with no slots. **Transition:** the fan contract's slot schema accepts and discards an unknown slot value, so a new fan app reading an older server ignores `prizePopup` rather than failing; an older fan app reading the new server finds no prize-popup holder and shows no credit, never a wrong one.
 
-**`sponsors[]` also carries every prize provider.** Besides the sponsors placed at visible, unfinalized contests, the projection includes every sponsor a visible tier of such a contest names as its provider, so the fan app resolves a tier's `providedBySponsorId` (carried on the contest reads, [`admin-prizes.spec.md`](admin-prizes.spec.md)) from this one payload. `configured` keeps its meaning.
+**`sponsors[]` also carries every prize provider.** Besides the sponsors placed at those contests, the projection includes every sponsor that a tier of such a contest, as fans see it, names as its provider, so the fan app resolves a tier's `providedBySponsorId` (carried on the contest reads, [`admin-prizes.spec.md`](admin-prizes.spec.md)) from this one payload. `configured` keeps its meaning.
 
-**`SP-06` — The public projection is an allowlist.** `{ sponsorId, name, websiteUrl, assets }` and nothing else. `exportFields`, `dpaReference` and `organizationId` never cross this wire, and a test pins the key set exactly as `response-minimization.test.ts` pins the org endpoint's.
+**`SP-06` — The public projection is an allowlist.** `{ sponsorId, name, websiteUrl, assets }` and nothing else. Agreement data (`exportFields`, `dpaReference`, which live on opt-ins now) and `organizationId` never cross this wire, and a test pins the key set exactly as `response-minimization.test.ts` pins the org endpoint's.
 
-**`SP-07` — One resolver.** `resolveSponsorSlots(schedule, { contestId, betEventId })` in `obs-b2b-shared` is the only code that decides which sponsor holds a slot. The fan app calls it per screen; the server's tests pin it; the console's preview uses it for the selected game ([`admin-preview.spec.md`](admin-preview.spec.md)); nothing re-derives it. The prize credit is not a slot and needs no resolver: popup and email read one field (`SP-11`).
+**`SP-07` — One resolver.** `resolveSponsorSlots(schedule, { contestId, betEventId })` in `obs-b2b-shared` is the only code that decides which sponsor holds a slot. **Revised 2026-09-27: a per-game holder without the slot's artwork falls back to the whole-contest holder.** Today the resolver skips such a holder with no fallback (`B2BSponsor.ts`, the `continue` after `sponsorFillsSlot`), so one missing file empties the slot at that game while the console shows a sponsor there. The new order is: the first per-game placement for the slot whose sponsor fills it, else the whole-contest placement whose sponsor fills it, else nothing. A missing file then costs exactly the override and never the slot, and the console's row can say plainly what fans see. The fan app calls it per screen; the server's tests pin it; the console's preview uses it for the selected game ([`admin-preview.spec.md`](admin-preview.spec.md)); nothing re-derives it. The prize credit is not a slot and needs no resolver: popup and email read one field (`SP-11`).
 
-**The featured game** (for the sign-in screen, which has no contest): among visible, unfinalized contests' games, the one in progress; else the soonest not yet final whose start is no more than three hours past (the feed lags); else the most recent. `pickFeaturedGame` in the shared package.
+**The featured game** (for the sign-in screen, which has no contest): among the games of contests fans can see (Open or Closed) that aren't finalized, the one in progress; else the soonest not yet final whose start is no more than three hours past (the feed lags); else the most recent. `pickFeaturedGame` in the shared package.
 
 **The next game** (`nextGame`): the featured game described for the sign-in screen's matchup (`{ betEventId, eventTime, homeTeam: { name, logoUrl? }, awayTeam }`), only while it is under way or still ahead by the same window. When the featured game is only "the most recent", or is not a two-team game with both names, `nextGame` is null and the start screen shows **no matchup** (D-068). Team logos cross the wire only as https URLs. `nextGameOf` in `node-server/src/util/admin-sponsors.ts`; the contract is `publicNextGameSchema` in `api/b2b/sponsors.ts` (nullish, so an older server reads as none).
 
@@ -502,7 +542,7 @@ No reverification except delete: placing and editing are undone by editing again
 | Sign-in screen and Home, beneath the headline | the `signIn` holder at the featured game | "Presented by", the logo (linked to the website) or the name, and the tagline |
 | Board, between header and grid | the `boardBanner` holder at (contest, the board's game) | The banner, full width, as one link |
 | Board's progress slider | the `slider` holder at (contest, the board's game) | The icon as the moving marker; else the tenant's marker; else the plain dot |
-| Prize popup, prize ladder, prize email | the tier's `providedBySponsorId` (the snapshot's copied `providedBy`, for the email) | "Provided by", the prize logo or the name, linked to the website |
+| Prize popup, prize ladder, prize email | the awarded prize's `providedBySponsorId`, as the tier's copy carries it (the snapshot's copied `providedBy`, for the email) | "Provided by", the prize logo or the name, linked to the website |
 
 The board resolves against its contest and its game: the game of the board's props.
 
@@ -511,20 +551,20 @@ The board resolves against its contest and its game: the game of the board's pro
 ## Rules
 
 1. **A sponsor belongs to exactly one tenant** and is only ever read or written through that tenant's scope (`TEN-04`).
-2. **One sponsor per slot per game** (`SP-01`); a game-specific holder overrides the contest-wide one for that slot only.
+2. **One sponsor per slot, at every game** (`SP-01`): a whole-contest holder, and at most one different sponsor per game, which replaces it at that game only. The console adds wherever a scope has no holder, and nowhere else.
 3. **Three placement slots, each placeable only with its artwork** (`SP-02`): Sign-in, Board banner, Slider.
-4. **The prize credit follows the tier's "Provided by"** (`SP-11`). Popup and email read the same field, the email from the snapshot; a provider without a prize logo is credited by name.
+4. **The prize credit follows the prize's "Provided by"** (`SP-11`). Popup and email read the same field, the email from the snapshot; a provider without a prize logo is credited by name.
 5. **Retiring `prizePopup` migrates the contest-wide credit, logs the game-level rows, and removes nothing** (`SP-12`). Writes refuse the slot; stored values survive until cleanup; `prizePopup` remains a highlight target.
 6. **A sponsor is attributed to a game by its placements and the prizes it provides; opt-ins are a metric** (`SP-13`). One helper decides it for the recap and for "Where it appears".
 7. **Placements stay editable after the first fan joins**; a finalized contest refuses them.
-8. **The DPA scope lives on the sponsor**; the opt-in copy is a write-through mirror, never read first, and retired later. No stored scope, no export (`SP-03`).
-9. **A sponsor with no linked consent opt-in has no export and is not on Exports.**
-10. **One consent opt-in per sponsor; only sponsor-kind opt-ins link** (`SP-04`).
-11. **The sponsor-records migration creates and links; it never removes.** Idempotent, dry-run by default.
-12. **Deleting a sponsor is reverified, audited, and refused while a current placement, prize or opt-in refers to it** (`SP-14`); references that can no longer be edited go with it.
+8. **The DPA scope and reference live on each agreement** (the opt-in); no stored scope, no export (`SP-03`). An unlinked agreement stays exportable by its opt-in.
+9. **A sponsor with no agreement has no export and is not on Exports.** One with several has one export per agreement.
+10. **A sponsor may have several agreements; an opt-in links at most one sponsor; there are no opt-in categories** (`SP-04`).
+11. **Migrations are dry-run by default and idempotent**, and run on the shared dev database: the sponsor-records migration creates and links; the agreement-scope migration copies the scope onto agreements.
+12. **Deleting a sponsor is reverified, audited first, and cascades** (`SP-14`): its placements go, prizes it provides lose it, its agreements are unlinked and kept, and history keeps its name.
 13. **Only deletion is audited** (`SP-05`).
 14. **The fan wire is an allowlist** (`SP-06`); DPA data never reaches it.
-15. **One resolver decides slot holders** (`SP-07`), in the fan app, the server and the console's preview.
+15. **One resolver decides slot holders** (`SP-07`), in the fan app, the server and the console's preview; a per-game holder without artwork falls back to the whole-contest holder.
 16. **Render when configured, nothing when not** (`SP-08`); legacy strings only for a tenant with no sponsor records (`SP-09`).
 17. **Only `https:` links and images are stored**, and outbound links open with `noopener` (`SP-10`).
 18. **The measured line states facts** (`SP-15`): natural size and what the fan app does with it, from the slot's rendering rule. Never advice.
@@ -535,13 +575,14 @@ The board resolves against its contest and its game: the game of the board's pro
 
 ## Known gaps (recorded, not blocking, never on screen)
 
-- **The `prizePopup` cleanup.** Strip `prizePopup` from stored placements, delete placements left with no slots, and drop the value from the stored enum, once every environment has run `prize-tier-migration.mjs` and no deployed code reads the slot. `SponsorSlot` keeps the value as a highlight target.
-- **No per-game prize credit.** A tier has one provider for every game; the game-level `prizePopup` rows the migration logs had no faithful home. If a sponsor ever needs to fund one game's prizes only, that is a separate contest's tiers, or a per-game provider override on the tier.
-- **No image upload.** Every asset is a pasted https URL, like the Brand page's logo. An upload path (presigned PUT, size and type limits, a CDN URL back) is the next step for sponsor artwork, prize images and the brand logo at once, and belongs in its own change.
+- **The `prizePopup` cleanup.** Strip `prizePopup` from stored placements, delete placements left with no slots, and drop the value from the stored enum, once every environment has run `prize-type-migration.mjs` and no deployed code reads the slot. `SponsorSlot` keeps the value as a highlight target.
+- **No per-game prize credit.** A prize has one provider wherever it is awarded; the game-level `prizePopup` rows the migration logs had no faithful home. If a sponsor ever needs to fund one game's prizes only, that is a separate contest's tiers, or a per-game provider override on the tier.
+- ~~**No image upload.**~~ **Closed 2026-09-27** by [`admin-uploads.spec.md`](admin-uploads.spec.md).
 - **One prize logo for two grounds.** The same image sits on the popup's card (dark or light with the tenant's theme) and on the email's white card. The sponsor page now shows both, which makes the problem visible; a separate email logo is the fix if tenants need it.
-- **The `exportFields` mirror onto opt-ins is temporary.** Retire it (stop writing, then drop the field from the opt-in schema) once every environment has run the sponsor-records migration and no deployed code reads the opt-in copy.
-- **Placements are last-write-wins between two admins** editing one contest's grid at once, as the branding module is. Acceptable at V1's operator count; an `expectedUpdatedAt` on the placements PUT is the fix.
-- **No "nobody at this game" override.** A game cell can hold a different sponsor than All games, but cannot hold none while All games has one. Add an explicit empty override if a tenant asks.
+- ~~**The `exportFields` mirror onto opt-ins is temporary.**~~ **Closed 2026-09-27**: the scope lives on each agreement (the opt-in) again, and the sponsor copy is retired.
+- **Several sponsors in one slot.** The fan app renders one sponsor per slot, so the console offers one per scope (`SP-01`). A rotation or a row of logos is a fan-app change for the overhaul, with its own display rule.
+- **Placements are last-write-wins between two admins** editing one contest's Sponsors tab at once, as the branding module is. Acceptable at V1's operator count; an `expectedUpdatedAt` on the placements PUT is the fix.
+- **No "nobody at this game" override.** A game can have a different sponsor than the whole contest, but cannot have none while the whole contest has one. Add an explicit empty override if a tenant asks.
 - **No per-game creative override.** A sponsor has one kit; a game-specific tagline means editing the kit or a second sponsor record. Add `overrides` on the placement if a sponsor ever asks.
 - **Consent per game (`OPT-06`) stays unbuilt.** A sponsor placed at a game does not prompt fans who never answered its opt-in; `activeOptIns(context)` is still the seam.
 - **The free square is not built** (field-split doc). It becomes a fourth placement slot, additively, when the game gains one.
@@ -553,11 +594,11 @@ The board resolves against its contest and its game: the game of the board's pro
 - PRD `BRAND-02`–`BRAND-04`, `TEN-04`, `RPT-04`, `RPT-05`, `SEC-02`, `IDN-11`, `ADM-03`
 - WAVE-RULES 2026-09-24, "Arthur's rulings": Sponsors, Full pages instead of drawers, Lists
 - [`admin-contests.spec.md`](admin-contests.spec.md) — the contest page, its Sponsors tab, the builder, the lock
-- [`admin-prizes.spec.md`](admin-prizes.spec.md) — the tier editor's "Provided by", the award snapshot, the tier migration (step 3)
+- [`admin-prizes.spec.md`](admin-prizes.spec.md) — the prize page's "Provided by", the award snapshot, the prize-type migration (step 2)
 - [`admin-preview.spec.md`](admin-preview.spec.md) — `FanAppPreview` on the sponsor page and the contest Preview tab
 - [`admin-lists.spec.md`](admin-lists.spec.md) — paging and endless scroll
 - [`admin-sponsor-recap.spec.md`](admin-sponsor-recap.spec.md) — the recap, whose editions `SP-13` re-keys
 - [`prize-delivery.spec.md`](prize-delivery.spec.md) — the prize email's credit mark, re-sourced by `SP-11`
 - [`admin-branding.spec.md`](admin-branding.spec.md), [`admin-exports.spec.md`](admin-exports.spec.md), [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md), [`admin-surface.spec.md`](admin-surface.spec.md)
-- The S1/S2 preview interface, `artifacts/wave-2026-09-24/s1-s2-preview-interface.md` (workspace), sections 5.1 and 5.5
-- Fan side (S2, same wave): `spec/webapp/fan-app-v2.spec.md` (the Gate, Home and prize ladder credits), `fan-contest-flow.spec.md` (the prize popup), `fan-preview-mode.spec.md`
+- [`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md) — the fan app's preview mode: the render document and the highlight
+- Superseded (workspace): the S1/S2 preview interface, `artifacts/wave-2026-09-24/s1-s2-preview-interface.md`
