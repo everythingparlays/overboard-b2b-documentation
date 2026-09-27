@@ -70,8 +70,12 @@ cd overboard-b2b-template && npx vite --port 5351 --strictPort
 
 **What you should see:**
 
-- Backend: `[dev-scoring] watching readonly_props (local scoring)`. On a cold start it also prints
-  `[dev-scoring] sweep done { boards: …, linesClaimed: … }`.
+- Backend: `[dev-scoring] <time> this server now scores arthur_`, then
+  `[dev-scoring] <time> watching readonly_props (local scoring)`. On a cold start it also prints
+  `[dev-scoring] <time> sweep done { boards: …, linesClaimed: … }`.
+- **Only one server scores a prefix.** The server you started last takes over. Any other server with dev tools on logs
+  `standing by: <host:port (pid)> scores arthur_ now`, and takes over by itself within 30 s of that one stopping. So
+  prize emails land in the outbox of the server that logged `this server now scores`.
 - Worker: `[prize-worker] local mode: reading …` and `[prize-worker] emails go to …`.
 
 If the backend says `watcher not started: set PRIZE_LOCAL_QUEUE_DIR …`, the dev tools are off. See §9.
@@ -249,7 +253,8 @@ D2C staff often build contests the day before a game. **Check again right before
    Progress applies to the player's whole market, so every Over line at or below it becomes a Hit, on
    every B2B board holding one.
 
-   Within seconds the backend logs `[dev-scoring] prop hit …`. Once the third cell of the line is hit,
+   Within a second the backend logs `[dev-scoring] <time> prop hit { propId, msSincePesWrote, … }`. Once the third
+   cell of the line is hit,
    the worker writes the prize email to the outbox, and the fan board shows the bingo and the popup
    within 30 seconds.
 5. **Put it back.** Set each card's **Progress** back to the value you wrote down → **Update**. PES then
@@ -259,6 +264,14 @@ D2C staff often build contests the day before a game. **Check again right before
 
 Only **Over** props hit from progress. A **Manual** prop ("To Win By") resolves only on Finalize, and
 **Unders** never resolve, so build your line from Over cells.
+
+**Without touching PES.** On a game day, D2C's own updates flow through the mirror all the time:
+
+- **During games:** team totals and anytime TDs.
+- **At each game's finalize** (about 3 to 3.5 hours after kickoff): every player prop.
+
+A board built on a real game before kickoff, or on a game under way with test mode on, scores by itself as the game
+is played and finalized.
 
 ---
 
@@ -348,6 +361,7 @@ source of truth.
 | Backend won't start, or behaves like old code after a checkout or pull | Run `git submodule update --init --recursive` at the repo root, then `npm run build` in `node-server/` (it runs from `built/`) and `node build.mjs` in `prize-worker/`. |
 | `/admin/dev/*` answers 404; no **Test mode** section in the drawer | The dev routes are only mounted when all of these hold: `DEV_TOOLS=on`, `MONGODB_DATABASE_NAME=obs-b2b-dev`, a prefix that isn't `prod_`, and `DEPLOY_STAGE` not `prod`. Restart after changing `.env`. The section is also hidden on finalized contests and for `org:member`. |
 | `watcher not started` in the log, or replay answers "Scoring is off on this server" | `PRIZE_LOCAL_QUEUE_DIR` is missing from the backend's `.env`. |
+| `standing by: … scores arthur_ now`; a bingo's email lands in another folder | Another server on your prefix holds the scoring lease: the last one started wins. Stop it, or restart yours to take the lease back. A server on code older than the lease doesn't take part and still scores alongside, so stop those or turn `DEV_TOOLS` off on them. |
 | The line is claimed but no email arrives | The worker isn't running, has a different `PRIZE_LOCAL_QUEUE_DIR` or prefix, or has no `PRIZE_FROM_ADDRESS`. Queued messages wait in the folder until it starts. |
 | Clerk asks for a code | **424242** on both dev instances (test mode). Only `+clerk_test` addresses; never list or touch real fan users. |
 | The prize popup doesn't show again | It's remembered in the browser's localStorage, per board and bingo count (`prize-award-shown-<boardId>-<n>`). Delete that key, or use a private window. |
