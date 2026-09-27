@@ -82,9 +82,14 @@ The watcher, the replay endpoint and contest test mode (§5) are **dev tools**. 
 `devToolsEnabled(env)`, which is true only when **every** condition below holds:
 
 - `DEV_TOOLS === "on"`
-- `NODE_ENV !== "production"`
-- `MONGODB_DATABASE_NAME === "obs-b2b-dev"`
+- `MONGODB_DATABASE_NAME === "obs-b2b-dev"`. This is the real discriminator: a prod stack holds no credential for
+  the dev database.
 - `B2B_COLLECTION_PREFIX` is set and is not `prod_`
+- `DEPLOY_STAGE` (set by CDK) is not `prod`
+
+`NODE_ENV` is deliberately not a condition. Every deployed stack, personal dev stacks included, runs
+`NODE_ENV=production` for its security posture, so it cannot tell dev from prod. CDK also refuses to synthesise a
+`prod` stage with dev tools on.
 
 CDK sets `DEV_TOOLS=on` and `PROP_HIT_QUEUE_URL` on non-`prod` stages only (`EnvironmentConfig.devTools`). The dev routes
 are **not mounted** when the gate is closed, so they answer 404 like any unknown path. They are never mounted and then
