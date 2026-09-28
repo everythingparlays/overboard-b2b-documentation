@@ -8,6 +8,8 @@
 
 **Status:** Draft, written 2026-09-23 with the build. No open questions.
 
+**Revised 2026-09-28** (Arthur's Wave 4 walkthrough ruling) — the sponsor page's Data sharing section is an aligned table on the console's table primitives, with a Reference column and Export in its own actions column; "Where it appears" keeps the card header's inset. Sponsor delete takes the typed name only, with no re-authentication.
+
 **Revised 2026-09-27 (Wave 4)** — rulings: each slot has a **Whole contest** holder and optional **Different sponsor for one game** overrides (no "Inherited"), and an override without usable artwork falls back to the whole-contest holder; deleting a sponsor cascades instead of refusing; a sponsor may have several data-sharing agreements, each an opt-in linked to it with its own shared fields, reference and export; opt-in categories are gone; artwork fields are uploads ([`admin-uploads.spec.md`](admin-uploads.spec.md)). Edited in place below.
 
 **Revised 2026-09-24** (ruling, Arthur) — sponsors get their own page, separate from Brand, and each sponsor gets a full page showing its artwork at real size in the fan-app spots it fills and where it appears. The sponsor drawer is retired; editing is inline on the page. Placements move to the contest page's Sponsors tab and keep three slots (Sign-in, Board banner, Slider) per contest and game. The `prizePopup` slot is retired: a prize tier names the sponsor that provides it, and that "Provided by" drives the credit in the prize popup and the prize email. The sponsor recap credits a sponsor for its placements and the prizes it provides; opt-ins are a metric, not an attribution. Every rule of the 2026-09-23 spec that is still true is kept below, renumbered where the list grew.
@@ -390,20 +392,23 @@ A flush card, "Where it appears", with a table (endless scroll, `kind=placements
 
 Under the table, the prizes it provides (endless, `kind=provides`), one line each: "Provides: Free hot dog in Hawks 2026", linking to the contest's Prizes tab (`/contests/:id/prizes`), with a "Preview" link that opens the contest's Preview tab on Prize with that tier and `slot=prizePopup`.
 
-Empty: "Not placed in any contest. Place sponsors on a contest's Sponsors tab." When it provides prizes but holds no placement, the table is left out and the provides lines stand alone.
+Empty: "Not placed in any contest. Place sponsors on a contest's Sponsors tab." When it provides prizes but holds no placement, the table is left out and the provides lines stand alone. The empty line and the provides lines sit on the card header's own 18px inset, with no doubled gap under the title (revised 2026-09-28).
 
 #### 3. Data sharing
 
-A flush card, "Data sharing" (revised 2026-09-27; it replaces the "Data" card and its inline "Data agreement" field). One row per agreement from `agreements[]`:
+A flush card, "Data sharing" (revised 2026-09-27; it replaces the "Data" card and its inline "Data agreement" field). A table on the console's own table primitives (revised 2026-09-28: headers and cells share one left edge on the card header's 18px inset, like every other console table), one row per agreement from `agreements[]`:
 
-- **The agreement's label**, linking to its row on Fields & Opt-ins (`/config?tab=optins&optIn=<optInId>`), with its version beneath ("Version 3 · Sep 12, 2026").
-- **Agreed:** "412 of 1,284 fans" (accepted at the current wording, of all members).
-- **Shared fields:** the scope as field labels ("First name · Last name · Email"), or "No fields chosen yet" when none is stored, in which case it has no export (`SP-03`).
-- **Agreement:** the reference, or nothing when none is stored.
-- **"Export"**: opens Exports with this agreement chosen in the "Who played" generator (`/exports?agreement=<optInId>`). Absent when no fields are chosen.
-- **"Edit on Exports"** under the rows, to the field scope card with the first agreement selected.
+| Column | Content |
+|---|---|
+| **Agreement** | The agreement's label, linking to its row on Fields & Opt-ins (`/config?tab=optins&optIn=<optInId>`), with its version beneath ("Version 3 · Sep 12, 2026") |
+| **Agreed** | "412 of 1,284 fans" (accepted at the current wording, of all members) |
+| **Shared fields** | The scope as field labels ("First name · Last name · Email"), or "No fields chosen yet" when none is stored, in which case it has no export (`SP-03`) |
+| **Reference** | The agreement's reference (`dpaReference`), or a dim dash when none is stored |
+| (actions, right-aligned) | **"Export"**: opens Exports with this agreement chosen (`/exports?agreement=<optInId>`). Absent when no fields are chosen |
 
-Under the rows, the quiet line "Link another agreement on Fields & Opt-ins", to the Opt-ins tab. With no agreement, the card reads "No data-sharing agreement yet." and the same link says "Link one on Fields & Opt-ins".
+**"Edit on Exports"** sits in the card header, to the field scope card with the first agreement selected.
+
+Under the table, on the card's inset with the table's hairline above it, the quiet line "Link another agreement on Fields & Opt-ins", to the Opt-ins tab. With no agreement, the card reads "No data-sharing agreement yet." and the same link says "Link one on Fields & Opt-ins".
 
 #### 4. Danger zone
 
@@ -489,7 +494,7 @@ That is the whole model: a slot has one sponsor for the whole contest, and a gam
 | Artwork | "Sign-in" · "Board banner" · "Slider" · "Prize logo" · the four lines in the block table · "Logo" · "Tagline" · "32/80" · "Banner" · "Banner link" · "Where the banner leads. Leave it blank to use the website." · "Icon" · "In the prize email" · the upload field's strings ([`admin-uploads.spec.md`](admin-uploads.spec.md)): "Drop an image here or browse" · "PNG, JPG, SVG or WebP · up to 5 MB · shown 40 px tall" · "Replace" · "Remove" |
 | Measured line | "1200×300 · fits" · "300×300 · will show at 36×36" · "800×200 · will show at 176×44 in the popup · fits the email" · "This image didn't load." |
 | Where it appears | "Where it appears" · "Contest" · "Game" · "Slot" · "Whole contest" · "Sign-in" · "Board banner" · "Slider" · "Preview" · "Provides: Free hot dog in Hawks 2026" · "Not placed in any contest. Place sponsors on a contest's Sponsors tab." |
-| Data sharing | "Data sharing" · "Version 3 · Sep 12, 2026" · "Agreed" · "412 of 1,284 fans" · "Shared fields" · "No fields chosen yet" · "Agreement" · "Export" · "Edit on Exports" · "Link another agreement on Fields & Opt-ins" · "No data-sharing agreement yet." · "Link one on Fields & Opt-ins" |
+| Data sharing | "Data sharing" · "Version 3 · Sep 12, 2026" · "Agreed" · "412 of 1,284 fans" · "Shared fields" · "No fields chosen yet" · "Agreement" · "Reference" · "—" · "Export" · "Edit on Exports" · "Link another agreement on Fields & Opt-ins" · "No data-sharing agreement yet." · "Link one on Fields & Opt-ins" |
 | Danger zone | "Danger zone" · "Deleting a sponsor can't be undone." · "Delete sponsor" · "Delete Coca-Cola?" · "This removes it everywhere:" · "3 placements in 2 contests. Those spots show the whole-contest sponsor or nothing." · "It's credited on 2 prizes. They'll show no sponsor." · "2 data-sharing agreements are unlinked. The opt-ins stay, and fans' answers are kept." · "Past exports and prize emails keep its name. This can't be undone." · "Type Coca-Cola to confirm" · "Cancel" · "Nothing was deleted." · "Couldn't delete this sponsor. Try again." |
 | Page states | "This sponsor doesn't exist." · "Back to sponsors" · "Couldn't load this sponsor." |
 | Sponsors tab | "Sign-in" · "Beneath the headline fans see before they join" · "Board banner" · "Across the board, between the header and the squares" · "Slider" · "The marker on the prize slider" · "Whole contest" · "Every game, including games added later" · "No sponsor" · "Add sponsor" · "Change" · "Remove" · "Different sponsor for one game" · "Game" · "Sponsor" · "Choose a game" · "Choose a sponsor" · "Cancel" · "Live" / "Final" · "No logo" / "No banner" / "No icon" · "Fans at this game see the whole-contest sponsor until Red River Pizza Co. has a board banner." · "Fans don't see this until Northside Credit Union has a board banner." · "Board banner · vs Denver · Sat" · "Board banner · Whole contest" · "Search sponsors" · "No board banner" · "Saved." · "Coca-Cola has no board banner." · "This contest is finalized, so its settings can't change." · "Couldn't save. Try again." · "None" |
