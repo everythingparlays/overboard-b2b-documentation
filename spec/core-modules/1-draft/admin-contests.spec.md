@@ -77,6 +77,7 @@ Collection `{prefix}contests` (`obs-b2b-shared/src/models/b2b.ts`, interface `in
 | `contestName` | string | yes | Trimmed, 1–80 characters, unique within the tenant ignoring case | The typed confirmation for Delete and Finalize, which is why uniqueness matters. Clash → 409 `name_taken`. |
 | `description` (new) | string | no | Trimmed, ≤300 characters; empty string stored as absent | Fan-facing, on the contest card. Starts empty on every existing contest (see Migration). |
 | `internalNote` (new) | string | no | Trimmed, ≤500 characters | Console only. Never on any fan wire (the fan reads' allowlist below). Holds what `contestDescription` held. |
+| `bannerImageUrl` (Wave 4b) | string | no | An https URL, ≤2000 characters, from the `contest.banner` upload; `null` or `""` clears it | The contest's own banner image. Absent means the banner falls back (see "Banner" below). Cosmetic, so it stays editable after the lock. Never sent to fans as such: fans read `banner`. |
 | `contestType` (new; replaces `gameType`) | one of the contest-type registry's keys | yes | A registry key | Read through `contestTypeOf()`, which answers `contestType ?? gameType ?? "bingo"` during the migration window. Changeable only while Draft and unlocked. |
 | `state` | `"draft" \| "open" \| "closed"` | yes | Wave 3 §3.1 | Stored. Read through `contestState()`. Default `draft`. |
 | `showContest`, `closed` | boolean | — | Kept consistent with `state` by every writer (Wave 3 §3.1) | Legacy mirrors for older readers. No console control writes them directly. |
@@ -174,7 +175,28 @@ Name uniqueness stays check-then-write (Known gaps).
 
 Wave 3 owns the checks and their codes (§3.1, §3.4): a draft answers 404 to fans, a closed contest refuses joins with `closed`, a full one with `full`, a non-playable type with `not_playable_here`, a game with no players yet with `no_players_yet`, and entries not yet open with `not_open_yet` plus `opensAt`. Every control on these screens maps to one of those.
 
-Both fan reads (`GET /b2b/contest/list-contests`, `GET /b2b/contest/:contestId`) return the allowlisted projection only: `contestId`, `contestName`, `description`, `contestType`, the fan status, games, the fan fields of prize tiers. `internalNote`, `state` internals, `lockedAt`, `testMode` and audit-relevant fields never leave the admin surface.
+Both fan reads (`GET /b2b/contest/list-contests`, `GET /b2b/contest/:contestId`) return the allowlisted projection only: `contestId`, `contestName`, `description`, `contestType`, `banner` (below), the fan status, games, the fan fields of prize tiers. `internalNote`, `state` internals, `lockedAt`, `testMode` and audit-relevant fields never leave the admin surface.
+
+### Banner
+
+Every contest has a banner: a wide band across the top of its card and its page, in the console and in the fan app alike. It is chosen by one pure shared function, `contestBannerOf(contest, org, sponsorBanner)` (`interfaces/b2b/ContestBanner.ts`), in this order:
+
+1. **The contest's own image** (`bannerImageUrl`), uploaded in the console (field `contest.banner`, [`admin-uploads.spec.md`](admin-uploads.spec.md)). Drawn cover-cropped.
+2. **The Board banner sponsor's artwork**: the sponsor holding the contest-wide Board banner slot, when it has a board banner. Drawn whole, never cropped, with the sponsor's name as its alt text.
+3. **The tenant's brand default**: a band drawn from the tenant's resolved theme (`resolveTheme(org.branding.theme ?? DEFAULT_THEME)`): its primary into its accent (or a deeper step of the primary for a one-colour brand), a quiet diagonal, its https logo when it has one, and its name. The ink is measured against the band. Nothing is stored for it, so every tenant, today's and every future one, has a banner from the day it exists; there is nothing to seed.
+
+The server sends the choice, not pixels: `{ kind: "image", source: "custom" | "sponsor", imageUrl, sponsorName? }` or `{ kind: "brand", from, to, ink, logoUrl?, name }`. The console's rows and the contest page carry it as `contestBanner` (the page also carries `bannerImageUrl` and `defaultBanner`, what Remove goes back to); both fan reads carry it as `banner`. The console card and the fan card draw the same view, so they agree. The console's slug-derived tint (`tenantColors`) is no longer used for contests.
+
+**Editing.** The builder's Basics step and the Overview's Basics card carry the banner field: the console's drag-and-drop or browse upload, a 4:1 preview of what fans see, and one line saying what shows now ("Showing your brand colours. Upload an image to use your own.", "Showing Northside's board banner. Upload an image to use your own.", or "Your image. Remove it to go back to your brand colours."). **Remove** returns the contest to its default. Uploading only stores the file; the contest takes it when the form is saved, like every other field.
+
+### Unsaved changes
+
+Nothing about a contest saves as you go (Arthur, 2026-09-27). No field saves on blur or Enter, no tick saves at once, and nothing is kept in browser storage as a draft. Every editor holds its edits until an explicit save:
+
+- **The builder**: "Save draft" in its header saves every step's unsaved edits (Basics, games, sponsors; the ladder through its own "Save prizes"), the first one creating the draft. The footer's primary reads "Save and continue" while anything is unsaved (and before the draft exists), "Continue" otherwise.
+- **The contest page**: each tab that edits has its own save bar, pinned to the bottom of the page while it holds edits: "Unsaved changes" (or what waits: "2 games to add and 1 to remove") with "Discard" and "Save", then "Saved." once it went through, or the refusal's sentence.
+
+**"Leave without saving?"** A centred dialog, with "Leave" and "Keep editing", appears **only when there are unsaved changes**, and **always** on `/contests/new` before the draft exists ("This contest hasn't been saved yet."). It covers every way out: an in-app link or tab (the router's blocker; a change of query alone is not leaving), the builder's own step moves, Back and Exit, and closing or reloading the browser tab (the browser's own prompt). "Leave" drops the unsaved edits and goes; "Keep editing" stays with them. The hook is shared: `lib/useLeaveGuard` (the prize page uses it too), with `lib/unsavedChanges` totalling the edits of a screen made of several editors.
 
 ---
 
@@ -186,7 +208,7 @@ The ruling: no contest versioning; before the first fan joins everything is edit
 
 | Setting | Before the first board | After |
 |---|---|---|
-| Name, description, internal note, player limit | Editable | Editable |
+| Name, description, internal note, player limit, banner | Editable | Editable |
 | Close entries, Reopen entries | Editable | Editable |
 | **Move to draft** | Offered | **Absent** (fans can't have a contest they played hidden from them, Wave 3 §3.1) |
 | Adding games | Editable | Editable |
@@ -225,7 +247,7 @@ Both views are endless lists over the same `GET /admin/contests` query: `Infinit
 
 **The card view.** Two columns at ≥1100px, one below.
 
-1. **Band**, 4:1. The contest-wide Board banner sponsor's artwork, fitted without cropping on the tenant's band colour; with no contest-wide Board banner holder, the tenant's decorative band. Never a placeholder image. Over the band, top left: the state chip ("Draft", "Open", "Closed"), the "Finalized" badge when finalized, and the lock glyph when locked.
+1. **Band**, 4:1: the contest's banner (above): its own image, else its Board banner sponsor's artwork, else the tenant's brand band in the tenant's own colours, logo and name. Never a placeholder image and never a colour made up from the slug. Over the band, top left: the state chip ("Draft", "Open", "Closed"), the "Finalized" badge when finalized, and the lock glyph when locked.
 2. **Body.** Type chip (from the registry); the name; the description, two lines, muted, omitted when empty. On the right, the sparkline: new players per day over the last 14 days, 96×28 in the tenant colour, captioned "+18 this week" or "None new this week", omitted until the first player. An Open contest whose entries haven't opened shows "Fans can join from Thu, Oct 1" in the sparkline's place until it has players.
 3. **Stats row**: **Players** ("412", or "412/500" with a limit), **Games** (the count, with the featured game under it, picked by Wave 3's `featuredGame`: "Live: Denver @ Fighting Hawks", "Next: Denver @ Fighting Hawks · Sat 7:00 PM", or "Final: Montana State @ Fighting Hawks · Sep 19"), **Prize tiers** (the count; no maximum shown).
 4. **Footer**: a Draft shows "Continue setup" (opens the builder at the first step that isn't done). Staff only: a ghost "Finalize" when the contest isn't finalized and every game has ended (the same test as Operations' `ready-to-finalize` row). A finalized contest shows "Finalized Sep 15". At the right, the **overflow menu** ("More actions"): "Close entries" (Open) or "Reopen entries" (Closed), "Duplicate", and "Delete" (not finalized). Members get no overflow.
@@ -301,6 +323,7 @@ A full page, reached from a card or row, from Overview and Game day links, and f
 **Header.**
 
 - Back link: "Games & Contests" to `/games`, or "All contests" / the tenant's name when the page was opened from those (carried in navigation state, falling back to "Games & Contests").
+- The contest's banner across the top of the header, a wide strip (88–150px tall) of the same view the card shows.
 - Eyebrow "Contest · Bingo" (the registry label); H1 the name; chips: the state chip, "Finalized", the lock glyph.
 - Right: "Preview" (secondary; switches to the Preview tab); staff "Finalize" (ghost, same rule as the card); the overflow ("More actions"): "Duplicate", "Delete contest". The state actions are not in the header: they live in the Overview's state card, once.
 
@@ -319,6 +342,7 @@ A full page, reached from a card or row, from Overview and Game day links, and f
 | Finalized | "Finalized" badge; every tab read-only; the overflow offers only "Duplicate"; the header line "Finalized on Sep 28. Nothing about this contest can change." |
 | Member | View-only on every tab, with "Only organization admins can change contests." under the header. No overflow; "Preview" stays. |
 | Stale write (409 `stale_contest`) | Inline, where the save happened: "This contest changed while you were editing, so nothing was saved. Reload to see the current version and make your change again." with "Reload". |
+| Unsaved edits on a tab | The tab's save bar at the bottom of the page; a tab change, a link or closing the tab asks "Leave without saving?". |
 
 **Duplicate** creates a new draft ("Copy of Rivalry Week", numbered if taken) with the description, internal note, contest type, player limit, the games that haven't started, the prize tiers (as new tiers naming the same library prizes), and the sponsor placements for all games and for the carried games. It opens the new draft in the builder at Basics.
 
@@ -346,15 +370,16 @@ Two columns at ≥1100px (content, then a 320px right rail); one below, with the
 
 Close entries, Reopen entries and Move to draft write at once (PATCH `state`) and confirm in the card: "Entries closed. Fans who joined keep playing.", "Entries open.", "Moved to draft. Fans can't see it now." A refusal shows its sentence in the card.
 
-**Basics**, edited inline. Each field saves on blur or Enter as a one-field PATCH with the precondition; Escape reverts. A saved field shows "Saved." beside its label for a few seconds. Errors sit under the field.
+**Basics**, a form with one Save. Editing a field changes nothing stored; the save bar at the bottom of the page ("Unsaved changes", "Discard", "Save") appears with the first change. Save checks the form (errors under their fields, and "Some changes need another look." in the bar), then sends one PATCH naming only the fields that changed, with the precondition; the bar then says "Saved.". Discard puts the stored values back. A stray space is no change.
 
 1. **Name.** Text, required, 80 characters.
-2. **Description.** Textarea with a counter ("112/300"); help "Fans see this on the contest card." When the description is empty and the internal note has text, the button "Use the internal note" copies the note into the field unsaved, so the operator reviews it and saves by leaving the field. A note longer than 300 characters copies whole and shows "Keep it to 300 characters." until shortened.
+2. **Description.** Textarea with a counter ("112/300"); help "Fans see this on the contest card." When the description is empty and the internal note has text, the button "Use the internal note" copies the note into the field unsaved, so the operator reviews it and saves with Save. A note longer than 300 characters copies whole and Save answers "Keep it to 300 characters." until it's shortened.
 3. **Internal note.** Textarea, 500 characters; help "Only people in this console see the internal note."
 4. **Player limit.** Segmented "No limit | Limit to" with a number ("players"). Lowering below the current player count states the consequence before saving: "412 are already playing. Nobody is removed; new fans can't join."
 5. **Contest type.** On an unlocked Draft, segmented from the registry ("Bingo | Trivia"). Otherwise the value, with the lock glyph once locked.
+6. **Banner.** The banner field (see "Banner"). A member sees the banner itself.
 
-**Test mode** (dev only, Wave 3 §5): a card "Test mode" with segmented "Off | On", rendered only when `GET /admin/dev/status` answers. It replaces the retired drawer's control. Help: "Fans can join now, whatever the game times, and past games can be added." It is absent everywhere the dev gate is closed.
+**Test mode is not on any console screen** (Arthur, 2026-09-27: Wave 3's dev-only "join after kickoff" switch doesn't belong on a customer screen). It stays dev tooling: set through `PUT /admin/dev/contests/:contestId/test-mode` from a script or the browser console, as the end-to-end runbook shows ([`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §5).
 
 **Danger zone** (writers, not finalized), last in the content column: a bordered card "Delete contest" with the line "Deletes the contest, its fans' boards, its prize tiers and its sponsor placements. Prizes already sent stay on record." and the button "Delete contest", which opens the Delete dialog.
 
@@ -374,20 +399,24 @@ Close entries, Reopen entries and Move to draft write at once (PATCH `state`) an
 | Help | "Fans see this on the contest card.", "Only people in this console see the internal note." |
 | Nudge | "Use the internal note" |
 | Player limit | "No limit", "Limit to", "players", "412 are already playing. Nobody is removed; new fans can't join." |
-| Saved | "Saved." |
+| Save bar | "Unsaved changes", "Discard", "Save", "Saving…", "Saved.", "Some changes need another look." |
+| Banner | "Banner", "Showing your brand colours. Upload an image to use your own.", "Showing Northside's board banner. Upload an image to use your own.", "Your image. Remove it to go back to your brand colours.", "A wide image, about 4 to 1, shown across the top of the contest's card and page." |
 | Field errors | "Give the contest a name.", "Keep it to 80 characters.", "Keep it to 300 characters.", "Keep it to 500 characters.", "Enter a number from 1 to 1,000,000.", "Another contest in this workspace already has this name." |
-| Test mode | "Test mode", "Off", "On", "Fans can join now, whatever the game times, and past games can be added." |
 | Danger zone | "Delete contest", "Deletes the contest, its fans' boards, its prize tiers and its sponsor placements. Prizes already sent stay on record." |
 | Rail | "What's next", "Next game", "No upcoming games", "Lock", "Not locked. Everything can change until the first fan joins.", "Locked since Sat Sep 27, 7:02 PM.", "Finalize", "Ready to finalize", "Finalize after the last game", "Overboard finalizes the contest after its last game.", "Finalized on Sep 28." |
 
 #### Games tab
 
-An `InfiniteTable` of the contest's games (`GET /admin/contests/:contestId/games`): games in progress first, then upcoming soonest first, then played games newest first. Columns: **Sport** ("NFL", "CFB"…), **Game** (matchup, "Denver @ Fighting Hawks"), **Tip-off** ("Sat Oct 3 · 7:00 PM"), **State** ("Upcoming", "Live", "Final", from Wave 3's derived game status), and a **Remove** action before the lock.
+An `InfiniteTable` of the contest's games (`GET /admin/contests/:contestId/games`): games in progress first, then upcoming soonest first, then played games newest first. Columns: **Sport** (the readable name: "NFL", "College football"…), **Game** (matchup, "Denver @ Fighting Hawks"), **Tip-off** ("Sat Oct 3 · 7:00 PM"), **State** ("Upcoming", "Live", "Final", from Wave 3's derived game status), and a **Remove** action before the lock.
 
-- **Remove** (before the lock) acts at once and answers above the table: "Removed Denver @ Fighting Hawks." with "Undo", which adds it back. The game's placements are kept, dormant, so Undo or a later re-add restores them.
+Nothing saves as it's clicked (see "Unsaved changes"): games to add and games to remove wait in the tab, and the save bar ("1 game to add and 1 to remove", "Discard", "Save") writes them all. Save adds in one call, then removes each game, every write on the version the previous one answered with; a refusal keeps what didn't go through on screen, with its sentence in the bar.
+
+- **Remove** (before the lock) marks the row "Removed when you save", with "Keep" to take it back. The game's placements are kept, dormant, so a later re-add restores them.
 - **After the lock** the Remove column is gone and one line sits above the table: the `gameRemoved` lock sentence.
-- **"Add games"** (writers, not finalized) opens an inline picker panel at the top of the tab, not a drawer: G1's `PickerList` over `GET /admin/games/candidates?contest=<id>`, with search ("Search teams"), the **sport filter** (segmented "All" plus every sport in the response's `sports`, always shown, even with one sport, Wave 3 §2), a date range ("Any date", "Next 7 days", "Next 30 days", "Choose dates"), the count ("48 games"), checkbox rows grouped by day (time, matchup, sport), and the footer "Add 3 games" · "Cancel". Adding confirms above the table: "Added 3 games." A test-mode contest's picker also offers the last 14 days' games (Wave 3 §5), with their state shown.
+- **"Add games"** (writers, not finalized) opens an inline picker panel at the top of the tab, not a drawer: the game picker (below) over `GET /admin/games/candidates?contest=<id>`, the contest's own games shown as "Already in this contest", and the footer "2 games picked" · "Done". The picked games are listed under "To add when you save", each with "Don't add". A test-mode contest's picker also offers the last 14 days' games (Wave 3 §5), with their state shown.
 - **Empty**: "No games yet." with "Add games".
+
+**The game picker** (the Games tab and the builder's Games step): G1's `PickerList` with search ("Search teams"), the **sport filter**, a date range ("Any date", "Next 7 days", "Next 30 days", "Choose dates"), the count ("48 games") and checkbox rows grouped by day (time, matchup, sport). **Every game that hasn't started is offered, of any sport the feed names (or none)**; nothing but the reader's own search, sport and dates narrows the list (Arthur, 2026-09-28: the seam from the feed to the picker is exact). The sport filter is a select, "All sports" then **every sport the feed carries** (the whole feed's distinct sports, not only those with a game to come: college and baseball games reach the feed minutes to a day before they start), by readable name ("College football", "College basketball", "Soccer", "Golf", "Special events"; NFL, NBA, WNBA, MLB, NHL and MMA as they are; a code the console has no name for as the feed spells it), sorted by name. A sport with nothing to come says so: "No upcoming college football games yet." with "Clear search and filters".
 - **Trivia** has the same Games tab: trivia contests run at games too.
 
 No props appear here or anywhere in the console.
@@ -396,10 +425,10 @@ No props appear here or anywhere in the console.
 |---|---|
 | Columns | "Sport", "Game", "Tip-off", "State" |
 | State | "Upcoming", "Live", "Final" |
-| Actions | "Add games", "Remove", "Undo" |
-| Confirmations | "Removed Denver @ Fighting Hawks.", "Added 3 games.", "Added 1 game." |
+| Actions | "Add games", "Remove", "Keep", "Done", "Don't add Denver @ Fighting Hawks" |
+| Waiting | "Removed when you save", "To add when you save", "2 games picked", "1 game to add and 1 to remove" |
 | Empty | "No games yet." |
-| Picker | "Search teams", "All", "Any date", "Next 7 days", "Next 30 days", "Choose dates", "48 games", "Add 3 games", "Cancel", "No games match." |
+| Picker | "Search teams", "Sport", "All sports", "Any date", "Next 7 days", "Next 30 days", "Choose dates", "48 games", "No games match.", "No upcoming college football games yet.", "No upcoming games yet." |
 | Errors | "Denver @ Fighting Hawks has already started.", the `gameRemoved` lock sentence |
 
 #### Prizes tab
@@ -418,17 +447,17 @@ The console's `FanAppPreview` host showing this contest on the current fan app, 
 
 **The console stays around it.** The builder is a page in the main column: the sidebar stays visible, with Games & Contests active, and the top bar's breadcrumb reads "Fighting Hawks / Games & Contests / New contest" (the name once typed).
 
-**Builder header**, under the top bar: the title ("New contest", then the name as typed), the "Draft" chip once the draft exists, the save indicator ("Saved · just now", "Saving…", or "Not saved yet" before the first save), **"Save draft"** (secondary), and "Exit" (ghost).
+**Builder header**, under the top bar: the title ("New contest", then the name as typed), the "Draft" chip once the draft exists, the save indicator ("Saved · just now", "Saving…", "Unsaved changes", or "Not saved yet" before the first save), **"Save draft"** (secondary), and "Exit" (ghost).
 
-**The progress bar**, across the top of the content under the header: five steps in a row, **Basics · Games · Prizes · Sponsors · Review**, joined by a track that fills up to the current step. Each step is a button showing its number, its name and a one-line summary once it has one ("Bingo", "2 games", "2 tiers", "Optional", "Ready to publish"). Its mark is ✓ when done, "!" in the warning colour when it needs attention (a tier that needs details, or a publish reason pointing at it), the number otherwise; the current step is outlined. **Every step can be clicked at any time**, in any order. The bar scrolls sideways below 720px.
+**The progress bar**, across the top of the content under the header: five steps in a row, **Basics · Games · Prizes · Sponsors · Review**, joined by a track that fills up to the current step. Each step is a button showing its number, its name and a one-line summary once it has one ("Bingo", "2 games", "2 tiers", "Optional", "Ready to publish"). Its mark is ✓ when done, "!" in the warning colour when it needs attention (a tier that needs details, or a publish reason pointing at it), the number otherwise; the current step is outlined. **Once the draft exists every step can be clicked at any time**, in any order; before it exists the other steps wait (disabled, "Save the draft first"). The bar scrolls sideways below 720px.
 
-**Footer bar**: "Back" and "Continue" (primary) move one step; on Review, "Publish" replaces Continue.
+**Footer bar**: "Back" and the primary, "Save and continue" while anything is unsaved (and on `/contests/new`) or "Continue" when nothing is; on Review, "Publish" replaces it.
 
-**Saving.**
+**Saving.** Nothing saves as you go (see "Unsaved changes").
 
-- **Save draft works from every step.** On Basics it saves the form; on the other steps everything already saves as it goes, so it confirms "Saved · just now". The **first save creates the draft** (`POST /admin/contests`) and replaces the URL with `/contests/:contestId/setup/<current step>`.
-- Moving to another step (the bar, Back, Continue) and Exit save Basics first. The one thing the draft can't exist without is a valid name: with none, the move stays on Basics with "Give the contest a name." under Name.
-- Games, Prizes and Sponsors write as they go, through their own endpoints.
+- **Save draft works from every step** and saves every step's unsaved edits: Basics (with the banner), the Games step's picks, the Sponsors step's schedule. The **first save creates the draft** (`POST /admin/contests`) and replaces the URL with `/contests/:contestId/setup/<step>`, without asking. The Prizes step's ladder keeps its own "Save prizes".
+- **"Save and continue"** saves the same way, then moves on. The one thing the draft can't exist without is a valid name: with none, it stays on Basics with "Give the contest a name." under Name.
+- **Moving another way** (the bar, Back, Exit, any link) with unsaved edits asks "Leave without saving?"; "Leave" drops them and goes. On `/contests/new` Exit always asks, since nothing exists yet.
 - A failed save keeps the step open with the error in place.
 
 Steps and their routes (`:step` = `basics`, `games`, `prizes`, `sponsors`, `review`):
@@ -439,13 +468,14 @@ Steps and their routes (`:step` = `basics`, `games`, `prizes`, `sponsors`, `revi
    - **Description**, 300 characters, help "Fans see this on the contest card."
    - **Internal note**, 500 characters, placeholder "Sponsor, dates, anything your team should know".
    - **Player limit**: "No limit | Limit to" with a number.
+   - **Banner**: the banner field (see "Banner"), in its own card.
    - Done when: a valid name and a type.
-2. **Games.** G1's `PickerList` on the left: search, the **sport filter** (always shown, from `sports`), the date range, checkbox rows grouped by day with each game's sport. On the right, the selected games with their sport and tip-off and a remove control, headed "3 games · first Sat Oct 3" ("No games picked yet." when empty). Ticking and unticking add and remove at once. Done when: at least one game.
+2. **Games.** The game picker on the left (every upcoming game of every sport, the sport filter). On the right, the picked games with their sport and tip-off and a remove control, headed "3 games · first Sat Oct 3" ("No games picked yet." when empty); a game not saved yet reads "· Not saved yet". Ticking and unticking change the list; Save draft or "Save and continue" writes it. Done when: at least one game.
 3. **Prizes.** The contest Prizes tab's ladder ([`admin-prizes.spec.md`](admin-prizes.spec.md)), the same component. A prize opens as its full page and returns here. Trivia: the placeholder card. Done when: at least one complete tier and none that needs details.
 4. **Sponsors.** The contest Sponsors tab's content ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)), the same component; its step summary reads "Optional". Done once visited.
 5. **Review.** Left, the readiness checklist, each row linking to its step: "Name", "Contest type", "Games (3)", "Prize tiers (2 complete)", "Sponsors (4 placements)". A row that blocks publishing shows its reason under it, and the reasons are also listed in one card above the footer ("Publish is waiting on one thing" / "Publish is waiting on 2 things"). Right, the preview frame on the builder's current state ([`admin-preview.spec.md`](admin-preview.spec.md)). **Publish** is disabled while any reason stands; it shows "Publishing…", then navigates to the contest page, which shows "Published. Fans can see it now." No toast.
 
-**Exit** returns to `/games`, where the draft leads the list. Exit with a valid name saves first, so typed work is never lost; with no valid name and no draft yet, it simply leaves.
+**Exit** returns to `/games`, where the draft leads the list. With unsaved edits, or before the draft exists, it asks "Leave without saving?" first; it never saves on its own.
 
 **Editing never reopens the builder.** An Open or Closed contest is edited on its tabs. The builder is for a Draft: "Continue setup" opens it at the first step that isn't done; a direct builder URL for a non-draft contest redirects to the contest page.
 
@@ -453,11 +483,12 @@ Steps and their routes (`:step` = `basics`, `games`, `prizes`, `sponsors`, `revi
 
 | Element | Copy |
 |---|---|
-| Header | "New contest", "Draft", "Saved · just now", "Saving…", "Not saved yet", "Save draft", "Exit" |
-| Progress bar | "Basics", "Games", "Prizes", "Sponsors", "Review", "Optional", "Ready to publish" (accessible name "Setup steps") |
-| Footer | "Back", "Continue", "Publish", "Publishing…" |
+| Header | "New contest", "Draft", "Saved · just now", "Saving…", "Unsaved changes", "Not saved yet", "Save draft", "Exit" |
+| Progress bar | "Basics", "Games", "Prizes", "Sponsors", "Review", "Optional", "Ready to publish", "Save the draft first" (accessible name "Setup steps") |
+| Footer | "Back", "Save and continue", "Continue", "Publish", "Publishing…", "The first save creates the draft.", "Unsaved changes on this step." |
+| Leave prompt | "Leave without saving?", "This contest hasn't been saved yet.", "Your unsaved changes to this contest will be lost.", "Leave", "Keep editing" |
 | Basics | "Name", "Rivalry Week", "Contest type", "Bingo", "Fans draft players and win on bingos.", "Trivia", "Trivia isn't built yet. You can save this contest and come back.", "Description", "Fans see this on the contest card.", "Internal note", "Sponsor, dates, anything your team should know", "Only people in this console see the internal note.", "Player limit", "No limit", "Limit to", "players", "Give the contest a name." |
-| Games | "Search teams", "All", "Any date", "Next 7 days", "Next 30 days", "Choose dates", "3 games · first Sat Oct 3", "No games picked yet." |
+| Games | The picker's copy (Games tab), "3 games · first Sat Oct 3", "No games picked yet.", "Not saved yet" |
 | Review checklist | "Name", "Contest type", "Games (3)", "Prize tiers (2 complete)", "Sponsors (4 placements)", "Publish is waiting on one thing", "Publish is waiting on 2 things" |
 | Publish reasons | The five sentences under "Publish checks" |
 | Result | "Published. Fans can see it now." |
@@ -480,7 +511,11 @@ The confirming button is enabled only on a match (trimmed, ignoring case) and th
 
 ### Staff: All contests (`/contests`)
 
-The table stays ([`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md), paged per [`admin-lists.spec.md`](admin-lists.spec.md)); its type column reads "Contest type" and its visibility column becomes **State** (the state chip and the Finalized badge). **A row opens the contest page** for that tenant: `/contests/:contestId?tenant=<slug>`, acting as that tenant, with the back link "All contests". **Each row carries "Finalize"** under the card's rule, absent otherwise. The staff tenant page's Contests table behaves the same way.
+The table stays ([`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md), paged per [`admin-lists.spec.md`](admin-lists.spec.md)); its type column reads "Contest type" and its visibility column becomes **State** (the state chip and the Finalized badge). **A row opens the contest page** for that tenant: `/contests/:contestId?tenant=<slug>`, acting as that tenant, with the back link "All contests". **Each row carries "Finalize"** when the row's `readyToFinalize` says so (the one rule, below), absent otherwise. The staff tenant page's Contests table reads the same flag.
+
+### Finalize: the one rule
+
+A contest is **ready to finalize** when it is **not finalized, not a draft, has at least one game, and every one of its games has ended** (derived status: the feed's Final, every prop resolved, or past the sport's usual length; a game the feed no longer has can't be known to be over and holds the contest back). "Its games" are the contest's own set (`allowedBetEvents`). One server function (`readyToFinalize`, `util/contest-console.ts`) decides it for every surface: the contest rows' and page's `readyToFinalize`, All contests' and the tenant record's rows (`readyToFinalize` on the All contests row), Operations' `ready-to-finalize` queue, and **the finalize endpoint, which refuses a contest that isn't ready with 409 `not_ready`** ("Only a published contest whose games have all ended can be finalized."). A contest with no games (the `test` tenant's "Test Tenant Bingo" and "Archived test contest (early)") is never ready, which is why neither offered Finalize.
 
 ### Finalize, wherever it appears
 
@@ -509,7 +544,7 @@ Cards and rows, the contest page header and rail, All contests rows and the tena
 | Prize tiers, sponsor placements | Yes (their specs) | No | Yes |
 | Duplicate | Yes | No | Yes |
 | Delete (not finalized; reverified once locked) | Yes | No | Yes |
-| Test mode (dev only) | Yes | No | Yes |
+| Test mode (dev only, through the dev API; no console control) | Yes | No | Yes |
 | Finalize | No | No | Yes (reverified) |
 
 Enforcement is server-side: every write passes `refuseReadOnlyWrite` first (D-063), which refuses a member and a paused workspace's own admins; Delete of a locked contest passes `requireAdminReverified`; Finalize passes `requireAdminReverified` and `refuseNonObsStaff`. The console's `useCanWrite` and `useIsObsStaff` only decide what renders.
@@ -527,7 +562,7 @@ All under `/admin`, `requireAdmin`. Targeting as everywhere: a tenant caller's t
 | GET | `/admin/contests/:contestId/games` | Any resolved admin scope |
 | GET | `/admin/contests/:contestId/preview` | Any resolved admin scope ([`admin-preview.spec.md`](admin-preview.spec.md)) |
 | GET | `/admin/preview` | Any resolved admin scope; the tenant-level preview sections for a host with no contest ([`admin-preview.spec.md`](admin-preview.spec.md)) |
-| GET | `/admin/games/candidates` | Any resolved admin scope ([`admin-lists.spec.md`](admin-lists.spec.md); `contest=`, `sport=`, and `sports` in the answer per Wave 3 §2) |
+| GET | `/admin/games/candidates` | Any resolved admin scope ([`admin-lists.spec.md`](admin-lists.spec.md); `contest=`, `sport=`; `sports` in the answer is every sport the feed carries) |
 | POST | `/admin/contests` | Tenant `org:admin`, OBS staff |
 | PATCH | `/admin/contests/:contestId` | Tenant `org:admin`, OBS staff |
 | POST | `/admin/contests/:contestId/duplicate` | Tenant `org:admin`, OBS staff |
@@ -567,10 +602,11 @@ Response:
     maxParticipants: number;         // 0 = no limit
     games: { total: number; featured?: GameSummary & { phase: "live" | "next" | "final" } };
     prizeTierCount: number;
-    banner: { sponsorId: string; name: string; imageUrl: string } | null;
+    banner: { sponsorId: string; name: string; imageUrl: string } | null;  // the Board banner sponsor; kept for older consoles
+    contestBanner?: ContestBannerView;  // what the card's band shows (see "Banner")
     newPlayersByDay: number[] | null;  // 14 daily counts ending today; null before the first player
     newPlayersThisWeek: number;
-    readyToFinalize: boolean;        // not finalized, every game ended
+    readyToFinalize: boolean;        // the one rule: not finalized, not a draft, ≥1 game, every game ended
     createdAt: string;
     updatedAt: string;
   }>;
@@ -584,7 +620,7 @@ Per-row aggregates (players, sparkline, tier count, banner) are computed for the
 
 ### `GET /admin/contests/:contestId`
 
-The contest page's read. The list row's fields plus `internalNote`, `testMode` (only where the dev gate is open), `kpis: { boardsWithBingo, prizesAwarded, failedSends }`, `prizeTiers: { total, complete, needsDetails }`, `placementCount`, `transitions: Array<"publish" | "close" | "reopen" | "toDraft">` (what the state card offers), and `publishChecks: Array<{ key, message }>` (empty when publishable; drives the Review checklist, the progress bar's marks and "Continue setup"'s first incomplete step). 404 for a wrong or foreign id.
+The contest page's read. The list row's fields plus `internalNote`, `bannerImageUrl` (or null), `defaultBanner` (what the banner shows without the contest's own image), `testMode` (only where the dev gate is open; no console screen shows it), `kpis: { boardsWithBingo, prizesAwarded, failedSends }`, `prizeTiers: { total, complete, needsDetails }`, `placementCount`, `transitions: Array<"publish" | "close" | "reopen" | "toDraft">` (what the state card offers), and `publishChecks: Array<{ key, message }>` (empty when publishable; drives the Review checklist, the progress bar's marks and "Continue setup"'s first incomplete step). 404 for a wrong or foreign id.
 
 ### `GET /admin/contests/:contestId/games`
 
@@ -592,9 +628,9 @@ The Games tab. Cursor-paged; order: live, then upcoming soonest first, then play
 
 ### `POST /admin/contests`
 
-Creates a contest, a Draft by default. Body: `{ contestName, contestType?, description?, internalNote?, maxParticipants?, state?: "draft" | "open", betEventIds? }`. Defaults: bingo, no limit, no games, `state: "draft"`.
+Creates a contest, a Draft by default. Body: `{ contestName, contestType?, description?, internalNote?, maxParticipants?, bannerImageUrl?, state?: "draft" | "open", betEventIds? }`. Defaults: bingo, no limit, no games, `state: "draft"`.
 
-- Validation (400, `errors.<field>`): name 1–80 after trim; description ≤300; internal note ≤500; limit 0–1,000,000; type a registry key.
+- Validation (400, `errors.<field>`): name 1–80 after trim; description ≤300; internal note ≤500; limit 0–1,000,000; type a registry key; banner an https URL ("Use a full address starting with https://").
 - `state: "open"` runs the publish checks (409 `publish_blocked`). The console always creates a Draft.
 - Name clash → 409 `name_taken`.
 - Audited `contest_create` (contest id, contest type).
@@ -602,7 +638,7 @@ Creates a contest, a Draft by default. Body: `{ contestName, contestType?, descr
 
 ### `PATCH /admin/contests/:contestId`
 
-Body: any of `{ contestName, description, internalNote, maxParticipants, contestType, state }` plus `expectedUpdatedAt`. Only present keys change; `null` or `""` clears `description` or `internalNote`. An empty edit is a 400.
+Body: any of `{ contestName, description, internalNote, maxParticipants, contestType, state, bannerImageUrl }` plus `expectedUpdatedAt`. Only present keys change; `null` or `""` clears `description`, `internalNote` or `bannerImageUrl`. An empty edit is a 400. The banner is cosmetic: like the name, it changes after the lock.
 
 - `finalized` → 409 `contest_finalized` ("This contest is finalized, so its settings can't change."). "Not finalized" is part of the write filter.
 - The precondition and the write are one filter; a stale edit → 409 `stale_contest`.
@@ -614,7 +650,7 @@ Body: any of `{ contestName, description, internalNote, maxParticipants, contest
 
 ### `POST /admin/contests/:contestId/duplicate`
 
-No body. Creates a Draft as described under the contest page (name "Copy of <name>", made unique and trimmed to 80). Tiers are new documents naming the same library prizes; placements are copied for the all-games scope and for the games carried over (those not started). Audited `contest_duplicate` with the source id. Responds **201** with the new contest.
+No body. Creates a Draft as described under the contest page (name "Copy of <name>", made unique and trimmed to 80), carrying the source's banner image. Tiers are new documents naming the same library prizes; placements are copied for the all-games scope and for the games carried over (those not started). Audited `contest_duplicate` with the source id. Responds **201** with the new contest.
 
 ### `DELETE /admin/contests/:contestId`
 
@@ -630,7 +666,7 @@ Query `expectedUpdatedAt`. Removes the game from `allowedBetEvents` (never from 
 
 ### `POST /admin/contests/:contestId/finalize`
 
-Unchanged ([`admin-obs-internal.spec.md`](admin-obs-internal.spec.md)). Only its callers change: the card, the list row, the contest page, All contests rows and the tenant page.
+As [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md), plus the one rule: a contest that isn't ready to finalize (above) is **409 `not_ready`**, "Only a published contest whose games have all ended can be finalized.", checked after "already finalized" and before the typed name. Its callers are the OBS pages: All contests rows and the tenant record's rows.
 
 ### Error codes and what the console shows
 
@@ -653,7 +689,7 @@ Unchanged ([`admin-obs-internal.spec.md`](admin-obs-internal.spec.md)). Only its
 
 - **`GET /admin/games`** stays for the old screen and is retired with it.
 - **`PUT /admin/contests/:contestId/games`** keeps working for the old screen, with its lock check.
-- **Fan reads** (`GET /b2b/contest/list-contests`, `GET /b2b/contest/:contestId`) move to the allowlisted projection with `description` and `contestType`.
+- **Fan reads** (`GET /b2b/contest/list-contests`, `GET /b2b/contest/:contestId`) move to the allowlisted projection with `description`, `contestType` and `banner`.
 
 ---
 
@@ -690,15 +726,17 @@ Unchanged ([`admin-obs-internal.spec.md`](admin-obs-internal.spec.md)). Only its
 7. **`CT-07` — A contest locks at its first board and never unlocks.** The lock table above, decided in shared, enforced by the server, shown read-only in the console.
 8. **`CT-08` — Removing a game locks with the contest; adding never does.**
 9. **`CT-09` — Tenants never choose or see props.** The console has no prop screen, control, count or readiness item.
-10. **`CT-10` — The game picker always shows its sport filter,** fed by the sports the schedule actually holds.
+10. **`CT-10` — The game picker always shows its sport filter,** listing every sport the feed carries by its readable name, and offers every game that hasn't started, of any sport.
 11. **`CT-11` — Any non-finalized contest can be deleted,** with a typed name, and reverification once fans have joined.
-12. **`CT-12` — The builder keeps the console around it.** Steps are a clickable progress bar, every step is reachable at any time, and Save draft works from every step.
+12. **`CT-12` — The builder keeps the console around it.** Steps are a clickable progress bar, every step is reachable once the draft exists, and Save draft works from every step.
 13. **`CT-13` — Every growing list pages on the server with a cursor.** The contest list (both views), the Games tab and the game picker.
-14. **`CT-14` — Finalize is staff only and appears only when every game has ended**, hidden rather than disabled otherwise.
+14. **`CT-14` — Finalize is staff only, on the OBS pages, by one rule** (not finalized, not a draft, at least one game, every game ended), hidden rather than disabled otherwise; the server refuses a contest that isn't ready.
 15. **`CT-15` — Participation is the board count.** `numberParticipants` is never read.
 16. **`CT-16` — Contest names are unique within a tenant, ignoring case.**
 17. **`CT-17` — `ranAtBetEvents` only grows.**
 18. **`CT-18` — Every refusal carries one plain sentence, shown where the change was attempted.** No toasts, no spec IDs, no vendor words.
+19. **`CT-19` — Nothing saves as you go.** Every contest editor saves on an explicit Save draft or Save, and leaving unsaved edits (or a contest that doesn't exist yet) asks "Leave without saving?".
+20. **`CT-20` — Every contest has a banner:** its own image, its Board banner sponsor's, or the tenant's brand default, chosen by one shared function and drawn the same in the console and the fan app.
 
 ## Known gaps (recorded, not blocking)
 
@@ -720,6 +758,13 @@ Where the shipped console differs in detail from the text above:
 - The Preview tab mounts the preview's contest tab: it opens on the fan app's Contests screen and keeps the screen, device, tier, game and sponsor highlight in the address, so the Sponsors tab's links open the frame on the right game.
 - `/contests/:contestId/prizes` and `/contests/:contestId/sponsors` are the contest page's own tabs. The stand-alone ladder and slot pages built while the slices were apart were dropped when they were joined.
 - The end-to-end harness's `--screens` run opens the new contest from Games & Contests onto the contest page and photographs it there.
+
+## As built (Wave 4b)
+
+- The builder's footer primary reads **"Save and continue"** while anything is unsaved: a save the label names, so the next step never loses work and the common path never prompts. Step moves by the bar, Back and Exit prompt instead.
+- The Prizes step and tab keep the ladder's own **"Save prizes"** ([`admin-prizes.spec.md`](admin-prizes.spec.md)); the builder's Save draft covers the ladder once it reports its unsaved rows to the builder's unsaved-changes registry.
+- The sport filter is a **select** ("All sports" and every sport), not the segmented chips, because the feed carries eleven sports.
+- The fan-app preview's builder overlay does not yet carry an unsaved banner; it shows the saved one.
 
 ## References
 
