@@ -220,7 +220,7 @@ One nav structure, three sections. Same screens for both actor classes (`ADM-01`
 | | Game day | `/live` | `OBS-04`, `OBS-05` — [`admin-game-day.spec.md`](admin-game-day.spec.md) |
 | | Schedule | `/schedule` | The workspace's season, and All games — [`admin-schedule.spec.md`](admin-schedule.spec.md) |
 | | Games & Contests | `/games` | `ADM-04`, `BRAND-02`, `GAME-01`–`GAME-04` — [`admin-contests.spec.md`](admin-contests.spec.md) |
-| | Prizes | `/prizes` (tab Library), `/prizes/deliveries` (tab Deliveries, which holds the prize email settings) | `PRIZE-01`, `PRIZE-07` — the tenant's prize library and every send, failure and resend; [`admin-prizes.spec.md`](admin-prizes.spec.md) (revised 2026-09-27: replaces the 2026-09-24 "Prize deliveries" item and the Emails item) |
+| | Prizes | `/prizes` (tab Library), `/prizes/deliveries` (tab Deliveries), `/prizes/email` (tab Email: the prize email settings; revised 2026-09-28) | `PRIZE-01`, `PRIZE-07` — the tenant's prize library and every send, failure and resend; [`admin-prizes.spec.md`](admin-prizes.spec.md) (revised 2026-09-27: replaces the 2026-09-24 "Prize deliveries" item and the Emails item) |
 | | Fans | `/fans` | `RPT-02` view, scoped — not the export itself |
 | | Exports | `/exports` | `ADM-07`, `RPT-01`–`RPT-06` |
 | | Support | `/support`, `/support/:reportId` | The workspace's reports and their threads — [`admin-support.spec.md`](admin-support.spec.md) |
@@ -237,14 +237,14 @@ One nav structure, three sections. Same screens for both actor classes (`ADM-01`
 | | Fan actions | `/fan-actions` | `RPT-02`, `org:fan_data:export` |
 | | Support inbox | `/inbox` | [`admin-support.spec.md`](admin-support.spec.md) — every workspace's reports; rows open `/support/:reportId` |
 
-There is **no Emails item** (2026-09-27): the tenant's prize email settings (sender name, reply-to, subject) are a visible settings area on Prizes → Deliveries.
+There is **no Emails item** (2026-09-27): the tenant's prize email settings (sender name, reply-to, subject) are Prizes' **Email** tab (revised 2026-09-28: their own tab, not inside Deliveries).
 
 **Redirects** (old links keep working):
 
 | Old route | Goes to |
 |---|---|
 | `/prize-deliveries` | `/prizes/deliveries` |
-| `/settings/emails` | `/prizes/deliveries` |
+| `/settings/emails` | `/prizes/email` |
 | `/prizes?contest=<id>` | That contest's Prizes tab, `/contests/<id>/prizes` |
 | `/branding/sponsors` | `/sponsors` |
 | `/delivery-queue` | `/obs/prize-deliveries` |
@@ -287,7 +287,7 @@ Arthur's walkthrough ruling: "Full pages instead of drawers for contest create/e
 | Add games | An inline picker inside the contest page's Games tab and the builder's Games step |
 | Game row | The contest page's Games tab rows |
 | Prize tier | The contest Prizes tab's ladder, and the prize page (`/prizes/:prizeId`) for the prize it names (revised 2026-09-27) |
-| Prize email preview | The prize page's preview, and the email settings area on Prizes → Deliveries |
+| Prize email preview | The prize page's preview, and Prizes → Email |
 | Sponsor editor | The sponsor page (`/sponsors/:sponsorId`), edited in place |
 | Sponsor view | The sponsor page, read-only for members |
 | Fan detail | The fan page (`/fans/:membershipId`) |

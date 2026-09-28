@@ -59,16 +59,17 @@ editor, and of a tier as carrying its own authored content, is superseded wherev
 The library revision above stands as the data model. Where it places the screens, the console redesign moves them;
 [`admin-prizes.spec.md`](admin-prizes.spec.md) specifies all of it:
 
-- **`/prizes` has two tabs**, **Library** (every prize, "Awarded from", **New prize**) and **Deliveries** (every send,
-  with the prize email settings on the same tab). There is no Emails page and no separate Delivery queue screen for
-  tenants.
-- **Each prize opens as its own page** (`/prizes/new`, `/prizes/:prizeId`), not a drawer: type first, the upload field
-  for the image, "Provided by", the claim button on every type, and live previews of the fan's prize popup and the
-  email.
+- **`/prizes` has three tabs** (revised 2026-09-28), **Library** (every prize, "Awarded from", **New prize**),
+  **Deliveries** (every send) and **Email** (the prize email settings). There is no Emails page and no separate
+  Delivery queue screen for tenants.
+- **Each prize opens as its own page** (`/prizes/new`, `/prizes/:prizeId`), not a drawer: one flat form of what the
+  popup and the email use (revised 2026-09-28: no type), the upload field for the image, an optional code and button,
+  "Provided by", and live previews of the fan's prize popup and the email.
 - **A contest's tiers are edited on the contest's Prizes tab** (and the builder's Prizes step), not in a contest
   drawer: a numbered ladder, each row a bingo count and a library prize picked from the library, up to three.
-- **`B2BPrize` gains `prizeType`, `providedBySponsorId` and `shipsWithinDays`**, all three joining
-  `PRIZE_CONTENT_FIELDS`. The tier's shape and the whole-list tiers PUT are unchanged.
+- **`B2BPrize` gains `providedBySponsorId`**, joining `PRIZE_CONTENT_FIELDS`. The tier's shape and the whole-list
+  tiers PUT are unchanged. (Wave 4 also added `prizeType` and `shipsWithinDays`; revised 2026-09-28, Wave 4b: a prize
+  has no type, and both are dormant, as are the stated value and the redemption method, place and window.)
 - The library's fixes (migration scoping, deleting a prize from a removed tier, tenant delete, finalized contests are
   final) are [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §8.
 
@@ -195,7 +196,7 @@ Both writes respond with the updated contest plus a `changes` summary, matching 
 
 - ~~**No sponsor model.**~~ — **closed 2026-09-23** by [`admin-sponsors.spec.md`](admin-sponsors.spec.md). The original gap, for the record: `BRAND-02`'s per-game sponsor assets and `BRAND-03`'s multiple sponsors per game could not be configured until sponsors existed as records.
 - **No coupon-code batch model.** `PRIZE-05`/`PRIZE-06` describe assigning unused codes from a sponsor batch and never issuing one twice; nothing stores a batch or an assignment. `PrizeRedemption` records *that* a tier was fulfilled, not *which code* went out. Deferred deliberately until the first real sponsor's shape is known; the seam (a batch-backed delivery method) is specified in [`prize-delivery.spec.md`](prize-delivery.spec.md) "Codes".
-- ~~**`GAME-02`'s tier fields are partly unmodelled**~~ — **closed**: approximate value, redemption window, method and location exist on the tier and, since the library, on the prize. `GAME-03`'s difficulty tuning is still served only by `threeInARows`.
+- ~~**`GAME-02`'s tier fields are partly unmodelled**~~ — **closed**, then **removed** (Arthur, 2026-09-28): approximate value, redemption window, method and location are dormant on the model; the console doesn't offer them and nothing renders them. `GAME-03`'s difficulty tuning is still served only by `threeInARows`.
 - **`B2BContest.allowedBetEvents` has no per-event configuration**, so anything genuinely per-game needs a model change, not just a UI. Per-game sponsor assets took that route as a separate join record keyed by (contest, game), `B2BSponsorPlacement`, leaving `allowedBetEvents` as it was ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)).
 - ~~**A contest keeps no record of the games it has run at**~~ — **closed 2026-09-23** by `ranAtBetEvents` (`admin-contests.spec.md`). The original gap, for the record: only the ones it runs at *now* were kept. `allowedBetEvents` is both the live set and the entire history, so disabling a game erases the fact it was ever enabled. The bounded window and the write's echo of its own disabled ids (above) cover the cases an operator actually hits, but a game disabled in an earlier session and older than the lookback cannot be offered again, because nothing knows it was ever there. The fix is a stored `ranAtBetEvents` (or equivalent) on `B2BContest` — a change to `obs-b2b-shared`, deliberately not made here.
 - ~~**`POST /b2b/contest/prize-tier` is still on the fan surface**~~ — **closed 2026-09-27**: the prize library removed the fan-namespace tier write. The original gap, for the record: it sat behind `requireMembership`, where any fan of a tenant could write prize config. The admin-surface spec already calls for its removal; `PUT /admin/contests/:contestId/prize-tiers` is its replacement, and retiring the fan route is follow-up work this spec does not perform.

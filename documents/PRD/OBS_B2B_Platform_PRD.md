@@ -331,7 +331,9 @@ Per-game elements (BRAND-02) are managed by OBS staff through the admin surface 
 A tenant configures which games/events the activation runs at, drawn from the games available in OBS's existing event data.
 
 **GAME-02 [V1] — Prize tier configuration.**
-Each game supports 1–3 prize tiers. Each tier is configured with: display name, description, approximate value, redemption window, difficulty target (approximate number of winners per game), redemption method, and redemption location.
+Each game supports 1–3 prize tiers. Each tier is configured with: display name, description, ~~approximate value, redemption window,~~ difficulty target (approximate number of winners per game)~~, redemption method, and redemption location~~.
+
+> **Revised 2026-09-28 (Arthur's ruling, pending Nick):** approximate value, redemption window, redemption method and redemption location are **removed**. A prize is what the fan's prize popup and the prize email show (name, description, image, claim instructions, an optional button, an optional code, the sponsor credit); the console no longer offers the removed fields and nothing renders them. See `spec/core-modules/1-draft/admin-prizes.spec.md`.
 
 **Clarified 2026-09-27.** What a tier pays is now authored once, in a tenant's **prize library**, and a tier names one of those library prizes rather than carrying its own name/description/value/redemption fields — so the same prize can be awarded from more than one tier or contest (and, per `TRV-49`, from a game type with no bingo count at all) without re-entering it. Delivery method is a property of the library prize, not of the tier. `GAME-02`'s requirement is unchanged in substance: a tenant still configures, per tier, which prize it pays and at what difficulty target; only where the prize's own fields are entered has moved.
 
@@ -637,7 +639,7 @@ These are unresolved and should be raised rather than assumed:
 ## Revision notes (2026-09-27, the console redesign)
 
 - `ADM-03`, `ADM-04`: a contest is **Draft**, **Open** or **Closed** (one stored state replaces the visible and entries switches). Tenant admins may **delete any contest that isn't finalized**, after typing its name and, once fans have joined, reverifying; finalized contests stay. See `spec/core-modules/1-draft/admin-contests.spec.md` and `end-to-end-flow.spec.md` §3.
-- `GAME-02`: the 1–3 tier cap stands for bingo. Each tier names a prize from the tenant's prize library (see the 2026-09-27 clarification under `ADM-04`); the prize carries its type, its "Provided by" sponsor and its claim button. A finalized contest keeps the prizes it was finalized with. See `admin-prizes.spec.md`.
+- `GAME-02`: the 1–3 tier cap stands for bingo. Each tier names a prize from the tenant's prize library (see the 2026-09-27 clarification under `ADM-04`); the prize carries its "Provided by" sponsor and an optional claim button and code, and no type (revised 2026-09-28). A finalized contest keeps the prizes it was finalized with. See `admin-prizes.spec.md`.
 - `OPT-05`: every opt-in may carry its own documents (Terms, Privacy, marketing terms, a sponsor's data-sharing agreement), stored with the opt-in, edited in the console and shown inside the fan app over the gate; nothing links out of the app. Every published version's wording and documents are kept. Opt-in categories are retired: an opt-in is linked to a sponsor or it isn't. See `admin-fields-and-optins.spec.md` and `spec/webapp/entry-gate.spec.md`.
 - `BRAND-03`: a sponsor may hold several data-sharing agreements; a sponsor export is run per agreement. Each placement slot shows one sponsor at a time: one for the whole contest, optionally a different one for a single game. See `admin-sponsors.spec.md` and `admin-exports.spec.md`.
 - Asset fields (sponsor artwork, prize images, brand images) are uploaded as files, never typed as URLs. See `admin-uploads.spec.md`.
