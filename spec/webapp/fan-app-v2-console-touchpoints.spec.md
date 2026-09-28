@@ -91,7 +91,7 @@ The console shows fan-app screens in five places and describes fan behaviour in 
 
 ### Brand
 
-**`TOUCH-10` — Brand is the only host with sample data.** It frames all seven screens on the fix pass's built-in sample contest, with the tenant's real org and gate from `GET /admin/preview` and the draft overlaid through `PreviewOverlay.branding`. The sample's contents, its marking and the overlay's shape are [`admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md) `BRAND2-26` and `BRAND2-27`. Every other host previews real data only (`PREV-09`).
+**`TOUCH-10` — Brand is the only host with sample data.** It frames all seven screens on the fix pass's built-in sample contest, with the tenant's real org and gate from `GET /admin/preview` and the draft overlaid through `PreviewOverlay.branding`. The sample's contents, its marking, its fixed board (the additive `PreviewDocument.board?`, so the Board tab always shows two bingos) and the overlay's shape are [`admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md) `BRAND2-26` and `BRAND2-27`. Every other host previews real data only (`PREV-09`).
 
 **`TOUCH-11` — The draft theme reaches only the Brand frame.** The contest, builder, prize, sponsor and Fields hosts paint with the tenant's **published** theme (`org.organization.branding` as served), never a Brand draft, so an unpublished look never appears on another page.
 
@@ -226,7 +226,7 @@ No console string uses "game" where it means "contest" (checked by searching the
 ## Open questions
 
 1. **The Fields host's name and `view.gateMode`.** The fix pass creates the Fields phone preview; if it adds a host name or a returning-mode switch of its own, Wave 5 adopts it instead of `view.gateMode`.
-2. **Draft documents in the render document.** `documents?` is additive and loose-schema safe, but it is a new section of `PreviewDocument`. Accept it, or keep Fields on the console-side `WalkableGate` for documents?
+2. **Two additive sections on `PreviewDocument`.** `documents?` (Fields' draft documents) and `board?` (Brand's fixed sample board) are optional and loose-schema safe, and `v` stays 1, but they are new sections of the shared document; W5-D30/D32 ruled out new screen ids and protocol changes, not additive data. Accept both, or keep Fields on the console-side `WalkableGate` for documents and let Brand's sample board be whatever `buildBoard` produces?
 3. **Standings in the preview.** Inert (`TOUCH-04`). Accept, or have the contest preview read return the contest's real standings (display names are visible to admins on the Fans page already)?
 
 ## Recorded gaps

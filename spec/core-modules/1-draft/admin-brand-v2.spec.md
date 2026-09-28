@@ -132,8 +132,8 @@ Help lines: Decoration "The board fragments and glow behind your screens."; Band
 - **Publish:** `PUT /admin/branding` with the whole theme (edited fields plus every carried field), the assets, and `text`. Disabled when clean, when Accent is missing, or when a Words field is invalid; "Publishing…" in flight; the result line as today, extended with "words updated".
 - **Discard draft:** the existing discard.
 - **Use the standard look:** sets the draft theme to `null` (the platform default), as today; it clears the theme only, not images or words. While null, the controls show the default palette and the button reads "Using the standard look."
-- **Draft persistence:** the draft lives in `sessionStorage`, as today, under a bumped key suffix `:branding-v2` (the draft now carries `text` and `decor`). A v1 draft under `:branding` is removed on load and the page shows once: "We refreshed the Brand page; your unpublished draft from before was cleared." (`BRAND2-22`). A restored v2 draft shows "Restored your unsaved changes." with Dismiss.
-- **Leaving:** an in-app navigation with unsaved changes asks "Leave without publishing?" / "Your changes to the brand will be lost." / "Keep editing" (default) / "Leave" (walkthrough ruling); none when clean.
+- **No draft autosave** (walkthrough ruling, console-wide). The draft lives in the page until Publish or Discard. Today's `sessionStorage` copy of the Brand draft (`configDraftStorage.ts`, "Restored your unsaved changes.") is not used on the Wave 5 page; a key left by main's page is ignored.
+- **Leaving:** an in-app navigation with unsaved changes asks "Leave without publishing?" / "Your changes to the brand will be lost." / "Keep editing" (default) / "Leave"; a reload or tab close with unsaved changes gets the browser's own leave prompt (`beforeunload`); none when clean (walkthrough ruling).
 
 ### Screen states
 
@@ -194,7 +194,7 @@ It is marked as a sample by its own names, which is everything a viewer sees of 
 | Games | Two: "Sample Away @ Sample Home", started 60 minutes before the render (derived `InProgress`); "Sample Visitors @ Sample Home", tip-off tomorrow at the same clock time (`Scheduled`). No team logos. `sport` NFL (so the derived status uses NFL's length) |
 | Players | Eight: "Sample Player 1" … "Sample Player 8", jersey numbers 1–8, four per team across the two games, `PlayerEntity`, **no `photoUri`**, so every square shows the kit's no-photo fallback (gradient, jersey number, name). A real player without a PES photo looks exactly like this, so the preview shows a real state rather than a stock face |
 | Props | Per player, two markets from the board's short-form table ("Receiving Yards", "Rushing Yards", "Total Receptions") with three lines each, multipliers 0.5, 1.0 and 2.0 (one rung per ladder label), `showProp` true, `outcomeType` Over |
-| Board | Built on the Board and Prize tabs: nine cells, **two bingos**: row 1 and column 1 hit (five `Hit` cells on game 1, `isFinal` true), the centre square live (game 1, `progressValue` below its line), one miss (`Miss`, final), two pending (game 2). The bingo count comes from the same shared function the real board uses (W5-D40) |
+| Board | Fixed, not generated: nine prop ids chosen from the sample's props, with **two bingos**: row 1 and column 1 hit (five `Hit` cells on game 1, `isFinal` true), the centre square live (game 1, `progressValue` below its line), `middleRight` a miss (`Miss`, final), `bottomMiddle` and `bottomRight` pending (game 2). The frame builds its preview board with `buildBoard`, whose fallbacks shuffle, so a generated sample board would land on a random count; the sample therefore carries the board in an additive `PreviewDocument.board?: (propId \| null)[]` (nine, in `BOARD_POSITIONS` order), which the preview data layer uses instead of building one. Only the Brand host sends it. **Phase B: to build** (additive, loose schema, `v` stays 1). The bingo count comes from the same shared function the real board uses (W5-D40) |
 | Prize tiers | Three: 1, 2 and 3 bingos; names "Sample prize 1", "Sample prize 2", "Sample prize 3"; description "What a fan wins at {n} bingo(s)."; no image; no sponsor |
 | Schedule | No sponsors and no placements (a sample contest has none); `nextGame` = the sample's game 2 |
 | Prize tab | The popup for the chosen tier (`view.prizeTierIndex`, default tier 2, reached by the sample board) |
@@ -280,7 +280,7 @@ Unchanged: tenant targeting (`?tenant=` for staff only), the read-only refusal f
 
 ## Rules
 
-Kept from S2 (revised where noted): `BRAND2-01`–`BRAND2-07`, `BRAND2-11`, `BRAND2-12`, `BRAND2-14`–`BRAND2-17`, `BRAND2-19`–`BRAND2-25`. New: `BRAND2-26`–`BRAND2-30`.
+Kept from S2 (revised where noted): `BRAND2-01`–`BRAND2-07`, `BRAND2-11`, `BRAND2-12`, `BRAND2-14`–`BRAND2-17`, `BRAND2-19`–`BRAND2-21`, `BRAND2-23`–`BRAND2-25`. New: `BRAND2-26`–`BRAND2-30`.
 
 - **BRAND2-01 — Presets first; applying one changes the look, never the palette** (an Accent-less draft takes the preset's accent).
 - **BRAND2-02 — Two to four colours; Team and Accent required;** Second and Live Auto until overridden.
@@ -298,7 +298,6 @@ Kept from S2 (revised where noted): `BRAND2-01`–`BRAND2-07`, `BRAND2-11`, `BRA
 - **BRAND2-19 — Fine-tune maps to the contract exactly:** intensity, angle, texture.
 - **BRAND2-20 — No data migration.**
 - **BRAND2-21 (revised) — Every tenant gets the overhaul's look on the Wave 5 branch** with Prime Time's params until they set their own; no republish needed.
-- **BRAND2-22 — Stale v1 drafts are discarded once, with a notice.**
 - **BRAND2-23 — The schemas widen first.**
 - **BRAND2-24 — Access is unchanged:** `org:admin` and staff write, `org:member` reads, promote is staff only, nothing is reverified, only promotion is audited.
 - **BRAND2-25 — No gap narration on the page.**
@@ -316,6 +315,7 @@ Kept from S2 (revised where noted): `BRAND2-01`–`BRAND2-07`, `BRAND2-11`, `BRA
 | BRAND2-10 | Mode switches go through `withMode` | Kit ramps are per mode (`DECOR-23`); no swap needed |
 | BRAND2-13 | The Light/Dark peek never touches the draft | The peek and its "Peeking at…" text are cut (W5-D27) |
 | BRAND2-18 | Upload limits PNG/SVG/WebP ≤1 MB via S2's own route | Wave 4's `POST /admin/uploads` (5 MB, sniffed, measured) is the route |
+| BRAND2-22 | Stale v1 drafts discarded once, with a notice; draft key `:branding-v2` | No draft autosave (walkthrough ruling); the draft lives in the page only |
 
 ---
 
