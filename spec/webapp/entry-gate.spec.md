@@ -6,6 +6,8 @@
 
 **Status:** Implemented 2026-09-11, merged 2026-09-14 — this spec described shipped behavior. Contracts in [`obs-b2b-shared#1`](https://github.com/everythingparlays/obs-b2b-shared/pull/1), enforcement in [`overboard_sports_backend#3`](https://github.com/everythingparlays/overboard_sports_backend/pull/3), the screen in [`overboard-b2b-template#2`](https://github.com/everythingparlays/overboard-b2b-template/pull/2).
 
+**Revised 2026-09-28 (Wave 4b):** the side menu lists Terms and Privacy always again, then the tenant's own opt-in documents (section "Opt-in documents"); an unanswered dropdown shows its placeholder dimmed, like an input's (section "Rendering"); the default fields are seeded with their real label and placeholder written in ([`admin-fields-and-optins.spec.md`](../core-modules/1-draft/admin-fields-and-optins.spec.md), revision 2026-09-28), which renders exactly as before.
+
 **Revised 2026-09-27 (Wave 4):** every opt-in may link words in its text to a document stored in the database, which opens in the same tab, over the gate (section "Opt-in documents" below; the model is [`admin-fields-and-optins.spec.md`](../core-modules/1-draft/admin-fields-and-optins.spec.md), revision 2026-09-27). The bundled Terms and Privacy placeholder pages go.
 
 **Superseded in part by entry-gate editor v2 (directive, 2026-09-21, Arthur).** The closed field catalog is retired: a tenant now defines its own typed fields, with the seven platform fields as defaults rather than a boundary, and the gate's page copy is overridable per tenant. The model and its reasoning are in [`admin-fields-and-optins.spec.md`](../core-modules/1-draft/admin-fields-and-optins.spec.md); what changes on *this* screen is Rendering and the acceptance criteria below. **Everything else in this spec stands** — blocking behavior, the two entry points, submission, the 409 discipline, and every existing acceptance criterion are untouched by v2, and a tenant that never opens the new editor sees no change at all.
@@ -56,7 +58,7 @@ Non-blocking opt-ins are different: the fan may decline and continue. The declin
 | Short text | A single-line input |
 | Long text | A textarea |
 | Date | A single-line input with the platform's date formatting and validity check — the behavior `birthday` always had, generalized |
-| Dropdown | A select whose first entry is the field's placeholder, or "Select…" when it has none |
+| Dropdown | A select whose first entry is the field's placeholder, or "Select…" when it has none. Until the fan picks an answer the select reads dimmed in the placeholder colour, like an input's placeholder (`data-empty`, revision 2026-09-28) |
 | Checkbox | A checkbox row, where a required field means the box must be ticked |
 
 **Three pieces of per-field copy, each with one fixed place**, so a fan reading two tenants' gates reads them the same way: the **description** sits under the label, the **caption** sits under the input (the slot v1 called the hint, and the slot an error message replaces when there is one), and the **placeholder** is ghost text inside the empty input. None of the three is ever required, and a field with none of them renders exactly as v1 rendered it.
@@ -123,7 +125,13 @@ Do not navigate on success. The mutation invalidates the membership cache tag an
 - The overlay loads `GET /b2b/org/:subdomain/consent-document/:optInId/:linkId?version=<displayed textVersion>`: the document **as of the wording on screen**, the same frozen-version discipline the consent submission follows. While it loads it shows the title and a spinner; if it fails, the title, "This didn't load." and "Try again", with Back still working.
 - It renders the title and the body through the shared `ConsentDocumentView` (headings, paragraphs, lists, bold; a URL is plain text), themed like the rest of the app, scrollable, with Back at the top.
 
-**The side menu's Terms and Privacy** open the same component on the in-app routes `/terms` and `/privacy`, reading the platform documents' current version. They replace the bundled `src/config/legal.ts` placeholders. When the platform documents have not been published yet, the side menu shows neither entry and the platform opt-in's two phrases render as plain words: nothing is shown that cannot be shown honestly. Tenant documents are reached from the gate only; listing them in the side menu is part of the on-hold fan-app overhaul.
+**The side menu's Terms and Privacy** open the same component on the in-app routes `/terms` and `/privacy`, reading the platform documents' current version. They replace the bundled `src/config/legal.ts` placeholders.
+
+*Revision 2026-09-28 (Arthur: "They were always there, and must be again even while the documents aren't written yet. Opt-in documents added by a tenant are listed below them"):*
+
+- **Terms and Privacy are always listed**, published or not, as they were before Wave 4. They open in the same tab. The page shows the published document, or, until there is one, its title and "This page isn't available." (Wave 4 hid both entries until publication.) The platform opt-in's two phrases on the gate still render as plain words until the documents are published.
+- **Below them, the tenant's own opt-in documents**, one entry per link of every tenant opt-in that has one, in the tenant's opt-in order, titled with the link's title. Each opens `/document/:optInId/:linkId`, the same page at the document's current version, in the same tab, with Back.
+- **Where the list comes from.** The public org read (`GET /b2b/org/:subdomain`) carries `organization.documents: { optInId, linkId, title }[]` (absent when the tenant links none). Only the titles and ids leave: the titles are already public (the gate shows them before sign-in, and the public document read returns them); the opt-in's text, sponsor, field scope and version stay on the server. The platform opt-in is left out of the list, because the menu shows its two documents on their own.
 
 **The console preview** passes an `onOpen` that opens the same `ConsentDocumentView` over the preview with the draft's document, so the admin reads exactly what fans will.
 
@@ -156,7 +164,10 @@ Added 2026-09-27 (opt-in documents):
 - [ ] Back (browser or overlay) closes the document and returns to the gate with everything typed and ticked intact; no new tab ever opens.
 - [ ] The document shown is the version whose wording is on screen, even if the tenant publishes a newer one while the fan reads.
 - [ ] Editing a linked document and publishing re-asks returning fans that opt-in (a new version), exactly like a wording change.
-- [ ] The side menu's Terms and Privacy show Overboard's stored documents, and are absent until they are published.
+- [ ] ~~The side menu's Terms and Privacy show Overboard's stored documents, and are absent until they are published.~~ Superseded 2026-09-28:
+- [ ] The side menu always lists Terms and Privacy; each opens in the same tab and shows the published document, or its title and "This page isn't available." until there is one.
+- [ ] Below them the side menu lists every document a tenant opt-in links, by its title, each opening the document in the app.
+- [ ] An unanswered dropdown reads dimmed until the fan picks an answer, like an empty input's placeholder.
 
 ---
 
