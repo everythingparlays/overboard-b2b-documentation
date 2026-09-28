@@ -60,6 +60,28 @@ cheaper prize is refused as "value lowered", and lowering or clearing a prize's 
 
 ---
 
+## Revision 2026-09-28 (Wave 4b)
+
+Arthur's answers of 2026-09-28 revise the Wave 4 revision below ([`admin-prizes.spec.md`](admin-prizes.spec.md)
+carries the detail):
+
+1. **No prize type.** `prizeType` and `shipsWithinDays` are dormant: stored values stay, nothing writes, reads or
+   renders them. Nothing is normalised on save.
+2. **One generic, data-driven template.** The standard email is the only template, never per sponsor and never one
+   per prize; email is the only channel. It **renders by presence**: the code block when a code is set, one "How to
+   claim" block from the claim instructions, the button when a link is set, and the "Provided by" credit. No type
+   ordering, no pick-up lead, no ships-within or expiry line. **The prize's name is the headline.**
+3. **No stated value and no redemption method, place or window.** `approximateValueCents`, `redemptionMethod`,
+   `redemptionLocation` and `redemptionWindow` are dormant like the type, the "Details list" below is retired, and the
+   lock's value rule (`prize_value_locked`, re-pointing at a cheaper prize) is gone.
+4. **Completeness is what delivery needs**: a description and a delivery method that resolves. The worker applies the
+   same rule, so a prize the console calls Complete is never skipped; the award snapshot keeps only what the email
+   renders (plus `prizeId` and `providedBy`).
+5. **The email settings** (sender name, reply-to, subject) move to their own **Email** tab of Prizes, and
+   `reply_to_in_use` is gone: no prize depends on the Reply-to.
+
+---
+
 ## Revision 2026-09-27 (Wave 4)
 
 The console redesign, built on the library ([`admin-prizes.spec.md`](admin-prizes.spec.md)), changes four things here.
@@ -100,7 +122,7 @@ So the resolution is: **one developer-built template, parameterised by the tier.
 
 ### What it merges — and the omission rule
 
-*Revised by [`admin-prizes.spec.md`](admin-prizes.spec.md), "What the winner sees" (Wave 4): the blocks follow the prize's type, "Approximate value" is no longer shown to fans, the button may appear on any type, and the credit reads "Provided by" from the prize, as snapshotted at award time.*
+*Revised by [`admin-prizes.spec.md`](admin-prizes.spec.md), "The prize email" (Wave 4b, 2026-09-28): the email renders by presence, not by a type; no value, place, window or shipping line; the name is the headline; the credit reads "Provided by" from the prize, as snapshotted at award time. The "Details list" row below is retired.*
 
 The email is built from real, configured data only. **Anything unconfigured is omitted — never placeholdered, never apologised for** (D-068). There is no "N/A", no "See details", no empty heading above a missing section.
 
@@ -115,7 +137,7 @@ The email is built from real, configured data only. **Anything unconfigured is o
 | Bingo line | `tierIndex + 1` — "You hit 2 bingos." | — (always known) |
 | Prize image | `prizeImageUrl` (http/https only) | no image block |
 | Description | `prizeDescription` | — (required) |
-| Details list | GAME-02 fields: approximate value, redemption window, method, location | each row omitted individually; the list omitted when all four are |
+| ~~Details list~~ | retired 2026-09-28: a prize has no value, redemption method, place or window | — |
 | Code | the tier's static redemption code, when the tier has one | no code block |
 | How to claim | `prizeClaimInstructions` | no section |
 | Button | `prizeClaimButtonLinkUrl` (http/https only) + `prizeClaimButtonText` | no button without a link; "Claim your prize" when a link has no text |
@@ -285,7 +307,7 @@ Supersedes the `/prizes` section of admin-games-and-prizes.spec.md where they di
 
 ## Endpoints
 
-*Revised by [`admin-prizes.spec.md`](admin-prizes.spec.md), "Endpoints" (Wave 4): the preview takes `{ prize, prizeId?, threeInARows, settings? }` and credits the draft prize's sponsor; the settings routes stay `GET/PUT /admin/prizes/email`, with `reply_to_in_use` added.*
+*Revised by [`admin-prizes.spec.md`](admin-prizes.spec.md), "Endpoints" (Wave 4, and Wave 4b): the preview takes `{ prize, prizeId?, threeInARows, settings? }` and credits the draft prize's sponsor; the settings routes stay `GET/PUT /admin/prizes/email`, edited on the Prizes page's Email tab. Wave 4's `reply_to_in_use` is retired.*
 
 | Method | Path | Auth | Who |
 |---|---|---|---|
