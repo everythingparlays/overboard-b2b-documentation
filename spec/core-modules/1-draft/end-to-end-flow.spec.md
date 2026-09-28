@@ -142,9 +142,13 @@ Only NFL was in the future. B2B code applied no sport filter either. "Only NFL" 
 
 Three B2B behaviours made it look like a filter, and all three change:
 
-1. **The sport filter now always shows**, fed by the sports actually present in what the picker can offer (`sports` on
-   `GET /admin/games/candidates`). Before, the chips appeared only once two sports existed, so an operator could not see
-   that the list was all NFL, or why.
+1. **The sport filter now always shows**, and since Wave 4b lists **every sport the feed carries** (`sports` on
+   `GET /admin/games/candidates` is the whole feed's distinct sports, by readable name in the console). Before, it was
+   built from games still to come, and because D2C creates college and baseball games minutes to a day before they
+   start, it showed NFL alone almost always. A sport with nothing to come stays choosable and says "No upcoming college
+   football games yet."; under "All sports" every game that hasn't started is offered, of any sport or none (Arthur,
+   2026-09-28: the PES → console seam is exact, with no sport, league or date filter of our own dropping an upcoming
+   event).
 2. **A game only minutes into play was unpickable.** The picker offered only games not yet started, so a Saturday CFB game
    that had kicked off was gone. That rule stays for normal contests (a started game can't be joined). A **test-mode**
    contest (§5) may also pick games from the last 14 days, so they can be replayed.
@@ -335,8 +339,9 @@ Both use real, existing games and never write anything D2C or the consumer app r
   - may pick recent finished games (last 14 days) in the picker;
   - draws its board from every game.
 
-  The console shows a **Test mode** switch in the contest drawer only when `GET /admin/dev/status` answers. With the gate
-  closed, the stored flag does nothing.
+  **No console screen shows or sets it** (Arthur, 2026-09-27: a dev-only switch doesn't belong on a customer screen). It
+  is set from a script (the harness) or the browser console, as the runbook shows. With the gate closed, the stored flag
+  does nothing.
 - **Replay**, `POST /admin/dev/replay { betEventId, delayMs? }`, reads the game's already-resolved **Hit** props (read-only)
   and feeds each prop id down the same path as the watcher (§1.3), in resolution order. It answers with what it did:
   props fed, boards evaluated, lines claimed.

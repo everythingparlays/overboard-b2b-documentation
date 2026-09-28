@@ -86,8 +86,9 @@ If the backend says `watcher not started: set PRIZE_LOCAL_QUEUE_DIR …`, the de
 
 **Never create test games.** Use real games already in PES, with real players, props and photos.
 
-- **Upcoming:** any game in the console's picker. The **Sport** chips list every sport with a game in
-  the picker's window, so if you only see NFL, only NFL has been loaded in PES.
+- **Upcoming:** any game in the console's picker. The **Sport** filter lists every sport the feed has ever
+  carried; choosing one with nothing to come says "No upcoming … games yet.", which means PES hasn't
+  published that sport's next games (college and baseball games often appear only hours before kickoff).
 - **Finished:** a game from the last 14 days. The picker offers these only to a contest in **test mode**
   (§3).
 
@@ -104,20 +105,42 @@ Sign in to the console as a tenant admin. The test accounts are listed in
 `C:\Users\arthu\.overboard\test-accounts.md` (`tenant-admin+clerk_test@example.com` is `org:admin` on
 `test`). The email code on the dev Clerk instance is **424242**.
 
-1. **Games & Contests → New contest.**
-2. Name it. Under **Games**, search by team and tick the game.
-3. Under **Prizes**, click **Add prize tier**: **Bingos to win** = 1, **Prize** = a library prize → **Add tier**.
-   If the library is empty, write one first on **Prizes → New prize** (Delivery: *Prize email*).
-4. **Status:** leave it on **Draft** → **Create contest**.
-5. On the contest's card click **Settings** to open its drawer.
-6. **Test mode (dev only) → Turn test mode on** when either is true:
+1. **Games & Contests → New contest.** Name it → **Save and continue** (this creates the draft).
+2. **Games:** search by team and tick the game → **Save and continue**.
+3. **Prizes:** **Add prize tier**: bingos to win = 1, prize = a library prize → **Save prizes** →
+   **Continue**. If the library is empty, write one first on **Prizes → New prize**.
+4. **Sponsors:** optional → **Continue**.
+5. **Test mode** (dev only), when either is true:
    - the game's props aren't open yet (the contest would read "Upcoming", with fans unable to join);
-   - you want a finished game: with test mode on, the card's **Add games** also offers the last two
-     weeks' games.
+   - you want a finished game: with test mode on, the picker also offers the last two weeks' games.
 
-   The section only appears when the backend's dev tools answer (§9). With test mode on, the contest
-   is joinable whatever the game clock says, and the board draws from every game in the contest.
-7. **Status → Publish.**
+   The console has no test-mode control: set it through the dev API (below), then reload the builder.
+6. **Review → Publish.**
+
+Nothing in the builder saves as you go: **Save draft** (any step) or **Save and continue** saves, and
+leaving with unsaved changes asks "Leave without saving?".
+
+### Test mode through the dev API
+
+`PUT /admin/dev/contests/<contestId>/test-mode { testMode: true | false }` needs a tenant `org:admin` or
+OBS staff token (staff add `?tenant=<slug>`), and answers only where the dev tools are on (§9). The
+contest's id is in the builder's address (`/contests/<contestId>/setup/...`). From the **console tab's
+browser devtools**, signed in:
+
+```js
+const API = "http://localhost:3051";          // your backend
+const token = await window.Clerk.session.getToken();
+await fetch(`${API}/admin/dev/contests/<contestId>/test-mode`, {
+  method: "PUT",
+  headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+  body: JSON.stringify({ testMode: true }),
+}).then((r) => r.json());
+// → { success: true, contestId: "<contestId>", testMode: true }
+```
+
+With test mode on, the contest is joinable whatever the game clock says, and the board draws from every
+game in the contest. `GET /admin/contests/<contestId>` reads the flag back as `testMode` (dev only). The
+harness (§7) sets it the same way.
 
 ---
 
@@ -359,13 +382,14 @@ source of truth.
 | Symptom | Fix |
 |---|---|
 | Backend won't start, or behaves like old code after a checkout or pull | Run `git submodule update --init --recursive` at the repo root, then `npm run build` in `node-server/` (it runs from `built/`) and `node build.mjs` in `prize-worker/`. |
-| `/admin/dev/*` answers 404; no **Test mode** section in the drawer | The dev routes are only mounted when all of these hold: `DEV_TOOLS=on`, `MONGODB_DATABASE_NAME=obs-b2b-dev`, a prefix that isn't `prod_`, and `DEPLOY_STAGE` not `prod`. Restart after changing `.env`. The section is also hidden on finalized contests and for `org:member`. |
+| `/admin/dev/*` answers 404 (test mode, replay, status) | The dev routes are only mounted when all of these hold: `DEV_TOOLS=on`, `MONGODB_DATABASE_NAME=obs-b2b-dev`, a prefix that isn't `prod_`, and `DEPLOY_STAGE` not `prod`. Restart after changing `.env`. Test mode is refused for `org:member` and on a finalized contest. |
 | `watcher not started` in the log, or replay answers "Scoring is off on this server" | `PRIZE_LOCAL_QUEUE_DIR` is missing from the backend's `.env`. |
 | `standing by: … scores arthur_ now`; a bingo's email lands in another folder | Another server on your prefix holds the scoring lease: the last one started wins. Stop it, or restart yours to take the lease back. A server on code older than the lease doesn't take part and still scores alongside, so stop those or turn `DEV_TOOLS` off on them. |
 | The line is claimed but no email arrives | The worker isn't running, has a different `PRIZE_LOCAL_QUEUE_DIR` or prefix, or has no `PRIZE_FROM_ADDRESS`. Queued messages wait in the folder until it starts. |
 | Clerk asks for a code | **424242** on both dev instances (test mode). Only `+clerk_test` addresses; never list or touch real fan users. |
 | The prize popup doesn't show again | It's remembered in the browser's localStorage, per board and bingo count (`prize-award-shown-<boardId>-<n>`). Delete that key, or use a private window. |
-| The fan card reads "Opens …" / the join says "Entries open …" | The game's props aren't open yet. Turn on test mode (§3). |
+| The fan card reads "Opens …" / the join says "Entries open …" | The game's props aren't open yet. Turn on test mode through the dev API (§3). |
 | "Players for this game aren't available yet" | The game has no visible props in PES yet. Pick another game. |
-| No finished games in **Add games** | Test mode is off, or the game is older than 14 days. |
+| No finished games in the game picker | Test mode is off (set it through the dev API, §3), or the game is older than 14 days. |
+| The sport you want reads "No upcoming … games yet." | PES has no game of that sport still to start. College and baseball games often appear only hours before kickoff. |
 | Contests made before Wave 3 look wrong in the Status section | They have no stored state yet; the code reads the old flags. The one-off fix for **your own** namespace: `node --env-file=.env scripts/contest-state-migration.mjs` (dry run), then `--apply`. Leave `nick_` alone unless Nick agrees. |
