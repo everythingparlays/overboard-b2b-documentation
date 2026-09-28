@@ -5,6 +5,9 @@
 rule to every visual and sponsor field the platform has, names where each one is stored, who edits
 it, and where a fan sees it.
 
+**Authorship:** Contributed by Arthur. This is not part of Nick's PRD; the PRD changes it implies are
+logged in [`PRD-changes-contributed-by-Arthur.md`](PRD-changes-contributed-by-Arthur.md) (entries 1 and 3).
+
 **Status:** Written 2026-09-23 with the sponsor model ([`admin-sponsors.spec.md`](../../spec/core-modules/1-draft/admin-sponsors.spec.md)). Where this document and a spec disagree about *which category* a field is in, this document wins; where they disagree about *how* it is built, the spec wins.
 
 ---
