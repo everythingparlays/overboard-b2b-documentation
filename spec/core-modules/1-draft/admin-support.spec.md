@@ -4,7 +4,7 @@
 
 **Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — scope, the `?tenant=` exception, and **Honesty by omission** (Rule 13) plus **Plain product language**, which bind the resolution notes Overboard writes as much as any screen string. [`admin-game-day.spec.md`](admin-game-day.spec.md) — the failed-delivery rows that carry the highest-value button. [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) — the attention queue row and Platform health's anti-rot tile.
 
-**Status:** Draft — built on `arthur-ops` (2026-09-23); revised on `arthur-g1-console` (2026-09-24) — see "Revision 2026-09-24", which wins wherever it and an older section disagree.
+**Status:** Draft — built on `arthur-ops` (2026-09-23); revised on `arthur-g1-console` (2026-09-24) and in Wave 4b (2026-09-28) — see "Revision 2026-09-28 — sides" and "Revision 2026-09-24". The newest revision wins wherever it and an older section disagree.
 
 ## Overview
 
@@ -22,6 +22,57 @@ Second-order value: every recorded spec gap that confuses a paying customer beco
 - **Auto-resolution** (resolve a report when the platform observes the fix — a redemption later fulfilled, tiers later added). Designed for, not built: the subject pair makes it a read-side rule. Recorded.
 - **Report buttons inside screens other slices own this wave** — export refusals (Exports), contest and game rows (Games & Contests), publish rejections (Fields & Opt-ins, Branding), lifecycle divergence (All tenants), and reverification loops. Their *load* failures are covered on day one through the error card; the inline, pre-loaded buttons are recorded for those owners.
 
+## Revision 2026-09-28 — sides: staff see a workspace's Support as the workspace does
+
+Arthur's Wave 4 walkthrough rulings: staff see tenant screens exactly as a tenant member or admin would; a report staff file from a tenant workspace is attributed to the tenant side; on the tenant Support screen the tenant's messages are "You" and Overboard's are "Overboard", and in the OBS inbox it is the reverse; staff never appear to be talking to themselves; the tenant Support page has no staff features (no internal note, no assign, no acknowledge or resolve), and the OBS inbox is the only triage surface. This section wins over every older line in this spec.
+
+### The side is where something is written, not who writes it
+
+A report is a conversation between a workspace and Overboard. Every report and every thread entry is on one of two **sides**, `workspace` or `overboard` (`SUPPORT_SIDES`), decided by the screen it was written from:
+
+| Written from | Side | Who |
+|---|---|---|
+| A workspace's own screens (Workspace and Configuration: Overview, Game day, Games & Contests, a contest's page, Fans, Support, …) | `workspace` | the workspace's people, **and Overboard staff looking at that workspace's screens** |
+| The OBS internal screens (Support inbox, Operations, All tenants, a tenant's staff page, All contests, Prize deliveries, Fan actions, Platform health, Season calendar) | `overboard` | Overboard staff only |
+
+- **Staff on a workspace's screens are the workspace.** A report a staffer files there is the workspace's: it joins the workspace's own Support list and reads as the workspace's in the inbox. A reply they send there is the workspace talking: it reopens a resolved report exactly as a workspace reply does, and it never counts as Overboard answering (first response, the unread dot).
+- **Staff on the OBS screens are Overboard.** A report filed there is Overboard's own internal note — about the workspace in view, or platform-wide with none — and never appears on the workspace's screens. Inbox replies, internal notes and every triage action are Overboard's side.
+- **A workspace's people are always on the workspace's side**, wherever they are.
+
+### What each side reads
+
+- **The workspace's side** reads the workspace shape: no internal notes, no assignment lines, no reports raised on Overboard's side (404, the same answer as a report that doesn't exist), no Internal badges, no triage. A staffer on the workspace's Support page or report page sees exactly what the workspace sees — the same list, the same thread, the same reply box ("Reply to Overboard", with "Replying reopens this report so Overboard sees it." on a resolved one), no "Go to where it happened" jump. Their reads never mark the workspace's view time, so the workspace's unread dot stays honest.
+- **Overboard's side** reads the inbox shape: the whole thread with internal notes, the assignee, the fingerprint, the duplicates, and the triage panel.
+
+### Who is talking
+
+| Where | The workspace's messages | Overboard's messages |
+|---|---|---|
+| A workspace's Support screens (anyone) | **You** | **Overboard** |
+| The inbox's report page | the person and the workspace ("Sarah Lind · UND Fighting Hawks"; the workspace alone when no name is known) | **You** for your own; a colleague's carry their name ("Overboard" when no name is known) |
+
+Event lines follow the same sides ("Overboard acknowledged this", "You reopened this" on a workspace's screens; "UND Fighting Hawks reopened this", "You took this on" in the inbox). The reader's own side sits on the right of the conversation. `isYou` on the wire means **your own writing on the side you are reading from**, so a staffer's inbox reply is Overboard's on the workspace's screens and what they wrote from the workspace's screens is the workspace's in the inbox: nobody ever reads as talking to themselves.
+
+### Routes
+
+| Route | Side | What |
+|---|---|---|
+| `/support` | workspace | The workspace's reports. Staff with a workspace chosen see exactly the workspace's list. Staff with none chosen get "Pick a tenant", pointing at the Support inbox. |
+| `/support/:reportId` | workspace | The report page as the workspace reads it: what was sent, the conversation, the reply box. **No triage panel, no internal notes, no assign.** |
+| `/inbox` | overboard | The Support inbox, unchanged. Rows now open `/inbox/:reportId`. |
+| `/inbox/:reportId` | overboard | **New.** The report page on Overboard's side: the conversation with internal notes, the reply box with "Internal note — only Overboard sees it", and the triage panel (acknowledge / un-acknowledge, assign, resolve with a reason, merge, reopen). **The only triage surface.** Staff only; a workspace user reaching it sees "Overboard staff only". Merge targets and duplicates link to their `/inbox/` pages. |
+
+A status chip on the thing reported (a failed delivery, a fan, an error card) and the Get help confirmation link to the page on the side the screen is on: `/support/:reportId` from a workspace's screens, `/inbox/:reportId` from the OBS screens. The drawer's Workspace row reads the workspace's name on a workspace's screens and "*Workspace* · internal, only Overboard sees it" (or "None — an Overboard note") on the OBS screens.
+
+### Contract (additive)
+
+- `?side=workspace|overboard` on `POST /admin/support/reports`, `GET /admin/support/reports`, `GET /admin/support/reports/:reportId` and `POST /admin/support/reports/:reportId/messages`. Staff send `workspace` (with `?tenant=`, the workspace they stand in) from a workspace's screens and `overboard` from the OBS screens; staff who send none are on Overboard's side, as every older console was. A workspace caller is always on the workspace's side; `side=overboard` from one is a 403.
+- On the workspace's side a staffer must name a workspace (or be in a tenant organization): 400 otherwise, as for any tenant-scoped read.
+- An internal note from the workspace's side is a 403 for everyone ("Internal notes are added from the support inbox." for staff). `PATCH` is Overboard's side only, as before.
+- Stored: `reporterSide` on the report and `author.side` on every thread entry, both optional (rows from before sides read their staff flag). Every new row keeps `reporterIsObsStaff` and `author.isObsStaff` equal to "on Overboard's side", so every older read of those flags — the workspace list filter, the metrics, the first-response rule — stays right. The reporter's own org (`reporterOrgSlug`, `obs` for a staffer) still says who filed it, in the inbox shape only.
+- Wire: `reporter.side` and `author.side` on every read; `reporter.isObsStaff` and `author.isObsStaff` mean "on Overboard's side".
+- Metrics: reports raised on Overboard's side count in neither number; a staffer's report from a workspace's screens is the workspace's and counts.
+
 ## Revision 2026-09-24 — a Support page, threads, one Resolved status
 
 Arthur's walkthrough ruling: a **Support** page in the workspace sidebar that lists every report with a back-and-forth thread, replies both ways, Get help kept; staff can un-acknowledge; one **Resolved** status with a reason; the preview names the reporter and workspace with a friendlier footer; reports capture app version, browser and page URL; staff get time-to-first-response and time-to-resolve. No session recording. This section wins over any older line below.
@@ -30,9 +81,9 @@ Arthur's walkthrough ruling: a **Support** page in the workspace sidebar that li
 
 | Route | Who | What |
 |---|---|---|
-| `/support` | everyone with a workspace in view | **Support** — the workspace's reports, newest first, endless scroll (admin-lists.spec.md), search on the message, status filter (Open / Resolved / All). In the Workspace sidebar section, last. Staff with a tenant chosen see that tenant's reports, **including internal staff-raised ones** (marked "Internal"), plus staff actions. The old "not in the sidebar" decision is reversed. |
-| `/support/:reportId` | the report's workspace, or staff | **The report page**: what was sent, the thread, a reply box, and the status. Staff get the triage panel (acknowledge / un-acknowledge, assign, resolve with a reason, merge, reopen) beside it. A full page with a URL, so a report can be linked from anywhere. |
-| `/inbox` | staff | **Support inbox** (OBS Internal, badge unchanged): every workspace's reports, paged, with a **workspace filter**, search, status and reason filters, the Patterns view, and the two response-time metrics. Rows open `/support/:reportId` in that workspace. `/support` used to be the inbox for staff; it now always means the workspace page. |
+| `/support` | everyone with a workspace in view | **Support** — the workspace's reports, newest first, endless scroll (admin-lists.spec.md), search on the message, status filter (Open / Resolved / All). In the Workspace sidebar section, last. Staff with a tenant chosen see exactly that tenant's list — no internal reports, no staff actions (superseded 2026-09-28, "sides"). The old "not in the sidebar" decision is reversed. |
+| `/support/:reportId` | the report's workspace, or staff looking at its screens | **The report page**: what was sent, the thread, a reply box, and the status. No triage here (superseded 2026-09-28: triage is on `/inbox/:reportId`). A full page with a URL, so a report can be linked from anywhere. |
+| `/inbox` | staff | **Support inbox** (OBS Internal, badge unchanged): every workspace's reports, paged, with a **workspace filter**, search, status and reason filters, the Patterns view, and the two response-time metrics. Rows open `/inbox/:reportId`, the report page with the triage panel (2026-09-28). `/support` used to be the inbox for staff; it now always means the workspace page. |
 
 Get help stays in the top bar, unchanged in place; after sending, its confirmation links to the new report's page.
 
@@ -88,7 +139,7 @@ Audit: `support_report_update` (new) for acknowledge, un-acknowledge, assign, re
 | Field | Notes |
 |---|---|
 | `organizationId?` | The workspace it is about. Absent only for a report an Overboard staffer raised with no tenant in view (the audit log's platform-scoped precedent). |
-| `reporterUserId`, `reporterOrgSlug`, `reporterName?`, `reporterIsObsStaff` | Who raised it. The name is snapshotted from the admin sign-in at creation so the inbox never re-queries it. Staff-raised reports are internal and never appear in a workspace's own list. |
+| `reporterUserId`, `reporterOrgSlug`, `reporterName?`, `reporterIsObsStaff`, `reporterSide?` | Who raised it, and on which side. The name is snapshotted from the admin sign-in at creation so the inbox never re-queries it. Reports raised on Overboard's side (from the OBS screens) are internal and never appear in a workspace's own list; a staffer filing from a workspace's screens files on the workspace's side. `reporterIsObsStaff` is kept equal to "raised on Overboard's side" (see "Revision 2026-09-28 — sides"). |
 | `surface` | Where it was raised: `load-error`, `failed-delivery`, `fan`, `contest`, `game`, `export`, `sign-in`, `publish`, `workspace`, `general`. |
 | `kind` | `error` or `question`. |
 | `subject?` | `{ type, id }` — what it is about (`redemption`, `membership`, `contest`, `game`, `screen`). This is what puts the answer back on the thing reported. |
@@ -96,7 +147,7 @@ Audit: `support_report_update` (new) for acknowledge, un-acknowledge, assign, re
 | `message?` | The reporter's own sentence, ≤2,000 characters. Optional — the context is meant to be enough. |
 | `status` | `open` ⇄ `acknowledged` → `resolved`. Open and acknowledged are both **unresolved**; staff can un-acknowledge. `wont-fix` is a legacy value, read as `resolved` with reason `wont-fix` (see the revision). |
 | `resolutionReason?` | `fixed`, `wont-fix` or `duplicate` — why a resolved report is resolved. |
-| `thread` | The back-and-forth: `{ messageId, author: { userId, name, isObsStaff }, body, createdAt }[]`, oldest first, ≤200 messages of ≤2,000 characters. |
+| `thread` | The back-and-forth: `{ messageId, author: { userId, name, isObsStaff, side? }, body, createdAt }[]`, oldest first, ≤200 messages of ≤2,000 characters. `author.side` is the side it was written on; entries from before sides read `isObsStaff`. |
 | `firstResponseAt?` | When Overboard first answered — the first staff message or resolution. Server-set; the metric's source. |
 | `resolution?` | Overboard's answer. **Customer copy**: plain product language, no ids, no vendor names — the reporter reads it on the thing they reported. |
 | `assigneeUserId?`, `assigneeName?` | Which staffer owns it. |
@@ -179,12 +230,12 @@ Reads and the report write are not reverification-gated: nothing here releases P
 ## Rules
 
 1. **Report context is a closed key set with no fan contact field.** Enforced by the contract (strict); widening it is a reviewed change to `SUPPORT_CONTEXT_KEYS`.
-2. **A workspace sees only its own people's reports.** Staff-raised reports are internal; cross-workspace reads are refused as everywhere.
-3. **Only Overboard staff change a report's state.** Enforced server-side on every PATCH.
-4. **A resolution is required to close a report, and it is customer copy.**
+2. **A workspace sees only its own side's reports.** Reports raised on Overboard's side are internal; cross-workspace reads are refused as everywhere. Staff looking at a workspace's screens read exactly what the workspace reads.
+3. **Only Overboard staff change a report's state, and only from the inbox.** Enforced server-side on every PATCH; the triage panel exists only on `/inbox/:reportId`. The one change the workspace's side makes is implicit: a reply to a resolved report reopens it.4. **A resolution is required to close a report, and it is customer copy.**
 5. **The badge counts unresolved reports.** Never unread.
 6. **No per-report notification to Overboard.**
 7. **The drawer attaches nothing it does not show.**
+8. **The side is where it was written.** A staffer on a workspace's screens writes as the workspace; only the OBS screens write as Overboard. Nobody ever reads as talking to themselves.
 
 ## Known gaps (recorded, not blocking)
 
