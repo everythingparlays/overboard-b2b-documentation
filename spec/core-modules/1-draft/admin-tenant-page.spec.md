@@ -1,12 +1,14 @@
 # Core Module Spec: Admin — Tenant page (staff)
 
-**Implements:** PRD `TEN-03`, `TEN-05`, `ADM-06`, `PRIZE-03`, `SEC-06`, `ADM-09`, `AUTH-03` (email is the only sign-in method, so the page says so). HLD [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) `IDN-13`. Arthur's 2026-09-24 walkthrough rulings "Full pages instead of drawers" and "The tenant page (staff)".
+**Implements:** PRD `TEN-03`, `TEN-05`, `ADM-06`, `PRIZE-03`, `SEC-06`, `ADM-09`, `AUTH-03` (email is the only sign-in method, so the page says so). HLD [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) (`IDN-13`'s step-up ruled out, 2026-09-28). Arthur's 2026-09-24 walkthrough rulings "Full pages instead of drawers" and "The tenant page (staff)".
 
-**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — user-level staff-ness (Rule 11), `?tenant=` targeting (Rule 1), the acting-on selection, the reverification list, "Pages, drawers and dialogs" and "Staff extras on tenant screens" (revised 2026-09-24). [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md) — the All tenants directory this page is opened from, provisioning, and finalization. [`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md) — rename, pause, resume and delete, reused unchanged. [`admin-team.spec.md`](admin-team.spec.md) — the Team page the Setup card links to. [`admin-lists.spec.md`](admin-lists.spec.md) — the endless-scroll list and cursor paging. [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) — `GET /admin/all-contests`, which the Contests section reads. [`admin-contests.spec.md`](admin-contests.spec.md) — the contest page the Contests rows open, and the Finalize dialog. [`admin-prizes.spec.md`](admin-prizes.spec.md) — Prize deliveries, whose tiles the send counts match and whose cross-tenant mode the failed-sends links open.
+**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — user-level staff-ness (Rule 11), `?tenant=` targeting (Rule 1), the acting-on selection, "No re-authentication", "Pages, drawers and dialogs" and "Staff see what the workspace sees" (revised 2026-09-28). [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md) — the All tenants directory this page is opened from, provisioning, and finalization. [`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md) — rename, pause, resume and delete, reused unchanged. [`admin-team.spec.md`](admin-team.spec.md) — the Team page the Setup card links to. [`admin-lists.spec.md`](admin-lists.spec.md) — the endless-scroll list and cursor paging. [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) — `GET /admin/all-contests`, which the Contests section reads. [`admin-contests.spec.md`](admin-contests.spec.md) — the contest page the Contests rows open, and the Finalize dialog. [`admin-prizes.spec.md`](admin-prizes.spec.md) — Prize deliveries, whose tiles the send counts match and whose cross-tenant mode the failed-sends links open.
 
 **Supersedes:** the tenant detail drawer in [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md) and the drawer surface in [`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md) "The console surface". Both specs' endpoints, guards and rules stand; only where the controls live changes.
 
 **Status:** Draft. Written 2026-09-24 for the S1 console redesign.
+
+**Revised 2026-09-28** (Arthur's Wave 4 walkthrough ruling): **no re-authentication** — Pause, Resume, Delete and Finalize run on their dialogs, with the typed subdomain or contest name checked on the server. The tenant page and All contests are now **the only places staff finalize**; the workspace's contest cards and contest page no longer offer it.
 
 **Revised 2026-09-27 (Wave 4):** the First admin section is removed, with its lookup, Re-invite and their endpoints. The Team page, opened as the tenant, already re-invites (a second place to invite a tenant's admin would be a second implementation of Team). The Contests table shows the contest states Wave 3 introduced (Draft, Open, Closed, with the Finalized badge). Everything else on the page stands.
 
@@ -73,10 +75,10 @@ All under `/admin`, all **staff only**: the handler refuses a caller who is not 
 | GET | `/admin/tenants/notes` | `requireAdmin` | Staff notes, newest first, cursor-paged |
 | POST | `/admin/tenants/notes` | `requireAdmin` | Append one note |
 | POST | `/admin/tenants/rename` | `requireAdmin` | Unchanged ([`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md)) |
-| POST | `/admin/tenants/suspend`, `/resume` | `requireAdminReverified` | Unchanged |
-| POST | `/admin/tenants/delete` | `requireAdminReverified` | Unchanged, `{ confirmSubdomain }` |
+| POST | `/admin/tenants/suspend`, `/resume` | `requireAdmin` | No re-authentication (2026-09-28) |
+| POST | `/admin/tenants/delete` | `requireAdmin` | `{ confirmSubdomain }`, checked on the server |
 | GET | `/admin/all-contests` | `requireAdmin` | Unchanged; the Contests section sets its workspace filter to this tenant ([`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md), [`admin-lists.spec.md`](admin-lists.spec.md)) |
-| POST | `/admin/contests/:contestId/finalize` | `requireAdminReverified` | Unchanged, `{ confirmName }` |
+| POST | `/admin/contests/:contestId/finalize` | `requireAdmin` | `{ confirmName }`, checked on the server |
 
 ### `GET /admin/tenants/detail`
 
@@ -143,7 +145,7 @@ The page is full width inside the console shell (the sidebar stays; this is not 
 **1. Header.**
 
 - Eyebrow "Tenant". H1 the display name.
-- **The display name edits in place.** Clicking it, or its pencil button, turns it into a text field (1–80 characters) with the current name selected. Enter or leaving the field saves through `POST /admin/tenants/rename`; Escape cancels. While it saves the field is read-only; on success the H1 shows the new name and an inline line reads "Saved." A refusal answers beside the field in plain words, and the lifecycle spec's loud divergence case ("Clerk now says X, the record says Y") is shown verbatim to staff. Not reverified (admin-tenant-lifecycle, "No reverification, argued").
+- **The display name edits in place.** Clicking it, or its pencil button, turns it into a text field (1–80 characters) with the current name selected. Enter or leaving the field saves through `POST /admin/tenants/rename`; Escape cancels. While it saves the field is read-only; on success the H1 shows the new name and an inline line reads "Saved." A refusal answers beside the field in plain words, and the lifecycle spec's loud divergence case ("Clerk now says X, the record says Y") is shown verbatim to staff. Nothing re-authenticates (admin-tenant-lifecycle, "No reverification").
 - **Status chip**: "Active", or "Paused" with the date on hover ("Paused on Sep 20, 2026").
 - **The fan-app address**, `https://denver.overboardsports.com`, in the mono face, with a copy button ("Copy address"; after copying, "Copied" for two seconds, announced to screen readers). Under it, muted: "The subdomain can't be changed."
 - **Actions**, right-aligned: **"Open as this tenant"** (primary), then an overflow menu.
@@ -171,7 +173,7 @@ The page is full width inside the console shell (the sidebar stays; this is not 
 | (action) | **"Finalize"** (ghost), only when the contest is published, not finalized, and every one of its games has ended (the card's rule in [`admin-contests.spec.md`](admin-contests.spec.md)); otherwise the cell is empty, not a disabled button |
 
 - **A row opens the contest page acting as the tenant**: it sets the acting-on selection to this tenant and navigates to `/contests/:id?tenant=<slug>`. The contest page's back link then returns here.
-- **Finalize** stops the row click and opens the one centred Finalize dialog the contest cards and the contest page use ([`admin-contests.spec.md`](admin-contests.spec.md), "Finalize, wherever it appears"): the consequence in plain words, the contest name typed to confirm, reverification, then `POST /admin/contests/:contestId/finalize` with `confirmName` (admin-obs-internal Rule 5). On success the row's status becomes Finished, its Finalize cell empties, and the row reads "Finalized." for a moment.
+- **Finalize** stops the row click and opens the one centred Finalize dialog All contests also uses ([`admin-contests.spec.md`](admin-contests.spec.md), "Finalize, wherever it appears"): the consequence in plain words, the contest name typed to confirm, then `POST /admin/contests/:contestId/finalize` with `confirmName` (admin-obs-internal Rule 5). On success the row's status becomes Finished, its Finalize cell empties, and the row reads "Finalized." for a moment.
 - Empty: "No contests yet." Filtered empty: "No contests match."
 
 **5. Usage.** A card titled "Usage".
@@ -191,8 +193,8 @@ The page is full width inside the console shell (the sidebar stays; this is not 
 - **Pause / Resume.** An active tenant shows "Pause fan access" with the line "Fans can't play until you resume. Nothing is deleted." A paused tenant shows "Resume fan access". Each opens a centred dialog:
   - Pause: title "Pause {name}?", body "Fans see a paused screen within a minute. Their accounts, boards and prizes are kept. The tenant's own admins can still sign in, but can't change anything.", buttons "Pause fan access" / "Cancel".
   - Resume: title "Resume {name}?", body "Fans can play again within a minute.", buttons "Resume fan access" / "Cancel".
-  - Confirming runs reverification, then the endpoint. A cancelled prompt reads as nothing having happened: "Nothing was paused." / "Nothing was resumed." as a quiet line in the dialog. A 409 because the state already changed elsewhere closes the dialog and refreshes the page.
-- **Delete.** "Delete tenant", with the line "Removes the tenant, its contests, boards, prizes, sponsors and memberships. Fan accounts are kept." It opens a centred dialog: title "Delete {name}?", the consequences as a short list with the pre-flight counts ("14 contests · 3,860 memberships · 9,112 boards · 420 prize records"), the sentence "This can't be undone.", a field "Type {slug} to confirm", and "Delete tenant" enabled only on an exact match. Confirming runs reverification, then `POST /admin/tenants/delete` with `confirmSubdomain`. On success the console refreshes the tenant list behind the switcher, returns to All tenants and shows the inline line "Deleted {name}." there.
+  - Confirming runs the endpoint. A 409 because the state already changed elsewhere closes the dialog and refreshes the page.
+- **Delete.** "Delete tenant", with the line "Removes the tenant, its contests, boards, prizes, sponsors and memberships. Fan accounts are kept." It opens a centred dialog: title "Delete {name}?", the consequences as a short list with the pre-flight counts ("14 contests · 3,860 memberships · 9,112 boards · 420 prize records"), the sentence "This can't be undone.", a field "Type {slug} to confirm", and "Delete tenant" enabled only on an exact match. Confirming runs `POST /admin/tenants/delete` with `confirmSubdomain`. On success the console refreshes the tenant list behind the switcher, returns to All tenants and shows the inline line "Deleted {name}." there.
 
 ### States
 
@@ -205,7 +207,7 @@ The page is full width inside the console shell (the sidebar stays; this is not 
 
 ### Permissions
 
-Overboard staff only, enforced server-side on every endpoint above; the page renders for staff and shows the "Overboard staff only" card to anyone else. Within staff there is no further split: every staff role may use every control, and the irreversible or grant-issuing ones (Pause, Resume, Delete, Finalize) are reverified. A tenant's own admins never see this page, its notes or its numbers (admin-surface Rule 13 and `ADM-09` are not in tension here: this is not a customer surface).
+Overboard staff only, enforced server-side on every endpoint above; the page renders for staff and shows the "Overboard staff only" card to anyone else. Within staff there is no further split: every staff role may use every control, and the irreversible ones (Delete, Finalize) take a typed confirmation, checked on the server; nothing re-authenticates (2026-09-28). A tenant's own admins never see this page, its notes or its numbers (admin-surface Rule 13 and `ADM-09` are not in tension here: this is not a customer surface).
 
 ### Copy
 
@@ -249,11 +251,11 @@ Stays a drawer (three fields). Its fields are now **Name**, **Subdomain** (with 
 6. **`TP-06` — Retired 2026-09-27.** The first-admin lookup left the page with its section.
 7. **`TP-07` — Retired 2026-09-27.** Re-invite lives on the Team page only.
 8. **`TP-08` — Every number on the page reads the same rows as the other staff screens.** Failed sends are Prize deliveries' Failed predicate; players are board counts; nothing is a stored counter.
-9. **`TP-09` — Contest rows open the contest page acting as the tenant, and Finalize follows the one rule everywhere.** Shown only when the contest is published, not finalized, and every game has ended; one dialog, typed name, reverification, audit first.
+9. **`TP-09` — Contest rows open the contest page acting as the tenant, and Finalize follows the one rule everywhere.** Shown only when the contest is published, not finalized, and every game has ended; one dialog, typed name, audit first; the contest page and cards never show it.
 10. **`TP-10` — Opening anything "as this tenant" sets the console's acting-on selection first.** The header action, the Setup links and the contest rows all use the switcher's own mechanism, so the sidebar and the page never disagree about which tenant is on screen. The overflow shortcuts open cross-tenant staff screens narrowed by a filter, and change no selection.
 11. **`TP-11` — Fan-app domain readiness is the backend allowlist check, with two states.** "Ready" means the origin is in both the CORS allowlist and the fan sign-in's authorized origins; anything else is "Not configured". It claims nothing about DNS or hosting.
 12. **`TP-12` — Sign-in method is "Email", always, and `authVariant` has no control anywhere.** The stored value is frozen and read by nothing; the create-tenant drawer does not ask for it.
-13. **`TP-13` — The danger zone is the lifecycle module, unchanged, in dialogs.** Pause, resume and delete keep their endpoints, reverification, typed confirmation and blocking audit; their confirmations are centred dialogs.
+13. **`TP-13` — The danger zone is the lifecycle module, unchanged, in dialogs.** Pause, resume and delete keep their endpoints, typed confirmation and blocking audit (no reverification since 2026-09-28); their confirmations are centred dialogs.
 14. **`TP-14` — The page shows only what exists.** No billing, plan or contact section and no placeholder for one; a tenant with no activity shows that plainly, never a dash.
 
 ## Known gaps (recorded, not blocking)
@@ -267,7 +269,7 @@ Stays a drawer (three fields). Its fields are now **Name**, **Subdomain** (with 
 ## References
 
 - PRD: [`TEN-03`, `TEN-05`, `ADM-06`, `ADM-09`, `PRIZE-03`, `SEC-06`, `AUTH-03`, `AUTH-04`](../../../documents/PRD/OBS_B2B_Platform_PRD.md)
-- [`admin-surface.spec.md`](admin-surface.spec.md) — access framework, reverification list, pages/drawers/dialogs, staff extras
+- [`admin-surface.spec.md`](admin-surface.spec.md) — access framework, "No re-authentication", pages/drawers/dialogs, "Staff see what the workspace sees"
 - [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md) — the directory, provisioning, finalization
 - [`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md) — rename, pause, resume, delete
 - [`admin-team.spec.md`](admin-team.spec.md) — the Team page, where staff re-invite a tenant's admin

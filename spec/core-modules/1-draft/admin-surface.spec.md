@@ -1,6 +1,6 @@
 # Core Module Spec: Admin Surface — Access Framework
 
-**Implements:** HLD [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) `IDN-10`, `IDN-12`, `IDN-13`. PRD `ADM-01`, `ADM-02`, `ADM-09`, `SEC-08`, `RPT-02`.
+**Implements:** HLD [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) `IDN-10`, `IDN-12` (`IDN-13`'s step-up is ruled out, 2026-09-28). PRD `ADM-01`, `ADM-02`, `ADM-09`, `SEC-08`, `RPT-02`.
 
 **Status:** Draft. No open questions remain — ready for review.
 
@@ -13,6 +13,8 @@
 **Revised 2026-09-24** (ruling, Arthur) — the S1 console redesign. Sponsors become their own Configuration item, separate from Brand; Prize deliveries replaces Prizes (and, across workspaces, the Delivery queue); Emails joins Configuration; contests, prize tiers, sponsors, fans and the staff tenant record become full pages with their own routes. "Pages, drawers and dialogs" (Rule 14) decides what is a page and what stays a drawer, and "Staff extras on tenant screens" (Rule 15) lists the staff-only controls the redesign adds. The Navigation table, the new page-route table beneath it, the reverification list and Rules 14–15 carry the change; nothing else moved.
 
 **Revised 2026-09-27** (Wave 4, Arthur's rulings of 2026-09-27) — Prizes returns as a sidebar item with Library and Deliveries tabs, and the Emails item folds into Deliveries; the contest page loses its Board tab and the builder its Board step; the builder keeps the sidebar; any non-finalized contest can be deleted; every asset field is an upload box. See "Revision 2026-09-27 (Wave 4)" below; the Navigation table, the page-route table, the pages/drawers/dialogs tables, the staff-extras table, the hues table, the reverification list and Rule 16 carry it.
+
+**Revised 2026-09-28** (Arthur's Wave 4 walkthrough ruling) — **no re-authentication anywhere, for everybody**: destructive actions keep the typed-name confirmation only, checked server-side. And **staff see a workspace's screens exactly as its admin or member would**: the 2026-09-24 staff extras are removed, apart from the listed exceptions. Staff finalize only from the OBS pages, and triage support only in the OBS inbox. "No re-authentication", "Staff see what the workspace sees", the Route surface, the dialogs paragraph and Rules 14–15 carry it.
 
 ## Overview
 
@@ -139,27 +141,25 @@ Only the bootstrap step is manual, and it happens once for the life of the platf
 |---|---|---|
 | Session lifetime | **8 hours** | One working day. An admin signs in each morning; a session cannot survive overnight on a lost or shared laptop. |
 | Inactivity timeout | **1 hour** | An unattended desk stops being a standing grant to production config and fan PII. |
-| Reverification window | **10 minutes** (Clerk's maximum) | Long enough to complete a task, short enough that a walked-away session cannot finish a destructive one. |
 
 Fan sessions stay long-lived and unaffected — they are on a different instance, which is part of why the instances are separate.
 
 **8 hours rather than Clerk's multi-day default** because an admin session is a standing grant to production configuration and, for OBS staff, cross-tenant fan PII. The cost is one TOTP entry per morning; the benefit is that a session compromised at 6pm is useless by the next morning.
 
-### Actions requiring reverification
+### No re-authentication (revised 2026-09-28)
 
-Re-prompt for credentials inside an already-MFA'd session (`IDN-13`) before anything **irreversible or PII-releasing**:
+No console action asks an admin to re-enter credentials inside an already-MFA'd session, whoever they are (Arthur's Wave 4 walkthrough ruling; this retires the `IDN-13` step-up the earlier list described). There is no reverification window, no `requireAdminReverified` route mode, and no `ADMIN_REVERIFICATION_ENFORCED` switch. What guards the **irreversible** actions is the typed confirmation, checked again on the server:
 
-- Exporting fan data (`RPT-01`, `RPT-02`) — releases PII
-- Deleting a fan's data (`SEC-07`) — irreversible, and legally consequential
-- Finalizing a contest (`PRIZE-03`) — triggers real prize sends to real fans; cannot be undone
-- Deleting a sponsor — it silently changes what fans see around every contest it was in. (Revised 2026-09-27: a prize tier or a game can only be removed from a contest before its first fan joins, from the contest's Prizes and Games tabs, and a library prize only while no contest awards it, so none of those removals changes what a fan plays for and none is reverified; [`admin-prizes.spec.md`](admin-prizes.spec.md), [`admin-contests.spec.md`](admin-contests.spec.md).)
-- Deleting a contest fans have joined (2026-09-27, [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §3.2) — it deletes their boards. A contest nobody has joined takes the typed name only
-- Removing an organization member or changing their role — the path to locking a tenant out of its own admin
-- Suspending or resuming a tenant, and deleting a tenant (ruling 2026-09-15, Arthur — the lifecycle module). Suspend and resume are reversible, but each flips a customer's live program for every fan at once; delete is the platform's largest irreversible action.
-- Staff sending an admin invitation into a tenant's organization, including re-inviting its first admin from that tenant's Team page (2026-09-24; since 2026-09-27 Team is the only place staff re-invite, [`admin-team.spec.md`](admin-team.spec.md), and this list wins over its "invitation does not"). It is the mirror image of removing a member or changing a role: whoever opens the email gets full control of a customer's workspace.
-- Sending a prize again that was already sent (staff "Send again", 2026-09-24). It duplicates a code or a claim link to a real fan, which clicking again cannot take back.
+| Action | Typed confirmation |
+|---|---|
+| Finalize a contest (`PRIZE-03`) | The contest's name |
+| Delete a contest, fans joined or not (end-to-end-flow.spec.md §3.2) | The contest's name |
+| Delete a sponsor | The sponsor's name |
+| Delete a fan's data (`SEC-07`) | The fan's display name |
+| Delete a tenant | Its subdomain |
+| Send a sent prize again (staff) | The fan's display name, and a reason |
 
-The common thread is *cannot be undone by clicking again*. Editing a sponsor logo does not qualify; deleting the sponsor does. (Renaming a tenant's display name follows the logo side of that line — argued in [`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md).)
+Exporting fan data (`RPT-01`, `RPT-02`) and revealing contact fields release PII, so each is audited; neither asks for credentials. Suspending and resuming a tenant, removing a team member and changing a role, publishing Overboard's own documents, and resending failed prizes run on their confirm dialog alone. Clerk's own API may still ask the user to prove who they are for an organization membership change, depending on the instance's settings; the Team page then says "Sign out and sign back in, then try again."
 
 ---
 
@@ -190,7 +190,7 @@ New environment: `ADMIN_CLERK_SECRET_KEY`, `ADMIN_CLERK_PUBLISHABLE_KEY`, stored
 
 Handlers read `req.adminScope`. **No admin handler takes a tenant identifier as a parameter** — the same rule as `IDN-04`, for the same reason, and the reason a cross-tenant read was possible on the fan surface. The one exception is **an OBS staff member acting on a chosen tenant**: the route takes the tenant as an explicit argument *and* verifies the caller is obs staff before honouring it. Since 2026-09-16 that verification is **user-level** (the resolution above), so it holds whatever organization the operator has active — including when they are inside a tenant org, where `?tenant=` defaults to that org and is still sent explicitly. A caller who is not obs staff naming a tenant is refused exactly as before, their own tenant included.
 
-**Reverification on PII** (`IDN-13`, [P2]): export and deletion routes require a fresh credential check within a short window, on top of the MFA'd session. This narrows the blast radius of an unattended session on the highest-consequence actions; it is not a substitute for MFA.
+**No step-up** (revised 2026-09-28): every admin route authenticates with `requireAdmin` and nothing more. Export and deletion routes are audited, and the destructive ones re-check their typed confirmation in the handler ("No re-authentication" above).
 
 `POST /b2b/contest/prize-tier` moves here. It is currently on the fan surface behind `requireMembership`, which means any *fan* of a tenant can write prize config — an interim measure, not a model.
 
@@ -227,7 +227,7 @@ One nav structure, three sections. Same screens for both actor classes (`ADM-01`
 | Configuration | Fields & Opt-ins | `/config` | `ADM-05`, `AUTH-02`, `OPT-01`–`OPT-05`, including each opt-in's linked document — [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) |
 | | Sponsors | `/sponsors` | `BRAND-02`–`BRAND-04`, `TEN-04` — its own item and hue, separate from Brand; [`admin-sponsors.spec.md`](admin-sponsors.spec.md) |
 | | Brand | `/branding` | `BRAND-01`, `TEN-C1` — [`admin-branding.spec.md`](admin-branding.spec.md). Unchanged in Wave 4 apart from upload fields and Wave 3's font removal; Brand page v2 is built on the Wave 5 branch |
-| | Team | `/team` | The chosen workspace's membership; staff extras per [`admin-team.spec.md`](admin-team.spec.md) |
+| | Team | `/team` | The chosen workspace's membership; staff see it as the workspace's admin does ([`admin-team.spec.md`](admin-team.spec.md)) |
 | OBS Internal | Operations | `/operations` | The staff home — [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) |
 | | All tenants | `/tenants` | Cross-tenant tenant list/switcher target |
 | | All contests | `/contests` | [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) |
@@ -295,23 +295,38 @@ Arthur's walkthrough ruling: "Full pages instead of drawers for contest create/e
 
 **Drawers that stay** (small forms): create tenant; tenant created; invite admin; invite or edit a team member; export; calendar day (Schedule and Season calendar); Tell Overboard; delivery detail (Prizes → Deliveries); opt-in, until the Fields & Opt-ins overhaul replaces it with its inline pattern.
 
-**Confirmations are centred dialogs**, not drawers and not inline zones: Finalize, Delete (fan, tenant, sponsor, contest, prize, prize tier), Pause and Resume, Send again, Re-invite. Delete contest covers any contest that isn't finalized (revised 2026-09-27; [`admin-contests.spec.md`](admin-contests.spec.md)). Delete sponsor just works: it removes the sponsor from every placement and credit automatically and the dialog says what goes with it; it never asks the admin to remove the sponsor elsewhere first ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)). A dialog states the consequence in plain words, names the thing it acts on, and puts the confirming action on the right. Where the action is reverified, reverification runs after the dialog's confirm; where it takes a typed confirmation (Finalize and delete a contest: the contest name; delete a tenant: its subdomain; delete a fan: their display name), the confirming button is enabled only on an exact match and the server checks the typed value again. A cancelled reverification leaves the dialog open and says nothing happened.
+**Confirmations are centred dialogs**, not drawers and not inline zones: Finalize, Delete (fan, tenant, sponsor, contest, prize, prize tier), Pause and Resume, Send again. Delete contest covers any contest that isn't finalized (revised 2026-09-27; [`admin-contests.spec.md`](admin-contests.spec.md)). Delete sponsor just works: it removes the sponsor from every placement and credit automatically and the dialog says what goes with it; it never asks the admin to remove the sponsor elsewhere first ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)). A dialog states the consequence in plain words, names the thing it acts on, and puts the confirming action on the right. Where it takes a typed confirmation (Finalize and delete a contest: the contest name; delete a sponsor: its name; delete a tenant: its subdomain; delete a fan: their display name), the confirming button is enabled only on an exact match and the server checks the typed value again. No dialog asks for credentials (revised 2026-09-28).
 
-### Staff extras on tenant screens (ruling, 2026-09-24)
+### Staff see what the workspace sees (ruling, 2026-09-28)
 
-"Identity is per user, not per screen" (Seamlessness, and D-064): whenever Overboard staff have a tenant selected, that tenant's screens show the staff-only controls as part of the screen, not on a separate staff surface. The server enforces each one on user-level staff-ness; the rendering follows `useIsObsStaff()`. The console-wide sweep of the existing screens has its own section, "Staff extras (sweep, 2026-09-24)", written alongside this one on `arthur-g1-console`; the redesign adds these:
+Arthur's Wave 4 walkthrough ruling reverses the 2026-09-24 staff extras: **when Overboard staff have a workspace chosen, its screens show them exactly what that workspace's admin or member would see.** Staff-only work happens on the OBS pages: staff finalize a contest from **All contests** or the **tenant page** ([`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md), [`admin-tenant-page.spec.md`](admin-tenant-page.spec.md)), and triage support only in the **support inbox**, `/inbox` and `/inbox/:reportId` ([`admin-support.spec.md`](admin-support.spec.md)). What staff may *do* on a workspace screen is unchanged — they write tenant configuration as its admin does — only the staff-only controls and wording went.
 
-| Screen | Staff extra |
+**Removed from the workspace screens:**
+
+| Screen | What went |
 |---|---|
-| Games & Contests cards and list rows | **Finalize** (ghost), only when the contest isn't finalized and every game has ended; hidden otherwise, not disabled ([`admin-contests.spec.md`](admin-contests.spec.md)) |
-| Contest page | **Finalize** in the header, and the Finalize state with its button in the Overview's "What's next" rail |
-| Staff All contests rows, tenant page Contests rows | **Finalize** per row, same rule |
-| Prizes → Deliveries | **Send again** on a sent row (reverified, because it duplicates a code); **Send to a different address** on a failed row; the recorded failure reason; a **Tenant column** and tenant filter across all workspaces (`/obs/prize-deliveries`) ([`admin-prizes.spec.md`](admin-prizes.spec.md)) |
-| Fan page | **Delete fan**; **Export this fan's activity** |
-| Team (the chosen tenant's) | **Re-invite** the first admin, only while the invitation is not accepted (reverified). The tenant page has no first-admin section since 2026-09-27 |
-| Every tenant screen | The tenant page itself, reached from the staff links on the screen |
+| Overview | The Overboard staff strip (status, subdomain, Team / Support / Open tenant record links) |
+| Games & Contests cards and list rows | Finalize |
+| Contest page | Finalize in the header, and the Finalize button in the Overview tab's "What's next" rail. Everyone reads "Overboard finalizes the contest after its last game." |
+| Game day | The cross-workspace live strip, the prize worker's raw failure reason, and the Finalize contest link |
+| Readiness checklist (Overview, Game day) | Staff-only fix links: a paused workspace has no fix link for anyone, and failed sends link to Game day for everyone |
+| Fan page | The prize worker's raw failure reason; staff read the same plain words as the workspace |
+| Support (`/support`, `/support/:reportId`) | Internal notes and the Internal badge, assign, acknowledge / resolve / reopen-as-staff triage, the jump to where it happened. Tenants and staff alike read, reply and reopen |
+| Exports | The "Fan actions for this workspace" button |
+| Team | The first-admin card with its staff badge, Resend, the Everyone / Admins / Members filter and the organization-name eyebrow; the staff view has the tenant screen's heading, banner and columns ([`admin-team.spec.md`](admin-team.spec.md)) |
 
-A tenant user never sees these controls, and a tenant user's request for any of them is refused server-side regardless.
+**Kept, pending Arthur** — each has no other surface, or the tenant version would be untrue for staff:
+
+| Where | What stays | The case |
+|---|---|---|
+| Shell | The paused banner's staff wording, "Fans can't play right now. Resume it from the tenant record." with the link | The tenant wording ("changes are turned off… contact Overboard") is untrue for staff, who can still write |
+| Fields & Opt-ins | **Edit Overboard's documents** on Overboard's own opt-in | Publishing the platform Terms and Privacy for every team has no other surface |
+| Brand | **Promote** on a saved preset | Publishing a preset to every tenant's gallery has no other surface |
+| Fan page | **Delete fan** (`SEC-07`) and **Export this fan's activity** (`RPT-02`, one fan) | The fan-data-rights pair: OBS-only by design, and no OBS page acts on one fan |
+| Team | The staff view reads and writes through the staff endpoints | Staff aren't Clerk members of the workspace, so Clerk's client can't reach its organization |
+| Team | The "Overboard staff" label on a staff member's row | Tenant admins see the same label |
+
+The prize Deliveries screens' staff controls (bulk resend, Send again, Send to a different address, the raw attempt reason) belong to the prizes rework ([`admin-prizes.spec.md`](admin-prizes.spec.md)) and are listed for it, not changed here.
 
 ---
 
@@ -341,28 +356,6 @@ Arthur's walkthrough ruling: every sidebar destination gets a hue, shown as a th
 
 Nothing else takes a hue: not status pills, text, numbers, buttons, or tables.
 
-## Staff extras (sweep, 2026-09-24)
-
-"Identity is per user, not per screen": when staff have a workspace chosen, that workspace's screens show staff-only extras. Every workspace screen was swept on 2026-09-24. What each one now offers staff, beyond what the workspace's own people see:
-
-| Screen | Staff extra |
-|---|---|
-| Shell | **The paused banner follows the chosen workspace**, not the session's active organization: staff choosing a paused workspace see it, worded for staff ("Fans can't play right now. Resume it from the tenant record." with a link). Previously staff never saw it. |
-| Overview | A staff strip: the workspace's status (live / paused), its subdomain, links to its Team and Support, and **Open tenant record** (or **Resume from the tenant record** when paused); "Needs attention → failed sends" opens the Delivery queue already filtered to this workspace. |
-| Game day | As before (cross-workspace live strip, raw failure reasons); the Finalize shortcut now opens Games & Contests, where the contest drawer carries Finalize; the failed-sends readiness row opens the Delivery queue filtered to this workspace. |
-| Schedule | "All games" marks which games any workspace runs (admin-schedule.spec.md). |
-| Games & Contests | **Finalize** in the contest drawer once every game has ended — the same typed-name confirmation and reverification as the tenant record. (The redesign's banner cards carry it next.) |
-| Prizes | As before (Delivery queue link), now filtered to this workspace. |
-| Fans | As before (Delete fan); the fan drawer's prize list shows **why a delivery failed**, as Game day does. |
-| Exports | **Fan actions for this workspace** — a link that opens Fan actions pre-set to it. |
-| Team | **The chosen workspace's team**, with invite, **re-invite the first admin**, resend/revoke invitations, role changes and removal (admin-team.spec.md). |
-| Support | The workspace's reports **including internal ones**, with the triage panel on each report (admin-support.spec.md). The inbox gains a workspace filter. |
-| Operations | "Failed sends" rows open the Delivery queue filtered to that workspace, as the spec always said; "ready to finalize" and "paused" rows open that workspace's tenant record directly. |
-
-Read with the 2026-09-27 revision: "Delivery queue" in this table is now Prize deliveries (all workspaces), "Prizes" is Prizes → Deliveries, and "the contest drawer" is the contest page.
-
-Identity checks are tidied to the user-level flag everywhere: the paused banner, and Team's "Overboard staff" row label (which used an email domain).
-
 ## Revision 2026-09-27 (Wave 4)
 
 Arthur's rulings of 2026-09-27 (`artifacts/review-2026-09-27/arthur-rulings-2026-09-27.md`), applied to the console surface. Each table above carries its part; this section says what moved.
@@ -373,7 +366,7 @@ Arthur's rulings of 2026-09-27 (`artifacts/review-2026-09-27/arthur-rulings-2026
 - **Sponsors** keeps `/sponsors` and gains `/sponsors/:sponsorId`. **Brand** is unchanged on main in Wave 4 apart from upload fields and Wave 3's font removal; Brand page v2 is built on the Wave 5 branch.
 - **The contest page's Board tab and the builder's Board step are gone**, with all prop curation: tenants neither choose nor see props. The contest page's tabs are Overview, Games, Prizes, Sponsors and Preview.
 - **The builder keeps the sidebar.** It is a page in the main column, with its steps as a clickable progress bar across the top and Save draft on every step.
-- **Contest states and deletion.** Draft, Open and Closed replace the visibility and entries switches, and any non-finalized contest can be deleted (typed name; reverification once fans have joined).
+- **Contest states and deletion.** Draft, Open and Closed replace the visibility and entries switches, and any non-finalized contest can be deleted (typed name; since 2026-09-28 the typed name alone, even once fans have joined).
 - **Uploads everywhere** (Rule 16).
 - **Redirects**: `/prize-deliveries` and `/settings/emails` → `/prizes/deliveries`; `/prizes?contest=<id>` → that contest's Prizes tab; `/branding/sponsors` → `/sponsors`; `/delivery-queue` → `/obs/prize-deliveries`.
 
@@ -433,8 +426,8 @@ Everywhere a console setting reaches the fan app today, and how good a candidate
 11. **OBS staff-ness is resolved from the user, not the active organization.** Active `obs` proves it from the signed token; anything else verifies membership against Clerk, cached 5 minutes, failing closed on error.
 12. **A view of the fan product inside the console renders the fan product's own code**, shared through `obs-b2b-shared` — never a likeness rebuilt in console markup, and never an embed of the live fan site. The console references the fan product; it does not host it, and it does not redraw it. Revised 2026-09-24: the fan-app preview mode is the one exception; [`admin-preview.spec.md`](admin-preview.spec.md) defines it.
 13. **The console never fabricates a value and never narrates a gap** (ruling 2026-09-22). An unmeasured stat renders no tile, an unwired feature renders no card, and a real number renders no caveat about its provenance — the element is absent until the data behind it exists, and absence is not captioned. Gap disclosure belongs in specs and code comments. This supersedes any earlier requirement to disclose a gap in the UI.
-14. **Pages, drawers and dialogs** (ruling 2026-09-24). A drawer holds a small form; anything with tabs, a preview, a list, or more than about eight fields is a page with its own route; confirmations are centred dialogs, with typed confirmation where reverification applies. The inventory of retired and remaining drawers is in "Pages, drawers and dialogs" above, and a new surface follows the principle rather than the nearest precedent.
-15. **Staff extras appear on tenant screens whenever staff have a tenant selected** (ruling 2026-09-24). Identity decides them, not which part of the console the staffer is in: Finalize on contest cards, the contest page and contest rows; Send again and the Tenant column on Prize deliveries; Delete fan and the fan activity export on the fan page; Re-invite on Team. Each is enforced server-side on user-level staff-ness; rendering is convenience.
+14. **Pages, drawers and dialogs** (ruling 2026-09-24). A drawer holds a small form; anything with tabs, a preview, a list, or more than about eight fields is a page with its own route; confirmations are centred dialogs, with a typed confirmation on the irreversible ones. The inventory of retired and remaining drawers is in "Pages, drawers and dialogs" above, and a new surface follows the principle rather than the nearest precedent.
+15. **Staff see a workspace's screens exactly as its admin or member would** (ruling 2026-09-28, reversing 2026-09-24's staff extras). Staff-only work lives on the OBS pages — Finalize on All contests and the tenant page, triage in the support inbox. The only staff-only controls on a workspace screen are the listed exceptions in "Staff see what the workspace sees", each kept because it has no other surface and each enforced server-side on user-level staff-ness.
 16. **Every asset field is an upload box** (ruling 2026-09-27). Wherever the console takes an image or file (logos, sponsor artwork, prize images, anything else), the field is a drag-and-drop box that also opens the file browser on click, with its preview, replace and remove, as [`admin-uploads.spec.md`](admin-uploads.spec.md) defines it and its upload route stores it. Never a URL textbox on its own.
 
 ---

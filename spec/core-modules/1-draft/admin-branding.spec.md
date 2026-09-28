@@ -259,9 +259,9 @@ All under `/admin`, admin Clerk instance only, scope from `req.adminScope` ([`ad
 
 **`THEME-13` — `org:admin` writes, `org:member` reads, enforced server-side.** `refuseReadOnlyWrite(scope)` runs **first**, before the target is even resolved, on all three write routes. A suspended tenant's own admins are refused (OBS staff are not) — a paused workspace is paused for configuration too. The console's read-only presentation for `org:member` is UX; the server is the boundary, and the `org:member` refusal carries the module's existing message rather than a branding-specific one.
 
-**`THEME-14` — No reverification anywhere in this module, and that is a ruling rather than an omission** (Arthur, 2026-09-22). [`admin-surface.spec.md`](admin-surface.spec.md)'s reverification list has one common thread: *cannot be undone by clicking again*. A theme edit can. It releases no PII, sends nothing to anyone, triggers no irreversible action, and its worst outcome is a tenant's site looking wrong until someone publishes again — which they can do immediately, from the same screen, with the same session. That spec draws the line explicitly at "editing a sponsor logo does not qualify; deleting the sponsor does", and every write in this module sits on the logo side of it. Adding a re-prompt to a reversible cosmetic edit would spend the mechanism's credibility on the cheapest action in the console and teach admins to click through it.
+**`THEME-14` — No reverification in this module** (Arthur, 2026-09-22; since 2026-09-28 no console action re-authenticates at all, [`admin-surface.spec.md`](admin-surface.spec.md) "No re-authentication"). A theme edit is undone by publishing again: it releases no PII, sends nothing to anyone, triggers no irreversible action, and its worst outcome is a tenant's site looking wrong until someone publishes again — which they can do immediately, from the same screen.
 
-Promotion is the one write that is *not* reversible in the same way — a gallery row is visible to every tenant the moment it lands — and it is handled with the tool that fits: staff-only plus an audit entry, not a credential re-prompt. Reverification protects against an unattended session; the gallery risk is about *authority*, which is what the staff gate answers.
+Promotion is the one write that is *not* reversible in the same way — a gallery row is visible to every tenant the moment it lands — and it is handled with the tool that fits: staff-only plus an audit entry. The gallery risk is about *authority*, which is what the staff gate answers. **Promote** stays on a saved preset for staff on the workspace's Brand screen, one of the kept exceptions to "staff see what the workspace sees" (admin-surface, 2026-09-28): publishing a preset for every tenant has no other surface.
 
 **`THEME-15` — Every branding write calls `clearOrgCache()`.** The fan-side org lookup is cached 60 seconds. An admin who publishes a theme, opens the team's site and sees the old one concludes the publish failed — and their next act is to publish again, which does nothing, twice. The write knows exactly which tenant changed. Preset writes call it too: they are org-document writes, the call is cheap, and a cache holding a document that no longer matches the database is a bug regardless of which field moved.
 
@@ -351,7 +351,7 @@ This is Principle 1 at its sharpest and it is worth stating as a rule because th
 12. **The preview renders the fan product's own code and captions nothing about its own limits.** Gaps are recorded in this spec; they do not appear on screen.
 13. **A stat fraction renders only when the progress behind it is real**, and nothing renders in its place when it is not. Under props render none this wave.
 14. **Every branding write clears the tenant's org cache.**
-15. **No branding write requires reverification.** Every one of them is undone by publishing again.
+15. **No branding write re-authenticates.** Every one of them is undone by publishing again (and since 2026-09-28 no console write re-authenticates).
 16. **Legacy parity is pinned by test, with exactly one sanctioned delta** — computed on-colors fixing foregrounds that already failed 4.5:1. Any other difference is a resolver defect.
 17. **Reduced motion means no confetti and no flash**, not a smaller one.
 
@@ -374,7 +374,7 @@ Principle 1 makes this section load-bearing: it is the *only* place these live.
 ## References
 
 - PRD: [`BRAND-01`–`BRAND-04`, `ADM-02`, `ADM-03`, `TEN-02`, `TEN-03`, `TEN-05`, `TEN-C1`](../../../documents/PRD/OBS_B2B_Platform_PRD.md) — §8 Branding & Sponsor Assets, §15.2 the dividing line
-- [`admin-surface.spec.md`](admin-surface.spec.md) — access framework, the `/branding` nav destination, the **Fan's-eye view** principle and Rule 12, and the reverification list this module sits outside
+- [`admin-surface.spec.md`](admin-surface.spec.md) — access framework, the `/branding` nav destination, the **Fan's-eye view** principle and Rule 12, and "No re-authentication"
 - [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the draft-and-publish skeleton, the `.obs-gate-preview` wrapper, and the "the preview cannot show a tenant's real colors" known gap this spec closes
 - [`../../webapp/styling.spec.md`](../../webapp/styling.spec.md) — §1 the runtime theming system this replaces, and the platform-fixed status colors it keeps
 - [`multi-tenant-identity-auth.spec.md`](multi-tenant-identity-auth.spec.md) — its Data Model section already places branding server-side; this is that

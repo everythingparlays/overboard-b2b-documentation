@@ -1,14 +1,16 @@
 # Core Module Spec: Admin — OBS Internal
 
-**Implements:** PRD `OBS-01`–`OBS-05`, `PRIZE-03`, `PRIZE-06`, `PRIZE-07`, `RPT-02`, `RPT-05`, `TEN-03`, `TEN-05`, `TEN-C3`, `SEC-06`, `ADM-06`. HLD [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) `IDN-13`.
+**Implements:** PRD `OBS-01`–`OBS-05`, `PRIZE-03`, `PRIZE-06`, `PRIZE-07`, `RPT-02`, `RPT-05`, `TEN-03`, `TEN-05`, `TEN-C3`, `SEC-06`, `ADM-06`. HLD [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) (`IDN-13`'s step-up ruled out, 2026-09-28).
 
-**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — the whole access framework: `resolveAdminScope`, the OBS Internal nav section, the reserved-slug rule (Rule 7), the slug-equals-subdomain rule (Rule 4), and the reverification list. [`admin-exports.spec.md`](admin-exports.spec.md) — the in-envelope CSV pattern and the audit-row-is-the-export-record principle. [`admin-games-and-prizes.spec.md`](admin-games-and-prizes.spec.md) — derived contest status (`getB2BContestStatus`) and delivery-stat arithmetic.
+**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — the whole access framework: `resolveAdminScope`, the OBS Internal nav section, the reserved-slug rule (Rule 7), the slug-equals-subdomain rule (Rule 4), and "No re-authentication". [`admin-exports.spec.md`](admin-exports.spec.md) — the in-envelope CSV pattern and the audit-row-is-the-export-record principle. [`admin-games-and-prizes.spec.md`](admin-games-and-prizes.spec.md) — derived contest status (`getB2BContestStatus`) and delivery-stat arithmetic.
 
 **Status:** Draft.
 
 **Revised 2026-09-22** (ruling, Arthur) — customer-visible gap narration is removed from these screens under the **Honesty by omission, not by narration** principle in [`admin-surface.spec.md`](admin-surface.spec.md). The Platform health gap card naming `OBS-01`–`OBS-03`, the delivery queue's "—" for a missing `failureReason`, and its on-screen "visibility-only" note all go; the gaps themselves stay recorded here. Never-fabricate is unchanged.
 
 **Revised 2026-09-24** (ruling, Arthur) — the Delivery queue's screen becomes the cross-tenant **Prize deliveries** view (`/obs/prize-deliveries`), paged with a cursor, so its 100-row cap goes. Since the Wave 4 revision (2026-09-27) it is the staff view of the Deliveries tab of Prizes ([`admin-prizes.spec.md`](admin-prizes.spec.md)). Finalization, provisioning, Platform health and Fan actions are unchanged here.
+
+**Revised 2026-09-28** (Arthur's Wave 4 walkthrough ruling) — **no re-authentication**: finalization, the fan-actions export and resend run on `requireAdmin`, with finalization's typed contest name still checked on the server. **Finalization's home is the tenant page and All contests** ([`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md)); a workspace's own screens — its contest cards and contest page included — never offer it, for staff or anyone else.
 
 **Revised 2026-09-24** (ruling, Arthur): the tenant detail drawer is replaced by the tenant page ([`admin-tenant-page.spec.md`](admin-tenant-page.spec.md)); the directory keeps its table and rows open that page.
 
@@ -23,10 +25,10 @@ The operator-facing section of the admin console: the four OBS Internal screens 
 **Not in scope:**
 
 - **An error-tracking service.** `OBS-01`–`OBS-03` need error events with tenant attribution and alerting; nothing in the stack collects them. The Platform health screen renders no error-rate tile and no note about one — neither an invented number nor an explanation of its absence. Recorded gap (superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md); this previously required the screen to say so on its face).
-- ~~**Retry or resend of failed prize sends.**~~ *Now in scope — superseded 2026-09-23 by [`prize-delivery.spec.md`](prize-delivery.spec.md) "Resend": the Delivery queue resends failed sends, singly or in bulk, optionally to a corrected address, reverification-gated and audited (`prize_resend`). This previously shipped the screen visibility-only, because no resend mechanism existed and a button with nothing behind it would have lied.*
+- ~~**Retry or resend of failed prize sends.**~~ *Now in scope — superseded 2026-09-23 by [`prize-delivery.spec.md`](prize-delivery.spec.md) "Resend": the Delivery queue resends failed sends, singly or in bulk, optionally to a corrected address, audited (`prize_resend`). This previously shipped the screen visibility-only, because no resend mechanism existed and a button with nothing behind it would have lied.*
 - **Coupon-code batches.** `PRIZE-05`/`PRIZE-06` code tracking has no model (the games/prizes spec already records the missing sponsor model); the queue cannot show code exhaustion. Recorded gap.
 - **Deferred prize sends on finalization.** The PRD itself scopes this out: finalization "is what will trigger deferred prize sends **when PRIZE-02 is built**". V1 finalization persists the state and the audit record — it dispatches nothing, and fakes nothing. Recorded gap.
-- ~~**Tenant offboarding.** Deleting a production tenant is a legal-and-data question, not a screen.~~ **Superseded 2026-09-15 (ruling, Arthur):** offboarding *is* a screen — suspend, rename, and delete ship as the tenant lifecycle module, with delete behind reverification and a server-checked typed confirmation. See [`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md); the dev script survives as developer tooling only.
+- ~~**Tenant offboarding.** Deleting a production tenant is a legal-and-data question, not a screen.~~ **Superseded 2026-09-15 (ruling, Arthur):** offboarding *is* a screen — suspend, rename, and delete ship as the tenant lifecycle module, with delete behind a server-checked typed confirmation. See [`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md); the dev script survives as developer tooling only.
 
 ---
 
@@ -91,12 +93,11 @@ The defaults are one definition in `obs-b2b-shared` (`interfaces/b2b/tenant-defa
 
 ### Contest finalization (`POST /admin/contests/:contestId/finalize`)
 
-Finalization lives here, on the tenant drill-in, and not on Overview or its own nav entry. The argument: the mock's Overview "Finalize contest" button assumed tenant authority the PRD has since refused (`PRIZE-03`: OBS staff only), so it cannot sit on a screen tenant users see; the Delivery queue is failure triage, not contest lifecycle; and a fifth nav destination for one button is navigation for its own sake. The operator's real path — pick the tenant, see its contests, finish one — is exactly the `/tenants` drill-in.
+Finalization lives here, on the tenant drill-in (since 2026-09-24 the tenant page), and on All contests — never on Overview, a workspace's contest page or cards, or its own nav entry. The argument: the mock's Overview "Finalize contest" button assumed tenant authority the PRD has since refused (`PRIZE-03`: OBS staff only), so it cannot sit on a screen tenant users see; the Delivery queue is failure triage, not contest lifecycle; and a fifth nav destination for one button is navigation for its own sake. The operator's real path — pick the tenant, see its contests, finish one — is exactly the `/tenants` drill-in.
 
-Guardrails, all three of the platform's strongest, together for the first time:
+Guardrails:
 
 - **Obs-only, structural**, refused before tenant resolution so a tenant caller learns nothing else.
-- **Reverification** (`IDN-13`): the route joins the `requireAdminReverified` allow-list — irreversible, per the admin-surface list.
 - **Typed confirmation, server-checked**: the body carries `confirmName`, which must equal the contest's exact name. The form gates the button on the same match, but the server check is the one that counts — a scripted call cannot skip it.
 
 Semantics: 404 for a contest the named tenant does not own (the standard probe answer), 409 when already finalized, and the audit write (`contest_finalize`, blocking — the `fan_delete` precedent) happens **before** the state write: if the record cannot be made, nothing is finalized. The write sets `finalized: true` and `finalizedAt`; derived status flips to Finished platform-wide, which closes joining and marks the contest finished for fans. No send is dispatched — see Not-in-scope.
@@ -125,13 +126,13 @@ Two adjacent facts, recorded with it: the SQS dead-letter queues and their ≥1-
 
 *Superseded 2026-09-22 by the omission principle in [`admin-surface.spec.md`](admin-surface.spec.md) (Rule 13): this previously required legacy rows to render an "—" placeholder. A dash is a caption saying "we don't have this", which is narration; the empty cell says the same thing without claiming the screen owes the reader an explanation.*
 
-**Resend** (superseded 2026-09-23 by [`prize-delivery.spec.md`](prize-delivery.spec.md)): each failed row carries a Resend action — to the fan's account email or, for one row at a time, a corrected address — and rows can be selected for a bulk resend. A resent row stays on the list reading "Resending" until the worker reports back. The action is OBS-only, reverification-gated, audited before it changes anything, and conditional on the row's resend count, so it cannot send one prize twice. (This screen was previously visibility-only, and before 2026-09-22 was required to say so on screen.)
+**Resend** (superseded 2026-09-23 by [`prize-delivery.spec.md`](prize-delivery.spec.md)): each failed row carries a Resend action — to the fan's account email or, for one row at a time, a corrected address — and rows can be selected for a bulk resend. A resent row stays on the list reading "Resending" until the worker reports back. The action is OBS-only, audited before it changes anything, and conditional on the row's resend count, so it cannot send one prize twice. (This screen was previously visibility-only, and before 2026-09-22 was required to say so on screen.)
 
 ---
 
 ## Fan actions (`/fan-actions`)
 
-`RPT-02`'s internal event-level export, for OBS product analysis, never shared with teams or sponsors — the one route whose obs-only boundary is a PRD acceptance criterion (§11.2). `POST /admin/fan-actions/export`, reverification-gated (`IDN-13`: behavioral data tied to identifiable accounts), returning the CSV in the envelope like every export — nothing persisted, no PII or token in any URL.
+`RPT-02`'s internal event-level export, for OBS product analysis, never shared with teams or sponsors — the one route whose obs-only boundary is a PRD acceptance criterion (§11.2). `POST /admin/fan-actions/export`, audited (behavioral data tied to identifiable accounts), returning the CSV in the envelope like every export — nothing persisted, no PII or token in any URL.
 
 Two deliberate narrowings:
 
@@ -154,9 +155,9 @@ All six authorize on **user-level obs staff-ness**, whatever organization the ca
 | POST | `/admin/tenants` | requireAdmin | obs staff only |
 | GET | `/admin/platform-health` | requireAdmin | obs staff only |
 | GET | `/admin/delivery-queue` | requireAdmin | obs staff only; replaced by `POST /admin/all-prize-deliveries/search` ([`admin-prizes.spec.md`](admin-prizes.spec.md)) |
-| POST | `/admin/delivery-queue/resend` | requireAdminReverified | obs staff only (see [`prize-delivery.spec.md`](prize-delivery.spec.md)) |
-| POST | `/admin/fan-actions/export` | requireAdminReverified | obs staff only |
-| POST | `/admin/contests/:contestId/finalize` | requireAdminReverified | obs staff only, `?tenant=` required |
+| POST | `/admin/delivery-queue/resend` | requireAdmin | obs staff only (see [`prize-delivery.spec.md`](prize-delivery.spec.md)) |
+| POST | `/admin/fan-actions/export` | requireAdmin | obs staff only |
+| POST | `/admin/contests/:contestId/finalize` | requireAdmin | obs staff only, `?tenant=` required |
 
 **`GET /admin/tenants/directory` returns** every tenant with `fanCount`, config counts, `failedSendCount`, and `contests[]` (derived status, `finalized`, game/tier counts, players — the board count, carried in the `numberParticipants` wire field — and per-status delivery counts).
 
@@ -166,7 +167,7 @@ All six authorize on **user-level obs staff-ness**, whatever organization the ca
 
 **`GET /admin/delivery-queue` returns** status totals plus failed rows `{ tenant, contest, prizeName, fan: { membershipId, displayName }, failureReason, failedAt }`, newest first, capped at 100 with a `truncated` flag.
 
-**`POST /admin/fan-actions/export` takes** optional `?tenant=` and returns `{ filename, rowCount, filteredOutCount, tenants, csv }`; 403 with the reverification hint when stale.
+**`POST /admin/fan-actions/export` takes** optional `?tenant=` and returns `{ filename, rowCount, filteredOutCount, tenants, csv }`.
 
 **`POST /admin/contests/:contestId/finalize` takes** `?tenant=` and `{ confirmName }` and returns `{ contest: { finalized: true, finalizedAt }, delivery }`; 400 name mismatch, 404 unknown/unowned contest, 409 already finalized, 500 (nothing finalized) when the audit write fails.
 
@@ -180,7 +181,7 @@ All six are obs-only, on user-level obs staff-ness. On the future Clerk-permissi
 2. **The Clerk organization and the `B2BOrganization` record are created both-or-neither.** Partial failure rolls back or reports the orphan loudly; it never returns success.
 3. **`admin` and `obs` are refused at provisioning** — in the contract for the polite error, in the handler for the boundary (`TEN-C3`).
 4. **The subdomain is immutable once created.** Nothing renames a tenant org's slug or its record's subdomain; the display name alone may change, both systems together, through the lifecycle module (2026-09-15).
-5. **Finalization is reverification-gated, server-side name-confirmed, and audited before the write.** No audit row, no finalization.
+5. **Finalization is OBS-only, server-side name-confirmed, and audited before the write.** No audit row, no finalization.
 6. **Finalization dispatches no sends** until `PRIZE-02` exists. It persists state; it never fakes delivery.
 7. **The fan-actions export carries platform identifiers only** — no contact fields — and excludes declined fans (`RPT-05`) from identified rows.
 8. **The delivery queue and every failure count elsewhere read the same redemption rows.** One source; screens may not disagree.
@@ -203,6 +204,6 @@ All six are obs-only, on user-level obs staff-ness. On the future Clerk-permissi
 ## References
 
 - PRD: [`OBS-01`–`OBS-05`, `PRIZE-03`, `PRIZE-05`–`PRIZE-07`, `RPT-02`, `RPT-05`, `TEN-03`, `TEN-05`, `TEN-C3`, `SEC-06`, `ADM-06`](../../../documents/PRD/OBS_B2B_Platform_PRD.md) — §14.2 and §11.2's obs-only criteria are this module's test list.
-- [`admin-surface.spec.md`](admin-surface.spec.md) — the access framework, provisioning ladder, Rules 4/7/8, and the reverification list.
+- [`admin-surface.spec.md`](admin-surface.spec.md) — the access framework, provisioning ladder, Rules 4/7/8, and "No re-authentication".
 - [`admin-overview.spec.md`](admin-overview.spec.md) — the Workspace half of this slice.
 - Mocks: `mocks/admin-console/` carries no OBS Internal screens — only the nav section on `Overview.png`. These four screens follow the console idiom; where this spec and a future mock disagree, spec wins until re-argued.

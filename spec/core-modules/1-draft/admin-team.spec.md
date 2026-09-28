@@ -1,8 +1,8 @@
 # Core Module Spec: Admin — Team
 
-**Implements:** PRD `ADM-01`, `ADM-09`, `SEC-08`, `TEN-03`, `TEN-05`. HLD [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) `IDN-10`, `IDN-12`, `IDN-13`. Chiefly, though, it implements a spec decision rather than a PRD requirement — see "The PRD does not specify this screen".
+**Implements:** PRD `ADM-01`, `ADM-09`, `SEC-08`, `TEN-03`, `TEN-05`. HLD [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) `IDN-10`, `IDN-12` (`IDN-13`'s step-up ruled out, 2026-09-28). Chiefly, though, it implements a spec decision rather than a PRD requirement — see "The PRD does not specify this screen".
 
-**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — the organization topology, the two-role V1 model, the three-tier provisioning ladder and its delegation boundary, the `/team` nav destination, and the reverification list. [`admin-fans.spec.md`](admin-fans.spec.md) — the `useReverification` client precedent (the server-side middleware defined there is *not* used by this module; see "No endpoints").
+**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — the organization topology, the two-role V1 model, the three-tier provisioning ladder and its delegation boundary, the `/team` nav destination, and "No re-authentication". [`admin-fans.spec.md`](admin-fans.spec.md) — formerly the `useReverification` client precedent, retired 2026-09-28 (the server-side middleware defined there was *not* used by this module; see "No endpoints").
 
 **Status:** Draft. Revised 2026-09-24 on `arthur-g1-console` — see "Revision 2026-09-24", which wins wherever it and an older section disagree.
 
@@ -22,6 +22,15 @@ The Team screen at `/team`: who can administer this organization, and the invite
 - **Custom roles.** V1 has exactly `org:admin` and `org:member` (admin-surface, "Roles and permissions"). The role picker offers those two and is not a general role editor.
 - **MFA enrollment status and last sign-in per member.** Both appear in the mock; neither is reachable. See "What the mock asks for that Clerk's client cannot give".
 
+
+## Revision 2026-09-28 — staff see the workspace's Team as its admin does; no re-authentication
+
+Arthur's Wave 4 walkthrough ruling. This section wins over the 2026-09-24 one below wherever they disagree.
+
+- **No re-authentication.** Removing a member and changing a role call Clerk's `organization.removeMember` / `updateMember` directly on the client path, and `DELETE` / `PATCH /admin/team/members/:userId` on the staff path, each on its confirm dialog alone. Clerk's own API can still refuse a membership change with `session_reverification_required`, depending on the instance's settings; the page then says "Sign out and sign back in, then try again." and nothing changes.
+- **Staff see the tenant screen.** With a workspace chosen, staff get the workspace admin's own Team page: the same heading, "Invite admin", the second-factor banner, and the Admin / Role / Status columns with the Active badge. Gone: the first-admin card with its Overboard staff badge and "Send a new invitation", **Resend**, the Everyone / Admins / Members filter, and the organization-name eyebrow. Revoking an invitation and inviting again covers what Resend and the card did.
+- **Kept, with the case** (listed in [`admin-surface.spec.md`](admin-surface.spec.md), "Staff see what the workspace sees"): the staff view still reads and writes through the staff endpoints below, because staff aren't members of the workspace's Clerk organization and Clerk's client can't reach it; pending invitations keep their own table there, because the server pages them separately; and a staff member's row keeps its "Overboard staff" label, which tenant admins see too.
+- `POST /admin/team/invitations/:invitationId/resend`, the `role` filter and the first-admin fields of the invitations read stay on the server but have no caller in the console.
 
 ## Revision 2026-09-24 — Team shows the chosen workspace, with staff extras
 
@@ -56,7 +65,7 @@ Why the narrowing is safe: the endpoints are **staff-only**, enforced server-sid
 | POST | `/admin/team/invitations/:invitationId/resend` | Revokes a pending invitation and sends a fresh one to the same address and role. |
 | DELETE | `/admin/team/invitations/:invitationId` | Revoke. |
 | PATCH | `/admin/team/members/:userId` | `{ role }`. Keyed on the user, because Clerk's server API changes and removes a membership by organization and user. |
-| DELETE | `/admin/team/members/:userId` | Remove — reverification required, as on the client path. |
+| DELETE | `/admin/team/members/:userId` | Remove (no re-authentication since 2026-09-28). |
 
 Every write is audited (`team_invite`, `team_invite_revoke`, `team_role_change`, `team_member_remove`), with ids and roles only — never an email in `detail`.
 
@@ -166,9 +175,7 @@ None. This section exists so its absence is visibly intentional rather than an o
 
 `obs-b2b-shared/src/api/admin/` gains no `team.ts`. The backend's `adminRouteEntries` is untouched. The jest suite is untouched.
 
-**Reverification (`IDN-13`)** still applies — `admin-surface.spec.md` lists "Removing an organization member or changing their role" among the actions requiring a fresh credential check, and that list is binding regardless of which server performs the action. It is applied with Clerk's own `useReverification`, the hook the Fans and Exports modules already use, wrapping the destructive calls (remove, role change, invitation revoke). Clerk prompts for credentials and retries the action against its own API; a dismissed prompt leaves the membership untouched and the row unchanged.
-
-This is the same mechanism as the other modules from the operator's side and a strictly simpler one underneath: the Fans/Exports path needs `requireRecentVerification` middleware and a hand-built `reverificationRefusal()` body in Clerk's wire shape *because our server is the one refusing*. Here Clerk is both the enforcer and the prompter, so the `fva` claim never has to be re-read by us. Inviting is not gated — an invitation is revocable and releases nothing.
+**No re-authentication** (revised 2026-09-28). Removal, role change and invitation revoke run on their confirm dialog alone; the console wraps nothing in `useReverification`. If Clerk's own API still asks for a fresh sign-in on a membership change (an instance setting), the page says "Sign out and sign back in, then try again." and the membership stays as it was.
 
 ---
 
@@ -207,7 +214,7 @@ This is a real decision with a real cost (recovery is OBS re-inviting), accepted
 2. **The screen never names an organization.** No org id or slug is passed to any Clerk membership call, no tenant selection is read, no `?tenant=`, and nothing on this screen creates or renames an organization (`admin-surface.spec.md`, "Provisioning and delegation").
 3. **Every mutating control is gated on `has({ permission: "org:sys_memberships:manage" })`** — Clerk's answer, rendered; never a role string we compare ourselves, and never inferred from `adminScope`.
 4. **No last-admin guard** (`admin-surface.spec.md` decision, 2026-09). Clerk's outcome is displayed as it happened, in the console's words, never Clerk's.
-5. **Removal and role change go through `useReverification`** (`IDN-13`); invitation does not.
+5. **Removal and role change need no re-authentication** (revised 2026-09-28); they run on their confirm dialog, and a Clerk refusal is shown in the console's words.
 6. **Roles offered are exactly `org:admin` and `org:member`** — V1's two (`admin-surface.spec.md`, "Roles and permissions").
 7. **Per-member MFA state and last sign-in are not displayed**, because the client cannot see them and serving them means a Backend API read of other users' security attributes. The instance-wide MFA rule is stated once, in the banner.
 8. **Clerk's prebuilt `<OrganizationProfile>` is not used** — it cannot render this screen, and it exposes organization renaming, which Rule 2 forbids.
@@ -226,7 +233,7 @@ This is a real decision with a real cost (recovery is OBS re-inviting), accepted
 ## References
 
 - PRD: [`ADM-01`, `ADM-02`, `ADM-08`, `ADM-09`, `SEC-08`, `TEN-03`](../../../documents/PRD/OBS_B2B_Platform_PRD.md)
-- HLD: [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) — `IDN-10` (instance-wide MFA), `IDN-12` (membership, not a per-user tenant field), `IDN-13` (reverification)
+- HLD: [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) — `IDN-10` (instance-wide MFA), `IDN-12` (membership, not a per-user tenant field), `IDN-13` (reverification, ruled out 2026-09-28)
 - [`admin-surface.spec.md`](admin-surface.spec.md) — organization topology, roles, the provisioning ladder and its delegation boundary, the unguarded last-admin decision, the `/team` nav entry
-- [`admin-fans.spec.md`](admin-fans.spec.md) — the `useReverification` client precedent
+- [`admin-fans.spec.md`](admin-fans.spec.md) — the former `useReverification` client precedent
 - Mock: `mocks/admin-console/Team.png` (workspace) — layout source; MFA and last-sign-in columns deliberately not implemented, and the finalization line rendered as a settled negative
