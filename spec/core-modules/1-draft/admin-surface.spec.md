@@ -14,7 +14,7 @@
 
 **Revised 2026-09-27** (Wave 4, Arthur's rulings of 2026-09-27) — Prizes returns as a sidebar item with Library and Deliveries tabs, and the Emails item folds into Deliveries; the contest page loses its Board tab and the builder its Board step; the builder keeps the sidebar; any non-finalized contest can be deleted; every asset field is an upload box. See "Revision 2026-09-27 (Wave 4)" below; the Navigation table, the page-route table, the pages/drawers/dialogs tables, the staff-extras table, the hues table, the reverification list and Rule 16 carry it.
 
-**Revised 2026-09-28** (Arthur's Wave 4 walkthrough ruling) — **no re-authentication anywhere, for everybody**: destructive actions keep the typed-name confirmation only, checked server-side. And **staff see a workspace's screens exactly as its admin or member would**: the 2026-09-24 staff extras are removed, apart from the listed exceptions. Staff finalize only from the OBS pages, and triage support only in the OBS inbox. "No re-authentication", "Staff see what the workspace sees", the Route surface, the dialogs paragraph and Rules 14–15 carry it.
+**Revised 2026-09-28** (Arthur's Wave 4 walkthrough ruling) — **no re-authentication anywhere, for everybody**: destructive actions keep the typed-name confirmation only, checked server-side. And **staff see a workspace's screens exactly as its admin or member would**: the 2026-09-24 staff extras are removed, apart from the listed exceptions. Staff finalize only from the OBS pages, and triage support only in the OBS inbox. The focus ring fits each control's own shape. "No re-authentication", "Staff see what the workspace sees", "Focus ring", the Route surface, the dialogs paragraph and Rules 14–15 carry it.
 
 ## Overview
 
@@ -355,6 +355,16 @@ Arthur's walkthrough ruling: every sidebar destination gets a hue, shown as a th
 3. **Chart series:** unchanged.
 
 Nothing else takes a hue: not status pills, text, numbers, buttons, or tables.
+
+## Focus ring (revised 2026-09-28)
+
+The focus highlight fits each control's real shape (Arthur's walkthrough: it sat misaligned on the compact search fields). One ring, `--focus-ring` (a 2px gap in the page colour, then 2px of the scope colour), in three weights:
+
+- The ring is declared at one pseudo-class's weight, so a component's own `:focus-visible` rule wins wherever its CSS lands.
+- The small corner (`--radius-sm`) applies only where a control has no radius of its own; an input, select or button keeps its own corner and the ring follows it.
+- Outline stays off.
+
+The flush popover searches — every list combobox (Game day's team picker among them), the prize picker and the workspace switcher — carry the same ring drawn **inside** their search row (`--focus-ring-inset`), rounded on the popover's own top corners; the bare text input shows none. Every other search field (list toolbars, the game and schedule pickers, the season calendar, the sponsor picker) is a plain input and takes the outer ring on its own shape.
 
 ## Revision 2026-09-27 (Wave 4)
 
