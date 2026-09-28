@@ -80,6 +80,16 @@ cd overboard-b2b-template && npx vite --port 5351 --strictPort
 
 If the backend says `watcher not started: set PRIZE_LOCAL_QUEUE_DIR …`, the dev tools are off. See §9.
 
+**A second server beside the one that scores** (a builder's own stack, say): set `DEV_PROP_WATCHER=off` in its `.env`.
+It then takes no lease and runs no stream or sweep (`watcher not started: DEV_PROP_WATCHER=off`), so it never pulls
+scoring, and prize emails, away from the server you are watching. Boards it creates or serves are still reconciled by
+it, into its own prize folder, so run its own worker too if you build boards there.
+
+**Awards are reconciled, not only announced** (end-to-end-flow.spec.md §1.2). Besides a prop hit, a board is checked
+when it is built, whenever its fan's app reads it (every 30 s while open), and by a sweep every 5 minutes
+(`RECONCILE_SWEEP_MS`) on the server that holds the lease. A board built after its props hit (test mode joins after
+kickoff) is awarded at once. The log line is `[scoring] <time> awarded { boardId, trigger, lines, tierIndexes }`.
+
 ---
 
 ## 2. Pick a real game
@@ -290,10 +300,11 @@ tools answer with **local** scoring.
    Published.
 4. Signs in the fixture fan. It creates that fan on the fan Clerk dev instance on the first run, and
    joins the tenant through the gate's endpoint.
-5. Builds a board from up to 8 players.
-6. Replays the game.
+5. Builds a board from up to 8 players. The game is over, so this is a late join: the board must already hold
+   every line its squares complete when it is read.
+6. Replays the game, which must award nothing twice.
 7. Checks that:
-   - the line is claimed;
+   - the line is claimed, and replay claimed nothing more;
    - the award is recorded and fulfilled;
    - the prize is the tier's prize;
    - an email landed in the outbox.
@@ -362,6 +373,7 @@ source of truth.
 | `/admin/dev/*` answers 404; no **Test mode** section in the drawer | The dev routes are only mounted when all of these hold: `DEV_TOOLS=on`, `MONGODB_DATABASE_NAME=obs-b2b-dev`, a prefix that isn't `prod_`, and `DEPLOY_STAGE` not `prod`. Restart after changing `.env`. The section is also hidden on finalized contests and for `org:member`. |
 | `watcher not started` in the log, or replay answers "Scoring is off on this server" | `PRIZE_LOCAL_QUEUE_DIR` is missing from the backend's `.env`. |
 | `standing by: … scores arthur_ now`; a bingo's email lands in another folder | Another server on your prefix holds the scoring lease: the last one started wins. Stop it, or restart yours to take the lease back. A server on code older than the lease doesn't take part and still scores alongside, so stop those or turn `DEV_TOOLS` off on them. |
+| The board shows completed lines that were never awarded (a board from before 2026-09-28) | Open the board in the fan app, or wait for the next sweep: both award it. To award it now, dry-run `node --env-file=.env scripts/reconcile-boards.mjs --board <boardId>` from `node-server/` (after `npm run build`), then add `--apply`, with the `.env` of the server whose worker should deliver. Only name boards you mean to fix. |
 | The line is claimed but no email arrives | The worker isn't running, has a different `PRIZE_LOCAL_QUEUE_DIR` or prefix, or has no `PRIZE_FROM_ADDRESS`. Queued messages wait in the folder until it starts. |
 | Clerk asks for a code | **424242** on both dev instances (test mode). Only `+clerk_test` addresses; never list or touch real fan users. |
 | The prize popup doesn't show again | It's remembered in the browser's localStorage, per board and bingo count (`prize-award-shown-<boardId>-<n>`). Delete that key, or use a private window. |

@@ -10,6 +10,21 @@
 **Status:** Draft, written 2026-09-27 for Wave 3. Where this spec and an older one disagree, this one wins; each older spec
 carries a pointer to the section here that supersedes it.
 
+**Revision 2026-09-28 (Wave 4b, Arthur's walkthrough ruling "Scoring (root fix, not a patch)").** A board created after
+its props already hit (dev test mode joins after kickoff) was never scored: scoring ran only when a hit arrived, so the
+board showed three completed lines and "0 Bingos". Scoring-on-create was rejected as a band-aid. Instead:
+
+- **One derived count.** A board's bingos are the lines its prop states complete (`boardBingos`, §1.2). The fan's
+  counter and progress bar, the server, and every console number (Game day, the recap, the fans list, exports, overview,
+  the contest page) read that one function. `claimedLineIndices` is the **award ledger** (which bingo counts have been
+  paid), never the count.
+- **An idempotent reconciler.** `reconcileBoard` (the evaluator, renamed) compares the derived lines with the awarded ones
+  and awards what is missing, once. It runs on **every trigger**: a prop hit (the board-evaluator Lambda in production;
+  the dev watcher and replay), a board being **created**, a board being **read**, and a **periodic sweep** (§1.2, §1.3).
+  A missed event, a late join or downtime can no longer lose a bingo or a prize.
+- **The contest, not a game.** Cards, the contest page and the board lead with the contest's own name; games are a
+  small detail (§3.3). The card names the top prize by its name.
+
 ## Why this exists
 
 The real flow — a real game with props from the Prop Entry System (PES) → a contest in the console → fans join and build
@@ -39,15 +54,36 @@ D2C → `prop-hit` SQS → **prop-update-evaluator** (finds boards holding the p
 (records the `PrizeRedemption`, snapshots the tier, delivers). Nothing about this path, its queues, or the messages on it
 changes.
 
-### 1.2 One evaluator, three callers
+### 1.2 One reconciler, every trigger
 
 The two evaluators' logic moves into `obs-b2b-shared/src/scoring/`. The Lambdas keep their handlers and queues and call
-it; the node-server's dev watcher and the replay tool call the same functions. There is exactly one definition of "which
-boards hold this prop", "which lines are complete" and "claim a line".
+it; the node-server's triggers call the same functions. There is exactly one definition of "which boards hold this
+prop", "which lines are complete", "how many bingos a board has" and "award a line".
+
+- **The count** (`bingo-lines.ts`, `boardBingos(cells)`, revision 2026-09-28): the number of lines the board's prop
+  states complete. Every screen that shows a bingo count reads it: the fan board (`boardBingosOf` over the populated
+  cells), and the node-server's `withDerivedBingos(boards)` (one outcome query over every cell of the boards being
+  counted) behind Game day, the recap, the fans list and fan page, the usage export, fan actions, the overview and the
+  contest page's "boards with a bingo". It can never disagree with what the board shows.
+- **The reconciler** (`evaluate.ts`, `reconcileBoard`; `evaluateBoard` stays as its older name): derive the completed
+  lines, compare them with the awarded ones (`claimedLineIndices`), send one prize message per missing line, then claim.
+  Idempotent: a board awarded everything it shows is read and left alone, and two runs racing award nothing twice.
+- **The triggers**, all calling `reconcileBoard`:
+
+  | Trigger | Where | Notes |
+  |---|---|---|
+  | A prop hit | production: prop-update-evaluator, then the board-evaluator Lambda; dev: the watcher (§1.3) and replay (§5) | Unchanged queues and messages. |
+  | A board created | `POST /b2b/board/generate`, after the insert | A late join is awarded at once. A normal join (nothing hit) sends and writes nothing. Never fails the join. |
+  | A board read | `GET /b2b/board/:id`, the fan app's 30 s poll | Only a board whose squares complete a line not yet awarded costs anything; the answer carries the new claims. Never fails the read. |
+  | The periodic sweep | the dev watcher while it holds the lease; `startReconcileSweeper` on a server without dev tools but with a prize destination (its own lease in `${prefix}scoring_state`) | Every `RECONCILE_SWEEP_MS` (5 min default, `0` off). Reads boards, cells and outcomes in bulk and reconciles only the boards that owe an award. |
+
+  The node-server sends prize messages to the local prize folder when `PRIZE_LOCAL_QUEUE_DIR` is set, else to the
+  prize FIFO (`PRIZE_FULFILLMENT_QUEUE_URL`, the queue the board-evaluator writes to), with the same deduplication ids.
+  With neither, it awards nothing itself and leaves the award to a trigger that can send it.
 
 - **Lines** (`bingo-lines.ts`): the eight lines, in the evaluator's historical index order (rows, columns, diagonals —
   the order `claimedLineIndices` has always meant). `newlyCompletedLines(cells, claimed)` is pure.
-- **Claim** (`evaluate.ts`, `evaluateBoard`): read the board with its props, compute the new lines, **send one prize
+- **Claim** (`evaluate.ts`, `reconcileBoard`): read the board with its props, compute the new lines, **send one prize
   message per new line** (`tierIndex = claimed.length + i`, deduplication id
   `userId-contestId-tierIndex-boardId`), then claim with a **conditional write** (`claimedLineIndices` still equal to what
   was read). A lost race re-reads and retries (at most three times). Send-then-claim is deliberate:
@@ -84,6 +120,10 @@ matches `fullDocument.consensusOutcome === "Hit"` and feeds each prop id to the 
   - A server standing by takes over once the lease lapses (30 s without a renewal) or is released on a clean stop, and
     resumes from the saved position. Only the holder saves the resume token.
   - Replay (§5) is not leased: it is a request to one server, answered by that server.
+  - While it holds the lease, the watcher also runs the reconciler's periodic sweep (§1.2).
+  - `DEV_PROP_WATCHER=off` keeps a server out of scoring altogether: no lease, no stream, no sweep. Its own board
+    creation and read triggers still reconcile the boards it serves. This is how a builder's server runs beside the
+    server that scores the prefix without taking scoring over (revision 2026-09-28).
 - **Two copies of one win.** A server still on older code, or a crash mid-claim, can still put two copies of a win in two
   prize folders. The prize worker treats a claim younger than its 60 s delivery limit as a send in flight: the second copy
   steps aside instead of recording the first copy's live send as "interrupted". A claim older than the limit is still an
@@ -113,9 +153,11 @@ CDK sets `DEV_TOOLS=on` and `PROP_HIT_QUEUE_URL` on non-`prod` stages only (`Env
 are **not mounted** when the gate is closed, so they answer 404 like any unknown path. They are never mounted and then
 refused. A stored `testMode: true` on a contest is ignored wherever the gate is closed.
 
-### 1.5 The fan app shows only server-side awards
+### 1.5 The fan app: the derived count, and only server-side awards
 
-- **Bingos** = `claimedLineIndices.length` on the board, as written by the evaluator. The browser no longer counts lines.
+- **Bingos** = the lines the board's own squares complete, by the shared `boardBingos` (revision 2026-09-28): the same
+  count the server's reconciler and every console screen read. *(Wave 3 showed `claimedLineIndices.length`, which said
+  0 on a board created after its props hit; that is the award ledger, not the count.)*
 - **The prize popup** opens only for a **prize award the server recorded**: a `PrizeRedemption` for this board whose status
   is not `skipped`. `GET /b2b/board/:id` returns `awards[]`: `{ bingoCount, status, prize }`, where `prize` is the
   promised tier snapshot, or the live tier when the worker has not snapshotted it yet. It is shown once per award
@@ -250,7 +292,14 @@ The steps, in order:
 
 It never uses array order.
 
-- **The card** shows that game's matchup, time and logos. When the contest runs several games, it adds "+N more games".
+- **The card** *(revision 2026-09-28)* is the contest's, not a game's: its title is the contest's own name as set in the
+  console, its description reads in full (wrapping, never clamped), and the prize line names the top tier's prize **by
+  its name**, in full. The games are one small detail line: the featured game's matchup and time, and "+N more games"
+  when it runs several. A multi-game contest is one card, one board. *(Wave 3's card led with the featured game's
+  matchup and team logos.)*
+- **The contest page** is headed by the contest's own name, with "Draft Your Squad" under it and the description in full.
+- **The board** is headed by the contest's own name; a board drawn from one game shows that game's matchup and time as a
+  small line under it. "My boards" already lists boards by contest name.
 - **The draft page** lists only the games still open for entries, each as a tab in tip-off order, opening on the featured
   one. A fan may draft up to 8 players **across** those tabs. The per-game tabs are restored.
 - **Board generation** draws only from games that have not started. A test-mode contest draws from every game.
@@ -342,6 +391,11 @@ Both use real, existing games and never write anything D2C or the consumer app r
   props fed, boards evaluated, lines claimed.
 - **Status**, `GET /admin/dev/status`, answers `{ devTools: true, scoring: "queue" | "local" | "off", watcher: "running" |
   "stopped" }`.
+- **Fixing a board by hand** (revision 2026-09-28), `node-server/scripts/reconcile-boards.mjs`: runs the reconciler on
+  named boards (`--board <id>`, repeatable) or one contest (`--contest <id>`), never everyone's. Dry run by default: it
+  lists the boards owed an award; `--apply` awards them through the prize destination of the `.env` it runs with, so it
+  is run with the `.env` of the server whose prize worker should deliver. Needs the built server. Rarely needed: any
+  owed board is fixed the next time its fan opens it, or at the next sweep.
 
 The dev routes accept a tenant's `org:admin` or OBS staff, and refuse `org:member`.
 
@@ -364,9 +418,11 @@ The dev routes accept a tenant's `org:admin` or OBS staff, and refuse `org:membe
    - joins the tenant through the gate;
    - `POST /b2b/board/generate` with drafted players.
    - If the board has no line it could win, the run deletes that contest and tries the next game (up to 5).
-5. **Replay** the game.
+5. **The late join** (revision 2026-09-28): the game is over, so the board is built on props that already resolved. By
+   the time it is read it must hold every line its squares complete (the board-created and board-read triggers, §1.2),
+   or the run fails. Then **replay** the game: every trigger may fire, and none awards twice.
 6. **Assert**:
-   - the board's `claimedLineIndices` holds every winnable line;
+   - the board's `claimedLineIndices` holds every winnable line, and replay added none;
    - a `PrizeRedemption` exists for the board, with the tier's prize;
    - the worker marked it fulfilled;
    - the email for it is in the outbox (`.html`, `.txt` and `.json`);
