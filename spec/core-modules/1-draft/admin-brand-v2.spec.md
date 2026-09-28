@@ -1,812 +1,407 @@
-# Core Module Spec: Admin — Brand v2
+# Core Module Spec: Admin — Brand v2 (Wave 5 branch)
 
-**Implements:** Arthur's ruling "Brand gets simpler" (WAVE-RULES 2026-09-24), PRD `BRAND-01` (as reclassified by [`admin-branding.spec.md`](admin-branding.spec.md)), `ADM-02`, `ADM-03`, `TEN-02`.
+**Implements:** Arthur's 2026-09-27 rulings: "Wave order" (the console's Brand page v2, as mocked with the fan-app v2 mocks, is built on the Wave 5 branch, never on main), "Priorities" (Satoshi everywhere; remove the font option from Brand), "Uploads everywhere" (drag-and-drop plus browse, no URL boxes); the Wave 4 walkthrough rulings for Brand (remove the Sponsors tab; Brand's preview is the one place every screen matters: Start, Sign in, Join, Contest list, Contest detail, Board and Prize on a built-in sample contest, mobile only) and console-wide (no desktop preview; "Leave without saving?" only with unsaved changes); the standing rule "function over mocks". Director's decisions W5-D24, W5-D27, W5-D28, W5-D31, W5-D32, W5-D33. PRD `BRAND-01` (as reclassified by `admin-branding.spec.md`), `ADM-02`, `ADM-03`, `TEN-02`.
 
-**Supersedes:** the screen section of [`admin-branding.spec.md`](admin-branding.spec.md) ("The screen", its "Live preview" subsection, `THEME-21`, and Rules item 12), plus that spec's out-of-scope line and recorded gap about a full board preview. Its contract, derivation, preset, storage, endpoint, fan-wire and back-compat sections stay in force by reference; see "What happens to the `THEME-nn` rules" below.
+**Depends on:** Wave 4's specs on docs branch `arthur-w4-console` (PR #29, not merged to main; this branch is rebased after Wave 4 and the 4b fix pass merge): [`admin-branding.spec.md`](admin-branding.spec.md) (the theme contract, presets and gallery, storage, `GET/PUT /admin/branding`, `PUT /admin/branding/presets`, `POST /admin/branding/promote`, the fan wire, `THEME-03`–`THEME-20`), [`admin-uploads.spec.md`](admin-uploads.spec.md) (`UploadField`, `POST /admin/uploads`, `POST /admin/uploads/complete`, fields `brand.logo` and `brand.progressMarker`), [`admin-preview.spec.md`](admin-preview.spec.md) and `../../webapp/fan-preview-mode.spec.md` (`FanAppPreview`, the render document, `GET /admin/preview`), [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) (the nine gate-copy keys). The Wave 4b fix pass (not built at the time of writing): `host: "brand"` and its built-in sample contest source (W5-D31). Siblings on this branch: [`fan-decor-system.spec.md`](fan-decor-system.spec.md) (the palette, tokens, decor params, Prime Time), [`../../webapp/fan-app-v2.spec.md`](../../webapp/fan-app-v2.spec.md) (where the Words show), [`../../webapp/fan-app-v2-console-touchpoints.spec.md`](../../webapp/fan-app-v2-console-touchpoints.spec.md).
 
-**Depends on:**
-- [`admin-branding.spec.md`](admin-branding.spec.md): the theme contract v2, the resolver, presets and gallery, storage, access and the fan wire.
-- [`fan-decor-system.spec.md`](fan-decor-system.spec.md): the decor kit, the `decor` block, `surface.texture: "bingoGrid"`, and how the fan app resolves an absent `decor`.
-- The unified preview contract, `overboard-b2b-workspace\artifacts\wave-2026-09-24\s1-s2-preview-interface.md` (the "interface file" below), and the console's `FanAppPreview` host, which S1 specs.
-- [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md): the draft-and-publish skeleton and the Screen text tab, where the gate strings are edited.
-- [`fan-app-v2.spec.md`](../../webapp/fan-app-v2.spec.md): the fan screens that show the five brand strings, and their fan-side rules (`FAN-48` to `FAN-54`).
-- [`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md): the `/preview` route the frame loads, and its fixtures.
-- [`fan-contest-flow.spec.md`](../../webapp/fan-contest-flow.spec.md): the board and prize screens the preview shows, including the Track that carries the progress marker.
-- Build order: [`fan-app-v2-build-plan.md`](../../../documents/HLDs/fan-app-v2-build-plan.md), slice f5.
+**Supersedes:** S2's draft of this spec (docs branch `arthur-s2-fanapp-spec`, PR #23): its Font section and pairings, its Light/Dark peek and "Peeking at…" line, its Phone/Desktop toggle, its upload route (`POST /admin/assets/uploads`, 1 MB), its render-document `brand` and `sample` sections, Club Level on the shelf, and "Live" as a fourth swatch in the main row. On the Wave 5 branch only: `admin-branding.spec.md`'s "The screen" section, its "Live preview" and `THEME-21` (the `BrandPreviewPanel` sampler).
 
-**Status:** Draft, 2026-09-24 (S2 fan-app design seat). Two open questions at the end.
-
-**Mock:** `overboard-b2b-workspace\mocks\fanapp-v2\brand-v2.html`.
+**Status:** Draft, 2026-09-28, Wave 5 Phase A. Built in Phase B on `arthur-w5-fanapp` in the console, shared and backend repos; never merged to main (W5-D29). On main the Brand page stays as Wave 3 and 4 left it.
 
 ## Overview
 
-**In one line:** the Brand page becomes presets first, a four-colour palette, one font choice, light or dark, two image uploads, five editable strings and a folded Fine-tune drawer, all previewed in the real fan app.
+Today's Brand page (`obs-b2b-admin-frontend/src/pages/Branding.tsx`, under the `SponsorsBrandingHead` tabs) asks for Look, seven colours (four plus Page, Cards, Text under Advanced) through native colour inputs, Type (transform and weight), Shape, Finish, Signature, Images (upload fields in Wave 4) and presets at the bottom, and previews a hand-built sampler (`BrandPreviewPanel.tsx`: the shared `EntryGatePreview`, a ring gauge, a stat fraction, and hard-coded sample strings). None of it shows the overhauled fan app.
 
-Today's page asks a tenant admin to make 22 decisions through 29 inputs in 7 groups (`Branding.tsx:530-827`), puts presets at the bottom (`:830-958`), opens the operating system's colour picker (`:1071-1078`), and previews a hybrid of the real gate and an admin-only sampler (`BrandPreviewPanel.tsx:136-176`). v2 keeps every stored decision valid, puts the decisions a team actually makes on top, hands the rest to the preset, and replaces the sampler with the real fan app in preview mode.
+**The whole change, in one line:** Brand becomes presets on top, a two-to-four colour palette with an in-page picker, light or dark, the logo and marker uploads, five editable Words and a folded Fine-tune, previewed in the real overhauled fan app on a built-in sample contest, with every stored field it doesn't edit carried through untouched.
 
-**In scope:**
-- The `/branding` screen, top to bottom, at desktop and narrow widths.
-- The in-page colour picker.
-- The font pairings.
-- The preset shelf and its thumbnails.
-- The five brand strings: storage, endpoint change and fan wire.
-- The image upload tiles and the upload route they need.
-- The Fine-tune controls and how they map to the contract.
-- The mapping of all 22 current settings.
-- UI-state derivation on load, and the draft key bump.
-- How Brand drives the unified preview.
+**In scope:** the `/branding` screen and its states; the in-page colour picker; the preset shelf; the Words (storage, endpoint, fan wire); the mapping from today's `ThemeSettings`; the preview host, its sample document and its draft overlay; the endpoints.
 
-**Not in scope:**
-- Sponsor artwork. Sponsors have their own page (Arthur's ruling; S1 specs it).
-- The console-side preview host internals (`FanAppPreview`: frame chrome, sizing, loading and error states). S1 specs those.
-- The fan decor kit itself (components, alpha rules, motion). See [`fan-decor-system.spec.md`](fan-decor-system.spec.md).
-- The light-mode flash on cold load. G2 fixes it; this page only sets `mode`.
-- The seven gate strings. They stay in Fields & Opt-ins › Screen text.
-- The admin console's own look. D-067 parked it.
+**Not in scope:** sponsor artwork (the sponsor page); the nine gate strings (Fields & Opt-ins › Screen text); the kit itself ([`fan-decor-system.spec.md`](fan-decor-system.spec.md)); the console's own look.
 
 ---
 
 ## Principles
 
-**Presets first.** A preset is a whole direction: neutrals, type, shape, finish and decor. Most tenants should need only a preset and their Team colour. So the shelf sits at the top, and applying a preset never touches the palette the tenant chose.
+**Function over mocks.** `mocks\fanapp-v2\brand-v2.html` is visual direction. Every control here writes a stored field the overhauled fan app reads, or is cut.
 
-**A palette, not a token editor.** A tenant picks two to four colours, and the resolver derives everything else: on-colours, tints, the neutral ramp, glow. The page never offers a control for a value the resolver computes (`THEME-03`). "Page", "Cards" and "Text" colours become preset-owned.
+**A palette, not a token editor.** The tenant picks two to four colours; the kit's resolver derives everything else. The page never offers a control for a derived value (`THEME-03`).
 
-**One font choice.** A pairing sets display, body and numeric faces, the headline transform and the headline weight together. Five type inputs become one row of cards. No tenant can build a mismatched mix from scratch, and a mix already stored is preserved, not broken.
+**Carry, don't clobber.** Publishing writes the whole theme, and every stored field the page does not edit is sent back exactly as loaded. A tenant whose theme was set on main's Brand page keeps every value main reads.
 
-**Nothing native.** No control opens a browser or operating-system popup. There is no `<input type="color">` and no `<select>` anywhere on the page. The one exception is the file chooser behind an upload tile, which is the only way a browser can read a local file, and drag-and-drop is offered beside it. Range sliders stay native elements, because they render in the page and work from the keyboard everywhere (`Branding.tsx:1163`).
+**The real fan app is the only preview.** The frame is the overhauled fan app's own `/preview` route (Wave 4 contract, `app: 'overhaul'`). The page draws no likeness of a fan screen. The sample contest is the one piece of sample data in the console, and it says so in its own names.
 
-**The real fan app is the only preview.** The frame on the right is the fan app's own `/preview` route, painted by the same `themeToCssVars` the live site uses. The page draws no likeness of a fan screen. The preset thumbnails are swatches of a direction, built from the shared decor pieces. They are not previews of the tenant's site, and they never show data.
-
-**Honesty.** The preview shows the draft theme over the fan app's built-in sample fixtures. Those are labelled as samples ("Sample contest", "Sample Player 1"), and the frame carries its persistent Preview marker. The page never invents a contest, a player, a sponsor or a number to make the preview look fuller. Where the page cannot know something, such as colours from a logo it cannot read, it omits the control silently and records the gap here (D-068).
+**No narration** (`D-068`). The page never explains what it can't do; gaps are recorded here.
 
 ---
 
 ## The screen
 
-**Route:** `/branding`, unchanged. The sidebar item is **Brand**, separate from **Sponsors** (S1 owns the sidebar and its hues). Brand drops the shared `SponsorsBrandingHead` tab head (`Branding.tsx:981`). The page head is eyebrow "Configuration", title "BRAND", sub "How your fan site looks." The pick-tenant empty state (`Branding.tsx:200-208`) and the `key={qs}` remount on tenant switch (`:210`) are unchanged.
-
-**Hues:** if the Brand sidebar item carries a hue, the page's section cards take the KPI tile's top-wrapping outline (`inset 0 2px 0 0 var(--marker)`, `hues.css`), never a square marker (WAVE-RULES "Colour hues").
+**Route:** `/branding`, unchanged. **Nav:** the sidebar's **Brand** item; **Sponsors** is its own item. The `SponsorsBrandingHead` tab head (Brand | Sponsors) is removed from this page (walkthrough ruling). The page head: eyebrow "Configuration", title "Brand", sub "How your fan app looks." The pick-tenant empty state for staff and the `key={qs}` remount on a tenant switch are unchanged.
 
 ### Layout
 
-**Desktop (1100px and wider):**
-- Two columns under the page head. The left column holds the controls: max 440px wide, the sections below in order, 24px apart.
-- The right column holds the preview. It is sticky at `top: 24px` and fills the remaining width. The host frame scales to fit the viewport height (S1's `FanAppPreview`).
-- Above the frame are the preview controls: the screen switcher, the Light/Dark peek toggle, and the Phone/Desktop toggle.
-- The footer bar is sticky at the bottom of the left column.
-
-**Narrow (600–1099px):**
-- One column.
-- The preview becomes a collapsible panel pinned under the page head. Collapsed, it is a 48px bar reading "Preview" with a chevron, the current screen's name and the peek state. Expanded, it shows the preview controls and the frame, at most 70vh tall, and the controls scroll beneath it.
-- Collapsed is the default below 1100px. The choice is remembered per browser, as a convenience only.
-- The footer bar is sticky at the bottom of the viewport.
-
-**Phone (under 600px):**
-- Same as narrow, with these changes:
-  - The palette swatches go 2×2.
-  - The font cards and preset shelves scroll horizontally, with scroll snap.
-  - The colour picker opens as a bottom sheet instead of an anchored popover.
-  - Footer buttons go full width, Publish on top.
-- Every tap target is at least 44px.
-
-**Read-only (`org:member`):**
-- Every control renders disabled, and the preview still works.
-- The footer bar is replaced by the existing line "Read-only — only organization admins can change branding" (`Branding.tsx:994-997`).
-- Preset cards show no actions, and the picker opens read-only: hex visible, square and strip inert.
-
-### Page-level notes (above section 1)
-
-These sit above section 1 and are inline lines, not toasts:
-- **Restored draft:** "Restored your unsaved changes." with Dismiss, as today (`Branding.tsx:519-526`).
-- **Old draft cleared:** "We refreshed the Brand page; your unpublished draft from before was cleared." with Dismiss. It is shown once (see Migration).
-- **Publish result:** the publish result line, as today (`:517-518`), extended with "words updated" (see Endpoints).
+- **1100px and wider:** two columns. Controls on the left (max 440px, sections 24px apart); the preview on the right, sticky at the top, the phone frame at 390×844, never scaled (`PV-11`).
+- **Narrower:** one column. The preview is a collapsible panel under the page head, collapsed by default, opened by a 48px bar reading "Preview · {screen}"; open, it shows the tabs and the frame (at most 70vh, the frame scrolling inside it).
+- **Footer bar:** sticky under the controls: a status line ("Unpublished changes" while dirty), **Use the standard look** (ghost), **Discard draft**, **Publish** (primary).
 
 ### 1. Presets
 
-- **Card title:** "Presets"
-- **Help:** "Start from a look. Your colours stay yours."
+- **Card title:** "Presets". **Help:** "Start from a look. Your colours stay yours."
+- **Shelves:** **Overboard** (Prime Time only, `DECOR-37`); **Gallery** (staff-curated, hidden when empty, as today); **Yours** (the tenant's saved looks, up to 20 (`THEME_PRESET_CAP`), then a **Save current look** card).
+- **Card:** a 148×104 thumbnail and the name; the whole card is one button "Apply {name}". The card matching the draft's look shows a 2px Team ring and an "In use" chip. Yours cards have a ⋯ menu (in-page, not native) with **Rename**, **Delete** (inline "Delete {name}? This can't be undone." with Delete and Cancel, because the whole array is rewritten), and **Add to gallery** (OBS staff only, as today).
+- **Save current look:** the card becomes a name input (max 60, "Name this look", Save, Cancel) and writes the whole array through `PUT /admin/branding/presets` (exists). At 20 it is disabled with "You can keep 20 looks. Delete one to save another."
+- **Thumbnail:** a static composition of three kit pieces (a `HeroBand` fragment, one `Chyron` reading "LIVE", two `Square`s, one hit and one pending) painted by the kit's resolver from the draft palette and the preset's mode and decor params. It is a swatch of a look, never a preview of the tenant's app, and shows no data. This needs those three components in the console: **Phase B: to build** (`DECOR-40`: `HeroBand`, `Chyron`, `Square` move to `obs-b2b-shared/src/ui/kit/`).
+- **`BRAND2-01` (revised) — Applying a preset changes the look and never the palette.** It takes the preset's `mode`, decor params (`decor.intensity`, `decor.angle`), `surface.texture` and `shape.radiusBase`, and keeps Team, Second, Accent and Live. The one exception: a draft with no Accent takes the preset's (Prime Time's gold `#F5B32E`). Implemented as the shared `applyPreset` (`THEME-08`, which already keeps primary and secondary) plus the page carrying Accent and Live. Applying is a draft edit; the preset list writes (save, rename, delete, promote) are immediate, as today.
 
-**Shelves:** three horizontal shelves, each with a small uppercase label.
-- **Overboard:** Prime Time and Club Level (`SHIPPED_PRESETS`, `presets.ts:101-104`).
-- **Gallery:** staff-curated looks. The shelf is hidden when the gallery is empty, as today (`Branding.tsx:894`).
-- **Yours:** the tenant's saved looks, then a trailing **Save current look** card.
+### 2. Colours
 
-**Preset card:**
-- 148×104 thumbnail with the name underneath (14px, one line, ellipsis). The whole card is one button labelled "Apply {name}".
-- The card matching the draft's base preset (see Migration, "base preset") shows a 2px Team ring and a small "In use" chyron.
-- Cards on the Yours shelf carry a 32px overflow button (⋯, label "More actions for {name}") in the top-right. It opens an in-page menu, not a native one, with **Rename**, **Delete**, and **Add to gallery** (staff only, gated on `useIsObsStaff()` as today, `Branding.tsx:951`).
-- **Rename** swaps the name for an inline input: max 60, Save and Cancel, Enter saves, Esc cancels (`:917-940`).
-- **Delete** asks inline "Delete {name}? This can't be undone." with Delete and Cancel. Today it deletes immediately (`:447-451`), and a confirm is added because the whole array is rewritten.
-
-**Save current look card:**
-- A dashed card labelled "Save current look". Clicking it turns the card into a name input: max 60, placeholder "Name this look", Save and Cancel.
-- Saving writes the whole array through `PUT /admin/branding/presets` (`Branding.tsx:401-436`).
-- At 20 presets (`THEME_PRESET_CAP`, `B2BOrganization.ts:394`) the card is disabled with the line "You can keep 20 looks. Delete one to save another."
-
-**Thumbnail:**
-- A static composition rendered with the console's copy of the shared decor kit (`obs-b2b-shared/src/ui/decor/`, vendored in the console): a `HeroBand` fragment across the top, one `Chyron` tag, and two board squares, one hit (Team fill, check puck) and one pending (hairline).
-- It is painted by `themeToCssVars(applyPreset(preset.theme, draftTheme))`, inlined on a wrapper element. That means the preset's own neutrals, mode, type, radius and decor, carrying the tenant's current Team (and Second) colour.
-- The variables stay scoped to the wrapper and never reach `:root`, the same rule as today's `.obs-gate-preview` (`admin-branding.spec.md`, "Live preview").
-- No motion and no text beyond the chyron label "LIVE". The fonts come from `loadThemeFonts` (`themeFonts.ts:56`).
-
-**Behaviour:**
-- Applying runs the shared `applyPreset` (`presets.ts:116-141`), which keeps `colors.primary` and `colors.secondary` (`THEME-08`).
-- On top of that, the page carries over **Accent** and **Live** when they are overridden (not Auto). Only Auto colours take the new preset's values.
-- Applying is a draft edit. Nothing reaches fans until Publish.
-- The preset list writes (save, rename, delete, promote) happen immediately, as today, because presets are authoring state, not the published look.
-
-### 2. Palette
-
-- **Card title:** "Colours"
-- **Help:** "Team is required. The other three follow it until you change them."
-
-**Swatches:** four large swatches in one row, in this order.
+- **Card title:** "Colours". **Help:** "Team and Accent are required. Second and Live follow them until you change them."
+- **`BRAND2-02` (revised) — Two to four colours** (W5-D24):
 
 | Swatch | Writes | Required | Auto means |
 |---|---|---|---|
-| **Team** | `colors.primary` | yes | never auto |
-| **Second** | `colors.secondary` | no | absent; the resolver derives it from Team ([`fan-decor-system.spec.md`](fan-decor-system.spec.md), auto Second) |
-| **Accent** | `colors.accent` | no | the base preset's accent |
-| **Live** | `colors.live` | no | absent; the resolver uses the mode's live tone (`DEFAULT_LIVE`, `resolve.ts:51-54`) |
+| **Team** | `colors.primary` | yes | — |
+| **Accent** | `colors.accent` | yes | — |
+| **Second** | `colors.secondary` | no | absent; the kit derives it from Team (`DECOR-03`) |
+| **Live** | `colors.live` | no | absent; the mode's live tone (`DEFAULT_LIVE`: `#FF3B5C` dark, `#B3364B` light) |
 
-**Swatch anatomy:**
-- Each swatch is 96×96 (2×2 at under 600px) and filled with its effective colour.
-- The name sits underneath in 13px, and the hex underneath that in 12px mono, uppercase, always visible.
-- Second, Accent and Live show an **Auto** chip in the top-right corner while auto. The chip uses the swatch's own on-colour, so it is readable on any fill.
-- Each swatch is a button labelled "{Name} colour, {hex}{, auto}. Edit", with `aria-haspopup="dialog"` and `aria-expanded`.
-- A 2px focus ring in the console accent sits outside the swatch.
-
-**Default for an unbranded tenant:** the draft seeds the platform default theme (`DEFAULT_THEME`, `resolve.ts:375-389`; `Branding.tsx:142-144`). Team shows `#E5E5E5` and the other three show Auto.
-
-**Validation:**
-- Every written value is `#RRGGBB` uppercase. The wire refuses shorthand and alpha (`branding.ts:30-32`).
-- Team can never be empty.
-
-**Custom page colours note:**
-- If the draft's `colors.neutrals` exists and matches no known preset ramp (see Migration), a line appears under the swatches: "Custom page colours from an earlier setup." with a **Reset to preset** text button.
-- Reset replaces `colors.neutrals` with the ramp of the base preset for the current mode, or with the Prime Time ramp (dark) or Club Level ramp (light) when there is no base. Everything else stays.
-- The stored values stay in force until the admin resets them, and the preview shows them honestly.
+- **Anatomy:** Team and Accent as the first row of two large swatches (96×96), Second and Live as a second row of two smaller ones (64×64) labelled "Optional". Each shows its effective colour, name, and uppercase hex always visible (`BRAND2-06`); Second and Live carry an "Auto" chip while auto. Each is a button "{Name} colour, {hex}{, auto}. Edit".
+- **A stored theme with no Accent** (possible under today's contract): the Accent swatch shows hatched with "Choose an accent", and **Publish is disabled** with the line "Choose an accent colour to publish." The fan app meanwhile renders the resolver's fallback (`DECOR-39`). The server keeps `colors.accent` optional, so main's Brand page keeps working against the same data.
+- **Validation:** every written value is `#RRGGBB` uppercase (the contract refuses shorthand and alpha). Team and Accent can't be cleared.
+- **No neutral controls** (`BRAND2-03`, revised): Page, Cards and Text leave the page. Stored `colors.neutrals` are carried through on publish (principle) and are not read by the overhauled fan app (`DECOR-23`). No note about them is shown.
 
 ### The in-page colour picker
 
-Tapping or clicking a swatch, or pressing Enter or Space on it, opens the picker.
+Tapping a swatch (or Enter or Space on it) opens the picker: an anchored popover (232px) at 600px and wider, a bottom sheet under 600px; `role="dialog"`, one open at a time.
 
-**Container:**
-- **Desktop and narrow:** an anchored popover, 232px wide, below the swatch (above it if it would overflow the viewport), with a 12px card radius and a hairline border.
-- **Under 600px:** a bottom sheet with a drag handle. The square scales to the sheet width at a 10:7 aspect.
-- Either way it is `role="dialog"` with `aria-label="{Name} colour"`, and there is **one picker open at a time**.
+1. **Header:** the colour's name, and "Auto: follows Team" (Second) or "Auto: standard live colour" (Live) while auto.
+2. **Saturation and brightness square**, 200×140, HSV; a 14px ring cursor.
+3. **Hue strip**, 200×14 visible, 44px hit area.
+4. **Hex field** (six characters, paste with or without `#`) and a before-and-after chip.
+5. **From your logo:** up to six 28px swatches sampled from the uploaded logo (64×64 offscreen canvas, alpha ≥ 128, 4-bit buckets, kept when at least 48 apart in RGB, stopping at six). Hidden when there is no logo or the canvas is tainted. **Phase B: to build:** the asset CDN must answer image GETs with `Access-Control-Allow-Origin` for the console's origins (Wave 4's response-headers policy sets CSP and caching but no CORS on reads), otherwise every uploaded logo taints the canvas and the row never shows.
+6. **Contrast readout** (`BRAND2-07`, revised), computed with the kit's resolver (`resolvePalette`, `onColor`, `contrastRatio`), never a console reimplementation: "Text on {Name}: {white|near-black}, {ratio}:1", adding "(below the 4.5:1 reading standard)" under 4.5; and, when the colour is within 1.5:1 of the mode's ground, "Close to the page colour ({ratio}:1). The app lifts it where it has to be read." Factual; never blocks.
+7. **Reset to auto** (Second and Live, while overridden) and **Done**.
 
-**Anatomy, top to bottom:**
+**Pointer:** press moves the cursor and captures the pointer; `touch-action: none` on the square and strip. **Keyboard** (`BRAND2-05`): Tab order square → hue → hex → logo swatches (one stop, arrows between) → Reset → Done; focus trapped; the square and strip are `role="slider"` with arrows stepping 1 and Shift+arrows 10; Enter commits a valid hex; an invalid hex shows "Use six digits, like #1D428A." and commits nothing; **Esc** closes and restores the opening value including its Auto state; Done, an outside click or the sheet's scrim keeps the value; focus returns to the swatch. **`BRAND2-04` — No native popups:** no `<input type="color">` or `<select>` on the page (a lint rule); range sliders stay native elements.
 
-1. **Header:** the colour name, plus its state: "Auto: follows Team" (Second), "Auto: from the preset" (Accent), "Auto: standard live colour" (Live), or nothing while overridden.
-2. **Saturation and brightness square, 200×140.**
-   - x is saturation, 0 to 100% left to right.
-   - y is brightness, 100% to 0% top to bottom (the HSV model).
-   - The square is HSV, not HSL, because an HSL square would put white along the whole top edge.
-   - The fill is the current hue at full saturation and brightness, with a white-to-transparent horizontal gradient and a transparent-to-black vertical gradient.
-   - The cursor is a 14px ring (2px white, 1px dark outline) at the current point.
-3. **Hue strip:** 200×14 visual with a 44px tall hit area, hue 0 to 360 left to right, and a 16px thumb.
-4. **Hex row:**
-   - A `#` prefix, then a 6-character field in mono. It accepts a pasted value with or without `#` and upper- or lowercases it.
-   - Beside the field sits a 32px "before and after" chip: left half the value when the picker opened, right half the current value.
-5. **From your logo:**
-   - Up to six 28px swatches sampled from the uploaded logo. Clicking one sets the colour.
-   - The label is "From your logo".
-   - The row is hidden when there is no logo, or when the logo cannot be read (see Recorded gaps).
-6. **Contrast readout:** one line, computed with the resolver's own functions.
-   - The text is "Text on {Name}: {white|near-black}, {ratio}:1".
-   - The ink is `onColor(value)` (`color.ts:153`). Near-black is `#101010`, and white is `#ffffff`.
-   - The ratio is `contrastRatio(value, ink)` (`color.ts:127`), to one decimal.
-   - If the ratio is under 4.5, the line adds "(below the 4.5:1 reading standard)".
-   - If the colour is within 1.5:1 of the resolved page ground, a second line reads "Close to the page colour ({ratio}:1). Bands and buttons may be hard to see."
-   - Both lines are factual and never block.
-7. **Actions:**
-   - For Second, Accent and Live, a **Reset to auto** text button. It is shown only while the colour is overridden. It writes absence for Second and Live, and the base preset's accent for Accent (absence when there is no base).
-   - A **Done** button.
+Where it lives: `src/components/ui/ColorPicker.tsx`, conversions in `src/lib/color-hsv.ts` (console primitives, tested).
 
-**Pointer:**
-- Pressing on the square or the strip moves the cursor there immediately and captures the pointer. Moving updates continuously, and releasing ends the drag.
-- Both the square and the strip have `touch-action: none`, so dragging never scrolls the page.
-- Every change writes the draft at once. The preview message is debounced (see The preview).
+### 3. Light or dark
 
-**Keyboard:**
-- **Tab order inside the picker:** square, then hue strip, then hex field, then logo swatches (one tab stop, arrow keys between them), then Reset to auto, then Done, then back to the square.
-- **Focus trap:** focus is trapped while the picker is open. Focus lands on the square when it opens.
-- **Square:** a focusable element with `role="slider"`, `aria-label="Saturation and brightness"` and `aria-valuetext="Saturation 72%, brightness 40%"`.
-  - Left and Right step saturation by 1, and Up and Down step brightness by 1.
-  - Shift plus an arrow steps by 10.
-- **Hue strip:** `role="slider"`, 0 to 360, with `aria-valuetext` "Hue 214 degrees".
-  - Left and Right (or Down and Up) step by 1 degree, and Shift steps by 10.
-- **Hex field:**
-  - Enter commits a valid 6-digit hex and keeps the picker open.
-  - An invalid value shows "Use six digits, like #1D428A." under the field and commits nothing.
-  - Leaving the field with an invalid value restores the last valid hex.
-  - Partial typing never writes the draft, the same rule as `ColorRow` today (`Branding.tsx:1049-1063`, `:1086-1091`).
-- **Closing:**
-  - **Esc** closes the picker and restores the colour it opened with, including its Auto state.
-  - **Done**, a click outside, or tapping the sheet's scrim closes it and keeps the current value.
-  - Focus returns to the swatch that opened it.
+- **Card title:** "Light or dark". **Control:** the console `Segmented`, "Dark | Light". **Help:** "Fans always see this, whatever their phone is set to."
+- **Writes:** `mode`. The kit's ramps are fixed per mode (`DECOR-23`), so a flip needs no ramp swap. Stored neutrals are carried through untouched.
+- The preview shows the draft's mode. There is no peek toggle and no "Peeking at…" text (W5-D27).
 
-**Colour-blind safety:**
-- The hex is always visible: on the swatch face, in the picker field, and in the before and after chip's accessible name.
-- Auto state is a text chip, never a colour cue alone.
-- The contrast readout is text.
+### 4. Logo and marker
 
-**No native input:** there is no `<input type="color">` anywhere in the console after v2. `ColorRow` (`Branding.tsx:1029-1097`), with its native swatch at `:1071-1078`, is deleted, and a lint rule (`no-restricted-syntax` on `input[type="color"]`) keeps it out.
+- **Card title:** "Logo and marker".
+- **Logo:** Wave 4's `UploadField`, field `brand.logo` → `branding.assets.logo` (PNG, JPEG, WebP or SVG; at most 5 MB; at least 64px on the shorter side; `POST /admin/uploads` then `POST /admin/uploads/complete`, both exist). Help: "On the start screen and in the app's header. Also used for 'From your logo' colours."
+- **Progress marker:** `UploadField`, field `brand.progressMarker` → `branding.assets.sliderTipImageUrl` (at least 36×36). Help: "Rides the prize track on the board. A square image works best. A sponsor holding the slider at a game replaces it there." Kept although W5-D27 names only the logo: the overhaul's `Track` reads it (`DECOR` Track marker), so removing it would drop a working field.
+- An upload lands in the draft; fans see it at Publish (Wave 4 rule). A stored legacy URL shows as a filled field and is carried through unchanged (`BRAND2-17`).
 
-**Where the picker lives:** `src/components/ui/ColorPicker.tsx`, with pure conversion helpers (hex, HSV, hue) in `src/lib/color-hsv.ts` and unit tests. The picker is a console primitive, not a Brand-only widget. Other pages may use it later.
+### 5. Words
 
-**Logo sampling:**
-- The logo is drawn into an offscreen 64×64 canvas, with `crossOrigin="anonymous"` on the image.
-- Pixels with alpha under 128 are skipped. The rest are bucketed at 4 bits per channel.
-- The page takes the most populous buckets in order, keeping a bucket only if its mean colour is at least 48 (Euclidean RGB) from every colour already kept, and stops at six.
-- The result is computed once per logo URL and held in memory.
-- If `getImageData` throws (a tainted canvas), the row stays hidden.
+- **Card title:** "Words". **Help:** "Leave a box empty to use the standard wording. {team} becomes your team's name." **Link line:** "Sign-up screen wording is in Fields & Opt-ins › Screen text." (links to `/config?tab=text`).
+- **`BRAND2-14` (revised) — Five strings** (W5-D33):
 
-### 3. Font
-
-- **Card title:** "Font"
-- **Help:** "One choice sets headlines, body text and numbers."
-
-**Cards:** a `role="radiogroup"` row of pairing cards, 120×96 each, scrolling horizontally when they don't fit.
-- **Face:** "Aa 27". "Aa" is set in the pairing's display face at its weight with its transform applied, so Broadcast shows "AA". "27" is set in the numeric face.
-- **Label:** the pairing name in console type.
-- **Sub-line:** the faces in 12px muted type, for example "Barlow Condensed · Barlow · Plex Mono".
-- **Keyboard:** arrow keys move and select. The selected card has a 2px ring and `aria-checked="true"`.
-- **Fonts:** all pairing faces load once through `loadThemeFonts` when the section mounts (`themeFonts.ts:56`).
-
-**Selecting a card** writes the whole `type` block at once. All five fields are written explicitly (`Branding.tsx:325-334` is replaced by one write).
-
-**The pairings** (a shared constant `THEME_FONT_PAIRINGS` in `obs-b2b-shared/src/theme/pairings.ts`, so the fan-app spec, the mocks and the tests read one table):
-
-| id | Name | `fontDisplay` | `fontBody` | `fontNumeric` | `displayTransform` | `displayWeight` | Matches today |
-|---|---|---|---|---|---|---|---|
-| `broadcast` | Broadcast | `barlow-condensed` | `barlow` | `ibm-plex-mono` | `uppercase` | 600 | Prime Time (`presets.ts:49-55`) |
-| `classic` | Classic | `fraunces` | `instrument-sans` | `instrument-sans` | `none` | 600 | Club Level (`presets.ts:82-87`, numeric resolves to body) |
-| `modern` | Modern | `satoshi` | `satoshi` | `satoshi` | `none` | 700 | the platform default (`THEME_DEFAULTS`, `resolve.ts:36-48`) |
-| `grotesk` | Grotesk | `space-grotesk` | `ibm-plex-sans` | `ibm-plex-mono` | `none` | 700 | none |
-| `editorial` | Editorial | `fraunces` | `ibm-plex-sans` | `ibm-plex-mono` | `none` | 500 | none |
-| `custom` | Custom | stored | stored | stored | stored | stored | a legacy mix |
-
-All faces are already in `THEME_FONT_IDS` (`B2BOrganization.ts:224-235`) and `FONT_CATALOG`. No font is added.
-
-**The Custom card:**
-- Shown only when the stored type block matches no pairing (see Migration).
-- The sub-line is "Your earlier font mix" and the face row uses the stored faces.
-- Selecting Custom restores the values the page loaded with.
-- Once shown, it stays visible until the page reloads or publishes, so an admin who tries Broadcast can go back.
-
-### 4. Light or dark
-
-- **Card title:** "Light or dark"
-- **Control:** the console `Segmented`, "Dark | Light".
-- **Help:** "Your fans always see this, whatever their phone is set to." `next-themes` is forced to `theme.mode` in the fan app.
-- **Writes:** `mode`, via `patchTheme` (`Branding.tsx:301-306`).
-
-**Ramp swap:** the control writes `withMode(draft, newMode)`, the shared pure function in [`fan-decor-system.spec.md`](fan-decor-system.spec.md) ("Light and dark"). The page describes no swap of its own. In short:
-- A draft whose neutrals equal a shipped preset ramp gets that preset's ramp for the new mode. Both shipped presets have both ramps: Prime Time dark and light, Club Level light and dark (`PRESET_RAMPS`).
-- Custom or legacy neutrals don't survive a flip: they are dropped, and the resolver's ramp for the new mode applies. The admin sees the flipped draft in the preview before anything is published.
-- Auto colours stay auto; a tenant's own Live override is kept.
-
-This fixes a defect today: switching a Prime Time tenant to Light keeps the dark `#0A0D14` ground (`Branding.tsx:545-555` writes `mode` only).
-
-The counterpart ramps (Prime Time light, Club Level dark) and their values are defined in the decor spec. They are constants beside the presets, not contract fields.
-
-### 5. Logo and marker
-
-- **Card title:** "Logo and marker"
-- **Help:** "PNG, SVG or WebP, up to 1 MB."
-
-**Tiles:** two upload tiles side by side (stacked under 600px).
-- **Logo:** writes `assets.logo`.
-  - **Help:** "On the start screen and in the site header. Also used for 'From your logo' colours."
-  - **Tile:** 200×120, shown on the draft's resolved surface colour.
-- **Progress marker:** writes `assets.sliderTipImageUrl`.
-  - **Help:** "Rides the prize track on the board. A square image works best. A sponsor holding the slider at a game replaces it there." (`B2BOrganization.ts:352-356`)
-  - **Tile:** 120×120.
-
-**Tile states:**
-- **Empty:** a dashed hairline, an upload glyph, "Drop an image here or", and a "choose a file" button that opens the operating-system file chooser (`accept="image/png,image/svg+xml,image/webp"`).
-- **Drag over:** a 2px Team border and "Drop to upload".
-- **Uploading:** the image preview dims, with a thin progress bar and the percentage in mono. Cancel is available.
-- **Set:**
-  - The image appears contained (never cropped).
-  - A factual size line sits under it ("1200×300", or "SVG"), matching the sponsor page's measured line (S1 decisions §8).
-  - **Replace** reopens the chooser, and **Remove** clears the draft key.
-- **Error:** an inline line under the tile, with the tile keeping its previous image.
-  - "That file is over 1 MB."
-  - "Use a PNG, SVG or WebP file."
-  - "The upload didn't finish. Try again."
-
-**Legacy values:** a stored legacy URL (any string today, `branding.ts:100-105`) shows in the Set state like any other image. It is not re-uploaded or rewritten unless the admin replaces it.
-
-**The URL text fields are gone** (`Branding.tsx:805-828` and `TextRow`, `:1206-1235`).
-
-**Upload path.** There is no upload path to reuse. Sponsor artwork is pasted `https` URLs (`SponsorDrawer.tsx:497-557`; `obs-b2b-shared/src/api/admin/sponsors.ts:21-45`). The research confirms it: "There is no upload, and no check on type, dimensions or file size" (`review-2026-09-24/prizes-sponsors.md:269`). `admin-sponsors.spec.md:331-334` records "no storage bucket, presign route or upload primitive anywhere in the platform". The backend's only AWS client is SQS (`node-server/package.json:13`). S1's sponsor page keeps pasted URLs with "upload later" (S1 design decisions §8).
-
-So Brand v2 defines the platform's first upload primitive, and the Sponsors page adopts the same route when it moves off pasted URLs (see Endpoints, `BRAND2-18`, and open question 1).
-
-### 6. Words
-
-- **Card title:** "Words"
-- **Help:** "Leave a box empty to use the standard wording. {team} becomes your team's name."
-- **Link line under the help:** "Sign-up screen wording is in Fields & Opt-ins › Screen text." It links to that tab.
-
-**The five strings:**
-
-| Label | Help | Stored key | Default (placeholder) | Max | Input |
+| Label | Help | Key | Placeholder (the default) | Max | Preview jump |
 |---|---|---|---|---|---|
-| Start screen tagline | Under your name on the first screen fans see. | `startTagline` | Pick your players. Win prizes. | 60 | one line |
-| Start button | The main button on the first screen. | `startCta` | Continue with email | 24 | one line |
-| No contests message | Shown on Home when nothing is scheduled. | `homeEmpty` | Check back soon for the next contest. | 90 | two lines |
-| Paused heading | Shown if your site is paused. | `pausedHeading` | Taking a quick break | 40 | one line |
-| Paused message | Under the paused heading. | `pausedBody` | {team} Bingo is paused right now. Your account and anything you've earned are safe. Check back soon. | 160 | three lines |
+| Start screen tagline | Under your name on the first screen fans see. | `startTagline` | Pick your players. Win prizes. | 60 | `start` |
+| Start button | The main button on the first screen. | `startCta` | Continue with email | 24 | `start` |
+| No contests message | Shown on Contests when nothing is on. | `noContests` | Check back soon for the next contest. | 90 | `contests`, with the sample's lists emptied while the field has focus |
+| Paused heading | Shown while your app is paused. | `pausedHeading` | Taking a quick break | 40 | none (below) |
+| Paused message | Under the paused heading. | `pausedBody` | {team} Bingo is paused right now. Your account and anything you've earned are safe — check back soon. | 160 | none |
 
-**Each input:**
-- The default shows as the placeholder, and a counter "23 / 60" sits bottom-right in mono. It turns amber at 90% of the limit.
-- `maxLength` hard-stops typing. Pasted text is cut at the limit and a line explains it: "Shortened to 60 characters."
-- Line breaks are not accepted. Enter does nothing in the one-line inputs and is swallowed in the multi-line ones, which only wrap.
-- The only token allowed is `{team}`. Any other `{…}` shows "Only {team} can be used here." and blocks Publish.
-- A value that is blank after trimming is absent, which means the standard wording (the `gateCopy` rule, `B2BOrganization.ts:139-146`).
-- The draft holds exactly what was typed. Trimming happens on publish.
+- **Each input:** the default as its placeholder; a counter "23 / 60" (amber at 90%); `maxLength` stops typing and a paste is cut with "Shortened to 60 characters."; no line breaks; `{team}` is the only token, and any other `{…}` shows "Only {team} can be used here." and disables Publish; blank after trimming means the default (`BRAND2-15`).
+- **Preview jump:** focusing an input moves the preview to the screen that shows it. The paused strings have no preview screen (Paused is not a preview screen, W5-D30); their inputs show no jump. Recorded gap.
 
-**Preview jump:** focusing an input switches the preview to the screen that shows it: tagline and button go to Gate, the no-contests message to Home (with `sample.homeEmpty`, below), and the paused strings to Paused. The switcher follows.
+### 6. Fine-tune
 
-### 7. Fine-tune
+A disclosure, collapsed by default: "Fine-tune", help "Most looks don't need these." Open state remembered per browser.
 
-A disclosure, collapsed by default: "Fine-tune" with a chevron and the help "Most looks don't need these." The open or closed state is remembered per browser.
-
-| Control | UI | Writes | Values | Default shown when absent |
+| Control | UI | Writes | Values | Shown when absent |
 |---|---|---|---|---|
-| Decoration | Segmented: Off · Subtle · Full | `decor.intensity` | 0 / 0.35 / 0.7 | from the resolver's default (0.6, shown as Full) |
-| Band | Segmented: Single · Double · Off | `decor.band`, and mirrors `motif.heroMotif` | `single` / `double` / `none` (heroMotif `angledBand` / `angledBand` / `none`) | Single |
-| Texture | Segmented: None · Dot grid · Bingo grid | `surface.texture` | `none` / `dotgrid` / `bingoGrid` | None |
-| Corners | Slider 0–24, step 1, value "8px" | `shape.radiusBase` | 0–24 | 10 (`THEME_DEFAULTS.radiusBase`) |
-| Glow | Slider 0–1, step 0.05, value "Off" at 0 or "35%" | `surface.glowIntensity` | 0–1 | 0 (shown "Off") |
+| Decoration | Slider 0–100%, step 5, value "70%" | `decor.intensity` | 0–1 | the preset's (Prime Time 70%) |
+| Band angle | Slider 0° to −12°, step 1, value "−5°" | `decor.angle` | −12…0 | −5° |
+| Texture | Segmented "None · Bingo grid" | `surface.texture` | `none` / `bingoGrid` | None (a stored `dotgrid` shows as Bingo grid, which is how the overhaul renders it) |
 
-**Help lines:**
-- **Decoration:** "The grid fragments and glow behind your screens."
-- **Band:** "The angled team-colour stripe at the top of big screens."
-- **Texture:** "A faint pattern on the page background."
-- **Corners:** "From sharp to round."
-- **Glow:** "How much a hit lights up."
+Help lines: Decoration "The board fragments and glow behind your screens."; Band angle "The slant of the team-colour band."; Texture "A faint board pattern on the page background." **`BRAND2-19` (revised) — Fine-tune maps to the contract exactly**, and `decor` is **Phase B: to build** (`DECOR-38`).
 
-**Decoration and intermediate values:** a stored `decor.intensity` that is not 0, 0.35 or 0.7 selects the nearest segment, with ties going up (0.6 shows Full, 0.2 shows Subtle). The stored value is kept, and the preview shows it, until the admin picks a segment.
+### Footer, drafts and leaving
 
-**Why Band mirrors `motif.heroMotif`:** a fan build older than the decor kit still reads `heroMotif` (`B2BOrganization.ts:333-338`). With the mirror, the band an admin picks shows on either build. Double is shown as a single band on an old build, which is honest degradation.
+- **Publish:** `PUT /admin/branding` with the whole theme (edited fields plus every carried field), the assets, and `text`. Disabled when clean, when Accent is missing, or when a Words field is invalid; "Publishing…" in flight; the result line as today, extended with "words updated".
+- **Discard draft:** the existing discard.
+- **Use the standard look:** sets the draft theme to `null` (the platform default), as today; it clears the theme only, not images or words. While null, the controls show the default palette and the button reads "Using the standard look."
+- **Draft persistence:** the draft lives in `sessionStorage`, as today, under a bumped key suffix `:branding-v2` (the draft now carries `text` and `decor`). A v1 draft under `:branding` is removed on load and the page shows once: "We refreshed the Brand page; your unpublished draft from before was cleared." (`BRAND2-22`). A restored v2 draft shows "Restored your unsaved changes." with Dismiss.
+- **Leaving:** an in-app navigation with unsaved changes asks "Leave without publishing?" / "Your changes to the brand will be lost." / "Keep editing" (default) / "Leave" (walkthrough ruling); none when clean.
 
-**Validation:** the contract ranges (`branding.ts:77-90`) plus the decor ranges in [`fan-decor-system.spec.md`](fan-decor-system.spec.md). The UI cannot produce an out-of-range value.
+### Screen states
 
-### Footer bar
-
-- **Left:** a status line. "Unpublished changes" while dirty; otherwise the last publish note or nothing.
-- **Right:**
-  - **Discard draft** (secondary, disabled when clean): the existing `discard` (`Branding.tsx:364-371`).
-  - **Publish** (primary, disabled when clean or blocked by a Words error; reads "Publishing…" while in flight): the existing `publish` (`:373-398`) with `text` added to the body.
-- **Use the standard look:** a ghost button at the far left. It sets the draft theme to `null`, the existing behaviour (`:533-537`). It clears only the theme. Images and words are untouched.
-  - While the draft theme is `null`, the controls show the platform default and the ghost button is replaced by the line "Using the standard look."
-- **Publish errors:** they sit above the bar, as today (`:517`).
-
----
-
-## Words: storage, endpoint and fan wire
-
-**Twelve curated strings, two homes.**
-
-**Gate strings.** The seven gate strings are the real `GateCopyOverrides` keys: `joinHeading`, `joinSubtitle`, `joinCta`, `returningHeading`, `returningSubtitle`, `consentsHeading` and `footerNote` (`B2BOrganization.ts:147-155`).
-- They are edited in Fields & Opt-ins › Screen text, stored as `gateCopy`, and served on `GET /b2b/membership`.
-- There is no `returningCta` key; the returning CTA is platform copy.
-- Brand v2 doesn't edit them.
-
-**Brand strings.** The five brand strings are the table above.
-
-**Storage.** A new optional subdocument `branding.text` on the organization:
-
-```ts
-// obs-b2b-shared/src/interfaces/b2b/B2BOrganization.ts (additive)
-export const BRAND_TEXT_KEYS = ["startTagline", "startCta", "homeEmpty", "pausedHeading", "pausedBody"] as const;
-export type BrandTextKey = (typeof BRAND_TEXT_KEYS)[number];
-export const BRAND_TEXT_MAX: Record<BrandTextKey, number> = {
-  startTagline: 60, startCta: 24, homeEmpty: 90, pausedHeading: 40, pausedBody: 160,
-};
-/** Absent, or an absent key, means the platform default. Only the {team} token is allowed. */
-export type BrandText = Partial<Record<BrandTextKey, string>>;
-export interface BrandingSettings { theme?; assets?; text?: BrandText; presets? }
-```
-
-- **Mongoose:** a typed `_id: false`, `default: undefined` subschema, with each key a `String` with `maxlength` (`models/b2b.ts:190-194` gains `text`). It is not `Mixed` (`THEME-11`).
-- **Shared names, one set everywhere:** `BRAND_TEXT_KEYS`, `BRAND_TEXT_DEFAULTS`, `BRAND_TEXT_MAX`, `brandTextSchema`, `resolveBrandText(text, teamName)` and the type `BrandText`, all exported from `obs-b2b-shared/src/theme/brand-text.ts`. The keys, the type and the max table may be declared in `B2BOrganization.ts` (above) and re-exported from `brand-text.ts`.
-- **Defaults:** the default strings live once, in `brand-text.ts` (`BRAND_TEXT_DEFAULTS`), beside `resolveBrandText(text, teamName)`, which substitutes `{team}`. The fan app and the preview both call it. It follows `GATE_COPY`'s single-definition rule (`entry-gate/copy.ts:1-13`).
-
-**Endpoint change:**
-- `PUT /admin/branding` accepts `text`, with the same three states as `assets` (`util/admin-branding.ts:56-72`): absent leaves the stored text alone, `null` clears it, and an object stores it whole.
-- The schema is `brandTextSchema`: each key `z.string().trim().max(BRAND_TEXT_MAX[key]).optional()`, plus a refine that rejects any `{…}` other than `{team}` with "only {team} can be used". Like the rest of the branding schemas, unknown keys are stripped.
-- After trimming, empty keys are dropped. An empty object is not stored, so the key is `$unset`, the way `compactAssets` treats assets (`:46-53`).
-- `changes` gains `textEdited: boolean`. The console summary adds "words updated" (`Branding.tsx:187-193`).
-- `GET /admin/branding` and the `PUT` response both echo `text` when present.
-- `theme: null` never clears `text`.
-
-**Fan wire:** `GET /b2b/org/:subdomain` projects `text` key by key into `organization.branding.text` (`handlers/org/getOrganization.ts:21-32`; `publicBrandingSchema` in `api/b2b/org.ts:15-24` gains `text`). It keeps the allowlist discipline of `THEME-16`.
-- The schema is `.loose()`, so an older fan build ignores the key.
-- Branding is served while suspended (`THEME-18`). That is what lets the paused strings reach a paused site.
-
----
-
-## Images: upload
-
-**The route:** `POST /admin/assets/uploads`, with `requireAdmin` plus `refuseReadOnlyWrite` and the standard tenant targeting (`?tenant=` for staff only).
-- **Body:** `{ purpose: "brandLogo" | "brandMarker", contentType: "image/png" | "image/svg+xml" | "image/webp", size: number }`. The `purpose` enum is open to widening for the sponsor slots later.
-- **Response:** `{ upload: { url, fields }, assetUrl, expiresAt }`.
-- **Refusals:** the server refuses `size > 1_048_576` and any other content type with 400.
-
-**Storage:**
-- A presigned **POST** (not PUT) to a new private S3 bucket for tenant assets. Only a POST policy can bind `content-length-range` and `Content-Type`, so the limits hold at S3 and not just in the console.
-- Objects are keyed `tenants/{orgId}/{purpose}/{uuid}.{ext}`. They are immutable, and a replace is a new key.
-- Assets are served through a CDN origin with `Access-Control-Allow-Origin: *` on GET (needed for "From your logo") and a year-long immutable cache. Infra names the origin.
-
-**SVG:**
-- Accepted, and rendered by the fan app and the console only through `<img>`, which never runs script.
-- Served with `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`.
-- A post-upload check rejects the object (and deletes it) if it contains `<script`, an `on…=` attribute, `<foreignObject` or an external `href`. The console then shows "Use a PNG, SVG or WebP file."
-
-**Console flow:**
-1. Request the presign.
-2. POST the file with progress events.
-3. Load `assetUrl` into an `Image` to confirm it and read its natural size.
-4. Write it into the draft.
-
-Publish stores it in `assets`, and nothing is stored on the org until Publish.
-
-**Validation on `PUT /admin/branding`:**
-- A **new** `assets.logo` or `assets.sliderTipImageUrl` must be an `https:` URL, using the sponsors' `isHttpsUrl` (`api/admin/sponsors.ts:24-32`).
-- A value equal to the stored one passes unchanged, so legacy relative paths survive a republish.
-
-**Orphans:** uploads never published are tolerated this wave (Recorded gaps).
-
----
-
-## The mapping: 22 settings (29 inputs) to v2
-
-Each of the seven colour settings is a swatch plus a hex box, so 7 colours times 2 inputs, plus 15 single-input settings, gives 29 (`review-2026-09-24/admin-wide.md`, Q9; `Branding.tsx:530-827`).
-
-**Stored value key:**
-- **Kept, honoured:** the stored value is untouched and the fan app keeps rendering it.
-- **Kept, noted:** it is also untouched and rendered, and the page shows "Custom page colours from an earlier setup" with Reset to preset.
-- **Unchanged:** the value stays stored with no v2 reader change.
-
-| # | Group | Label today | Inputs today | v2 | Stored value |
-|---|---|---|---|---|---|
-| 1 | Look | Background | segmented (`:545-555`) | **Kept**: Light or dark (§4), plus the ramp swap | `mode`: kept, honoured |
-| 2 | Colors | Team color | swatch + hex (`:565-571`) | **Kept**: Palette › Team | `colors.primary`: kept, honoured |
-| 3 | Colors | Second color | swatch + hex (`:572-580`) | **Kept**: Palette › Second, Auto chip replaces "Follows the team color" | `colors.secondary`: kept, honoured; absent shows Auto |
-| 4 | Colors | Accent | swatch + hex (`:581-589`) | **Kept**: Palette › Accent, Auto chip | `colors.accent`: kept, honoured; equal to the base preset's accent shows Auto |
-| 5 | Colors | Live tone | swatch + hex (`:590-598`) | **Kept**: Palette › Live, Auto chip | `colors.live`: kept, honoured; absent or the mode's default shows Auto |
-| 6 | Colors › Advanced | Page | swatch + hex (`:611-617`) | **Removed from the UI**; preset-owned | `neutrals.ground`: kept, noted when not a known ramp |
-| 7 | Colors › Advanced | Cards | swatch + hex (`:618-626`) | **Removed from the UI**; preset-owned | `neutrals.surface`: kept, noted |
-| 8 | Colors › Advanced | Text | swatch + hex (`:627-635`) | **Removed from the UI**; preset-owned | `neutrals.textPrimary`: kept, noted |
-| 9 | Type | Headline font | select (`:670-677`) | **Folded** into Font | `type.fontDisplay`: kept, honoured; Custom card if no pairing matches |
-| 10 | Type | Body font | select (`:678-685`) | **Folded** into Font | `type.fontBody`: same |
-| 11 | Type | Number font | select (`:686-693`) | **Folded** into Font | `type.fontNumeric`: same |
-| 12 | Type | Headlines (as typed / ALL CAPS) | segmented (`:694-701`) | **Folded** into Font | `type.displayTransform`: same |
-| 13 | Type | Headline weight | select (`:702-709`) | **Folded** into Font | `type.displayWeight`: same |
-| 14 | Shape | Corner roundness | slider (`:719-729`) | **Moved**: Fine-tune › Corners | `shape.radiusBase`: kept, honoured |
-| 15 | Shape | Spacing | segmented (`:730-737`) | **Removed from the UI**; preset-owned | `shape.density`: unchanged (the fan app reserves it; no reader) |
-| 16 | Finish | Outline strength | slider (`:747-757`) | **Removed from the UI**; preset-owned | `surface.borderAlpha`: kept, honoured; the next preset applied replaces it |
-| 17 | Finish | Texture | segmented (`:758-765`) | **Moved**: Fine-tune › Texture, plus Bingo grid | `surface.texture`: kept, honoured |
-| 18 | Finish | Glow | slider (`:766-776`) | **Moved**: Fine-tune › Glow | `surface.glowIntensity`: kept, honoured |
-| 19 | Signature | Angled band | segmented (`:786-793`) | **Moved**: Fine-tune › Band (Single · Double · Off) | `motif.heroMotif`: kept and mirrored from Band; the v2 fan app reads `decor.band` (see Migration) |
-| 20 | Signature | Bingo counter | segmented (`:794-801`) | **Removed from the UI**; preset-owned | `motif.boardCounter`: kept, honoured |
-| 21 | Images | Logo | URL text (`:811-818`) | **Replaced**: Logo upload tile | `assets.logo`: kept, honoured |
-| 22 | Images | Progress marker | URL text (`:819-826`) | **Replaced**: Marker upload tile | `assets.sliderTipImageUrl`: kept, honoured |
-
-**The action buttons:**
-- **Use the standard look:** moves to the footer.
-- **Set them by hand / Go back to the automatic colors** (`:636-657`): removed. Reset to preset replaces them.
-- **Save current look:** becomes the Yours shelf's trailing card.
-- **Apply, Rename, Delete, Add to gallery:** become preset cards and their menu.
-- **Discard and Publish:** move to the footer.
-- **The preview's Join/Returning toggle** (`BrandPreviewPanel.tsx`): retired with the panel. The Join screen is in the switcher, and returning-fan wording belongs to Fields & Opt-ins.
-
-**Count after.** The tenant-facing controls are:
-- Light or dark (1)
-- Four palette swatches (4)
-- Font (1)
-- Two upload tiles (2)
-- Fine-tune: Decoration, Band, Texture, Corners and Glow (5)
-
-That is **13 controls plus 5 words**, with **8 in the main flow and 5 behind Fine-tune**, and the preset shelf above them all.
-
-A count of "11 controls, 3 behind Fine-tune" would cover only the settings carried over from today and leave out two things:
-- **Band:** carried over from Angled band, but moved into Fine-tune.
-- **Decoration:** new with the decor kit.
-
-This spec uses the full count. The reduction is still 22 settings and 29 inputs down to 13 controls, where every colour is one swatch and not two inputs.
-
----
-
-## Migration
-
-**No data migration.** Every stored `ThemeSettings`, `BrandingAssets` and preset stays valid under the v2 schemas. All v2 fields are additive and optional: `decor`, `surface.texture: "bingoGrid"` and `text`.
-
-**UI state is derived on load:**
-
-1. **Base preset.**
-   - The page compares the draft's `mode` and `colors.neutrals` with each known ramp, in this order:
-     1. The standard look (`DEFAULT_THEME`)
-     2. Prime Time dark
-     3. Prime Time light
-     4. Club Level light
-     5. Club Level dark
-     6. The gallery
-     7. The tenant's own presets
-   - Two ramps match when every key present in either is present in both with the same hex, compared case-insensitively.
-   - The first match is the **base preset**. It drives the "In use" ring, Accent's Auto value, the ramp swap and Reset to preset.
-   - If the draft has no `neutrals`, the base is the standard look for dark and Club Level for light.
-2. **Font pairing.**
-   - The stored type block is resolved first: `fontDisplay` and `fontBody` default to `satoshi`, `fontNumeric` to the body face, `displayTransform` to `none`, and `displayWeight` to 700 (`resolve.ts:229-231`, `:267-268`).
-   - If all five resolved values exactly equal a pairing's five, that pairing is selected. Otherwise the selection is `custom`, and the Custom card shows the stored mix.
-3. **Auto chips.** A colour is Auto when it is absent, or when the stored value equals the value Auto would produce:
-   - **Second:** the resolver's derived Second.
-   - **Accent:** the base preset's accent.
-   - **Live:** the base preset's live, or `DEFAULT_LIVE[mode]`.
-   - When a colour loads as Auto because it equals the derived value, the page leaves the stored value as it is. It is rewritten to absence only if the admin later chooses Reset to auto or a preset changes it.
-4. **Custom neutrals note.** Shown when `colors.neutrals` exists and no known ramp matches.
-   - A simpler rule ("any of ground, surface or textPrimary is set") is not usable. Every shipped preset and `DEFAULT_THEME` store all three (`presets.ts:39-47`, `:72-80`; `resolve.ts:379-387`), so that rule would flag every tenant who ever applied a preset.
-5. **Decor.**
-   - An absent `decor` block shows the defaults the fan app resolves (field `gridFragments`; band from the `motif.heroMotif` mapping in the decor spec, else `single`; intensity 0.6, shown as Full).
-   - An absent `surface.texture` shows None.
-
-**Life for everyone (decision).** The fan app applies the decor defaults to **every tenant immediately**, including tenants who never opened Brand and tenants who never publish again. It does not wait for a republish.
-- "The `decor` block is absent until the tenant publishes again" describes the stored document, not the look. The stored document stays absent until a publish, but the look changes on the day the v2 fan app ships.
-- This is a sanctioned visual change for every tenant, and it is the point of the ruling: splash art and life app-wide.
-- The band follows the decor spec's back-compat mapping. A tenant who explicitly chose "Angled band: Off" (`motif.heroMotif: "none"`) keeps no band. A tenant who never chose gets `single`. Club Level's shipped preset stores `heroMotif: "none"` today (`presets.ts:90`) and moves to `angledBand`, so a Club Level tenant keeps no band until they re-apply Club Level, and gets a band when they do.
-- The decor spec pins which fan build honours what. This spec states the Brand-side consequence.
-
-**Presets:**
-- Stored gallery rows and tenant presets are unchanged.
-- The two shipped presets gain `decor`:
-  - **Prime Time:** `gridFragments`, `double`, 0.7, texture `none`.
-  - **Club Level:** `gridFragments`, `single`, 0.35.
-- Prime Time gains its light ramp and Club Level its dark ramp (`PRESET_RAMPS`, decor spec).
-- Club Level's `motif.heroMotif` moves from `none` to `angledBand`, in step with its `decor.band`.
-- `applyPreset` and `genericizeForGallery` copy `decor` (`presets.ts:133-140`, `:155-162` copy only `type`, `shape`, `surface` and `motif` today).
-- A preset without `decor` applies with `decor` removed, so the fan app's defaults show. It does not keep the previous preset's decor.
-- These are shared-repo changes, requested through the shared owner's queue.
-
-**Schemas that must widen before the page ships:**
-- `themeSettingsSchema` (`branding.ts:57-97`) strips unknown keys today, so a `decor` block sent early would be silently dropped. It widens along with `THEME_TEXTURES`, the Mongoose `themeSurfaceSchema` enum (`models/b2b.ts:139-143`), a new `themeDecorSchema`, and `brandTextSchema`.
-- The page's Publish is gated on the widened schemas being deployed, and an acceptance test pins it.
-
-**Draft storage bump.**
-- The draft lives in **`sessionStorage`**, not `localStorage` (`configDraftStorage.ts:4`, `:39`, `:59`). This spec follows the code.
-- The key today is `obs-admin.config-draft.{userId}.{slug}:branding` (`configDraftStorage.ts:20-24`; `Branding.tsx:87`, `:239`). v2 uses the suffix `:branding-v2`, and the draft shape gains `text`.
-- On load, if the old `:branding` key exists for this user and tenant, the page removes it and shows the notice once: "We refreshed the Brand page; your unpublished draft from before was cleared." with Dismiss. It doesn't show again, because the key is gone.
-- The baseline check stays: a v2 draft replays only onto the branding it was written against (`Branding.tsx:248-258`), and the baseline now includes `text`.
-- `clearAllStoredDrafts` already sweeps the whole prefix.
-
----
-
-## Light and dark
-
-**The draft's mode:** the segmented control (§4) sets `mode`, and that is the only way the draft's mode changes. The flash on cold load is G2's fix (`THEME-19`'s seed-then-server order and the dark-only bundled seed, research Q9). This page neither works around it nor re-specifies it.
-
-**The Light/Dark peek toggle** in the preview controls previews the other mode **without changing the draft**.
-- The page builds the peek theme with `withMode(draft, otherMode)` (§4) and sends that copy as `theme`.
-- The toggle shows the draft's mode by default. When peeking, the toggle's selected side differs from the §4 control, and the preview controls add the text "Peeking at light" (or dark).
-- The peek is not saved, not published and not remembered, and switching tenant or reloading ends it.
-- Editing while peeking keeps the peek, and each edit re-renders the peeked copy.
+| State | What renders |
+|---|---|
+| Loading | Section and preview skeletons |
+| Load failed | `ReportableLoadError` in place of the page |
+| Staff with no tenant picked | The pick-tenant empty state |
+| `org:member` (read-only) | Every control disabled, values visible; the footer replaced by "Read-only — only organization admins can change branding"; the preview works |
+| Paused tenant | As member for the tenant's admins (the write gate refuses paused tenants, `THEME-13`); staff keep write access |
+| No stored branding | The draft seeds the platform default theme; Accent shows "Choose an accent" |
+| Stored theme without Accent | As above; Publish disabled until chosen |
+| Words schema not deployed | Publish refuses with the server's 400; the page shows it above the footer (`BRAND2-23` makes this impossible once the schemas ship first) |
+| Upload not configured | The upload field's own "Uploads aren't set up on this server." |
+| Preview failed | The host's "The fan app didn't load." card with Retry; every control and Publish still work |
+| Publish conflict or failure | The existing error line above the footer |
 
 ---
 
 ## The preview
 
-**Host:** Brand mounts S1's `FanAppPreview` (the console's single host, S1 design decisions §10) in the right column. Brand only chooses what to send.
+**`BRAND2-12` (revised) — The frame is the overhauled fan app on a built-in sample contest.** `FanAppPreview` with `host: "brand"` (added by the Wave 4b fix pass), framing the fan origin's `/preview`, which answers `ready { app: 'overhaul', screens: [start, signIn, join, contests, contest, board, prize] }` (W5-D30). Phone only (390×844); no device toggle; Wave 5 never sends `device: "desktop"`.
 
-**Screen switcher:** the screens the frame reports in `ready.screens`, in that order: Gate · Join · Home · Contest · Board · Prize, then Results and Paused when present. Brand opens on **Gate**, and the Words inputs jump the switcher (§6).
+**Tabs** (W5-D28, W5-D31): "Start" · "Sign in" · "Join" · "Contest list" · "Contest detail" · "Board" · "Prize", in that order, synced to navigation inside the frame (`PV-06`). Opens on Start. The Prize tab offers "Tier 1 · Tier 2 · Tier 3" (the sample has three tiers).
 
-**The `render` document Brand sends:**
-- `screen`: the switcher's value.
-- `theme`: the draft theme, or `DEFAULT_THEME` when the draft theme is `null` (so the frame shows the look that would be in force, `Branding.tsx:285-292`), or the peek copy.
-- `brand`: `{ name: branding.tenant.name, logoUrl: draft.assets.logo ?? null, text: draft.text }`, plus `markerUrl: draft.assets.sliderTipImageUrl ?? null` (a v1-additive field; see below).
-- `device`: from the Phone/Desktop toggle.
-- `sample`: `{ homeEmpty: true }` only while the No contests input is focused, so Home shows its empty state.
-- No `contest`, `gate`, `sponsors` or other `sample` fields, so the frame's fixtures apply: the sample contest, the fixture gate and no sponsors.
-  - The Brand preview is about the look. The real gate belongs to the Fields page's preview, and the real contest to the contest Preview tab.
+### What Brand sends
 
-**Sending:**
-- `render` goes out on `ready` and on every draft change, debounced to about 100 ms (the interface file, 5.6; the figure is S1's to choose).
-- `navigate` goes out when only the screen changes.
+The render document (Wave 4's `PreviewDocument`) is built from two sources:
 
-**Unavailable:** if the frame never reports `ready`, or reports `error`, the host shows S1's unavailable state: an error card reading "The fan app didn't load." with a Retry button (interface file §5.7 and §5.8). The console never rebuilds a likeness in its place. The controls keep working, and Publish is never blocked by the preview.
+| Section | Source |
+|---|---|
+| `org` | `GET /admin/preview` (exists): the tenant's real public org read, with the draft overlaid (below) |
+| `membership` | `GET /admin/preview`: the tenant's real gate as a new fan sees it (signup fields, opt-ins with their links, `gateCopy`) |
+| `contests`, `contest`, `schedule`, `view` | The built-in sample (below), not the tenant's real contests |
 
-**Fonts:** the frame loads its own fonts from `FONT_CATALOG`. The console loads pairing fonts only for the Font cards and the preset thumbnails.
+**`BRAND2-27` — The draft overlay** (W5-D32). The console's `PreviewOverlay` (in `src/lib/preview/buildPreviewDocument.ts`) gains an additive member:
 
-**What Brand relies on in the interface file** (all recorded there, section 4 and its change log):
-- `CuratedTextKey` is exactly the five brand keys: `startTagline`, `startCta`, `homeEmpty`, `pausedHeading`, `pausedBody`. Gate keys travel in `gate.gateCopy`. There is no `contestsEmpty`, `boardTitle` or `prizeCta`: the board title is platform copy, and the prize button is the tier's own text.
-- `brand.markerUrl?: string | null` carries the progress marker. It is optional, so it stays on `v: 1` (interface rule 4).
-- `sample.homeEmpty?: boolean` asks for Home's empty state.
-- Device: `device: 'phone' | 'desktop'`, from the Phone/Desktop toggle (interface file 5.3).
+```ts
+branding?: {
+  theme?: ThemeSettings | null;          // the draft theme; null → the platform default theme
+  logo?: string | null;                  // draft assets.logo
+  sliderTipImageUrl?: string | null;     // draft assets.sliderTipImageUrl
+  text?: BrandText;                      // draft Words
+};
+```
 
-**Retirement:**
-- `src/components/BrandPreviewPanel.tsx`, its `branding.css` sampler rules (`branding.css:337+`) and its fixtures (`BrandPreviewPanel.tsx:36-73`) are deleted with v2.
-- The shared `EntryGatePreview` sampler is retired once the Fields page's `GatePreviewPanel.tsx` (its other user) also moves to the frame. That move belongs to S1 and G2. Brand stops importing it.
-- `EntryGateForm` stays, because the fan app renders it (interface file §6).
+`buildPreviewDocument` applies it onto `document.org.organization.branding` (replacing `theme`, `logo`, `sliderTipImageUrl`, `text` when present in the overlay; `null` clears). The render document gains no field, so the message protocol and the frame's contract are unchanged: the frame paints from `org.organization.branding.theme` as it does today (`TenantContext`). **Phase B: to build:** the overlay member and its tests; the public branding schema accepting `text` and theme `decor` (else the frame's parse strips them). Sent on every draft change, debounced ~100ms (`RENDER_DEBOUNCE_MS`).
+
+### The sample contest
+
+**`BRAND2-26` — The sample document.** Wave 5 reuses the fix pass's sample source wherever it lands (console `src/lib/preview/` or shared), and never builds a parallel fixture (W5-D31). This section is the requirement on that source. If the fix pass has not built one when Phase B starts, Wave 5 builds it as `obs-b2b-shared/src/preview/sampleDocument.ts` with exactly these contents (W5-D28). **Phase B: to build (or reuse).**
+
+It is marked as a sample by its own names, which is everything a viewer sees of it; the frame carries no chyron (`PREV-09`) and the console adds no label (`PV-08`). It never leaves the console: nothing writes it anywhere, and no fan read can return it.
+
+| Part | Contents |
+|---|---|
+| Contest | `contestName` "Sample contest"; `description` "A sample contest for previewing your brand."; `contestType` bingo; state open; `maxParticipants` 0 (no limit, so no limit bar); `contestStatus` Open |
+| Games | Two: "Sample Away @ Sample Home", started 60 minutes before the render (derived `InProgress`); "Sample Visitors @ Sample Home", tip-off tomorrow at the same clock time (`Scheduled`). No team logos. `sport` NFL (so the derived status uses NFL's length) |
+| Players | Eight: "Sample Player 1" … "Sample Player 8", jersey numbers 1–8, four per team across the two games, `PlayerEntity`, **no `photoUri`**, so every square shows the kit's no-photo fallback (gradient, jersey number, name). A real player without a PES photo looks exactly like this, so the preview shows a real state rather than a stock face |
+| Props | Per player, two markets from the board's short-form table ("Receiving Yards", "Rushing Yards", "Total Receptions") with three lines each, multipliers 0.5, 1.0 and 2.0 (one rung per ladder label), `showProp` true, `outcomeType` Over |
+| Board | Built on the Board and Prize tabs: nine cells, **two bingos**: row 1 and column 1 hit (five `Hit` cells on game 1, `isFinal` true), the centre square live (game 1, `progressValue` below its line), one miss (`Miss`, final), two pending (game 2). The bingo count comes from the same shared function the real board uses (W5-D40) |
+| Prize tiers | Three: 1, 2 and 3 bingos; names "Sample prize 1", "Sample prize 2", "Sample prize 3"; description "What a fan wins at {n} bingo(s)."; no image; no sponsor |
+| Schedule | No sponsors and no placements (a sample contest has none); `nextGame` = the sample's game 2 |
+| Prize tab | The popup for the chosen tier (`view.prizeTierIndex`, default tier 2, reached by the sample board) |
+
+- **Why the tenant's real gate but a sample contest:** the gate's fields and opt-ins are the tenant's live configuration and belong in a brand check; a real contest would show real players and real prizes under an unpublished look and would be missing for a tenant with no contests. The walkthrough ruling asks for a built-in sample contest here and real data on the contest previews.
+- **No contests state:** while the No contests message input has focus, Brand overlays `contests: { upcoming: [], past: [] }` so the Contest list tab shows the Current tab's empty state with the draft `noContests` text.
 
 ---
 
-## Endpoints and access
+## Words: storage, endpoint and fan wire
 
-| Method | Path | Change | Auth |
+**`BRAND2-16` (revised) — `branding.text`**, **Phase B: to build** in shared, backend and the fan read:
+
+```ts
+// obs-b2b-shared/src/theme/brand-text.ts (new)
+export const BRAND_TEXT_KEYS = ["startTagline", "startCta", "noContests", "pausedHeading", "pausedBody"] as const;
+export type BrandTextKey = (typeof BRAND_TEXT_KEYS)[number];
+export const BRAND_TEXT_MAX: Record<BrandTextKey, number> = {
+  startTagline: 60, startCta: 24, noContests: 90, pausedHeading: 40, pausedBody: 160,
+};
+export const BRAND_TEXT_DEFAULTS: Record<BrandTextKey, string> = { /* the placeholders above */ };
+export type BrandText = Partial<Record<BrandTextKey, string>>;
+export const brandTextSchema;                         // zod, per-key trim + max, only {team}
+export function resolveBrandText(text: BrandText | undefined, teamName: string): Record<BrandTextKey, string>;
+// B2BOrganization.ts: BrandingSettings gains `text?: BrandText` beside theme, assets and presets.
+```
+
+- **Mongoose:** a typed `_id: false`, `default: undefined` subschema with a `maxlength` per key (`THEME-11`; never `Mixed`).
+- **`PUT /admin/branding`** (exists) accepts `text` with the same three states as `assets`: absent leaves it, `null` clears it, an object replaces it whole. Empty keys are dropped; an empty object is `$unset`. `changes` gains `textEdited`. **`GET /admin/branding`** and the PUT response echo `text`. `theme: null` never clears `text`.
+- **`GET /b2b/org/:subdomain`** (exists) projects `text` key by key into `organization.branding.text` (`THEME-16`'s allowlist) and serves it while suspended (`THEME-18`), so the paused words reach a paused app. `publicBrandingSchema` gains `text`.
+- **`BRAND2-23` — The schemas widen first.** `text`, `decor` and `bingoGrid` are accepted by zod and Mongoose on the backend and the fan read before the page can publish them; until then the zod `themeSettingsSchema` would strip `decor` silently.
+
+---
+
+## Mapping from today's `ThemeSettings`
+
+No data migration (`BRAND2-20`). UI state is derived on load; every field is carried through on publish unless the page edits it.
+
+| Stored field (`B2BOrganization.ts`) | Brand v2 control | Read by the overhauled fan app | On publish |
 |---|---|---|---|
-| GET | `/admin/branding` | Response adds `text`; `theme` may carry `decor` | `requireAdmin` (any scope reads) |
-| PUT | `/admin/branding` | Body and response add `text`; `changes.textEdited`; widened theme schema; new-URL `https` check on assets | `requireAdmin` + `refuseReadOnlyWrite` |
-| PUT | `/admin/branding/presets` | None beyond the widened theme schema | same |
-| POST | `/admin/branding/promote` | None; `genericizeForGallery` copies `decor` | `requireAdmin`, staff only |
-| POST | `/admin/assets/uploads` | **New**: the upload presign | `requireAdmin` + `refuseReadOnlyWrite` |
-| GET | `/b2b/org/:subdomain` | `branding.text` added to the projection | public |
+| `mode` | Light or dark | yes | written |
+| `colors.primary` | Team | yes (Team) | written |
+| `colors.accent` | Accent (required) | yes; absent → Second, else Team (`DECOR-39`) | written; required to publish |
+| `colors.secondary` | Second (Auto when absent) | yes; absent → Auto | written or absent |
+| `colors.live` | Live (Auto when absent) | yes; absent → mode's tone | written or absent |
+| `colors.neutrals` (ground, surface, surfaceRaised, text ramp, borderBase, border) | none | no (platform ramps) | carried through |
+| `type.fontDisplay/fontBody/fontNumeric` | none | no (Satoshi only) | carried through |
+| `type.displayTransform`, `type.displayWeight` | none | no (the kit's display style is fixed) | carried through |
+| `shape.radiusBase` | none | yes (kit radii) | carried through; applying a preset writes it |
+| `shape.density` | none | no (no reader anywhere) | carried through |
+| `surface.borderAlpha` | none | no (kit hairlines per mode) | carried through |
+| `surface.texture` | Fine-tune › Texture | yes (`none` / GridTexture) | written |
+| `surface.glowIntensity` | none | no (glows follow `--k-intensity`) | carried through |
+| `motif.heroMotif` | none | no (bands are part of each screen) | carried through |
+| `motif.boardCounter` | none | no (the board's counter is the numeral and Track) | carried through |
+| `decor.intensity`, `decor.angle` (**Phase B**) | Fine-tune › Decoration, Band angle | yes | written |
+| `assets.logo` | Logo upload | yes | written |
+| `assets.sliderTipImageUrl` | Progress marker upload | yes | written |
+| `assets.sponsorName`, `assets.sponsorLogo` | none (legacy; no editor since sponsors got their own page) | no (Start's legacy "from {sponsorName}" is dropped) | carried through |
+| `presets[]` | Presets › Yours | — | `PUT /admin/branding/presets` |
+| `text` (**Phase B**) | Words | yes | written |
 
-- **Existing routes:** `routes/admin/index.ts:720-783`.
-- **Handlers:** `handlers/admin/branding.ts:109-148` (put) and `:235-300` (promote).
-- **Pure update:** `util/admin-branding.ts:73-122`.
+**Derived on load:** the preset "In use" ring compares the draft's `mode`, decor params, texture and radius base with Prime Time and the gallery and tenant presets (first match); Auto chips show for an absent Second or Live, or a stored value equal to what Auto would produce (left stored until the admin resets it); an absent `decor` shows Prime Time's values.
 
-**Unchanged:**
-- Tenant targeting.
-- The read-only refusal running first (`THEME-13`).
-- No reverification anywhere, including the upload route, because every one of these writes is undone by doing it again (`THEME-14`).
-- `clearOrgCache()` on every branding write (`THEME-15`, `handlers/admin/branding.ts:136`). The upload route doesn't touch the org, so it doesn't clear the cache.
-- Route-auth test: `route-auth.test.ts:89-99` gains the upload route under the same expectations.
+---
 
-**Audit:**
-- **Unchanged:** promotion is the only audited branding write (`THEME-10`, `handlers/admin/branding.ts:278`). Publishing a theme, words or images is ordinary tenant configuration and is not audited, by the same rule that leaves `PUT /admin/config` unaudited.
-- **Upload presigns:** not audited. They are logged at info level with ids and sizes only (org id, purpose, size, content type) and never the file name.
+## Endpoints
+
+| Method | Path | Status | Change on the Wave 5 branch | Auth |
+|---|---|---|---|---|
+| GET | `/admin/branding` | exists | echoes `text`; theme may carry `decor` (Phase B) | `requireAdmin` |
+| PUT | `/admin/branding` | exists | accepts `text` and theme `decor`, `bingoGrid` (Phase B) | `requireAdmin` + write gate |
+| PUT | `/admin/branding/presets` | exists | none beyond the widened theme schema | same |
+| POST | `/admin/branding/promote` | exists | `genericizeForGallery` copies `decor` (Phase B) | staff only |
+| POST | `/admin/uploads`, `/admin/uploads/complete` | exist (Wave 4) | none; fields `brand.logo`, `brand.progressMarker` | `requireAdmin` + write gate |
+| GET | `/admin/preview` | exists (Wave 4) | none; Brand uses its `org` and `membership` sections | `requireAdmin` |
+| GET | `/b2b/org/:subdomain` | exists | `branding.text` in the projection (Phase B) | public |
+| — | Asset CDN image reads | exists (Wave 4) | `Access-Control-Allow-Origin` for console origins on GET (Phase B) | public |
+
+Unchanged: tenant targeting (`?tenant=` for staff only), the read-only refusal first (`THEME-13`), no reverification anywhere (`THEME-14`; the walkthrough's "no step-up anywhere"), `clearOrgCache()` on every branding write (`THEME-15`), promotion the only audited branding write (`THEME-10`).
 
 ---
 
 ## Rules
 
-- **`BRAND2-01`: Presets first.** The preset shelf is the first section, and applying a preset keeps Team and Second (`THEME-08`) plus any overridden Accent or Live.
-- **`BRAND2-02`: The palette is four colours.** Team is required. Second, Accent and Live are Auto until overridden, and Reset to auto returns them. No other colour is editable on the page.
-- **`BRAND2-03`: Neutrals are preset-owned.** The page never offers a page, card or text colour. A stored custom ramp is honoured and shown with "Custom page colours from an earlier setup" and Reset to preset.
-- **`BRAND2-04`: No native popups.** No `<input type="color">` and no `<select>` anywhere in the console after v2, enforced by a lint rule. The only operating-system dialog is the file chooser.
-- **`BRAND2-05`: The picker is keyboard-complete.** Arrows step by 1 and Shift plus arrows by 10. Enter commits the hex, Esc closes and restores, focus is trapped while open, and focus returns to the swatch.
-- **`BRAND2-06`: The hex is always visible.** On every swatch and in the picker. Auto is a text chip. No state is shown by colour alone.
-- **`BRAND2-07`: The contrast readout uses the resolver's functions.** `onColor` and `contrastRatio` from `obs-b2b-shared/src/theme/color.ts`, never a console reimplementation (`THEME-03`).
-- **`BRAND2-08`: One font choice.** A pairing writes all five `type` fields together. A stored mix that matches no pairing is preserved as the Custom card and never rewritten unless the admin picks a pairing.
-- **`BRAND2-09`: Pairings are shared data.** `THEME_FONT_PAIRINGS` lives in `obs-b2b-shared` and uses only `THEME_FONT_IDS`.
-- **`BRAND2-10`: Mode switches go through `withMode`.** A shipped preset ramp is swapped for the same preset's ramp in the new mode; custom neutrals are dropped so the resolver's ramp applies (decor spec, `DECOR-23`).
-- **`BRAND2-11`: Thumbnails are swatches, not previews.** Static, built from the shared decor pieces, scoped variables, the tenant's Team colour, no data.
-- **`BRAND2-12`: The real fan app is the only preview.** Brand sends `theme`, `brand` and `device` (and `sample.homeEmpty` while the No contests input is focused), and never a contest, gate, sponsor or invented data.
-- **`BRAND2-13`: The peek never touches the draft.** The Light/Dark peek changes only what is sent to the frame.
-- **`BRAND2-14`: Five brand strings, no more.** `startTagline`, `startCta`, `homeEmpty`, `pausedHeading`, `pausedBody`, with the limits above and only the `{team}` token. Every other fan string is platform copy. The seven gate strings stay in Fields & Opt-ins.
-- **`BRAND2-15`: Blank means standard.** An empty string is never stored. An empty `text` object is `$unset`.
-- **`BRAND2-16`: Words reach fans through the allowlist.** `text` is projected key by key on `GET /b2b/org/:subdomain` and served while suspended.
-- **`BRAND2-17`: Images are uploads.** There are no URL fields on the page. Legacy stored URLs are honoured and survive a republish unchanged, and a new value must be `https:`.
-- **`BRAND2-18`: Upload limits hold at storage.** PNG, SVG or WebP up to 1 MB, enforced by a presigned POST policy. SVG is rendered only through `<img>` and served sandboxed.
-- **`BRAND2-19`: Fine-tune maps to the contract exactly.** Decoration to `decor.intensity` (0 / 0.35 / 0.7). Band to `decor.band`, mirrored into `motif.heroMotif`. Texture to `surface.texture`. Corners to `shape.radiusBase`. Glow to `surface.glowIntensity`.
-- **`BRAND2-20`: No data migration.** Every stored v2 theme stays valid, and UI state is derived on load.
-- **`BRAND2-21`: Life for everyone.** The fan app applies decor defaults to every tenant on the day it ships, with no republish needed.
-- **`BRAND2-22`: Stale v1 drafts are discarded once, with a notice.** The draft key suffix is `:branding-v2`.
-- **`BRAND2-23`: The schemas widen first.** `decor`, `bingoGrid` and `text` must be accepted by zod and Mongoose before the page can publish them. Nothing is silently stripped.
-- **`BRAND2-24`: Access is unchanged.** `org:admin` and staff write, `org:member` reads, promote is staff only, nothing is reverified, and only promotion is audited.
-- **`BRAND2-25`: No gap narration on the page.** The page never explains what it can't do. Unreadable logo colours and unavailable screens are omitted silently and recorded here (D-068).
+Kept from S2 (revised where noted): `BRAND2-01`–`BRAND2-07`, `BRAND2-11`, `BRAND2-12`, `BRAND2-14`–`BRAND2-17`, `BRAND2-19`–`BRAND2-25`. New: `BRAND2-26`–`BRAND2-30`.
+
+- **BRAND2-01 — Presets first; applying one changes the look, never the palette** (an Accent-less draft takes the preset's accent).
+- **BRAND2-02 — Two to four colours; Team and Accent required;** Second and Live Auto until overridden.
+- **BRAND2-03 — No neutral controls;** stored neutrals are carried through.
+- **BRAND2-04 — No native popups** (lint-enforced), except the file chooser behind an upload and native range sliders.
+- **BRAND2-05 — The picker is keyboard-complete.**
+- **BRAND2-06 — The hex is always visible;** Auto is a text chip.
+- **BRAND2-07 — The contrast readout uses the kit's resolver.**
+- **BRAND2-11 — Thumbnails are swatches, not previews:** static, from shared kit pieces, no data.
+- **BRAND2-12 — The real overhauled fan app is the only preview,** on `host: "brand"`, seven tabs, phone only, fed by the tenant's real org and gate and the built-in sample contest.
+- **BRAND2-14 — Five Words, no more:** `startTagline`, `startCta`, `noContests`, `pausedHeading`, `pausedBody`, `{team}` only. Gate strings stay in Fields & Opt-ins.
+- **BRAND2-15 — Blank means standard.**
+- **BRAND2-16 — Words reach fans through the public org allowlist**, also while suspended.
+- **BRAND2-17 — Images are Wave 4 uploads;** legacy URLs are honoured and carried through.
+- **BRAND2-19 — Fine-tune maps to the contract exactly:** intensity, angle, texture.
+- **BRAND2-20 — No data migration.**
+- **BRAND2-21 (revised) — Every tenant gets the overhaul's look on the Wave 5 branch** with Prime Time's params until they set their own; no republish needed.
+- **BRAND2-22 — Stale v1 drafts are discarded once, with a notice.**
+- **BRAND2-23 — The schemas widen first.**
+- **BRAND2-24 — Access is unchanged:** `org:admin` and staff write, `org:member` reads, promote is staff only, nothing is reverified, only promotion is audited.
+- **BRAND2-25 — No gap narration on the page.**
+- **BRAND2-26 — The sample document is the fix pass's source, with the contents above,** named as a sample, never written anywhere.
+- **BRAND2-27 — The draft reaches the frame as `PreviewOverlay.branding`** on `org.organization.branding`; no protocol change.
+- **BRAND2-28 — Carry, don't clobber:** publish sends every unedited stored field back unchanged.
+- **BRAND2-29 — Publish needs an Accent.**
+- **BRAND2-30 — "Leave without publishing?" only with unsaved changes.**
+
+### Retired from S2
+
+| ID | Was | Why |
+|---|---|---|
+| BRAND2-08, BRAND2-09 | One font choice from shared pairings | Satoshi only; no font option (ruling) |
+| BRAND2-10 | Mode switches go through `withMode` | Kit ramps are per mode (`DECOR-23`); no swap needed |
+| BRAND2-13 | The Light/Dark peek never touches the draft | The peek and its "Peeking at…" text are cut (W5-D27) |
+| BRAND2-18 | Upload limits PNG/SVG/WebP ≤1 MB via S2's own route | Wave 4's `POST /admin/uploads` (5 MB, sniffed, measured) is the route |
+
+---
+
+## Function audit
+
+### 1. Surfaces: data, calls, states
+
+| Surface | Data sources | Server calls on admin action | States covered |
+|---|---|---|---|
+| Brand page | `GET /admin/branding` (theme, assets, presets, gallery; `text`*) | `PUT /admin/branding` (publish; `text`*, `decor`*); `PUT /admin/branding/presets`; `POST /admin/branding/promote`; `POST /admin/uploads` + `/complete` | loading, failed, pick tenant, member, paused, no branding, no accent, invalid words, upload not configured, publish error |
+| Colour picker | draft; the logo image (canvas; CORS*) | none | auto / overridden; no logo; tainted canvas; invalid hex |
+| Preset shelf | `GET /admin/branding` presets and gallery; kit thumbnail pieces* | presets PUT, promote | empty gallery, 20 presets, member |
+| Preview | `GET /admin/preview` (`org`, `membership`); the sample document*; `PreviewOverlay.branding`* | none | before ready, ready, failed, no contests (Words focus), each of seven tabs |
+
+\* **Phase B: to build.**
+
+### 2. Mock elements (`brand-v2.html`)
+
+| Mock element | Fate | Reason |
+|---|---|---|
+| 03 "Font" section (Broadcast, Classic, Modern, Grotesk, Editorial) | Cut | Satoshi only; no font option (ruling) |
+| Preview "Peek at mode" Dark/Light toggle and "Peeking at light" | Cut | W5-D27; the preview shows the draft's mode |
+| "Device: Phone / Desktop" toggle, browser-chrome desktop frame at 50% | Cut | Mobile only; no desktop preview anywhere (walkthrough ruling) |
+| Preview tabs Gate · Join · Home · Contest · Board · Prize, more Results · Paused | Changed | The seven Wave 4 screens (W5-D30): Start, Sign in, Join, Contest list, Contest detail, Board, Prize |
+| PREVIEW chyron inside the frame (`?preview=1`) | Cut | `PREV-09`: no marker; the sample marks itself by its names |
+| Caption "Your draft as fans will see it. Nothing changes for them until you publish." | Cut | `PV-08`: no label around the frame |
+| Sponsors as a Brand tab (today's `SponsorsBrandingHead`) | Cut | Walkthrough ruling; Sponsors is its own nav item (the mock already had it in the sidebar only) |
+| "Club Level" preset card | Cut | Not an overhaul preset (`DECOR-37`) |
+| Colours help "Team is required. The other three follow it until you change them." | Changed | Team and Accent required (W5-D24) |
+| Accent swatch with an "Auto" chip | Changed | Accent is required; no Auto |
+| "Live" as the fourth swatch in the main row | Changed | Optional, in the smaller second row with Second |
+| "From your logo" swatches | Kept | Needs CORS on the asset CDN (Phase B) |
+| Contrast chip "Text on Team: white, 18.1:1" and "Close to the page colour (1.1:1)…" | Kept, reworded | The warning now says the app lifts the colour where it must be read (`DECOR-28`) |
+| "PNG, SVG or WebP, up to 1 MB" | Changed | Wave 4 upload rules: PNG, JPEG, WebP, SVG, 5 MB |
+| Logo tile "1200×300", Replace, Remove | Kept | `UploadField`'s measured line |
+| Words: "No contests message: Shown on Home when nothing is scheduled." | Changed | Key `noContests`, shown on Contests (no home) |
+| Words: other four inputs with counters | Kept | `branding.text` (Phase B) |
+| 07 Fine-tune (collapsed) | Kept | Contents per W5-D27: intensity, angle, texture |
+| Footer: "Unpublished changes", "Use the standard look", "Discard draft", "Publish" | Kept | Existing behaviour |
+| Barlow Condensed, Fraunces, Instrument Sans, Space Grotesk, IBM Plex, Fontshare Satoshi (`brand-v2.html` head) | Cut | Console uses its own self-hosted Satoshi |
 
 ---
 
 ## Acceptance criteria
 
-1. **Order:** on `/branding` the sections appear in this order: Presets, Colours, Font, Light or dark, Logo and marker, Words, Fine-tune (collapsed). The footer holds Use the standard look, Discard draft and Publish.
-2. **No native inputs:** searching the built console for `type="color"` and `<select` finds nothing, and the lint rule fails a test fixture containing either.
-3. **Picker, keyboard only:** open Team with Enter, press Shift+Right three times (saturation +30), press Tab to reach the hue strip and Left five times (hue −5), type `0B162A` in the hex field and press Enter, then press Esc.
-   - The swatch shows the colour it had before opening.
-   - Focus is on the Team swatch.
-   - Tab never left the picker while it was open.
-4. **Picker commit:** repeating step 3 but ending with Done leaves the swatch at `#0B162A` and the preview frame shows it within 100 ms of the last change (debounce, with the frame's paint time excluded).
-5. **Contrast readout:** Team `#0B162A` reads "Text on Team: white, 18.1:1" (computed by `contrastRatio`). A mid grey below 4.5 shows the "(below the 4.5:1 reading standard)" suffix.
-6. **Auto:**
-   - A tenant with no `secondary` shows Second as Auto with the resolver's derived hex.
-   - Overriding Second and choosing Reset to auto publishes a body with no `colors.secondary`.
-7. **Presets keep the palette:** applying Club Level to a Prime Time tenant with Team `#0B162A`, Second `#C83803` and an overridden Accent `#FFB224` keeps all three. (Not `#F5B32E`: that is Prime Time's own accent, so it loads as Auto.) Live, which was Auto, becomes Club Level's.
-8. **Mode swap:** a Prime Time tenant switching to Light gets the Prime Time light ramp (ground `#F6F7FA`). Switching Club Level to Dark gets the Club Level dark ramp (ground `#14130F`). Switching a tenant with a custom ground drops the custom neutrals, and the preview shows the resolver's ramp for the new mode.
-9. **Custom neutrals note:** a Prime Time tenant shows no note. A tenant with `neutrals.ground: "#123456"` and nothing else shows it, and Reset to preset replaces the ramp.
-10. **Font:**
-    - A tenant storing Barlow Condensed, Barlow, Plex Mono, uppercase, 600 loads with Broadcast selected.
-    - A tenant storing Archivo display and Satoshi body loads with Custom selected.
-    - Picking Modern and then Custom restores Archivo and Satoshi.
-11. **Words:**
-    - Typing `{name}` in the tagline shows "Only {team} can be used here." and disables Publish.
-    - Publishing a blank tagline stores no `startTagline`.
-    - `GET /b2b/org/:subdomain` returns `branding.text` with exactly the stored keys, including for a suspended tenant.
-12. **Words limits:** `PUT /admin/branding` with a 61-character `startTagline` is a 400, and with an unknown key the key is stripped.
-13. **Upload:**
-    - A 1.2 MB PNG is refused in the tile before upload.
-    - A request for a presign with `size: 2000000` is a 400.
-    - A direct POST to the presigned policy with a larger file is refused by storage.
-    - An SVG containing `<script>` is rejected and shows "Use a PNG, SVG or WebP file."
-14. **Legacy image:** a tenant with `assets.logo: "/logos/bears.png"` republishes a colour change, and the stored logo is byte-identical.
-15. **Draft bump:**
-    - With a v1 draft present under `:branding`, opening the page shows the refreshed notice once and removes the key.
-    - Reloading doesn't show it again.
-    - A v2 draft restores with "Restored your unsaved changes."
-16. **Schemas:** a `PUT /admin/branding` carrying `decor` and `surface.texture: "bingoGrid"` round-trips unchanged through GET.
-17. **Fine-tune mapping:** Decoration Subtle writes `decor.intensity: 0.35`. Band Off writes `decor.band: "none"` and `motif.heroMotif: "none"`. Band Double writes `double` and `angledBand`.
-18. **Peek:** toggling the peek to Light while the draft is dark sends a light theme to the frame, leaves the draft `mode` as `dark`, and leaves Publish disabled on a clean draft.
-19. **Unavailable preview:** with the fan origin unreachable, the preview shows the host's unavailable state, every control still edits, and Publish works.
-20. **Read-only:** an `org:member` sees every control disabled, the read-only line in place of the footer, and a working preview.
-21. **Narrow and phone:**
-    - At 900px the preview is a collapsed bar under the head.
-    - At 390px the swatches are 2×2 and the picker opens as a bottom sheet.
-    - Dragging on the square does not scroll the page.
-    - No element is narrower than 44px in its tap dimension.
-22. **Retirement:** `BrandPreviewPanel.tsx` no longer exists, and nothing under `src/pages/Branding*` imports `EntryGatePreview`.
-
----
+1. `/branding` shows Presets, Colours, Light or dark, Logo and marker, Words, Fine-tune (collapsed), in that order, and no Font section, Sponsors tab, device toggle, peek toggle or "Peeking at" text.
+2. Searching the built console for `type="color"` and `<select` on this page finds nothing.
+3. Applying Prime Time to a draft with Team `#0B162A`, Accent `#FFB224` and Second `#C83803` keeps all three and changes mode, decor params, texture and radius base; applying it to a draft with no Accent sets Accent to `#F5B32E`.
+4. A stored theme with no `colors.accent` loads with Accent reading "Choose an accent" and Publish disabled; choosing one enables Publish.
+5. Publishing a colour change for a tenant whose stored theme has custom neutrals, Club Level type and `heroMotif: "none"` leaves those fields byte-identical in `GET /admin/branding`.
+6. The picker, keyboard only: open Team with Enter, Shift+Right three times, Tab to the hue strip, Left five times, type `0B162A`, Enter, Esc: the swatch shows its opening colour and focus is on it; Tab never left the picker.
+7. The contrast readout for Team `#0B162A` reads "Text on Team: white, 18.1:1".
+8. `PUT /admin/branding` with `text: { startTagline: "Go {team}" }` stores it, `GET /b2b/org/:subdomain` returns it in `organization.branding.text` (also for a paused tenant), and a 61-character `startTagline` or a `{name}` token is refused with 400.
+9. Blank Words values publish as absent and the fan app shows the defaults.
+10. The preview frame answers `ready` with `app: 'overhaul'`; the tabs read Start, Sign in, Join, Contest list, Contest detail, Board, Prize; clicking through the frame moves the tabs; there is no Phone/Desktop control.
+11. The Contest list tab shows only "Sample contest", the Board tab shows two bingos with every square on the no-photo fallback, and the Prize tab shows "Sample prize 2"; none of the tenant's real contests, players or prizes appears.
+12. Changing Team in the picker repaints the frame within ~100ms of the last change, without a publish; the tenant's live fan app is unchanged until Publish.
+13. Focusing the No contests message input shows the Contest list tab's empty state with the draft text.
+14. An `org:member` sees every control disabled, the read-only line, and a working preview.
+15. Leaving with unsaved changes asks "Leave without publishing?"; leaving a clean page asks nothing.
+16. `BrandPreviewPanel.tsx` and the `SponsorsBrandingHead` import are gone from `Branding.tsx` on the Wave 5 branch.
 
 ## Open questions
 
-1. **Does the upload route ship with Brand v2 or before it?** Recommendation: with it, in the same build slice, since it's small and Brand is its first user. The Sponsors page adopts it when S1's "upload later" comes due. If the route slips, the Images section keeps its two v1 URL fields until the route lands. That is a build-order fallback, not the design.
-2. **The default theme's Second after the resolver change.** The auto Second in [`fan-decor-system.spec.md`](fan-decor-system.spec.md) (Team shifted 18° in hue, darkened 12% in dark mode or lightened 10% in light mode) replaces today's "Second falls back to Team" (`resolve.ts:219-222`). Legacy tenants store `secondary` explicitly, so `THEME-20`'s parity test holds for them. The unbranded default, though, changes `--secondary` from `#E5E5E5` to a darker grey. Arthur to confirm that this is a sanctioned delta the parity test should record, or that the default theme should store `secondary: "#e5e5e5"` to stay byte-identical. The decor spec owns the resolver change. Brand only displays the result.
+1. **Paused words without a preview.** Paused is not a preview screen (W5-D30). Accept that the paused strings have no preview, or add a `paused` preview screen (a closed-enum change in `PREVIEW_SCREENS`)?
+2. **Thumbnails.** They need three kit components in shared (`DECOR-40`). If that move is unwanted, the shelf shows name-only cards and the preview is the only look check. Director's call.
+3. **Band angle as a tenant setting** (`DECOR-38`, open question 2 of the decor spec).
 
----
+## Recorded gaps
 
-## Recorded gaps (recorded, not blocking, never on screen)
+- **"From your logo" needs CORS on asset reads**; until it ships, the row stays hidden for every uploaded logo.
+- **Paused words have no preview.**
+- **Stored neutrals, fonts, border strength, glow, band and counter settings stay stored and unedited;** main's Brand page still reads them, the overhaul doesn't.
+- **Last write wins between two admins**, as everywhere in the console.
+- **Orphaned uploads** stay in the bucket (Wave 4's recorded gap).
 
-- **Logo colours need a readable logo.** A legacy logo hosted without CORS taints the canvas, and "From your logo" is omitted for it. Re-uploading through the tile fixes it.
-- **Orphaned uploads.** An image uploaded and never published stays in storage. A sweep of objects no org references is a later infra task.
-- **Accent Auto depends on a matched base.** A tenant whose ramp matches no preset has no preset accent, so Accent's Auto falls back to absence, which the resolver resolves to Second (`resolve.ts:222`).
-- **Spacing (`shape.density`) has no reader.** It stays stored and unedited, as it was.
-- **Publishing is still last-write-wins between two admins**, as everywhere in the console.
+## Mocks
 
----
-
-## What happens to the `THEME-nn` rules
-
-| Rule | Status |
-|---|---|
-| `THEME-03` to `THEME-06` (pure data, font allowlist, status colours, border override) | **In force.** v2 adds no derived field and no font. |
-| `THEME-07` (directions are preset JSON, zero code) | **In force**, extended: `decor` must also be expressible in preset JSON. |
-| `THEME-08` (apply keeps primary and secondary) | **In force.** v2 adds the page-level carry of an overridden Accent and Live (`BRAND2-01`). |
-| `THEME-09`, `THEME-10` (private presets; audited, genericizing promotion) | **In force.** Promotion also copies `decor`. |
-| `THEME-11`, `THEME-12` (storage) | **In force.** `branding.text` follows `THEME-11`. |
-| `THEME-13` to `THEME-15` (access, no reverification, cache clear) | **In force**, and they cover the upload route. |
-| `THEME-16` to `THEME-18` (fan wire) | **In force.** `text` joins the allowlist. |
-| `THEME-19`, `THEME-20` (seeds, parity) | **In force.** The light flash is G2's (see open question 2 on parity). |
-| `THEME-21` (the preview renders shared components in `.obs-gate-preview` with a sampler) | **Superseded** by `BRAND2-12` and "The preview". |
-| `THEME-22`, `THEME-23` (stat fraction honesty, reduced motion) | **In force.** They are fan-side and unaffected. |
-| Old Rules list item 12 (the preview renders the fan product's code and captions nothing) | **Superseded** by `BRAND2-12` and `BRAND2-25`. The persistent Preview marker is a label the interface requires, not a caption about gaps. |
-| Old "The screen" prose, including the group names Look, Colors, Type, Shape, Finish, Signature and Assets | **Superseded** by this spec's screen. |
-| Old out-of-scope line and recorded gap "no full board preview in the console" | **Superseded.** The preview is the real fan app, including the board. |
-
----
+`mocks\fanapp-v2\brand-v2.html` (workspace), visual direction only; the function audit lists every deviation.
 
 ## References
 
-- WAVE-RULES 2026-09-24: "Brand gets simpler", "Colour hues", "Fields & Opt-ins".
-- `overboard-b2b-workspace\artifacts\wave-2026-09-24\s1-s2-preview-interface.md`: the frame, messages, render document, fixtures and retirement.
-- [`fan-app-v2-build-plan.md`](../../../documents/HLDs/fan-app-v2-build-plan.md): slice f5 builds this page and the upload route.
-- `artifacts\review-2026-09-24\admin-wide.md` Q9 (the 22 settings) and `prizes-sponsors.md` Q5 (no upload).
-- Console:
-  - `obs-b2b-admin-frontend/src/pages/Branding.tsx`, especially `ColorRow` `:1029-1097` (native input at `:1071-1078`), the presets card `:830-958`, draft and publish `:239-398`, and apply `:472-479`.
-  - `src/components/BrandPreviewPanel.tsx`
-  - `src/lib/themeFonts.ts`
-  - `src/lib/configDraftStorage.ts`
-  - `src/components/sponsors/SponsorDrawer.tsx:497-557`
-- Shared:
-  - `obs-b2b-shared/src/interfaces/b2b/B2BOrganization.ts`: `GateCopyOverrides` `:147-155`, `THEME_FONT_IDS` `:224-235`, `ThemeSettings` `:294-339`, `BrandingAssets` `:350-359`, `THEME_PRESET_CAP` `:394`.
-  - `src/theme/presets.ts`, `resolve.ts`, `color.ts`, `fonts.ts`
-  - `src/api/admin/branding.ts`, `src/api/b2b/org.ts`, `src/api/b2b/membership.ts:72-80`, `src/models/b2b.ts:103-194`
-  - `src/entry-gate/copy.ts`
-- Backend:
-  - `overboard_sports_backend/node-server/src/routes/admin/index.ts:720-783`
-  - `handlers/admin/branding.ts`
-  - `util/admin-branding.ts`
-  - `handlers/org/getOrganization.ts`
-  - `routes/__tests__/route-auth.test.ts:89-99`
-- Specs:
-  - [`admin-branding.spec.md`](admin-branding.spec.md)
-  - [`fan-decor-system.spec.md`](fan-decor-system.spec.md)
-  - [`fan-app-v2.spec.md`](../../webapp/fan-app-v2.spec.md), [`fan-contest-flow.spec.md`](../../webapp/fan-contest-flow.spec.md), [`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md)
-  - [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md)
-  - [`admin-sponsors.spec.md`](admin-sponsors.spec.md) (recorded gap "No image upload")
-  - [`admin-surface.spec.md`](admin-surface.spec.md) (Rule 12, superseded through the interface file)
-- Mock: `overboard-b2b-workspace\mocks\fanapp-v2\brand-v2.html`.
+- Rulings (workspace): `artifacts\review-2026-09-27\arthur-rulings-2026-09-27.md` (Wave order, Priorities, Uploads everywhere); `arthur-rulings-wave4-walkthrough.md` (Console-wide, Brand); `artifacts\wave-2026-09-24\arthur-rulings-after-specs.md` (Prime Time gold).
+- Decisions: `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md` (W5-D24, D27, D28, D30–D33); console audit `w5-console-touchpoints-audit.md` §4–§5.
+- Wave 4 specs (`arthur-w4-console`): [`admin-branding.spec.md`](admin-branding.spec.md), [`admin-uploads.spec.md`](admin-uploads.spec.md), [`admin-preview.spec.md`](admin-preview.spec.md), `../../webapp/fan-preview-mode.spec.md`, [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md).
+- Siblings: [`fan-decor-system.spec.md`](fan-decor-system.spec.md), [`../../webapp/fan-app-v2.spec.md`](../../webapp/fan-app-v2.spec.md), [`../../webapp/fan-app-v2-console-touchpoints.spec.md`](../../webapp/fan-app-v2-console-touchpoints.spec.md).
+- Console (Wave 4 integration): `src/pages/Branding.tsx`, `src/components/BrandPreviewPanel.tsx`, `src/components/SponsorsBrandingHead.tsx`, `src/components/upload/UploadField.tsx`, `src/components/preview/FanAppPreview.tsx`, `src/lib/preview/buildPreviewDocument.ts`, `src/lib/configDraftStorage.ts`.
+- Shared: `interfaces/b2b/B2BOrganization.ts` (`ThemeSettings`, `BrandingSettings`, `THEME_PRESET_CAP`), `api/admin/branding.ts`, `api/b2b/org.ts` (`publicBrandingSchema`), `api/preview.ts`, `api/admin/preview.ts`, `api/admin/uploads.ts` (`UPLOAD_FIELDS`), `theme/{resolve,presets}.ts`.
+- Backend: `node-server/src/handlers/admin/branding.ts`, `util/admin-branding.ts`, `handlers/org/getOrganization.ts`, `handlers/admin/preview.ts`.
