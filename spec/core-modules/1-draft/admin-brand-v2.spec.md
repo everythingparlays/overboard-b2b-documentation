@@ -1,6 +1,6 @@
 # Core Module Spec: Admin — Brand v2 (Wave 5 branch)
 
-**Implements:** Arthur's 2026-09-27 rulings: "Wave order" (the console's Brand page v2, as mocked with the fan-app v2 mocks, is built on the Wave 5 branch, never on main), "Priorities" (Satoshi everywhere; remove the font option from Brand), "Uploads everywhere" (drag-and-drop plus browse, no URL boxes); the Wave 4 walkthrough rulings for Brand (remove the Sponsors tab; Brand's preview is the one place every screen matters: Start, Sign in, Join, Contest list, Contest detail, Board and Prize on a built-in sample contest, mobile only) and console-wide (no desktop preview; "Leave without saving?" only with unsaved changes); the standing rule "function over mocks". Director's decisions W5-D24, W5-D27, W5-D28, W5-D31, W5-D32, W5-D33, W5-D43, W5-D46, W5-D47, W5-D48. PRD `BRAND-01` (as reclassified by `admin-branding.spec.md`), `ADM-02`, `ADM-03`, `TEN-02`.
+**Implements:** Arthur's 2026-09-27 rulings: "Wave order" (the console's Brand page v2, as mocked with the fan-app v2 mocks, is built on the Wave 5 branch, never on main), "Priorities" (Satoshi everywhere; remove the font option from Brand), "Uploads everywhere" (drag-and-drop plus browse, no URL boxes); the Wave 4 walkthrough rulings for Brand (remove the Sponsors tab; Brand's preview is the one place every screen matters: Start, Sign in, Join, Contest list, Contest detail, Board and Prize on a built-in sample contest, mobile only) and console-wide (no desktop preview; "Leave without saving?" only with unsaved changes); the standing rule "function over mocks". Director's decisions W5-D01 to W5-D50, all binding (chiefly W5-D24, W5-D27, W5-D28, W5-D31, W5-D32, W5-D33, W5-D43, W5-D46, W5-D47, W5-D48; `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`), and the Phase A review rulings (`artifacts\wave-2026-09-27\briefs\w5-review-rulings.md`, workspace). PRD `BRAND-01` (as reclassified by `admin-branding.spec.md`), `ADM-02`, `ADM-03`, `TEN-02`.
 
 **Depends on:** Wave 4's specs on docs branch `arthur-w4-console` (PR #29, not merged to main; this branch is rebased after Wave 4 and the 4b fix pass merge): [`admin-branding.spec.md`](admin-branding.spec.md) (the theme contract, presets and gallery, storage, `GET/PUT /admin/branding`, `PUT /admin/branding/presets`, `POST /admin/branding/promote`, the fan wire, `THEME-03`–`THEME-20`), [`admin-uploads.spec.md`](admin-uploads.spec.md) (`UploadField`, `POST /admin/uploads`, `POST /admin/uploads/complete`, fields `brand.logo` and `brand.progressMarker`), [`admin-preview.spec.md`](admin-preview.spec.md) and `../../webapp/fan-preview-mode.spec.md` (`FanAppPreview`, the render document, `GET /admin/preview`), [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) (the nine gate-copy keys). The Wave 4b fix pass (not built at the time of writing): `host: "brand"` and its built-in sample contest source (W5-D31). Siblings on this branch: [`fan-decor-system.spec.md`](fan-decor-system.spec.md) (the palette, tokens, decor params, Prime Time), [`../../webapp/fan-app-v2.spec.md`](../../webapp/fan-app-v2.spec.md) (where the Words show), [`../../webapp/fan-app-v2-console-touchpoints.spec.md`](../../webapp/fan-app-v2-console-touchpoints.spec.md).
 
@@ -76,9 +76,9 @@ Tapping a swatch (or Enter or Space on it) opens the picker: an anchored popover
 
 1. **Header:** the colour's name, and "Auto: follows Team" (Second) or "Auto: standard live colour" (Live) while auto.
 2. **Saturation and brightness square**, 200×140, HSV; a 14px ring cursor.
-3. **Hue strip**, 200×14 visible, 44px hit area.
+3. **Hue strip**, 200×14 visible, 48px hit area.
 4. **Hex field** (six characters, paste with or without `#`) and a before-and-after chip.
-5. **From your logo:** up to six 28px swatches sampled from the uploaded logo (64×64 offscreen canvas, alpha ≥ 128, 4-bit buckets, kept when at least 48 apart in RGB, stopping at six). Hidden when there is no logo or the canvas is tainted. **Phase B: to build:** the asset CDN must answer image GETs with `Access-Control-Allow-Origin` for the console's origins (Wave 4's response-headers policy sets CSP and caching but no CORS on reads), otherwise every uploaded logo taints the canvas and the row never shows.
+5. **From your logo:** up to six 28px swatches from the uploaded logo, returned by **`POST /admin/branding/sample-colours`** (**Phase B: to build**, review ruling B1). The server maps the logo's public URL to its key under the tenant's `tenants/<organizationId>/` prefix, reads the object from the bucket, samples it (64×64, alpha ≥ 128, 4-bit buckets, kept when at least 48 apart in RGB, at most six) and answers `{ colours: string[] }` (`#RRGGBB`). The console never reads the image's pixels, so the asset CDN needs no CORS change and there is no deploy. Hidden when there is no logo, when the logo is a legacy URL outside the bucket, or when the call fails.
 6. **Contrast readout** (`BRAND2-07`, revised), computed with the kit's resolver (`resolvePalette`, `onColor`, `contrastRatio`), never a console reimplementation: "Text on {Name}: {white|near-black}, {ratio}:1", adding "(below the 4.5:1 reading standard)" under 4.5; and, when the colour is within 1.5:1 of the mode's ground, "Close to the page colour ({ratio}:1). The app lifts it where it has to be read." Factual; never blocks.
 7. **Reset to auto** (Second and Live, while overridden) and **Done**.
 
@@ -134,7 +134,7 @@ Help lines: Decoration "The board fragments and glow behind your screens."; Band
 - **Discard draft:** the existing discard.
 - **Use the standard look:** sets the draft theme to `null` (the platform default), as today; it clears the theme only, not images or words. While null, the controls show the default palette and the button reads "Using the standard look."
 - **No draft autosave** (walkthrough ruling, console-wide). The draft lives in the page until Publish or Discard. Today's `sessionStorage` copy of the Brand draft (`configDraftStorage.ts`, "Restored your unsaved changes.") is not used on the Wave 5 page; a key left by main's page is ignored.
-- **Leaving:** an in-app navigation with unsaved changes asks "Leave without publishing?" / "Your changes to the brand will be lost." / "Keep editing" (default) / "Leave"; a reload or tab close with unsaved changes gets the browser's own leave prompt (`beforeunload`); none when clean (walkthrough ruling).
+- **Leaving:** an in-app navigation with unsaved changes asks "Leave without saving?" / "Your changes to the brand will be lost." / "Keep editing" (default) / "Leave"; a reload or tab close with unsaved changes gets the browser's own leave prompt (`beforeunload`); none when clean (walkthrough ruling).
 
 ### Screen states
 
@@ -193,7 +193,7 @@ It is marked as a sample by its own names, which is everything a viewer sees of 
 |---|---|
 | Contest | `contestName` "Sample contest"; `description` "A sample contest for previewing your brand."; `contestType` bingo; state open; `maxParticipants` 0 (no limit, so no limit bar); `contestStatus` Open |
 | Games | Two: "Sample Away @ Sample Home", started 60 minutes before the render (derived `InProgress`); "Sample Visitors @ Sample Home", tip-off tomorrow at the same clock time (`Scheduled`). No team logos. `sport` NFL (so the derived status uses NFL's length) |
-| Players | Eight: "Sample Player 1" … "Sample Player 8", jersey numbers 1–8, four per team across the two games, `PlayerEntity`, **no `photoUri`**, so every square shows the kit's no-photo fallback (gradient, jersey number, name). A real player without a PES photo looks exactly like this, so the preview shows a real state rather than a stock face |
+| Players | Eight: "Sample Player 1" … "Sample Player 8", jersey numbers 1–8, four per team across the two games, `PlayerEntity`, **no `photoUri`**, so every square shows the kit's no-photo fallback (gradient, jersey number, name). A real player without a PES photo looks exactly like this, so the preview shows a real state rather than a stock face. W5-D28's "placeholder photos flagged as samples" is withdrawn (review ruling B3) |
 | Props | Per player, two markets from the board's short-form table ("Receiving Yards", "Rushing Yards", "Total Receptions") with three lines each, multipliers 0.5, 1.0 and 2.0 (one rung per ladder label), `showProp` true, `outcomeType` Over |
 | Board | Fixed, not generated: nine prop ids chosen from the sample's props, with **two bingos**: row 1 and column 1 hit (five `Hit` cells on game 1, `isFinal` true), the centre square live (game 1, `progressValue` below its line), `middleRight` a miss (`Miss`, final), `bottomMiddle` and `bottomRight` pending (game 2). The frame builds its preview board with `buildBoard`, whose fallbacks shuffle, so a generated sample board would land on a random count; the sample therefore carries the board in an additive `PreviewDocument.board?: (propId \| null)[]` (nine, in `BOARD_POSITIONS` order), which the preview data layer uses instead of building one. Only the Brand host sends it. **Phase B: to build** (additive, loose schema, `v` stays 1). The bingo count comes from the same shared function the real board uses (W5-D40) |
 | Prize tiers | Three: 1, 2 and 3 bingos; names "Sample prize 1", "Sample prize 2", "Sample prize 3"; description "What a fan wins at {n} bingo(s)."; no image; no sponsor |
@@ -273,7 +273,9 @@ No data migration (`BRAND2-20`). UI state is derived on load; every field is car
 | POST | `/admin/uploads`, `/admin/uploads/complete` | exist (Wave 4) | none; fields `brand.logo`, `brand.progressMarker` | `requireAdmin` + write gate |
 | GET | `/admin/preview` | exists (Wave 4) | none; Brand uses its `org` and `membership` sections | `requireAdmin` |
 | GET | `/b2b/org/:subdomain` | exists | `branding.text` in the projection (Phase B) | public |
-| — | Asset CDN image reads | exists (Wave 4) | `Access-Control-Allow-Origin` for console origins on GET (Phase B) | public |
+| POST | `/admin/branding/sample-colours` | new (review ruling B1) | `{ url }` of the uploaded logo → `{ colours: string[] }` (at most six); 404 for a URL outside the tenant's upload prefix; writes nothing (Phase B: to build) | `requireAdmin` (any scope; it reads only) |
+
+The sample document is built client-side from the shared fixture (`BRAND2-26`); no endpoint serves it and `GET /admin/preview` is unchanged.
 
 Unchanged: tenant targeting (`?tenant=` for staff only), the read-only refusal first (`THEME-13`), no reverification anywhere (`THEME-14`; the walkthrough's "no step-up anywhere"), `clearOrgCache()` on every branding write (`THEME-15`), promotion the only audited branding write (`THEME-10`).
 
@@ -306,7 +308,7 @@ Kept from S2 (revised where noted): `BRAND2-01`–`BRAND2-07`, `BRAND2-11`, `BRA
 - **BRAND2-27 — The draft reaches the frame as `PreviewOverlay.branding`** on `org.organization.branding`; no protocol change.
 - **BRAND2-28 — Carry, don't clobber:** publish sends every unedited stored field back unchanged.
 - **BRAND2-29 — Publish needs an Accent.**
-- **BRAND2-30 — "Leave without publishing?" only with unsaved changes.**
+- **BRAND2-30 — "Leave without saving?" only with unsaved changes.**
 - **BRAND2-31 — Paused words show an inline sample line on the draft palette; no phone screen.**
 
 ### Retired from S2
@@ -328,7 +330,7 @@ Kept from S2 (revised where noted): `BRAND2-01`–`BRAND2-07`, `BRAND2-11`, `BRA
 | Surface | Data sources | Server calls on admin action | States covered |
 |---|---|---|---|
 | Brand page | `GET /admin/branding` (theme, assets, presets, gallery; `text`*) | `PUT /admin/branding` (publish; `text`*, `decor`*); `PUT /admin/branding/presets`; `POST /admin/branding/promote`; `POST /admin/uploads` + `/complete` | loading, failed, pick tenant, member, paused, no branding, no accent, invalid words, upload not configured, publish error |
-| Colour picker | draft; the logo image (canvas; CORS*) | none | auto / overridden; no logo; tainted canvas; invalid hex |
+| Colour picker | draft; the logo's URL | `POST /admin/branding/sample-colours`* | auto / overridden; no logo; legacy logo outside the bucket (no swatches); sampling failed; invalid hex |
 | Preset shelf | `GET /admin/branding` presets and gallery; kit thumbnail pieces* | presets PUT, promote | empty gallery, 20 presets, member |
 | Preview | `GET /admin/preview` (`org`, `membership`); the sample document*; `PreviewOverlay.branding`* | none | before ready, ready, failed, no contests (Words focus), each of seven tabs |
 
@@ -349,7 +351,8 @@ Kept from S2 (revised where noted): `BRAND2-01`–`BRAND2-07`, `BRAND2-11`, `BRA
 | Colours help "Team is required. The other three follow it until you change them." | Changed | Team and Accent required (W5-D24) |
 | Accent swatch with an "Auto" chip | Changed | Accent is required; no Auto |
 | "Live" as the fourth swatch in the main row | Changed | Optional, in the smaller second row with Second |
-| "From your logo" swatches | Kept | Needs CORS on the asset CDN (Phase B) |
+| "From your logo" swatches | Kept | Server-side sampling endpoint (Phase B, review ruling B1) |
+| Prize claim instructions and claim button (on the Prize tab's popup) | Kept | Nick's `B2BPrize` fields, used by the popup and the email (traced); Arthur to confirm against note (e). The sample's prizes set neither |
 | Contrast chip "Text on Team: white, 18.1:1" and "Close to the page colour (1.1:1)…" | Kept, reworded | The warning now says the app lifts the colour where it must be read (`DECOR-28`) |
 | "PNG, SVG or WebP, up to 1 MB" | Changed | Wave 4 upload rules: PNG, JPEG, WebP, SVG, 5 MB |
 | Logo tile "1200×300", Replace, Remove | Kept | `UploadField`'s measured line |
@@ -377,7 +380,7 @@ Kept from S2 (revised where noted): `BRAND2-01`–`BRAND2-07`, `BRAND2-11`, `BRA
 12. Changing Team in the picker repaints the frame within ~100ms of the last change, without a publish; the tenant's live fan app is unchanged until Publish.
 13. Focusing the No contests message input shows the Contest list tab's empty state with the draft text.
 14. An `org:member` sees every control disabled, the read-only line, and a working preview.
-15. Leaving with unsaved changes asks "Leave without publishing?"; leaving a clean page asks nothing.
+15. Leaving with unsaved changes asks "Leave without saving?" with Leave and Keep editing; leaving a clean page asks nothing.
 16. `BrandPreviewPanel.tsx` and the `SponsorsBrandingHead` import are gone from `Branding.tsx` on the Wave 5 branch.
 
 ## Open questions
@@ -386,7 +389,7 @@ None. Decided since the first draft: the paused words' inline sample (W5-D46, `B
 
 ## Recorded gaps
 
-- **"From your logo" needs CORS on asset reads**; until it ships, the row stays hidden for every uploaded logo.
+- **"From your logo" works only for logos uploaded through Wave 4's field**; a legacy URL outside the bucket shows no swatches.
 - **Paused words have no phone preview**, only the inline sample line (`BRAND2-31`).
 - **Stored neutrals, fonts, border strength, glow, band and counter settings stay stored and unedited;** main's Brand page still reads them, the overhaul doesn't.
 - **Last write wins between two admins**, as everywhere in the console.

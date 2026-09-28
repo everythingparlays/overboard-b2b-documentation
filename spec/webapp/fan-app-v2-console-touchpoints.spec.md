@@ -1,6 +1,6 @@
 # Webapp Spec: Fan App v2 — Console Touchpoints (Wave 5)
 
-**Implements:** Arthur's 2026-09-27 ruling "Wave order" ("Wave 5 also covers every console part affected by the overhaul, not just Brand: every preview (contest builder and contest page, prize popup, Fields & Opt-ins, sponsor artwork, Brand) and everything tied to them. All of it lives on the same unmerged branch."); the Wave 4 walkthrough rulings (contest previews show only Contest list, Contest detail, Board and Prize; no desktop preview anywhere; the prize preview becomes the same phone preview; Fields & Opt-ins gets the same phone-preview style; Brand previews every screen on a built-in sample contest); the standing rule "function over mocks". Director's decisions W5-D28, W5-D30 to W5-D36 and W5-D47 (`artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`), which rule on the console touchpoint audit (`artifacts\wave-2026-09-27\briefs\w5-console-touchpoints-audit.md`, workspace).
+**Implements:** Arthur's 2026-09-27 ruling "Wave order" ("Wave 5 also covers every console part affected by the overhaul, not just Brand: every preview (contest builder and contest page, prize popup, Fields & Opt-ins, sponsor artwork, Brand) and everything tied to them. All of it lives on the same unmerged branch."); the Wave 4 walkthrough rulings (contest previews show only Contest list, Contest detail, Board and Prize; no desktop preview anywhere; the prize preview becomes the same phone preview; Fields & Opt-ins gets the same phone-preview style; Brand previews every screen on a built-in sample contest); the standing rule "function over mocks". Director's decisions W5-D01 to W5-D50, all binding (chiefly W5-D28, W5-D30 to W5-D36 and W5-D47; `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace), and the Phase A review rulings (`artifacts\wave-2026-09-27\briefs\w5-review-rulings.md`, workspace), which rule on the console touchpoint audit (`artifacts\wave-2026-09-27\briefs\w5-console-touchpoints-audit.md`, workspace).
 
 **Depends on:** Wave 4's specs on docs branch `arthur-w4-console` (PR #29, not merged to main): [`fan-preview-mode.spec.md`](fan-preview-mode.spec.md) (the `/preview` contract, `PREV-01`–`PREV-15`), `../core-modules/1-draft/admin-preview.spec.md` (`FanAppPreview`, `PV-01`–`PV-12`, `GET /admin/contests/:contestId/preview`, `GET /admin/preview`), `admin-contests.spec.md`, `admin-prizes.spec.md`, `admin-sponsors.spec.md`, `admin-fields-and-optins.spec.md`, `admin-uploads.spec.md`. The Wave 4b fix pass (branches `arthur-w4b-*`; not built at the time of writing): four-screen contest previews with new labels, phone only, the prize rail as the phone preview, Fields & Opt-ins in the phone-preview style, `host: "brand"` and its built-in sample contest, test mode out of the console UI, the re-grounded prize model. This branch is rebased once Wave 4 and 4b merge; every file:line below is from the Wave 4 integration console (`.worktrees\admin-w4-int`, `39116f4`) and is re-checked then. Siblings: [`fan-app-v2.spec.md`](fan-app-v2.spec.md), [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md), [`../core-modules/1-draft/admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md), [`../core-modules/1-draft/fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md).
 
@@ -41,7 +41,7 @@ The console shows fan-app screens in five places and describes fan behaviour in 
 - **The `contest` tab changes meaning.** On main it shows the draft page ("Draft Your Squad"); on the overhaul it shows the contest detail page, and the builder is one click further (Build my board → Pick your players → Generate).
 - **Routes that are not screens** (`/boards`, `/profile`, `/terms`, `/privacy`, `/documents/…`, `/contest/:id/standings`) post `navigated { screen: null }` and the console selects no tab, as Wave 4 already specifies. Their reads are answered from the document (`/boards` from the preview board; `/profile` from `membership`). **Standings are inert in the preview:** the "See standings" link and the board's standings row show their press state and stay, because the preview has no standings to show (the only board in it is the preview's own).
 
-**`TOUCH-05` — The preview data layer learns the overhaul's writes.** **Phase B: to build** in the fan app's `src/preview/baseQuery.ts`: answers for `POST /b2b/contest/:contestId/autofill`, `POST /b2b/board` and `PUT /b2b/board/:boardId/cells` built with the shared `buildBoard` over `document.contest.props`, in memory, exactly as generate is answered today. The consent-document read keeps going to the public endpoint (Wave 4 as-built), except on the Fields host (`TOUCH-12`).
+**`TOUCH-05` — The preview data layer learns the overhaul's writes.** **Phase B: to build** in the fan app's `src/preview/baseQuery.ts`: answers for `POST /b2b/board/generate` with `cells` (pinned cells kept, gaps filled, board created) and `PUT /b2b/board/:boardId/cells` (with `fill`), built with the shared `buildBoard` over `document.contest.props`, in memory, exactly as generate is answered today. The consent-document read keeps going to the public endpoint (Wave 4 as-built), except on the Fields host (`TOUCH-12`).
 
 ---
 
@@ -65,7 +65,7 @@ The console shows fan-app screens in five places and describes fan behaviour in 
 
 **`TOUCH-07` — What the contest tabs show on the overhaul:**
 - **Contest list:** the Current (or Past) tab with the previewed contest's card: its console name as the title, its description in full, the featured game as a sub-line (W5-D39), the top prize with its description, the status chyron.
-- **Contest detail:** the detail page ([`fan-contest-flow.spec.md`](fan-contest-flow.spec.md) `FLOW-43`), including the limit line (`FLOW-45`) from the builder's unsaved player limit and the real count the preview read carries (`numberParticipants`, the real board count, preview only).
+- **Contest detail:** the detail page ([`fan-contest-flow.spec.md`](fan-contest-flow.spec.md) `FLOW-43`), including the limit line (`FLOW-45`) from the builder's unsaved player limit and the real count once `playerCount` ships on the contest read; until then no count shows, as on the live app (the preview read's `numberParticipants` board count is not used, so the preview never shows fans something they can't see).
 - **Board:** the preview board built by the shared `buildBoard` with no drafted players (Wave 4 rule), with the overhaul's squares, Track and lines; bingos from the shared derived function (W5-D40).
 - **Prize:** the overhaul's popup for the chosen tier (`?tier=`), content per W5-D41.
 - The Wave 4 Prize tab's "Tier N" selector (max 8 in `FanAppPreview.tsx`) offers only the contest's winnable tiers (`FLOW-46`).
@@ -93,6 +93,8 @@ The console shows fan-app screens in five places and describes fan behaviour in 
 
 **`TOUCH-10` — Brand is the only host with sample data.** It frames all seven screens on the fix pass's built-in sample contest, with the tenant's real org and gate from `GET /admin/preview` and the draft overlaid through `PreviewOverlay.branding`. The sample's contents, its marking, its fixed board (the additive `PreviewDocument.board?`, so the Board tab always shows two bingos) and the overlay's shape are [`admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md) `BRAND2-26` and `BRAND2-27`. Every other host previews real data only (`PREV-09`).
 
+**Logo colours.** Brand's "From your logo" swatches come from `POST /admin/branding/sample-colours` (**Phase B: to build**, s4, review ruling B1; [`admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md)), which samples the uploaded logo on the server; the frame is not involved and the asset CDN is unchanged.
+
 **`TOUCH-11` — The draft theme reaches only the Brand frame.** The contest, builder, prize, sponsor and Fields hosts paint with the tenant's **published** theme (`org.organization.branding` as served), never a Brand draft, so an unpublished look never appears on another page.
 
 ### Fields & Opt-ins
@@ -103,6 +105,7 @@ The console shows fan-app screens in five places and describes fan behaviour in 
 - **Draft documents.** The frame reads consent documents from the public endpoint (Wave 4 as-built), which can't return an unpublished draft. The render document gains an additive `documents?: { optInId, linkId, textVersion, title, body }[]`, which the preview data layer answers document reads from before the network; only the Fields host sends it.
 - The Screen text jumps (walkthrough ruling) map onto the frame: Returning → `view.gateMode: "returning"`; Joining → `join` at the top; Consents & footer → `join` scrolled to the consents block.
 - Until this ships, the Fields page keeps the fix pass's phone-styled `WalkableGate`.
+- **Retiring the shared `EntryGatePreview`** (**Phase B, s4**): once the Fields preview renders the overhaul's gate in the frame, `obs-b2b-shared/src/ui/entry-gate/EntryGatePreview.tsx` (and its test) and the console's `WalkableGate.tsx` and `GatePreviewPanel.tsx` are deleted. `EntryGateForm` stays: the fan app renders it.
 
 ---
 
@@ -134,7 +137,7 @@ Brand's Words card links to Fields & Opt-ins › Screen text rather than duplica
 | Prize tiers (`PrizeLadder.tsx`, "N bingos", numbered) | "Tier n · m bingos" chyrons on detail, Track and popup; a tier at 7 or with an incomplete prize is hidden | The tier editor refuses 7 (to confirm at rebase; `FLOW-46`) |
 | Prize name, description, image (`PrizePage.tsx`) | Name = the popup's title; description = body text under it | Description help (`PrizePage.tsx:821`, "The headline fans see when they win, in the prize popup and the email.") becomes "What fans read under the prize name, in the prize popup and the email." (W5-D41) |
 | Provided by (`PrizePage.tsx:870`) | "Provided by {sponsor}" in the popup and on the detail page's prizes | None |
-| Claim button text and link (`PrizePage.tsx:964`, "Fans tap it in the prize popup and the email.") | Kept (traced as used, W5-D41) | None |
+| Claim button text and link (`PrizePage.tsx:964`, "Fans tap it in the prize popup and the email.") | Kept: Nick's field, used by the popup and the email (traced); Arthur to confirm against note (e) | None |
 | Prize code | Popup for the winner (Phase B) and the email | Field help to say fans see it in the popup and the email once Phase B ships |
 | Value, pick-up, shipping, expiry, type | Nothing | Removed by the fix pass's prize reground |
 | Opt-ins and documents (`OptInEditor.tsx`, `DocumentsEditor.tsx`, `PlatformDocuments.tsx`) | Documents over the gate, in the side menu (Terms, Privacy, each tenant document) and on Profile with the agreed version; optional opt-ins can be withdrawn on Profile | None |
@@ -170,7 +173,7 @@ No console string uses "game" where it means "contest" (checked by searching the
 | Builder Review | same + `contest` overlay | none | as above, with unsaved name, description, limit |
 | Prize rail | `GET /admin/preview` + `document.prize` | none | new prize (no type step any more after 4b), no image, no sponsor, with button, code set (not shown) |
 | Sponsor frame | `GET /admin/contests/:contestId/preview` for the chosen contest; `sponsor` overlay | none | no contest (no frame), each slot's screen, tagline-only sign-in (no ring), per-game holder |
-| Brand frame | `GET /admin/preview`; sample document (4b)*; `branding` overlay* | none | see [`admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md) |
+| Brand frame | `GET /admin/preview`; sample document (client-side fixture)*; `branding` overlay* | none (logo swatches: `POST /admin/branding/sample-colours`*, outside the frame) | see [`admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md) |
 | Fields frame | `GET /admin/preview`; `membership` overlay*; `documents`*; `view.gateMode`* | none | join, returning, document over the gate, draft document, no documents |
 | Console words | the strings in `TOUCH-15` | none | — |
 
@@ -190,6 +193,7 @@ No console string uses "game" where it means "contest" (checked by searching the
 | `BrandPreviewPanel.tsx` sampler (hard-coded "{team} Bingo", "Play tonight", "Q3", "Touchdown") | Cut | The real frame on a sample contest ([`admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md)) |
 | Sponsor "and on Home" | Changed | No Home; Start only (W5-D34) |
 | Prize code in the preview popup | Cut | `PV-05` |
+| Prize claim instructions and claim button in the prize preview | Kept | Nick's `B2BPrize` fields, used by the popup and the email (traced); Arthur to confirm against note (e) |
 
 ---
 

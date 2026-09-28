@@ -1,6 +1,6 @@
 # Webapp Spec: Fan App v2 — Shell, Navigation and Screens (Wave 5)
 
-**Implements:** Arthur's 2026-09-27 rulings "Fan app overhaul" (footer bar with Contests, Your boards, Profile; no home screen; Current/Past tabs; header and footer hide on scroll-down and return on scroll-up; the sidebar's items; desktop is the mobile column with decorative sides; Satoshi only; no "peeking" text) and the standing rule "function over mocks" (2026-09-28); the Wave 4 walkthrough rulings for the fan app (Terms and Privacy always in the side menu with the tenant's opt-in documents under them; contests, not games, with the contest's own name and description; mobile only; no pointless confirmations). Director's decisions W5-D01 to W5-D07, W5-D24 to W5-D26, W5-D33, W5-D37, W5-D39, W5-D40, W5-D49, W5-D50 (`artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace). PRD `OPT-01`–`OPT-05` (through the entry gate), `BRAND-02` (the sign-in sponsor on Start).
+**Implements:** Arthur's 2026-09-27 rulings "Fan app overhaul" (footer bar with Contests, Your boards, Profile; no home screen; Current/Past tabs; header and footer hide on scroll-down and return on scroll-up; the sidebar's items; desktop is the mobile column with decorative sides; Satoshi only; no "peeking" text) and the standing rule "function over mocks" (2026-09-28); the Wave 4 walkthrough rulings for the fan app (Terms and Privacy always in the side menu with the tenant's opt-in documents under them; contests, not games, with the contest's own name and description; mobile only; no pointless confirmations). Director's decisions W5-D01 to W5-D50, all binding (chiefly W5-D01 to W5-D07, W5-D24 to W5-D26, W5-D33, W5-D37, W5-D39, W5-D40, W5-D49, W5-D50; `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace), and the Phase A review rulings (`artifacts\wave-2026-09-27\briefs\w5-review-rulings.md`, workspace). PRD `OPT-01`–`OPT-05` (through the entry gate), `BRAND-02` (the sign-in sponsor on Start).
 
 **Depends on:** Wave 4's specs on docs branch `arthur-w4-console` (PR #29, not merged to main): [`fan-preview-mode.spec.md`](fan-preview-mode.spec.md), [`entry-gate.spec.md`](entry-gate.spec.md) (revision 2026-09-27: opt-in documents over the gate), `../core-modules/1-draft/admin-fields-and-optins.spec.md` (revision 2026-09-27: opt-ins linked to a sponsor or not, kept versions, `consentHistory`, documents), `admin-contests.spec.md` (states, description), `admin-prizes.spec.md`, `admin-sponsors.spec.md`. The Wave 4b fix pass (branches `arthur-w4b-*`, not built at the time of writing): the shared derived bingo function (W5-D40), the re-grounded prize model (W5-D41), per-contest banners, the current app's menu listing tenant documents. On main: [`../core-modules/1-draft/end-to-end-flow.spec.md`](../core-modules/1-draft/end-to-end-flow.spec.md) (Wave 3: derived game status, `featuredGame`, join refusal codes, server awards, the legal overlay). This branch is cut from the Wave 3 state of docs `main` and is rebased once Wave 4 and 4b merge; names above marked "to confirm at rebase" are checked then. Siblings on this branch: [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md), [`fan-app-v2-console-touchpoints.spec.md`](fan-app-v2-console-touchpoints.spec.md), [`../core-modules/1-draft/fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md), [`../core-modules/1-draft/admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md).
 
@@ -40,7 +40,7 @@ Today's fan app (Wave 4, `.worktrees\template-w4-int`) is a start screen, the Cl
 
 **Satoshi only** (`DECOR-29`).
 
-**No pointless confirmations.** No confirm dialog for a reversible action. "Leave without …?" appears only when leaving would lose unsaved input.
+**No pointless confirmations.** No confirm dialog for a reversible action. "Leave without saving?" (Leave / Keep editing) appears only when leaving would lose unsaved input.
 
 ---
 
@@ -112,9 +112,9 @@ Every signed-in screen renders inside `KitShell` ([`fan-decor-system.spec.md`](.
 ### Header
 
 **`FAN-09` (revised) — The header** (W5-D07): 56px plus the top safe-area inset.
-- Left: the back button (44×44) or, on the three tab screens, the tenant mark (the tenant logo at 28px, else the tenant name in `.k-d4`).
+- Left: the back button (48×48) or, on the three tab screens, the tenant mark (the tenant logo at 28px, else the tenant name in `.k-d4`).
 - Centre: the screen title, one line, ellipsis.
-- Right: the menu button (44×44, accessible name "Open menu").
+- Right: the menu button (48×48, accessible name "Open menu").
 - Over a hero band it is transparent and uses `--k-on-team`; elsewhere it sits on the blurred 92% ground (`DECOR-36`) with a hairline once scrolled.
 - On the live board it also shows the connection dot (W5-D19, [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md)).
 
@@ -328,7 +328,7 @@ W5-D06. The fan's boards in this tenant.
 
 **Order:** Live first, then Open, then Not yet open, then Past (most recent first).
 
-**Data:** `GET /b2b/board/my-boards` (exists: every board of the fan in this tenant, newest first, with its contest and its nine props populated, but no contest status and no derived game status) joined client-side with the contest list the Contests tab already loads (`GET /b2b/contest/list-contests`), which carries each contest's status and games. Bingos and cell states come from **the shared derived bingo function (Wave 4b)** over the board's props (W5-D40), the same function that draws the board; never a count computed differently in the browser. The endpoint is not paged; a fan holds one board per contest.
+**Data:** `GET /b2b/board/my-boards` gains a server row projection per board (**Phase B: to build**, review ruling 6): the contest's name, its fan status (the `FAN-18` inputs), the evaluator's persisted derived bingos and points (`FLOW-50`), and the nine cell states for the mini-board. The app renders the rows as served: no client-side join and no bingo computation in the browser. Today the endpoint returns every board of the fan in this tenant, newest first, with its contest and props populated but no status. It is not paged; a fan holds one board per contest.
 
 **States:**
 | State | What shows |
@@ -440,7 +440,7 @@ W5-D06. The fan's boards in this tenant.
 
 - **`FAN-57` — Contrast** comes from the kit's guards (`DECOR-17`, `DECOR-28`): text 4.5:1, non-text indicators 3:1, decoration never above 0.12 behind text.
 - **`FAN-58` — Focus is always visible** (`--k-glow-ring`); sheets trap focus and return it; route changes move focus to the new screen's `h1`; a focused control inside a hidden bar reveals it.
-- **`FAN-59` — Touch targets are at least 44×44px**; tab bar items at least 48px tall.
+- **`FAN-59` — Touch targets are at least 48×48px** everywhere, tab bar items included.
 - **`FAN-60` — Colour is never the only signal:** status is a word; mini-board states are in the row's accessible name ("2 bingos, 5 hits, 1 miss").
 - **`FAN-61` — Reduced motion** turns off every reveal, slide, scale and pulse; bars show and hide instantly.
 - **`FAN-62` — Structure:** one `h1` per screen, `h2` per section; landmarks `header`, `nav` (tab bar "Main", side menu "Menu"), `main`; zoom to 200% and reflow at 320px with no horizontal scroll; `maximum-scale` is never set.
@@ -489,7 +489,7 @@ Kept, revised or new: `FAN-01`–`FAN-10`, `FAN-12`, `FAN-13`, `FAN-15`–`FAN-1
 | Join gate | `GET /b2b/membership` (`pendingConsents` + `links`, `signupFields`, `pendingFields`, `gateCopy`); `GET /b2b/org/:subdomain/consent-document/:optInId/:linkId?version=` | `POST /b2b/join`, `POST /b2b/consent`, `PATCH /b2b/membership` | loading, failed (closed), join, returning, submitting, stale wording, no documents, document missing/failed, offline |
 | Contests | `GET /b2b/contest/list-contests` (no `status`; `contestName`, `description`, `contestStatus` + `opensAt`, `state`, `finalized`, `allowedBetEvents` with derived `status`, `prizeTiers`); `GET /b2b/board/my-boards` | none | loading, failed, Current empty, Past empty, not open yet, live, full (unknowable here), closed, finalized, joined, no prizes, no sponsors, trivia (never listed), paused, offline |
 | Contest card | as Contests; banner (4b)*; `playerCount`*; live `providedBy`* | none | as Contests |
-| Your boards | `GET /b2b/board/my-boards` (board, populated contest and props) joined with `GET /b2b/contest/list-contests` (status, games); shared derived bingo function (4b)* | none | loading, failed, no boards, finalized, closed, props missing, paused, offline |
+| Your boards | `GET /b2b/board/my-boards` row projection* (contest name, status, persisted bingos and points, cell states) | none | loading, failed, no boards, finalized, closed, props missing, paused, offline |
 | Profile | `GET /b2b/membership` (`membership.displayName`, `.profileFields`, `.consents`, `.consentHistory`, `signupFields`; `optIns`*); consent document read with `?version=` | `PATCH /b2b/membership` `profileFields` (exists), `displayName`*; `POST /b2b/consent` (exists; accepts a re-decision) | loading, failed, save failed, no fields, platform opt-in only, re-worded opt-in (gate), paused, offline |
 | Terms / Privacy | `GET /b2b/org/:subdomain/consent-document/overboard-terms/{terms,privacy}` | none | loading, not published, failed, offline |
 | Tenant document | same read, tenant `optInId`/`linkId`; menu list* | none | loading, 404, failed, offline |
@@ -533,10 +533,10 @@ The roll-up below adds every other spec's mock deviations.
 
 | Spec | Screens / surfaces | New server work it needs (Phase B: to build) | Mock elements cut or changed (highlights; full lists in each spec) |
 |---|---|---|---|
-| This spec | Start, auth, gate, Contests, card, Your boards, Profile, documents, Paused, shell | `branding.text`; `organization.documents` (unless 4b ships a source); `optIns` and `displayName` on membership; `playerCount`; live sponsor credits on fan contest reads | Home screen, menu-only nav, search and chips, player counts, initials, sample Terms text, Barlow/Plex |
-| [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md) | Contest detail, builder (pick players and Generate, which exists; pick lines yourself; edit), live board, prize popup, standings, results | Shared derived bingo function (4b); `props` on the contest read; `POST /b2b/contest/:id/autofill` (empties only); `POST /b2b/board`; `PUT /b2b/board/:id/cells`; `GET /b2b/contest/:id/standings`; evaluator-written points; award `seenAt` and winner's `code`; generate pool filter; board-read contest projection | Card → builder, replace-confirm, "50-50" label, 68% spots bar, scores on scorebugs, yellow mini-board square, full-screen flash, value/shipping/pick-up, trivia card, SSE stream, Enter confirm |
+| This spec | Start, auth, gate, Contests, card, Your boards, Profile, documents, Paused, shell | `branding.text`; `organization.documents` (unless 4b ships a source); `optIns` and `displayName` on membership; `playerCount`; live sponsor credits on fan contest reads; the my-boards row projection | Home screen, menu-only nav, search and chips, player counts, initials, sample Terms text, Barlow/Plex |
+| [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md) | Contest detail, builder (pick players and Generate, which exists; pick lines yourself; edit), live board, prize popup, standings, results | Shared derived bingo function (4b), persisted by the evaluator; `props` on the contest read; `cells` on `POST /b2b/board/generate`; `PUT /b2b/board/:id/cells` (with `fill`); `GET /b2b/contest/:id/standings`; evaluator-written points; award `seenAt` and winner's `code`; generate pool filter; board-read contest projection | Card → builder, replace-confirm, "50-50" label, 68% spots bar, scores on scorebugs, yellow mini-board square, full-screen flash, value/shipping/pick-up, trivia card, SSE stream, Enter confirm |
 | [`fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md) | The kit, shell, gallery | `decor { intensity, angle }` and `bingoGrid` on the theme contract; the palette's move to shared | Barlow/Plex, hard-coded palettes, initials, CSS confetti, mock text ramp |
-| [`admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md) | Brand v2 page and its preview | `text` on `PUT/GET /admin/branding`; theme `decor`; `host: "brand"` and the sample document (4b); CORS on asset reads for logo sampling | Font section, Sponsors tab, Phone/Desktop, peek toggle and "Peeking at", Club Level, Live as the fourth required-looking swatch, S2 upload route |
+| [`admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md) | Brand v2 page and its preview | `text` on `PUT/GET /admin/branding`; theme `decor`; `host: "brand"` and the sample document (4b); `POST /admin/branding/sample-colours` for logo sampling | Font section, Sponsors tab, Phone/Desktop, peek toggle and "Peeking at", Club Level, Live as the fourth required-looking swatch, S2 upload route |
 | [`fan-app-v2-console-touchpoints.spec.md`](fan-app-v2-console-touchpoints.spec.md) | Every console preview host and word tied to fan screens | `PreviewOverlay.branding` and `.membership`; console strings corrected | Desktop preview, S2 preview document sections, "and on Home" |
 
 ---
