@@ -4,7 +4,7 @@
 
 **Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — `resolveAdminScope`, the permission table, the `/config` nav destination, and the reflect-point principle the live preview implements. [`multi-tenant-identity-auth.spec.md`](multi-tenant-identity-auth.spec.md) — the `signupFields` / `optIns` shapes this writes and the field-definition guardrails. [`../../webapp/entry-gate.spec.md`](../../webapp/entry-gate.spec.md) — the fan-side gate that makes an admin edit here reach fans. [`admin-exports.spec.md`](admin-exports.spec.md) — the per-tenant exportable set this screen's field list defines, and the sponsor scopes a field deletion prunes. **`obs-b2b-shared/src/entry-gate/` and `obs-b2b-shared/src/ui/entry-gate/`** — the gate's field resolution, copy, validation, and React components, which this screen renders rather than imitates ([`b2b-shared-deps.md`](../../../documents/HLDs/b2b-shared-deps.md), layer table).
 
-**Status:** Draft. **Revised 2026-09-27 (Wave 4)**: opt-in categories removed, every published version's wording kept, and opt-in documents added (section "Revision 2026-09-27 (Wave 4)"). Rewritten for **editor v2** (directive, 2026-09-21, Arthur) — the open field model, the field editor, and page copy. The v1 sections that survive unchanged are marked where it matters; everything about the closed catalog is superseded here and in the three specs listed above.
+**Status:** Draft. **Revised 2026-09-28 (Wave 4b)**: the preview in the console's phone, section jumps, real wording on default fields, dimmed placeholders, and no draft autosave (section "Revision 2026-09-28 (Wave 4b)"). **Revised 2026-09-27 (Wave 4)**: opt-in categories removed, every published version's wording kept, and opt-in documents added (section "Revision 2026-09-27 (Wave 4)"). Rewritten for **editor v2** (directive, 2026-09-21, Arthur) — the open field model, the field editor, and page copy. The v1 sections that survive unchanged are marked where it matters; everything about the closed catalog is superseded here and in the three specs listed above.
 
 ## Overview
 
@@ -96,6 +96,40 @@ This is the answer to the obvious objection to a rich editor — "an admin fixin
 The editor writes fully-explicit definitions on the next publish, so a tenant converges to v2 shapes the first time an admin touches their config, and not before. **No DB migration, no backfill, and zero fan-visible change until an admin edits something** — which is the same standard the 2026-08 "there is no migration" decision set in the identity spec, met for the same reason: the cheapest migration is a read path that already understands both shapes.
 
 ---
+
+## Revision 2026-09-28 (Wave 4b)
+
+From Arthur's Wave 4 walkthrough. Where this section and older text below disagree, this section wins; the older text is kept for the record.
+
+### 1. The preview is the console's phone
+
+The gate preview sits in the same phone as the contest, prize and Brand previews ([`admin-preview.spec.md`](admin-preview.spec.md), `PhonePreview`): one row of controls, then a 390-wide screen in the bezel. The control row is a segmented "Screen" choice, **Join | Returning**. The card title ("What fans see") and the caption line are gone (no label around a preview, `PV-08`); "What fans see" stays as the region's accessible name. The phone sticks beside the editor, its height fitted to the window, and the gate scrolls inside it. It is still the in-page gate (`GatePreviewPanel` rendering the shared `EntryGateForm` through `WalkableGate`), not a frame of the fan app, because it follows every keystroke of the unsaved draft.
+
+### 2. The preview follows the section being worked on
+
+The preview moves when the tab changes and **every time a row or section is opened** (reopening one after scrolling the phone by hand lands there again), never while the admin types:
+
+| Opened | The preview shows |
+|---|---|
+| Screen text › Joining | The join screen, at the top |
+| Screen text › Returning | The returning screen |
+| Screen text › Consents & footer | The join screen, scrolled to the consents and footer |
+| A sign-up field, or Display name | The join screen, scrolled to that field |
+| The Opt-ins tab | The join screen, scrolled to the consents |
+
+With nothing outstanding for returning fans, Returning shows the settled state ("Returning fans go straight in.") as before.
+
+### 3. Placeholders read as placeholders
+
+A field's placeholder shows as dimmed text inside the empty box until the fan types, in the preview and on the fan app's gate alike, because both render the shared gate. **The dropdown too:** its first option is the placeholder (the field's own, else "Select…"), shown dimmed while nothing is chosen (`data-empty` on the shared select), in the fan's normal text colour once an answer is picked.
+
+### 4. Default fields carry their real wording
+
+A default field (a platform field: First name, Last name, Phone number, Birthday, Zip code, Address, Favorite players) and Display name show their **real label and placeholder in their boxes** ("First name" / "Your first name", "Birthday" / "MM / DD / YYYY", "Display name" / "Shown on your board"), never a blank standing for "the standard wording". Where the stored field has none, the draft writes the platform wording in; the admin's own text is never replaced; loading it is not an edit, and the next publish stores it. **Every field requires a label**, default fields and Display name included, exactly as a new field always has ("Give this field a label." blocks the publish). Changing a platform field's type drops its default placeholder when it no longer fits (a date mask on a short-text box) and brings it back when the type returns; the admin's own placeholder stays. New tenants are seeded with the same wording (`DEFAULT_SIGNUP_FIELDS` and `DEFAULT_GATE_COPY` in `tenant-defaults`), and a dry-run-by-default backfill fills it on existing tenants' default fields without touching custom text. Screen text keeps blank-means-standard: its boxes show the standard wording as placeholders.
+
+### 5. No draft autosave
+
+The draft lives only in the page. It is **not** written to `sessionStorage` any more (this supersedes "Draft persistence (v2)" and Rule 14): the page always opens on what the server holds, and the "Restored your unsaved changes" line is gone. **Leaving with unpublished changes asks first:** "Leave without saving?" with Leave and Keep editing (the centred dialog), only when there are unpublished changes; with none, the admin just goes. Closing or reloading the tab gets the browser's own prompt while there are unpublished changes. The one reload that keeps the draft is the one after Overboard staff publish Overboard's documents from the Opt-ins tab: the admin's draft stays, with Overboard's row as the server now holds it. The console's shared draft store (`configDraftStorage`) is deleted.
 
 ## Revision 2026-09-27 (Wave 4)
 
@@ -230,7 +264,7 @@ Arthur's walkthrough ruling reshapes the screen. **Where this section and the v2
 
 **Fixed rows.** Two rows cannot be dragged, deleted or retyped, and say so by their shape (a lock glyph where the handle would be, no delete button), not by disabled controls:
 
-- **Display name**, pinned first on Sign-up fields: "Short text · Required · always asked — it's the name on the fan's board." Expanded, it edits its **label and placeholder** (stored as `gateCopy.displayNameLabel` / `gateCopy.displayNamePlaceholder`; blank means the standard wording).
+- **Display name**, pinned first on Sign-up fields: "Short text · Required · always asked — it's the name on the fan's board." Expanded, it edits its **label and placeholder** (stored as `gateCopy.displayNameLabel` / `gateCopy.displayNamePlaceholder`; since 2026-09-28 both show their real wording and the label is required, see "Revision 2026-09-28").
 - **Overboard Terms & Privacy**, pinned first on Opt-ins: "Required on every team." Expanded, it shows its text with the two links, read-only, and one line: "Overboard's own terms. Every team asks them, and they can't be edited or removed." (2026-09-27: the two documents are readable here, and OBS staff can publish new versions of them; revision section 3.)
 
 **The email row is removed.** Email is collected when the fan creates their account, before the gate ever shows; listing it among the gate's fields described a question the gate never asks.
@@ -295,6 +329,8 @@ Edits accumulate locally; **Publish changes** sends one `PUT /admin/config`; **D
 A copy edit, a label edit, and a description edit warn about nothing, because there is nothing to warn about — see "Semantic and descriptive".
 
 ### Draft persistence (v2)
+
+*Superseded 2026-09-28: there is no draft autosave (see "Revision 2026-09-28 (Wave 4b)", section 5). Kept as written, for the record.*
 
 **The draft survives a reload, in `sessionStorage`, keyed to the user and the tenant.** A v2 draft is a lot of typing — seven copy strings, a description and caption per field — and losing it to a stray refresh or a token bounce is the kind of loss that teaches an admin to publish early and often, which is exactly the habit the draft-and-publish design exists to prevent.
 
@@ -482,7 +518,7 @@ The fan-side machinery (entry-gate spec) already re-prompts on `(optInId, textVe
 11. **Deleting a field prunes its id from every opt-in's `exportFields`, in the same write.** A field id that no longer exists must not sit in a sponsor's DPA scope waiting for someone to re-create the id and inherit a permission nobody granted. Fail closed: the scope is re-granted by a human or it is not granted.
 12. **A descriptive edit cannot change any fan's obligations, and this is enforced by the model rather than by review.** Label, description, caption, placeholder, options, order, `gateCopy`, and an opt-in's label, sponsor link and link phrases appear in no obligation derivation and in no consent match. Anything that would make one of them matter to `missingFields` or to `pendingConsents` breaks this rule, whatever else it is called.
 13. **A published field's type never changes.** 400 on the wire, no control in the editor; delete-then-add is the path. Stored answers were written under the published type and nothing reinterprets them.
-14. **The draft lives in the browser or nowhere.** `sessionStorage`, keyed to user and tenant, discarded when its baseline no longer matches the server, cleared on publish, Discard, and sign-out. There is no server-side draft — the only config the server holds is the published one.
+14. *(Superseded 2026-09-28: the draft lives in the page only, with a leave prompt.)* **The draft lives in the browser or nowhere.** `sessionStorage`, keyed to user and tenant, discarded when its baseline no longer matches the server, cleared on publish, Discard, and sign-out. There is no server-side draft — the only config the server holds is the published one.
 
 ---
 
@@ -499,7 +535,7 @@ The fan-side machinery (entry-gate spec) already re-prompts on `(optInId, textVe
 - **Nothing reviews what a tenant collects.** The open model deliberately moves that judgement to the tenant admin, with the guardrails above; there is no OBS-side flag, report, or approval step for a newly invented field, and if the platform later wants one it is a new surface, not a restoration of the enum. Recorded so that "we decided not to" is distinguishable from "we forgot".
 - **A custom field is never renamed, only replaced.** A `fieldId` is generated once from the label and then frozen — editing the label leaves the id alone, which is correct (the id is identity, the label is copy) but means a field's id can drift from its wording over a season. It shows up nowhere fan-facing; it shows up in an export's internals and in stored scope entries, where it is a legibility cost, not a correctness one.
 - **`options` has no per-option identity.** An option is its own text, so renaming "Medium" to "M" leaves every fan who answered "Medium" holding a value that no longer matches any current option. Answers stand by design (options are descriptive), and the gate never re-asks — but a report grouping by option will show both. A keyed option model would fix it and is not worth its cost at this size.
-- **Draft persistence is per browser session.** `sessionStorage` means a draft does not follow an admin to another tab, another device, or tomorrow morning. That is the deliberate trade against a server-side draft; if admins turn out to want a config they can leave half-written for a week, that is a different feature with a different data model, and it should be specced as one rather than grown out of this.
+- *(Moot since 2026-09-28: there is no draft persistence.)* **Draft persistence is per browser session.** `sessionStorage` means a draft does not follow an admin to another tab, another device, or tomorrow morning. That is the deliberate trade against a server-side draft; if admins turn out to want a config they can leave half-written for a week, that is a different feature with a different data model, and it should be specced as one rather than grown out of this.
 
 ## As built (Wave 4)
 
