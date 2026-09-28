@@ -30,7 +30,7 @@ Every image the console asks for is a pasted URL today. The operator has to host
 
 ## The fields
 
-Seven fields take an image. There are no others in the console: tenant creation, contests and tiers take no image (a tier picks a library prize).
+Eight fields take an image. There are no others in the console: tenant creation and tiers take no image (a tier picks a library prize). The contest banner joined in Wave 4b.
 
 | Screen | Field | Stored in | Accepted | Smallest raster size |
 |---|---|---|---|---|
@@ -41,13 +41,15 @@ Seven fields take an image. There are no others in the console: tenant creation,
 | Prize page (library) | Prize image | `B2BPrize.prizeImageUrl` | PNG, JPEG, WebP | 200 px on the shorter side |
 | Brand | Logo | `branding.assets.logo` | PNG, JPEG, WebP, SVG | 64 px on the shorter side |
 | Brand | Progress marker | `branding.assets.sliderTipImageUrl` | PNG, JPEG, WebP, SVG | 36 × 36 px |
+| Contest builder (Basics) and contest page (Overview) | Contest banner | `B2BContest.bannerImageUrl` | PNG, JPEG, WebP | 800 px wide |
 
 - **Every field:** at most **5 MB**, at most **4096 px** on either side. The smallest size is the fan app's own box at one pixel per CSS pixel ([`admin-sponsors.spec.md`](admin-sponsors.spec.md), the size table); an SVG has no raster size and is exempt from it.
 - **No GIF.** An animated image in a sponsor slot is a different product decision, and a still GIF has no reason to be one.
 - **The prize image takes no SVG** because the prize email renders it, and email clients drop SVG.
+- **The contest banner takes no SVG, and is wide.** It is a photo-like band of about 4:1 across the top of the contest's card and page, drawn cover-cropped; 800 px wide covers a phone card at 2×. The hint adds "A wide image, about 4 to 1, shown across the top of the contest's card and page." Its writers are the contest's writers (tenant `org:admin`, OBS staff: the same `refuseReadOnlyWrite` gate as every field). The contest takes the URL when its form is saved ([`admin-contests.spec.md`](admin-contests.spec.md), "Banner"); Remove clears it back to the banner's default.
 - **One list, one place.** The table is `UPLOAD_FIELDS` in `obs-b2b-shared/src/api/admin/uploads.ts` (`field` id, accepted types, minimum size), read by the console's field and by both endpoints, so the hint under the box and the server's refusal can never disagree.
 
-Field ids: `sponsor.signInLogo`, `sponsor.boardBanner`, `sponsor.sliderIcon`, `sponsor.prizePopupLogo`, `prize.image`, `brand.logo`, `brand.progressMarker`.
+Field ids: `sponsor.signInLogo`, `sponsor.boardBanner`, `sponsor.sliderIcon`, `sponsor.prizePopupLogo`, `prize.image`, `brand.logo`, `brand.progressMarker`, `contest.banner`.
 
 ## What is stored: the URL, as before
 
@@ -183,10 +185,10 @@ With either variable unset, `POST /admin/uploads` answers 503 and the field says
 
 ## Tests
 
-- **Shared:** `UPLOAD_FIELDS` covers exactly the seven fields; the https-only asset schemas refuse `http:` and relative paths on write and still read them.
+- **Shared:** `UPLOAD_FIELDS` covers exactly the eight fields; the https-only asset schemas refuse `http:` and relative paths on write and still read them.
 - **Backend unit** (in-memory `AssetStore`): the presign refuses an unknown field, a wrong type, a size over 5 MB, a read-only caller and a paused tenant; the key carries the caller's organization id whatever the body says; complete refuses another tenant's key (404), a PNG declared as JPEG passes as PNG, a text file declared as PNG is deleted and refused, a too-small raster is deleted and refused per field, an SVG with `<script>` is refused, an SVG passes the size minimum; unset bucket variables answer 503.
 - **CDK:** a snapshot or assertion test that the stack has one private bucket with BLOCK_ALL, a distribution with OAC and the headers policy, the three grants on the task role, the two container variables, and no explicit bucket name.
-- **Console:** `UploadField` states (empty, dragging over, uploading, error, filled) and its local refusals; each of the seven screens renders an `UploadField` and no URL input for its image.
+- **Console:** `UploadField` states (empty, dragging over, uploading, error, filled) and its local refusals; each screen with an image field renders an `UploadField` and no URL input for its image.
 - **End to end** (the Wave 3 harness in `node-server/scripts/e2e/`, or a Playwright console walk): upload a PNG as a sponsor's board banner on the personal stack, place the sponsor on the harness contest, and assert the fan board's banner `src` is the CloudFront URL and loads.
 
 ## Recorded gaps (recorded, not blocking, never on screen)

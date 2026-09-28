@@ -100,7 +100,7 @@ Guardrails:
 - **Obs-only, structural**, refused before tenant resolution so a tenant caller learns nothing else.
 - **Typed confirmation, server-checked**: the body carries `confirmName`, which must equal the contest's exact name. The form gates the button on the same match, but the server check is the one that counts — a scripted call cannot skip it.
 
-Semantics: 404 for a contest the named tenant does not own (the standard probe answer), 409 when already finalized, and the audit write (`contest_finalize`, blocking — the `fan_delete` precedent) happens **before** the state write: if the record cannot be made, nothing is finalized. The write sets `finalized: true` and `finalizedAt`; derived status flips to Finished platform-wide, which closes joining and marks the contest finished for fans. No send is dispatched — see Not-in-scope.
+Semantics: 404 for a contest the named tenant does not own (the standard probe answer), 409 when already finalized, **409 `not_ready` when the contest isn't ready to finalize** (Wave 4b: not a draft, at least one game, every game ended, the one rule in [`admin-contests.spec.md`](admin-contests.spec.md); "Only a published contest whose games have all ended can be finalized."), and the audit write (`contest_finalize`, blocking — the `fan_delete` precedent) happens **before** the state write: if the record cannot be made, nothing is finalized. The write sets `finalized: true` and `finalizedAt`; derived status flips to Finished platform-wide, which closes joining and marks the contest finished for fans. No send is dispatched — see Not-in-scope.
 
 ---
 
@@ -169,7 +169,7 @@ All six authorize on **user-level obs staff-ness**, whatever organization the ca
 
 **`POST /admin/fan-actions/export` takes** optional `?tenant=` and returns `{ filename, rowCount, filteredOutCount, tenants, csv }`.
 
-**`POST /admin/contests/:contestId/finalize` takes** `?tenant=` and `{ confirmName }` and returns `{ contest: { finalized: true, finalizedAt }, delivery }`; 400 name mismatch, 404 unknown/unowned contest, 409 already finalized, 500 (nothing finalized) when the audit write fails.
+**`POST /admin/contests/:contestId/finalize` takes** `?tenant=` and `{ confirmName }` and returns `{ contest: { finalized: true, finalizedAt }, delivery }`; 400 name mismatch, 404 unknown/unowned contest, 409 already finalized, 409 `not_ready` when not ready to finalize, 500 (nothing finalized) when the audit write fails.
 
 ## Permissions
 
