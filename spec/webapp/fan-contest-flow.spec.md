@@ -1,6 +1,6 @@
 # Webapp Spec: Fan Contest Flow — detail, builder, live board, prize, standings (Wave 5)
 
-**Implements:** Arthur's 2026-09-27 rulings, "Fan app overhaul" (no player-limit bar without a limit; auto-fill must work; rearrange follows the finger with a subtle jiggle; real player photos behind squares, never initials; the ladder from PES's per-player prop levels and multipliers exactly as PES defines them, Likely / 50% Chance / Go crazy and points as live in B2C v5.9.143; no replace-confirm; the straight-line bingo indicator for now; confetti inside the phone area in tenant colours; standings show display names); `arthur-rulings-after-specs.md` (standings show points; the scorebug shows tip time, LIVE, FINAL and never scores; the builder refuses unwinnable tiers); the Wave 4 walkthrough (contests, not games: one card and one board per contest; the bingo counter reflects server-recorded bingos; per-contest banners); the standing rule "function over mocks". Director's decisions W5-D08 to W5-D23 and W5-D37 to W5-D41 (`artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace). PRD §1 fan flow, `PRIZE-01` (the in-app half).
+**Implements:** Arthur's 2026-09-27 rulings, "Fan app overhaul" (no player-limit bar without a limit; auto-fill must work; rearrange follows the finger with a subtle jiggle; real player photos behind squares, never initials; the ladder from PES's per-player prop levels and multipliers exactly as PES defines them, Likely / 50% Chance / Go crazy and points as live in B2C v5.9.143; no replace-confirm; the straight-line bingo indicator for now; confetti inside the phone area in tenant colours; standings show display names); `arthur-rulings-after-specs.md` (standings show points; the scorebug shows tip time, LIVE, FINAL and never scores; the builder refuses unwinnable tiers); the Wave 4 walkthrough (contests, not games: one card and one board per contest; the bingo counter reflects server-recorded bingos; per-contest banners); the standing rule "function over mocks". Director's decisions W5-D08 to W5-D23, W5-D37 to W5-D41, W5-D44 and W5-D45 (`artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace). PRD §1 fan flow, `PRIZE-01` (the in-app half).
 
 **Depends on:** On main: [`../core-modules/1-draft/end-to-end-flow.spec.md`](../core-modules/1-draft/end-to-end-flow.spec.md) (Wave 3: server awards §1.5, derived game status §2, `featuredGame` and board draw §3.3, join refusal codes §3.4, the board §4). Wave 4's specs on docs branch `arthur-w4-console` (PR #29, not merged): `admin-contests.spec.md` (states, description, player limit), `admin-prizes.spec.md` (the library, the award snapshot, the fan wire), `admin-sponsors.spec.md` (slots and sizes), [`fan-preview-mode.spec.md`](fan-preview-mode.spec.md) (shared `buildBoard`, `joinRefusal`). The Wave 4b fix pass (not built at the time of writing): **the shared derived bingo function** (W5-D40), the re-grounded prize model (W5-D41), per-contest banners. This branch is rebased once Wave 4 and 4b merge; names marked "to confirm at rebase" are checked then. Siblings on this branch: [`fan-app-v2.spec.md`](fan-app-v2.spec.md), [`../core-modules/1-draft/fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md), [`fan-app-v2-console-touchpoints.spec.md`](fan-app-v2-console-touchpoints.spec.md).
 
@@ -132,6 +132,8 @@ Three screens, one flow (W5-D38):
 | `/board/:boardId/edit` | **Edit your board** | The live board's "Edit board" |
 
 ### Pick your players and Generate (`FLOW-44`)
+
+**Both paths start from the builder** (W5-D44): Generate is the primary CTA, and hand-picking from an empty grid is equally allowed ("Pick lines yourself"). A fan may hand-pick from empty, generate, or generate then edit. The two-line minimum applies to entering, never to starting.
 
 Today's draft page, re-skinned on the kit, with its behaviour kept exactly (`ContestPage.tsx`):
 - **Games:** only the games open for entry (`betEvents[].openForEntry !== false`, which is `!gameHasStarted`, or every game in test mode), sorted by tip-off. With two or more, a chip row with one chip per game ("{Away} @ {Home}", "Sun 7:30 PM", "· {n} picked"); with one, a caption line.
@@ -327,7 +329,7 @@ Straight-line overlay pills (the kit's `BingoLine`) across each completed line, 
 | The prize's name (the title) | `award.prize.prizeName` | always |
 | Description | `award.prize.prizeDescription` | when set; shown once (the current popup repeats it) |
 | Image | `award.prize.prizeImageUrl` (160px) with `Burst` behind | when set; else the Burst alone |
-| Code | **Phase B: to build:** `award.prize.code`, the prize's static code, on the winner's own award only | when the prize has one |
+| "Your code" and the code, with a **Copy** action ("Copied" for 2 seconds) | **Phase B: to build:** `award.prize.code`, the tenant's typed static code (no code generation exists), on the winner's own award only (W5-D45) | when the prize has one; it is also in the email |
 | Claim instructions | `award.prize.prizeClaimInstructions` | when set |
 | "Provided by {sponsor}" with its prize-popup logo | `award.prize.providedBy` (exists: the award snapshot's credit) | when set |
 | "We've emailed the details to {email}" | `award.status === "fulfilled"`; `{email}` = the session's primary email, the address the prize worker sends to (`prize-worker/src/get-user-email.ts`) | only when fulfilled; nothing about email when pending or failed |
@@ -524,9 +526,9 @@ Kept or revised from S2: `FLOW-01`, `FLOW-03`, `FLOW-04`, `FLOW-06`–`FLOW-10`,
 
 ## Open questions
 
-1. **Hand-pick from empty.** W5-D38 keeps the pick sheet and ladder "for fans who hand-pick or edit squares afterwards". This spec keeps hand-pick from an empty grid (`POST /b2b/board` with cells) as a secondary path. If only editing after Generate is wanted, `/contest/:id/build/lines` and `POST /b2b/board` drop out and hand-picking happens in edit mode.
-2. **The derived bingo function's symbol and output shape** (Wave 4b): this spec needs, per board, the count, the completed line indexes and the per-square states. Confirm at rebase.
-3. **Showing the prize code in the popup** (W5-D41 "an optional code"): Wave 4 kept it email-only. Confirm it goes in the popup for the winner.
+None for Arthur. Decided since the first draft: hand-pick from an empty grid (W5-D44, `FLOW-44`), the prize code in the popup (W5-D45, `FLOW-31`).
+
+To confirm at the Phase B rebase (a check, not a question): the shared derived bingo function's symbol and output shape (Wave 4b). This spec needs, per board, the count, the completed line indexes and the per-square states.
 
 ## Recorded gaps
 
@@ -548,7 +550,7 @@ Visual direction only (`mocks\fanapp-v2\`, workspace): `contest.html`, `build.ht
 ## References
 
 - Rulings (workspace): `artifacts\review-2026-09-27\arthur-rulings-2026-09-27.md`, `arthur-rulings-wave4-walkthrough.md`; `artifacts\wave-2026-09-24\arthur-rulings-after-specs.md`.
-- Decisions: `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md` (W5-D08–D23, D37–D41).
+- Decisions: `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md` (W5-D08–D23, D37–D41, D44, D45).
 - Research: `artifacts\review-2026-09-27\e2e-pes-fanapp.md` (§1.2 PES props and alternate lines, §3 join gates, §5 multi-game, §7 B2C parity, §8 photos).
 - Fan app (Wave 4 integration): `src/pages/contests/ContestPage.tsx` (`DRAFT_CAP`, generate, refusals), `src/pages/board/BoardPage.tsx` (polling, awards, counter, track), `src/components/board/{BingoCell,PrizeModal}.tsx`, `src/lib/{board,contestView}.ts`, `src/store/api/contestApi.ts`.
 - Backend (Wave 4 integration): `node-server/src/routes/{contests,boards,membership,orgs}/index.ts`, `handlers/contest/{listB2BContests,getB2BContestPlayers}.ts`, `handlers/board/{createBoard,getB2BBoard,listB2BBoards}.ts`, `util/{fan-contest-projection,fan-prize-tiers}.ts`, `middleware/tenant.ts`, `prize-worker/src/get-user-email.ts`, `prize-delivery/render-prize-email.ts`.

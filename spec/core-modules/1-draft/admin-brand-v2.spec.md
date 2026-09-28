@@ -1,6 +1,6 @@
 # Core Module Spec: Admin — Brand v2 (Wave 5 branch)
 
-**Implements:** Arthur's 2026-09-27 rulings: "Wave order" (the console's Brand page v2, as mocked with the fan-app v2 mocks, is built on the Wave 5 branch, never on main), "Priorities" (Satoshi everywhere; remove the font option from Brand), "Uploads everywhere" (drag-and-drop plus browse, no URL boxes); the Wave 4 walkthrough rulings for Brand (remove the Sponsors tab; Brand's preview is the one place every screen matters: Start, Sign in, Join, Contest list, Contest detail, Board and Prize on a built-in sample contest, mobile only) and console-wide (no desktop preview; "Leave without saving?" only with unsaved changes); the standing rule "function over mocks". Director's decisions W5-D24, W5-D27, W5-D28, W5-D31, W5-D32, W5-D33. PRD `BRAND-01` (as reclassified by `admin-branding.spec.md`), `ADM-02`, `ADM-03`, `TEN-02`.
+**Implements:** Arthur's 2026-09-27 rulings: "Wave order" (the console's Brand page v2, as mocked with the fan-app v2 mocks, is built on the Wave 5 branch, never on main), "Priorities" (Satoshi everywhere; remove the font option from Brand), "Uploads everywhere" (drag-and-drop plus browse, no URL boxes); the Wave 4 walkthrough rulings for Brand (remove the Sponsors tab; Brand's preview is the one place every screen matters: Start, Sign in, Join, Contest list, Contest detail, Board and Prize on a built-in sample contest, mobile only) and console-wide (no desktop preview; "Leave without saving?" only with unsaved changes); the standing rule "function over mocks". Director's decisions W5-D24, W5-D27, W5-D28, W5-D31, W5-D32, W5-D33, W5-D43, W5-D46, W5-D47, W5-D48. PRD `BRAND-01` (as reclassified by `admin-branding.spec.md`), `ADM-02`, `ADM-03`, `TEN-02`.
 
 **Depends on:** Wave 4's specs on docs branch `arthur-w4-console` (PR #29, not merged to main; this branch is rebased after Wave 4 and the 4b fix pass merge): [`admin-branding.spec.md`](admin-branding.spec.md) (the theme contract, presets and gallery, storage, `GET/PUT /admin/branding`, `PUT /admin/branding/presets`, `POST /admin/branding/promote`, the fan wire, `THEME-03`–`THEME-20`), [`admin-uploads.spec.md`](admin-uploads.spec.md) (`UploadField`, `POST /admin/uploads`, `POST /admin/uploads/complete`, fields `brand.logo` and `brand.progressMarker`), [`admin-preview.spec.md`](admin-preview.spec.md) and `../../webapp/fan-preview-mode.spec.md` (`FanAppPreview`, the render document, `GET /admin/preview`), [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) (the nine gate-copy keys). The Wave 4b fix pass (not built at the time of writing): `host: "brand"` and its built-in sample contest source (W5-D31). Siblings on this branch: [`fan-decor-system.spec.md`](fan-decor-system.spec.md) (the palette, tokens, decor params, Prime Time), [`../../webapp/fan-app-v2.spec.md`](../../webapp/fan-app-v2.spec.md) (where the Words show), [`../../webapp/fan-app-v2-console-touchpoints.spec.md`](../../webapp/fan-app-v2-console-touchpoints.spec.md).
 
@@ -50,7 +50,7 @@ Today's Brand page (`obs-b2b-admin-frontend/src/pages/Branding.tsx`, under the `
 - **Shelves:** **Overboard** (Prime Time only, `DECOR-37`); **Gallery** (staff-curated, hidden when empty, as today); **Yours** (the tenant's saved looks, up to 20 (`THEME_PRESET_CAP`), then a **Save current look** card).
 - **Card:** a 148×104 thumbnail and the name; the whole card is one button "Apply {name}". The card matching the draft's look shows a 2px Team ring and an "In use" chip. Yours cards have a ⋯ menu (in-page, not native) with **Rename**, **Delete** (inline "Delete {name}? This can't be undone." with Delete and Cancel, because the whole array is rewritten), and **Add to gallery** (OBS staff only, as today).
 - **Save current look:** the card becomes a name input (max 60, "Name this look", Save, Cancel) and writes the whole array through `PUT /admin/branding/presets` (exists). At 20 it is disabled with "You can keep 20 looks. Delete one to save another."
-- **Thumbnail:** a static composition of three kit pieces (a `HeroBand` fragment, one `Chyron` reading "LIVE", two `Square`s, one hit and one pending) painted by the kit's resolver from the draft palette and the preset's mode and decor params. It is a swatch of a look, never a preview of the tenant's app, and shows no data. This needs those three components in the console: **Phase B: to build** (`DECOR-40`: `HeroBand`, `Chyron`, `Square` move to `obs-b2b-shared/src/ui/kit/`).
+- **Thumbnail:** a static composition of three kit pieces (a `HeroBand` fragment, one `Chyron` reading "LIVE", two `Square`s, one hit and one pending) painted by the kit's resolver from the draft palette and the preset's mode and decor params. It is a swatch of a look, never a preview of the tenant's app, and shows no data. The console renders them with the kit components lifted to `obs-b2b-shared/src/ui/kit/` in Phase B slice s0 and never re-implements them (W5-D48, `DECOR-40`). **Phase B: to build.**
 - **`BRAND2-01` (revised) — Applying a preset changes the look and never the palette.** It takes the preset's `mode`, decor params (`decor.intensity`, `decor.angle`), `surface.texture` and `shape.radiusBase`, and keeps Team, Second, Accent and Live. The one exception: a draft with no Accent takes the preset's (Prime Time's gold `#F5B32E`). Implemented as the shared `applyPreset` (`THEME-08`, which already keeps primary and secondary) plus the page carrying Accent and Live. Applying is a draft edit; the preset list writes (save, rename, delete, promote) are immediate, as today.
 
 ### 2. Colours
@@ -113,7 +113,8 @@ Where it lives: `src/components/ui/ColorPicker.tsx`, conversions in `src/lib/col
 | Paused message | Under the paused heading. | `pausedBody` | {team} Bingo is paused right now. Your account and anything you've earned are safe — check back soon. | 160 | none |
 
 - **Each input:** the default as its placeholder; a counter "23 / 60" (amber at 90%); `maxLength` stops typing and a paste is cut with "Shortened to 60 characters."; no line breaks; `{team}` is the only token, and any other `{…}` shows "Only {team} can be used here." and disables Publish; blank after trimming means the default (`BRAND2-15`).
-- **Preview jump:** focusing an input moves the preview to the screen that shows it. The paused strings have no preview screen (Paused is not a preview screen, W5-D30); their inputs show no jump. Recorded gap.
+- **Preview jump:** focusing an input moves the preview to the screen that shows it.
+- **`BRAND2-31` — Paused words get an inline sample, not a phone screen** (W5-D46). Paused is not a preview screen (W5-D30), so under the Paused heading and Paused message inputs the page shows one sample line: the resolved text (default or draft, `{team}` expanded) set in the kit's type on the draft palette's ground and text colours (`.k-d3` for the heading, `.k-body` for the message), inside a small hairline card. It is a text sample, not a rendering of the screen.
 
 ### 6. Fine-tune
 
@@ -122,7 +123,7 @@ A disclosure, collapsed by default: "Fine-tune", help "Most looks don't need the
 | Control | UI | Writes | Values | Shown when absent |
 |---|---|---|---|---|
 | Decoration | Slider 0–100%, step 5, value "70%" | `decor.intensity` | 0–1 | the preset's (Prime Time 70%) |
-| Band angle | Slider 0° to −12°, step 1, value "−5°" | `decor.angle` | −12…0 | −5° |
+| Band angle | Slider 0° to −12°, step 1, value "−5°" | `decor.angle` | −12…0 (W5-D43) | −5° |
 | Texture | Segmented "None · Bingo grid" | `surface.texture` | `none` / `bingoGrid` | None (a stored `dotgrid` shows as Bingo grid, which is how the overhaul renders it) |
 
 Help lines: Decoration "The board fragments and glow behind your screens."; Band angle "The slant of the team-colour band."; Texture "A faint board pattern on the page background." **`BRAND2-19` (revised) — Fine-tune maps to the contract exactly**, and `decor` is **Phase B: to build** (`DECOR-38`).
@@ -184,7 +185,7 @@ branding?: {
 
 ### The sample contest
 
-**`BRAND2-26` — The sample document.** Wave 5 reuses the fix pass's sample source wherever it lands (console `src/lib/preview/` or shared), and never builds a parallel fixture (W5-D31). This section is the requirement on that source. If the fix pass has not built one when Phase B starts, Wave 5 builds it as `obs-b2b-shared/src/preview/sampleDocument.ts` with exactly these contents (W5-D28). **Phase B: to build (or reuse).**
+**`BRAND2-26` — The sample document.** Wave 5 reuses the fix pass's sample source wherever it lands (console `src/lib/preview/` or shared), and never builds a parallel fixture (W5-D31). This section is the requirement on that source. If the fix pass has not built one when Phase B starts, Wave 5 builds it as `obs-b2b-shared/src/preview/sampleDocument.ts` with exactly these contents (W5-D28). **Phase B: to build (or reuse).** Its fixed board rides the additive `PreviewDocument.board?`, accepted for Phase B slice s0 (W5-D47).
 
 It is marked as a sample by its own names, which is everything a viewer sees of it; the frame carries no chyron (`PREV-09`) and the console adds no label (`PV-08`). It never leaves the console: nothing writes it anywhere, and no fan read can return it.
 
@@ -280,7 +281,7 @@ Unchanged: tenant targeting (`?tenant=` for staff only), the read-only refusal f
 
 ## Rules
 
-Kept from S2 (revised where noted): `BRAND2-01`–`BRAND2-07`, `BRAND2-11`, `BRAND2-12`, `BRAND2-14`–`BRAND2-17`, `BRAND2-19`–`BRAND2-21`, `BRAND2-23`–`BRAND2-25`. New: `BRAND2-26`–`BRAND2-30`.
+Kept from S2 (revised where noted): `BRAND2-01`–`BRAND2-07`, `BRAND2-11`, `BRAND2-12`, `BRAND2-14`–`BRAND2-17`, `BRAND2-19`–`BRAND2-21`, `BRAND2-23`–`BRAND2-25`. New: `BRAND2-26`–`BRAND2-31`.
 
 - **BRAND2-01 — Presets first; applying one changes the look, never the palette** (an Accent-less draft takes the preset's accent).
 - **BRAND2-02 — Two to four colours; Team and Accent required;** Second and Live Auto until overridden.
@@ -306,6 +307,7 @@ Kept from S2 (revised where noted): `BRAND2-01`–`BRAND2-07`, `BRAND2-11`, `BRA
 - **BRAND2-28 — Carry, don't clobber:** publish sends every unedited stored field back unchanged.
 - **BRAND2-29 — Publish needs an Accent.**
 - **BRAND2-30 — "Leave without publishing?" only with unsaved changes.**
+- **BRAND2-31 — Paused words show an inline sample line on the draft palette; no phone screen.**
 
 ### Retired from S2
 
@@ -380,14 +382,12 @@ Kept from S2 (revised where noted): `BRAND2-01`–`BRAND2-07`, `BRAND2-11`, `BRA
 
 ## Open questions
 
-1. **Paused words without a preview.** Paused is not a preview screen (W5-D30). Accept that the paused strings have no preview, or add a `paused` preview screen (a closed-enum change in `PREVIEW_SCREENS`)?
-2. **Thumbnails.** They need three kit components in shared (`DECOR-40`). If that move is unwanted, the shelf shows name-only cards and the preview is the only look check. Director's call.
-3. **Band angle as a tenant setting** (`DECOR-38`, open question 2 of the decor spec).
+None. Decided since the first draft: the paused words' inline sample (W5-D46, `BRAND2-31`), thumbnails from shared kit components (W5-D48), the band angle as a Fine-tune setting (W5-D43), the fixed sample board (W5-D47).
 
 ## Recorded gaps
 
 - **"From your logo" needs CORS on asset reads**; until it ships, the row stays hidden for every uploaded logo.
-- **Paused words have no preview.**
+- **Paused words have no phone preview**, only the inline sample line (`BRAND2-31`).
 - **Stored neutrals, fonts, border strength, glow, band and counter settings stay stored and unedited;** main's Brand page still reads them, the overhaul doesn't.
 - **Last write wins between two admins**, as everywhere in the console.
 - **Orphaned uploads** stay in the bucket (Wave 4's recorded gap).
@@ -399,7 +399,7 @@ Kept from S2 (revised where noted): `BRAND2-01`–`BRAND2-07`, `BRAND2-11`, `BRA
 ## References
 
 - Rulings (workspace): `artifacts\review-2026-09-27\arthur-rulings-2026-09-27.md` (Wave order, Priorities, Uploads everywhere); `arthur-rulings-wave4-walkthrough.md` (Console-wide, Brand); `artifacts\wave-2026-09-24\arthur-rulings-after-specs.md` (Prime Time gold).
-- Decisions: `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md` (W5-D24, D27, D28, D30–D33); console audit `w5-console-touchpoints-audit.md` §4–§5.
+- Decisions: `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md` (W5-D24, D27, D28, D30–D33, D43, D46–D48); console audit `w5-console-touchpoints-audit.md` §4–§5.
 - Wave 4 specs (`arthur-w4-console`): [`admin-branding.spec.md`](admin-branding.spec.md), [`admin-uploads.spec.md`](admin-uploads.spec.md), [`admin-preview.spec.md`](admin-preview.spec.md), `../../webapp/fan-preview-mode.spec.md`, [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md).
 - Siblings: [`fan-decor-system.spec.md`](fan-decor-system.spec.md), [`../../webapp/fan-app-v2.spec.md`](../../webapp/fan-app-v2.spec.md), [`../../webapp/fan-app-v2-console-touchpoints.spec.md`](../../webapp/fan-app-v2-console-touchpoints.spec.md).
 - Console (Wave 4 integration): `src/pages/Branding.tsx`, `src/components/BrandPreviewPanel.tsx`, `src/components/SponsorsBrandingHead.tsx`, `src/components/upload/UploadField.tsx`, `src/components/preview/FanAppPreview.tsx`, `src/lib/preview/buildPreviewDocument.ts`, `src/lib/configDraftStorage.ts`.

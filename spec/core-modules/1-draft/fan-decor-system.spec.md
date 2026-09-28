@@ -1,6 +1,6 @@
 # Core Module Spec: Fan Decor Kit — palette, tokens, type, decoration and shell (Wave 5)
 
-**Implements:** Arthur's 2026-09-27 rulings, "Fan app overhaul" (Satoshi only; desktop is the mobile column centred with tenant-coloured decorative sides; confetti kept inside the phone area in tenant colours; real player photos behind squares, never initials; no "peeking" text) and "Priorities" (Satoshi is the font everywhere, B2B and B2C, Prime Time included); the standing rule "function over mocks" (2026-09-28). Director's decisions W5-D03, W5-D11, W5-D21, W5-D24, W5-D25, W5-D26 (`artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace).
+**Implements:** Arthur's 2026-09-27 rulings, "Fan app overhaul" (Satoshi only; desktop is the mobile column centred with tenant-coloured decorative sides; confetti kept inside the phone area in tenant colours; real player photos behind squares, never initials; no "peeking" text) and "Priorities" (Satoshi is the font everywhere, B2B and B2C, Prime Time included); the standing rule "function over mocks" (2026-09-28). Director's decisions W5-D03, W5-D11, W5-D21, W5-D24, W5-D25, W5-D26, W5-D42, W5-D43, W5-D48 (`artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace).
 
 **Depends on:** Wave 4's specs on docs branch `arthur-w4-console` (PR #29, not merged to main; this branch is cut from the Wave 3 state and is rebased once Wave 4 and the Wave 4b fix pass merge): [`admin-branding.spec.md`](admin-branding.spec.md) (the stored theme contract `ThemeSettings`, `THEME-03` "the resolver is the only thing that computes", `THEME-05` status colours platform-owned, `THEME-08` presets keep the team's colours). On main: [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §4 (Wave 3's contrast-guarded hit colour, `contrastSafeHit`) and §7 (Satoshi self-hosted). Siblings on this branch: [`admin-brand-v2.spec.md`](admin-brand-v2.spec.md) (writes the palette and decor params), [`../../webapp/fan-app-v2.spec.md`](../../webapp/fan-app-v2.spec.md) and [`../../webapp/fan-contest-flow.spec.md`](../../webapp/fan-contest-flow.spec.md) (the screens that place the kit), [`../../webapp/fan-app-v2-console-touchpoints.spec.md`](../../webapp/fan-app-v2-console-touchpoints.spec.md).
 
@@ -62,7 +62,7 @@ The overhauled fan app needs one visual system that turns a tenant's two to four
 - **`KitShell` applies the variables to its own root element, never to `:root`.** No existing screen can pick them up by accident.
 - **The only edit outside `src/kit/`** is one branch in `src/main.tsx`: `pathname === "/kit"` lazily imports `src/kit/gallery/boot`, the way `/preview` boots.
 
-**`DECOR-40` — Phase B: the pure half moves to the shared package.** On the shared repo's `arthur-w5-fanapp` branch, the React-free files (`palette/types.ts`, `color.ts`, `resolve.ts`, `cssVars.ts`, `presets.ts`) move to `obs-b2b-shared/src/theme/kit/` with their tests, because the console needs the same resolver for Brand v2's contrast readout, Auto chips and preset thumbnails ([`admin-brand-v2.spec.md`](admin-brand-v2.spec.md)). The fan app then imports them from `@b2b-shared/theme/kit`. The React components stay in the fan app unless the console needs one (the preset thumbnail needs HeroBand, Chyron and Square; if Brand v2 keeps thumbnails, those three move to `obs-b2b-shared/src/ui/kit/` under the `src/ui/` purity rules). **Phase B: to build.** The move is a file move plus import rewrites; the tests move with the files and must pass unchanged.
+**`DECOR-40` — Phase B: the pure half moves to the shared package.** On the shared repo's `arthur-w5-fanapp` branch, the React-free files (`palette/types.ts`, `color.ts`, `resolve.ts`, `cssVars.ts`, `presets.ts`) move to `obs-b2b-shared/src/theme/kit/` with their tests, because the console needs the same resolver for Brand v2's contrast readout, Auto chips and preset thumbnails ([`admin-brand-v2.spec.md`](admin-brand-v2.spec.md)). The fan app then imports them from `@b2b-shared/theme/kit`. The React components stay in the fan app except `DecorField`, `HeroBand`, `Chyron` and `Square`, which move to `obs-b2b-shared/src/ui/kit/` under the `src/ui/` purity rules in Phase B slice s0, because Brand v2's preset thumbnails render with them and the console never re-implements them (W5-D48). **Phase B: to build.** The move is a file move plus import rewrites; the tests move with the files and must pass unchanged.
 
 **Existing shared colour maths is reused where it can be.** The Wave 3 hit rule (`contrastSafeHit`, `HIT_MIN_CONTRAST = 3`, `obs-b2b-shared/src/theme/resolve.ts`) is the kit's `--k-hit` rule. The kit imports it when importable and otherwise mirrors it with a comment citing it; after the Phase B move there is one copy.
 
@@ -87,10 +87,10 @@ export type Mode = "dark" | "light";
 |---|---|---|---|
 | **Team** | yes | — | Hero band fill, primary buttons, active tab, hit glow (first candidate), BingoLine core, Medal 1, Track fill start, the photo fallback gradient's start |
 | **Accent** | yes | — | Band hairline, accent chyrons ("Go Crazy", next tier), Burst rays, confetti, Scorebug underline, Brackets, Track fill end, Medal 3, the hit colour when Team fails |
-| **Second** | no | Team with hue +18° and lightness moved (below) | Double band's under-band, Stripes bar 2, DecorField strokes, GridTexture, Medal 2, the photo fallback gradient's end |
+| **Second** | no | Team with hue +18°, lightness moved away from the ground (W5-D42) | Double band's under-band, Stripes bar 2, DecorField strokes, GridTexture, Medal 2, the photo fallback gradient's end |
 | **Live** | no | The mode's fixed live tone: dark `#FF3B5C`, light `#B3364B` (the shared `DEFAULT_LIVE`) | The LIVE chyron and its dot only |
 
-- **`DECOR-03` — Auto Second is derived, never stored.** When `second` is absent the resolver computes it; Brand v2 stores nothing for it. The derivation is Team's hue +18°, same saturation, lightness moved by the Phase A rule in `resolve.ts` (open question 1 records a wording conflict in the decision sheet about which direction). `second-ink` is then lifted to 3:1 on the ground like every other ink, so the derivation can never produce an invisible Second.
+- **`DECOR-03` — Auto Second is derived, never stored.** When `second` is absent the resolver computes it; Brand v2 stores nothing for it. The derivation is Team's hue +18°, same saturation, lightness moved **away from the ground** (W5-D42, which corrects W5-D24's "toward the ground"): lighter than Team in dark mode, darker in light mode. `second-ink` is then lifted to 3:1 on the ground like every other ink, so the derivation can never produce an invisible Second.
 - **`DECOR-05` — Live is never decorative.** `--k-live` appears only in the `live` Chyron, its dot and the live square state.
 - **Validation.** `resolvePalette` throws a typed `PaletteError` on a missing or malformed Team or Accent (`#RRGGBB`, case-insensitive). Callers never hand it user input unchecked: Brand v2 validates on entry, and the fan app maps a stored theme first (below).
 
@@ -182,7 +182,7 @@ decor?: { intensity?: number /* 0–1 */; angle?: number /* -12..0, whole degree
 - `texture` reuses `surface.texture`. The overhaul renders `bingoGrid` and `dotgrid` both as GridTexture (the kit has no dot grid), and `none` as none. Brand v2 writes only `none` or `bingoGrid`.
 - `radius` reuses `shape.radiusBase` through the shared `radiiFromBase` (chip = max(2, round(B×0.35)), control = B, card = round(B×1.25)); tag is fixed at 2. Prime Time's base 8 gives 3 / 8 / 10. Brand v2 does not offer a radius control (W5-D27 Fine-tune is intensity, angle, texture), so `radiusBase` is whatever the tenant stored, else 8.
 - `applyPreset` and `genericizeForGallery` (`obs-b2b-shared/src/theme/presets.ts`) copy `decor` by name (`DECOR-22`); without it, applying Prime Time would drop its params.
-- The angle's range keeps the band legible and inside the angle budget: 0° (flat) to −12°. Brand v2's slider offers that range in whole degrees.
+- **The angle is a Fine-tune setting** (W5-D43): −12° to 0°, default −5° (Prime Time), stored in `decor.angle`. The range keeps the band legible and inside the angle budget; Brand v2's slider offers it in whole degrees.
 
 **`DECOR-06` (revised) — The angle budget.** Two angles exist. The band angle `--k-angle` (default −5°), shared by the HeroBand cut, its hairline, the double under-band and the DecorField fragments. The chyron's fixed `skewX(-10deg)`, shared by Chyron and Stripes. Nothing else tilts at rest. BingoLine (board geometry) and the rearrange jiggle (transient, W5-D14) are exempt.
 
@@ -405,9 +405,9 @@ Kept from S2 (renumbered only where noted): `DECOR-01`, `DECOR-03`, `DECOR-05`, 
 
 ## Open questions
 
-1. **Auto Second's lightness direction.** W5-D24 says "lightness toward the ground"; the kit brief says "dark: lighter, light: darker", which is away from the ground. Away from the ground keeps a dark Team's Second visible (Bears navy on the dark ground); toward the ground loses it. This spec follows the kit as built and asks the director to confirm and correct the decision sheet's wording.
-2. **Angle range.** `DECOR-38` bounds the band angle to −12°…0° so a tenant cannot tilt the band into illegibility. Confirm the range, or fix the angle at −5° and drop it from Fine-tune.
-3. **Club Level on the overhaul.** Dropped as a preset (`DECOR-37`). Confirm no tenant relies on it for the Wave 5 demo.
+Decided since the first draft: auto Second's direction (W5-D42, `DECOR-03`), the band angle range (W5-D43, `DECOR-38`), the shared kit components (W5-D48, `DECOR-40`).
+
+1. **Club Level on the overhaul.** Dropped as a preset (`DECOR-37`). Confirm no tenant relies on it for the Wave 5 demo.
 
 ## Recorded gaps
 
@@ -437,7 +437,7 @@ Stale regardless of Wave 5, for the same wrap: "Type is Satoshi … a Fontshare 
 
 ## References
 
-- Decisions: `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md` (W5-D03, D11, D21, D24–D27); kit brief `w5-kit.md` (workspace).
+- Decisions: `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md` (W5-D03, D11, D21, D24–D27, D42, D43, D48); kit brief `w5-kit.md` (workspace).
 - Rulings: `artifacts\review-2026-09-27\arthur-rulings-2026-09-27.md` (Satoshi; Fan app overhaul), `artifacts\wave-2026-09-24\arthur-rulings-after-specs.md` (scorebug without scores; Prime Time gold).
 - [`admin-branding.spec.md`](admin-branding.spec.md) (Wave 4 branch): the theme contract and `THEME-03`, `THEME-05`, `THEME-08`.
 - [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §4 (hit colour), §7 (Satoshi).

@@ -1,6 +1,6 @@
 # Webapp Spec: Fan App v2 — Shell, Navigation and Screens (Wave 5)
 
-**Implements:** Arthur's 2026-09-27 rulings "Fan app overhaul" (footer bar with Contests, Your boards, Profile; no home screen; Current/Past tabs; header and footer hide on scroll-down and return on scroll-up; the sidebar's items; desktop is the mobile column with decorative sides; Satoshi only; no "peeking" text) and the standing rule "function over mocks" (2026-09-28); the Wave 4 walkthrough rulings for the fan app (Terms and Privacy always in the side menu with the tenant's opt-in documents under them; contests, not games, with the contest's own name and description; mobile only; no pointless confirmations). Director's decisions W5-D01 to W5-D07, W5-D24 to W5-D26, W5-D33, W5-D37, W5-D39, W5-D40 (`artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace). PRD `OPT-01`–`OPT-05` (through the entry gate), `BRAND-02` (the sign-in sponsor on Start).
+**Implements:** Arthur's 2026-09-27 rulings "Fan app overhaul" (footer bar with Contests, Your boards, Profile; no home screen; Current/Past tabs; header and footer hide on scroll-down and return on scroll-up; the sidebar's items; desktop is the mobile column with decorative sides; Satoshi only; no "peeking" text) and the standing rule "function over mocks" (2026-09-28); the Wave 4 walkthrough rulings for the fan app (Terms and Privacy always in the side menu with the tenant's opt-in documents under them; contests, not games, with the contest's own name and description; mobile only; no pointless confirmations). Director's decisions W5-D01 to W5-D07, W5-D24 to W5-D26, W5-D33, W5-D37, W5-D39, W5-D40, W5-D49, W5-D50 (`artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace). PRD `OPT-01`–`OPT-05` (through the entry gate), `BRAND-02` (the sign-in sponsor on Start).
 
 **Depends on:** Wave 4's specs on docs branch `arthur-w4-console` (PR #29, not merged to main): [`fan-preview-mode.spec.md`](fan-preview-mode.spec.md), [`entry-gate.spec.md`](entry-gate.spec.md) (revision 2026-09-27: opt-in documents over the gate), `../core-modules/1-draft/admin-fields-and-optins.spec.md` (revision 2026-09-27: opt-ins linked to a sponsor or not, kept versions, `consentHistory`, documents), `admin-contests.spec.md` (states, description), `admin-prizes.spec.md`, `admin-sponsors.spec.md`. The Wave 4b fix pass (branches `arthur-w4b-*`, not built at the time of writing): the shared derived bingo function (W5-D40), the re-grounded prize model (W5-D41), per-contest banners, the current app's menu listing tenant documents. On main: [`../core-modules/1-draft/end-to-end-flow.spec.md`](../core-modules/1-draft/end-to-end-flow.spec.md) (Wave 3: derived game status, `featuredGame`, join refusal codes, server awards, the legal overlay). This branch is cut from the Wave 3 state of docs `main` and is rebased once Wave 4 and 4b merge; names above marked "to confirm at rebase" are checked then. Siblings on this branch: [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md), [`fan-app-v2-console-touchpoints.spec.md`](fan-app-v2-console-touchpoints.spec.md), [`../core-modules/1-draft/fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md), [`../core-modules/1-draft/admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md).
 
@@ -266,7 +266,7 @@ The landing screen.
 
 **Layout:**
 1. Header: tenant mark, title "Contests", menu.
-2. **Tabs: Current · Past** (W5-D02), a segmented control that hides and returns with the header. Today's app labels the first tab **"Upcoming"** (`ContestsPage.tsx:98-103`); Wave 5 says **"Current"** because the tab holds contests that are open and live as well as those not yet open, and "Upcoming" is wrong for the first two (Arthur's wording). The selected tab is kept in the URL (`?tab=past`) so Back and reload restore it.
+2. **Tabs: Current · Past** (W5-D02; bucketing and no paging per W5-D50), a segmented control that hides and returns with the header. Today's app labels the first tab **"Upcoming"** (`ContestsPage.tsx:98-103`); Wave 5 says **"Current"** because the tab holds contests that are open and live as well as those not yet open, and "Upcoming" is wrong for the first two (Arthur's wording). The selected tab is kept in the URL (`?tab=past`) so Back and reload restore it.
 3. Contest cards (`FAN-30`), 12px apart.
 
 **`FAN-68` — The buckets, from the existing list endpoint.** The app makes one request, `GET /b2b/contest/list-contests` with no `status` (the server then returns every non-draft contest of the tenant, unsorted), and buckets client-side: Upcoming and Open go to Current, Closed and Finished to Past, and Live contests (`FAN-18`, which the server reports as Closed) move to Current. `?status=upcoming` / `?status=past` exist but split Live into Past, so they aren't used.
@@ -277,7 +277,7 @@ The landing screen.
 | Past | Closed (not live) and Finished | Most recent last game first |
 
 - **No search** (W5-D02: tenants run a handful of contests).
-- **No paging.** The fan endpoint has no cursor or limit: it returns every non-draft contest of the tenant (`listB2BContests.ts`). The decision sheet's "endless cursor paging already exists" is true of the console's lists, not this endpoint. At the volumes tenants run, one request per tab is correct; paging is a recorded gap, not a Phase B item.
+- **No paging** (W5-D50, correcting W5-D02's "endless cursor paging already exists", which is true of the console's lists, not this endpoint). The fan list is one read with no cursor or limit, returning every non-draft contest of the tenant (`listB2BContests.ts`), bucketed into Current and Past client-side. At the volumes tenants run that is correct; paging is not a Phase B item.
 
 **States:**
 | State | What shows |
@@ -379,9 +379,9 @@ W5-D06. The fan's boards in this tenant.
 
 **`FAN-42` (revised) — Terms and Privacy are always in the side menu** (walkthrough ruling). `/terms` and `/privacy` read the platform documents' current version (`GET /b2b/org/:subdomain/consent-document/overboard-terms/terms` and `/privacy`, exists) and render the shared `ConsentDocumentView`, the component the gate overlay uses.
 
-**`FAN-43` (revised) — No placeholder legal text, ever.** When a platform document isn't published (404), the page shows its heading ("Terms of Service" or "Privacy Policy") and one line: **"Overboard hasn't published this yet."** W5-D05 words it "{Tenant} hasn't published this yet."; that would name the wrong party, because Terms and Privacy are Overboard's documents, shared by every tenant.
+**`FAN-43` (revised) — No placeholder legal text, ever** (W5-D49). When a platform document isn't published (404), the page shows its heading ("Terms of Service" or "Privacy Policy") and one line: **"Overboard hasn't published this yet."** (Terms and Privacy are Overboard's documents, shared by every tenant.) A tenant opt-in document that isn't published shows its title and **"{Tenant} hasn't published this yet."**
 
-**`/documents/:optInId/:linkId`** renders a tenant opt-in document the same way (current version, or `?version=N`). It is reached from the side menu and from Profile; only documents that exist are ever linked. A 404 shows "This page isn't available." (today's `LegalPage` string).
+**`/documents/:optInId/:linkId`** renders a tenant opt-in document the same way (current version, or `?version=N`). It is reached from the side menu and from Profile. A 404 shows the `FAN-43` line for a tenant document.
 
 **Layout:** header with Back and the document's title; the title as `h1` (`.k-d2`); "Updated {date}" from `publishedAt`; the body at `.k-body` (headings, paragraphs, lists, bold; a URL is plain text; `parseConsentDocument`).
 
@@ -464,7 +464,7 @@ W5-D06. The fan's boards in this tenant.
 | FAN-25 | Success lands on `/home` | Merged into `FAN-02` and `FAN-05` |
 | FAN-26 | The gate never navigates | Stated in the join gate section (unchanged behaviour) |
 | FAN-28, FAN-29 | Home sections; Home is the landing | No home screen (W5-D01) |
-| FAN-32–FAN-35 | Endless scroll, search, filters and paging on `/contests` | Search cut (W5-D02); the fan endpoint has no paging and tenants run a handful of contests |
+| FAN-32–FAN-35 | Endless scroll, search, filters and paging on `/contests` | Search cut (W5-D02); no paging on the fan list, bucketed client-side (W5-D50) |
 | FAN-36 | Trivia card | A trivia contest can never reach a fan (unpublishable); cut |
 | FAN-37 | Refusal notices on contest detail | Moved to [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md) `FLOW-01`, keyed on the real codes |
 | FAN-38 | Detail page is the only way into the builder | Moved to `FLOW-01` (W5-D37) |
@@ -575,7 +575,7 @@ The roll-up below adds every other spec's mock deviations.
 - **Profile's consent texts and display-name edit** wait on `optIns` and `displayName` (Phase B).
 - **Words** wait on `branding.text` (Phase B); until then every tenant sees the defaults.
 - **Mid-session pause** is noticed on the next org read or suspended refusal, not instantly.
-- **`showPhotoUri`** is already honoured by today's board and draft cards (Wave 3, `photoOf` in `src/lib/board.ts`); W5-D11's "the current app ignores it" is out of date.
+- **`showPhotoUri`** is already honoured by today's board and draft cards (Wave 3, `photoOf` in `src/lib/board.ts`); W5-D11's "the current app ignores it" is stale (W5-D49); the fallback rule stands.
 
 ## Mocks
 
@@ -584,7 +584,7 @@ Visual direction only (`mocks\fanapp-v2\`, workspace): `gate.html` (Start), `sig
 ## References
 
 - Rulings (workspace): `artifacts\review-2026-09-27\arthur-rulings-2026-09-27.md`, `arthur-rulings-wave4-walkthrough.md`; `artifacts\wave-2026-09-24\arthur-rulings-after-specs.md`.
-- Decisions: `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md` (W5-D01–D07, D24–D26, D33, D37, D39, D40).
+- Decisions: `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md` (W5-D01–D07, D24–D26, D33, D37, D39, D40, D49, D50).
 - Research: `artifacts\review-2026-09-27\e2e-pes-fanapp.md`, `prizes-optins-specs.md`.
 - Wave 4 specs (`arthur-w4-console`): [`fan-preview-mode.spec.md`](fan-preview-mode.spec.md), [`entry-gate.spec.md`](entry-gate.spec.md), `admin-fields-and-optins.spec.md`, `admin-contests.spec.md`, `admin-prizes.spec.md`, `admin-sponsors.spec.md`. Main: [`end-to-end-flow.spec.md`](../core-modules/1-draft/end-to-end-flow.spec.md).
 - Fan app (Wave 4 integration): `src/AppRoutes.tsx`, `src/components/auth/ProtectedRoute.tsx`, `src/components/layout/SideMenu.tsx`, `src/pages/contests/ContestsPage.tsx`, `src/pages/auth/{StartScreen,SignIn,SignUp,ForgotPassword,JoinTenant}.tsx`, `src/pages/legal/{LegalPage,legalPaths}.ts(x)`, `src/components/SuspendedScreen.tsx`, `src/context/TenantContext.tsx`, `src/store/api/{contestApi,sponsorApi,consentDocumentApi}.ts`, `src/lib/{board,contestView,storage}.ts`.
