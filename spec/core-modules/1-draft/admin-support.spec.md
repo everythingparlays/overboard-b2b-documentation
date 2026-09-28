@@ -20,7 +20,7 @@ Second-order value: every recorded spec gap that confuses a paying customer beco
 
 - **Email or chat notification to Overboard per report.** Deliberately never: a per-report email is how inboxes die. The badge counts unresolved reports, and the OBS overview's attention queue carries them — the places staff already look.
 - **Auto-resolution** (resolve a report when the platform observes the fix — a redemption later fulfilled, tiers later added). Designed for, not built: the subject pair makes it a read-side rule. Recorded.
-- **Report buttons inside screens other slices own this wave** — export refusals (Exports), contest and game rows (Games & Contests), publish rejections (Fields & Opt-ins, Branding), lifecycle divergence (All tenants), and reverification loops. Their *load* failures are covered on day one through the error card; the inline, pre-loaded buttons are recorded for those owners.
+- **Report buttons inside screens other slices own this wave** — export refusals (Exports), contest and game rows (Games & Contests), publish rejections (Fields & Opt-ins, Branding), and lifecycle divergence (All tenants). Their *load* failures are covered on day one through the error card; the inline, pre-loaded buttons are recorded for those owners.
 
 ## Revision 2026-09-28 — sides: staff see a workspace's Support as the workspace does
 
@@ -225,7 +225,7 @@ Same route, rendered by identity (admin-surface **Seamlessness**): staff get the
 
 **Deleting a workspace deletes its reports** (they are about that workspace; left behind, a report with no organization would read as a platform-wide one).
 
-Reads and the report write are not reverification-gated: nothing here releases PII or is irreversible (admin-surface's reverification line).
+Nothing here re-authenticates; no console action does (admin-surface, "No re-authentication").
 
 ## Rules
 
@@ -240,7 +240,7 @@ Reads and the report write are not reverification-gated: nothing here releases P
 ## Known gaps (recorded, not blocking)
 
 - **Auto-resolution** — not built; the subject pair makes it a read-side rule when wanted.
-- **Inline report buttons on other slices' screens** — exports, contest/game rows, publish rejections, lifecycle divergence, reverification loops.
+- **Inline report buttons on other slices' screens** — exports, contest/game rows, publish rejections, lifecycle divergence.
 - **Reporter notification of a resolution** outside the console — none; the answer appears where the problem was, which is the design, and there is no mail channel to the admin users yet.
 - **No SLA or assignment rotation** — ownership is "assign to me".
 

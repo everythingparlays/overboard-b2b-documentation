@@ -56,7 +56,7 @@ A workspace's sponsors are its sponsor opt-ins (`kind: "sponsor"`); the edition 
 
 ## Access
 
-Any console user, for their own workspace; Overboard staff through `?tenant=`. Reporting is the product the team bought (`org:reports:read` is held by every admin role, admin-exports), and nothing in the document identifies a fan, so no reverification.
+Any console user, for their own workspace; Overboard staff through `?tenant=`. Reporting is the product the team bought (`org:reports:read` is held by every admin role, admin-exports), and nothing in the document identifies a fan.
 
 ## Endpoint
 

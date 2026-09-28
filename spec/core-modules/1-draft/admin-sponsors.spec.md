@@ -2,7 +2,7 @@
 
 **Implements:** PRD `BRAND-02`, `BRAND-03`, `BRAND-04`, `TEN-02`, `TEN-04`, `RPT-04`, `SEC-02`, `ADM-03`, and Arthur's 2026-09-24 ruling on sponsors (WAVE-RULES, "Sponsors"). The field-by-field classification is [`documents/PRD/branding-field-split.md`](../../../documents/PRD/branding-field-split.md); this spec builds what it classifies, with one change to it: the prize popup is no longer a placement slot (below, "Retiring the `prizePopup` slot").
 
-**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — scope, targeting, the reverification list ("deleting the sponsor does"), Rule 13. [`admin-lists.spec.md`](admin-lists.spec.md) — the cursor-paging convention and the endless-scroll components every list here uses. [`admin-contests.spec.md`](admin-contests.spec.md) — the contest page whose Sponsors tab hosts the slot editor, and the lock. [`admin-prizes.spec.md`](admin-prizes.spec.md) — the prize page and its "Provided by" control, the award snapshot's `providedBy`, and the prize-type migration whose step 2 converts the `prizePopup` credit. [`admin-preview.spec.md`](admin-preview.spec.md) — `FanAppPreview`, which the sponsor page and the contest Preview tab host. [`admin-exports.spec.md`](admin-exports.spec.md) — the DPA field scope this model absorbs. [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the opt-in a sponsor's consent lives on. [`prize-delivery.spec.md`](prize-delivery.spec.md) — the prize email whose credit mark this spec re-sources.
+**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — scope, targeting, "No re-authentication" (a sponsor delete takes its typed name), Rule 13. [`admin-lists.spec.md`](admin-lists.spec.md) — the cursor-paging convention and the endless-scroll components every list here uses. [`admin-contests.spec.md`](admin-contests.spec.md) — the contest page whose Sponsors tab hosts the slot editor, and the lock. [`admin-prizes.spec.md`](admin-prizes.spec.md) — the prize page and its "Provided by" control, the award snapshot's `providedBy`, and the prize-type migration whose step 2 converts the `prizePopup` credit. [`admin-preview.spec.md`](admin-preview.spec.md) — `FanAppPreview`, which the sponsor page and the contest Preview tab host. [`admin-exports.spec.md`](admin-exports.spec.md) — the DPA field scope this model absorbs. [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the opt-in a sponsor's consent lives on. [`prize-delivery.spec.md`](prize-delivery.spec.md) — the prize email whose credit mark this spec re-sources.
 
 **Supersedes:** in [`prize-delivery.spec.md`](prize-delivery.spec.md), the "Presented by" section's source of the credit (the prize-popup placement holder), by `SP-11`, together with [`admin-prizes.spec.md`](admin-prizes.spec.md). In [`admin-sponsor-recap.spec.md`](admin-sponsor-recap.spec.md), the "Sponsor editions" keying by opt-in and its two sponsor gaps, by `SP-13`. In [`admin-branding.spec.md`](admin-branding.spec.md) and [`admin-surface.spec.md`](admin-surface.spec.md), the **Sponsors & Branding** destination: Sponsors becomes its own sidebar item.
 
@@ -204,7 +204,7 @@ All under `/admin`, admin Clerk only, scope from `req.adminScope`, the usual tar
 | GET | `/admin/sponsors/:sponsorId` | `requireAdmin` | One sponsor, with its counts |
 | POST | `/admin/sponsors` | `requireAdmin` + write | Create |
 | PATCH | `/admin/sponsors/:sponsorId` | `requireAdmin` + write | Partial edit; `expectedUpdatedAt` precondition |
-| DELETE | `/admin/sponsors/:sponsorId` | `requireAdminReverified` + write | Cascades (`SP-14`); audited `sponsor_delete` |
+| DELETE | `/admin/sponsors/:sponsorId` | `requireAdmin` + write + typed name | Cascades (`SP-14`); audited `sponsor_delete` |
 | GET | `/admin/sponsors/:sponsorId/appearances` | `requireAdmin` | "Where it appears", cursor-paged |
 | GET | `/admin/contests/:contestId/placements` | `requireAdmin` | One contest's placements (the Sponsors tab) |
 | PUT | `/admin/contests/:contestId/placements` | `requireAdmin` + write | One contest's placements, whole |
@@ -248,7 +248,7 @@ The whole-profile `PUT /admin/sponsors/:sponsorId` goes with the retired drawer.
 
 ### `DELETE /admin/sponsors/:sponsorId`
 
-Reverified (admin-surface: "deleting the sponsor does"). Body `{ confirmName }`, the sponsor's name as typed in the dialog (trimmed, case ignored; 400 when it differs). Checks in order: 404 for another tenant's id; the write gate; reverification; the name.
+No re-authentication (revised 2026-09-28); the typed name is the confirmation. Body `{ confirmName }`, the sponsor's name as typed in the dialog (trimmed, case ignored; 400 when it differs). Checks in order: 404 for another tenant's id; the write gate; the name.
 
 **`SP-14` — Deleting a sponsor just works: it cascades** (ruling 2026-09-27; replaces the 2026-09-24 rule that refused while anything referred to it, and today's `sponsor_linked` refusal). Nothing is refused because the sponsor is in use. In order:
 
@@ -417,9 +417,9 @@ The button opens a centred dialog built from `deleteCounts`:
   - "It's credited on 2 prizes. They'll show no sponsor."
   - "2 data-sharing agreements are unlinked. The opt-ins stay, and fans' answers are kept."
   - Then: "Past exports and prize emails keep its name. This can't be undone."
-- A field "Type Northside Credit Union to confirm", and the danger button "Delete sponsor", enabled once the name matches; "Cancel". Confirming runs reverification, then the delete (admin-surface: reverification follows the dialog's confirm).
+- A field "Type Northside Credit Union to confirm", and the danger button "Delete sponsor", enabled once the name matches; "Cancel". Confirming runs the delete; nothing else is asked (revised 2026-09-28).
 
-On success the console returns to `/sponsors`, whose head shows the line "Deleted Northside Credit Union.". A cancelled reverification leaves the dialog open with the quiet line "Nothing was deleted." A failure shows "Couldn't delete this sponsor. Try again." in the dialog.
+On success the console returns to `/sponsors`, whose head shows the line "Deleted Northside Credit Union.". A failure shows "Couldn't delete this sponsor. Try again." in the dialog.
 
 **States of the page**
 
@@ -506,10 +506,10 @@ That is the whole model: a slot has one sponsor for the whole contest, and a gam
 |---|---|---|
 | Sponsors page, sponsor page, Sponsors tab, their previews | `requireAdmin` (`org:tenant_config:read`) | Every admin role in its own tenant; OBS staff through `?tenant=` |
 | New sponsor, every inline edit, placements | `refuseReadOnlyWrite` (`useCanWrite` on the client) | Tenant `org:admin` of a tenant that is not paused; OBS staff |
-| Delete sponsor | The write gate, then reverification (`requireAdminReverified`, `useReverification`) | The same |
+| Delete sponsor | The write gate, then the typed name, checked on the server | The same |
 | Export field scope | On Exports, its own gate | As [`admin-exports.spec.md`](admin-exports.spec.md) |
 
-No reverification except delete: placing and editing are undone by editing again (`THEME-14`'s reasoning). The UI hiding a control is never the boundary; the server refuses the write regardless.
+No re-authentication anywhere (revised 2026-09-28): placing and editing are undone by editing again (`THEME-14`'s reasoning), and delete is guarded by its typed name. The UI hiding a control is never the boundary; the server refuses the write regardless.
 
 ---
 
@@ -561,7 +561,7 @@ The board resolves against its contest and its game: the game of the board's pro
 9. **A sponsor with no agreement has no export and is not on Exports.** One with several has one export per agreement.
 10. **A sponsor may have several agreements; an opt-in links at most one sponsor; there are no opt-in categories** (`SP-04`).
 11. **Migrations are dry-run by default and idempotent**, and run on the shared dev database: the sponsor-records migration creates and links; the agreement-scope migration copies the scope onto agreements.
-12. **Deleting a sponsor is reverified, audited first, and cascades** (`SP-14`): its placements go, prizes it provides lose it, its agreements are unlinked and kept, and history keeps its name.
+12. **Deleting a sponsor takes its typed name, is audited first, and cascades** (`SP-14`): its placements go, prizes it provides lose it, its agreements are unlinked and kept, and history keeps its name.
 13. **Only deletion is audited** (`SP-05`).
 14. **The fan wire is an allowlist** (`SP-06`); DPA data never reaches it.
 15. **One resolver decides slot holders** (`SP-07`), in the fan app, the server and the console's preview; a per-game holder without artwork falls back to the whole-contest holder.
