@@ -506,7 +506,7 @@ The fan-side machinery (entry-gate spec) already re-prompts on `(optInId, textVe
 Where the shipped console differs in detail from the text above:
 
 - The console's gate preview is the shared `WalkableGate`.
-- Each run of the consents walk publishes the walked opt-in again (a document added, then removed), so that opt-in's version climbs with every run on the test tenant.
+- The consents walk documents its own throwaway opt-in (linked to no sponsor, no export fields) and removes it at the end, so no tenant opt-in's version moves when it runs (2026-09-28; it used to edit a live agreement, which left its fans on an earlier wording and its exports empty).
 
 ## References
 
