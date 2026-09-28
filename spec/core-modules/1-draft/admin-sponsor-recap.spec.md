@@ -81,6 +81,12 @@ Any console user, for their own workspace; Overboard staff through `?tenant=`. R
 - **Sponsor logos** — built against the sponsor model (same wave): an edition takes its name from the linked `B2BSponsor` and its mark from `sponsorMarkUrl(assets)`; an opt-in with no linked sponsor, or a sponsor with no mark, shows the name alone.
 - **Presenting sponsor per game** — arrives with the sponsor model's per-game attachment.
 
+## As built (Wave 4)
+
+Where the shipped console differs in detail from the text above:
+
+- Recap editions are per data-sharing agreement (each opt-in linked to a sponsor), not per sponsor record, now that several opt-ins may link one sponsor.
+
 ## References
 
 - Vault concept: `cargo/passage-plans/2026-09-21-product-concepts.md`, Tier 1 #1.

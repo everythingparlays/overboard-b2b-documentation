@@ -501,6 +501,13 @@ The fan-side machinery (entry-gate spec) already re-prompts on `(optInId, textVe
 - **`options` has no per-option identity.** An option is its own text, so renaming "Medium" to "M" leaves every fan who answered "Medium" holding a value that no longer matches any current option. Answers stand by design (options are descriptive), and the gate never re-asks — but a report grouping by option will show both. A keyed option model would fix it and is not worth its cost at this size.
 - **Draft persistence is per browser session.** `sessionStorage` means a draft does not follow an admin to another tab, another device, or tomorrow morning. That is the deliberate trade against a server-side draft; if admins turn out to want a config they can leave half-written for a week, that is a different feature with a different data model, and it should be specced as one rather than grown out of this.
 
+## As built (Wave 4)
+
+Where the shipped console differs in detail from the text above:
+
+- The console's gate preview is the shared `WalkableGate`.
+- Each run of the consents walk publishes the walked opt-in again (a document added, then removed), so that opt-in's version climbs with every run on the test tenant.
+
 ## References
 
 - PRD: [`ADM-02`, `ADM-03`, `ADM-05`, `AUTH-02`, `AUTH-03`, `BRAND-01`, `OPT-01`–`OPT-06`, `TEN-02`, `RPT-06`, `SEC-05`](../../../documents/PRD/OBS_B2B_Platform_PRD.md)

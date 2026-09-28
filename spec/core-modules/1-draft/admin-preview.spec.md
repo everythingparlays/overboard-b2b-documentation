@@ -210,6 +210,16 @@ There is no other console copy: no label on the frame, no caption about data, no
 - **A sponsor with no contest** has no real contest to preview it in, and there is no sample contest to fall back on, so the sponsor page shows no frame for it ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)); its artwork appears in the frame once it is placed on a contest.
 - **The popup over an unscored board** and the other fan-side gaps are in [`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md).
 
+## As built (Wave 4)
+
+Where the shipped console differs in detail from the text above:
+
+- `FanAppPreview` takes two more optional props: `refreshKey` (change it after a host saves, and the frame reads again) and `overlay.contest.description` (the same as `contestDescription`). `screen` and `device` are controlled only when the matching `on…Change` is passed; otherwise they are the opening values.
+- The contest Preview tab keeps its selection in the address: `?screen=`, `?device=`, `?tier=` (counted from 1), `?game=`, and `?sponsor=` with `?slot=` for a highlight.
+- The prize page's rail mounts the frame itself. No separate prize preview page ships.
+- The frame needs `VITE_FAN_APP_ORIGIN` in the console and the console's origin in the fan app's `VITE_PREVIEW_PARENT_ORIGINS`.
+- The sponsor schedule read with `asPublished` skips the server's one-minute cache, so a just-placed sponsor shows at once.
+
 ## References
 
 - Rulings: Arthur 2026-09-24 (`artifacts/wave-2026-09-24/WAVE-RULES.md`, "Brand gets simpler") and 2026-09-27 (`artifacts/review-2026-09-27/arthur-rulings-2026-09-27.md`, Preview)

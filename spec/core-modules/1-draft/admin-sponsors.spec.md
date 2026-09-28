@@ -588,6 +588,13 @@ The board resolves against its contest and its game: the game of the board's pro
 - **The free square is not built** (field-split doc). It becomes a fourth placement slot, additively, when the game gains one.
 - ~~**The recap page's sponsor logos**~~ — **closed 2026-09-23** by [`admin-sponsor-recap.spec.md`](admin-sponsor-recap.spec.md): editions take their mark from `sponsorMarkUrl`.
 
+## As built (Wave 4)
+
+Where the shipped console differs in detail from the text above:
+
+- The sponsor page shows one fan app preview, beside the artwork grid, and only when the sponsor is placed in an active contest.
+- After a sponsor is deleted, Recent exports still names it: the export row keeps the name it was written with. The end-to-end harness checks this.
+
 ## References
 
 - [`documents/PRD/branding-field-split.md`](../../../documents/PRD/branding-field-split.md) — the classification this builds; its `prizePopup` row is superseded by `SP-11`/`SP-12`

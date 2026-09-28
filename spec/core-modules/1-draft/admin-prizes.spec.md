@@ -684,6 +684,16 @@ Until it ships, the word "Bounced" appears nowhere on screen.
 - **Complaints** are recorded but have no tenant surface.
 - **The PRD's `GAME-02`, `PRIZE-02`, `PRIZE-05`/`PRIZE-06` revision notes** are owed to the PRD.
 
+## As built (Wave 4)
+
+Where the shipped console differs in detail from the text above:
+
+- The staff bulk resend endpoint stays as it was; **Resend selected** on the cross-tenant view uses it.
+- A new tier starts with no bingo count, and the admin picks one before saving.
+- The email's **Provided by** credit shows the sponsor's logo with the sponsor's name as its alt text.
+- Deliveries rows don't show the game yet.
+- The old `/delivery-queue` link lands on the cross-tenant view, with its workspace filter carried over as `?tenant=`.
+
 ## References
 
 - PRD: [`GAME-02`, `PRIZE-01`–`PRIZE-07`, `ADM-03`, `ADM-04`](../../../documents/PRD/OBS_B2B_Platform_PRD.md); trivia [`TRV-31`, `TRV-32`, `TRV-49`, `TRV-50`](../../../documents/PRD/trivia-game-type.md)

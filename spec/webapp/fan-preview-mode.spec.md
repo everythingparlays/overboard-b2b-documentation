@@ -303,6 +303,13 @@ The frame is the viewport, as on a real device, and the app lays itself out for 
 - **The sign-in form is inert.** It shows the real form; submitting it moves the preview on without checking anything, because there is no account behind a preview.
 - **Returning-fan and paused states** aren't offered as screens.
 
+## As built (Wave 4)
+
+Where the shipped console differs in detail from the text above:
+
+- A consent document opened over the gate in the frame is read from the public document endpoint, as the live app reads it: the render document carries no document bodies.
+- Each tree makes its own store (`makeStore(baseQuery)`): the live app's base query talks to the network, the preview's answers from the render document. Sign-in goes through the app's own auth module, and a lint rule keeps screens from importing the auth library directly.
+
 ## References
 
 - [`../core-modules/1-draft/admin-preview.spec.md`](../core-modules/1-draft/admin-preview.spec.md) — the console host and the preview read

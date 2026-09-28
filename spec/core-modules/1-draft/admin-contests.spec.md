@@ -710,6 +710,17 @@ Unchanged ([`admin-obs-internal.spec.md`](admin-obs-internal.spec.md)). Only its
 - **`numberParticipants` is dead data**, left in place and read by nothing.
 - **Audit coverage.** Games adds and removes and state changes are audited from this spec on; tier writes' audit is [`admin-prizes.spec.md`](admin-prizes.spec.md)'s.
 
+## As built (Wave 4)
+
+Where the shipped console differs in detail from the text above:
+
+- The contest has no `publishedAt` stamp: its stored state says Draft, Open or Closed, and nothing else needed the date.
+- An unknown tab in the address (`/contests/:contestId/whatever`) opens Overview.
+- The Overview's **Failed sends** tile shows only when at least one of the contest's prize sends has failed.
+- The Preview tab mounts the preview's contest tab: it opens on the fan app's Contests screen and keeps the screen, device, tier, game and sponsor highlight in the address, so the Sponsors tab's links open the frame on the right game.
+- `/contests/:contestId/prizes` and `/contests/:contestId/sponsors` are the contest page's own tabs. The stand-alone ladder and slot pages built while the slices were apart were dropped when they were joined.
+- The end-to-end harness's `--screens` run opens the new contest from Games & Contests onto the contest page and photographs it there.
+
 ## References
 
 - PRD: [`ADM-03`, `ADM-04`, `ADM-06`, `BRAND-02`, `BRAND-04`, `GAME-01`–`GAME-04`, `GAME-C1`, `GAME-F1`, `PRIZE-03`, `TEN-05`, `TEN-C1`, `ADM-09`](../../../documents/PRD/OBS_B2B_Platform_PRD.md)
