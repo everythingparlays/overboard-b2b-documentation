@@ -711,7 +711,7 @@ As [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md), plus the one rule
 
 ## Dev fixtures
 
-`seed-test-tenant.mjs` keeps "Test Tenant — This Week" re-pointed at the current week and "Test Tenant Bingo" as it is. After the migration, fixtures carry `state` and a `description` written for fans ("Pick your players for this week's games and chase a bingo."), and one fixture draft ("Test Tenant — Draft") exists so the Draft card, list row and banner can be seen. Games come from every sport the mirror holds for the coming week, not only NFL.
+**Revised 2026-09-28 (Arthur: a clean slate for `test`).** `reset-test-fixtures.mjs` replaces the accumulated fixtures with the minimum that makes every console screen walkable: "Test Tenant — Draft" (one upcoming game, one tier), "Test Tenant — This Week" (open, the current week's games, two tiers), "Test Tenant — Ready to finalize" (closed, two games that ended, boards, and sent, waiting and failed deliveries) and "Test Tenant — Finalized"; two library prizes; seven seed fans covering each consent state. "Test Tenant Bingo" and the archived early contests are gone. It touches only the `test` organization under the `arthur_` prefix, is dry-run unless `--apply`, and converges on the same set when re-run. The E2E harness's contest, prize and sponsor are kept. `seed-test-tenant.mjs` still creates the tenant record and its configuration.
 
 ---
 

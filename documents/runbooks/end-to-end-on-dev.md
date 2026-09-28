@@ -374,8 +374,8 @@ source of truth.
 
 ## 8. Clean up
 
-- **Delete a contest:** open its drawer (**Settings**) → **Delete contest → Delete contest…** → type the
-  contest's name → **Delete permanently** → verify again with Clerk (code 424242).
+- **Delete a contest:** open the contest page → **More actions → Delete contest** → type the contest's
+  name → **Delete permanently**.
   - Its boards, pending sends, tiers and sponsor placements go.
   - Prize records already fulfilled, failed or skipped stay, stamped with the contest's name.
   - Library prizes stay.
@@ -385,6 +385,19 @@ source of truth.
   it. **Move to draft** is offered only while no fan has joined.
 - **PES:** every progress value put back (§6, step 5).
 - **Outbox:** delete old files from the outbox folder whenever you like.
+- **A clean slate for the `test` tenant:** from `node-server/`, dry-run
+  `AWS_PROFILE=obs-b2b-dev AWS_SDK_LOAD_CONFIG=1 node --env-file=.env scripts/reset-test-fixtures.mjs`,
+  read what it would do, then add `--apply`.
+  - It deletes the `test` tenant's contests (apart from the harness's), their boards, tiers and
+    deliveries, deliveries of contests that no longer exist, library prizes and sponsors other than the
+    harness's and Coca-Cola, the export history, and seed fans beyond the seven it keeps.
+  - It reseeds the minimum that makes every console screen walkable: a Draft, an Open ("This Week"),
+    a Closed contest ready to finalize (with sent, waiting and failed deliveries) and a Finalized one;
+    two library prizes; and seven seed fans whose consents cover accepted, declined, not answered,
+    an earlier wording and a missing field.
+  - It touches only the `test` organization, only under the `arthur_` prefix, only in `obs-b2b-dev`.
+    Real fans' identities and memberships, Clerk, support reports and the rest of the audit log are
+    left alone. Re-running converges on the same set around the day it runs.
 
 ---
 
