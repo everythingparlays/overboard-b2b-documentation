@@ -1,10 +1,10 @@
 # Core Module Spec: Fan Decor Kit — palette, tokens, type, decoration and shell (Wave 5)
 
-**Implements:** Arthur's 2026-09-27 rulings, "Fan app overhaul" (Satoshi only; desktop is the mobile column centred with tenant-coloured decorative sides; confetti kept inside the phone area in tenant colours; real player photos behind squares, never initials; no "peeking" text) and "Priorities" (Satoshi is the font everywhere, B2B and B2C, Prime Time included); the standing rule "function over mocks" (2026-09-28). Director's decisions W5-D01 to W5-D50, all binding (chiefly W5-D03, W5-D11, W5-D21, W5-D24, W5-D25, W5-D26, W5-D42, W5-D43, W5-D48; `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace), and the Phase A review rulings (`artifacts\wave-2026-09-27\briefs\w5-review-rulings.md`, workspace).
+**Implements:** Arthur's 2026-09-27 rulings, "Fan app overhaul" (Satoshi only; desktop is the mobile column centred with tenant-coloured decorative sides; confetti kept inside the phone area in tenant colours; real player photos behind squares, never initials; no "peeking" text) and "Priorities" (Satoshi is the font everywhere, B2B and B2C, Prime Time included); the standing rule "function over mocks" (2026-09-28). Director's decisions W5-D01 to W5-D50, all binding (chiefly W5-D03, W5-D11, W5-D21, W5-D24, W5-D25, W5-D26, W5-D42, W5-D43, W5-D48, W5-D53; `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace), and the Phase A review rulings (`artifacts\wave-2026-09-27\briefs\w5-review-rulings.md`, workspace).
 
 **Depends on:** Wave 4's specs on docs branch `arthur-w4-console` (PR #29, not merged to main; this branch is cut from the Wave 3 state and is rebased once Wave 4 and the Wave 4b fix pass merge): [`admin-branding.spec.md`](admin-branding.spec.md) (the stored theme contract `ThemeSettings`, `THEME-03` "the resolver is the only thing that computes", `THEME-05` status colours platform-owned, `THEME-08` presets keep the team's colours). On main: [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §4 (Wave 3's contrast-guarded hit colour, `contrastSafeHit`) and §7 (Satoshi self-hosted). Siblings on this branch: [`admin-brand-v2.spec.md`](admin-brand-v2.spec.md) (writes the palette and decor params), [`../../webapp/fan-app-v2.spec.md`](../../webapp/fan-app-v2.spec.md) and [`../../webapp/fan-contest-flow.spec.md`](../../webapp/fan-contest-flow.spec.md) (the screens that place the kit), [`../../webapp/fan-app-v2-console-touchpoints.spec.md`](../../webapp/fan-app-v2-console-touchpoints.spec.md).
 
-**Supersedes:** S2's draft of this spec (docs branch `arthur-s2-fanapp-spec`, PR #23): the twelve-piece kit in `obs-b2b-shared/src/ui/decor/`, the `decor { field, band, intensity }` contract block, the font pairings, auto Accent, per-preset light and dark ramps with `withMode`, and Club Level as a shipped overhaul preset. For the Wave 5 branch only, three points of the vault chart `b2b\charts\design.md` (listed under "Supersessions", for the vault wrap).
+**Supersedes:** S2's draft of this spec (docs branch `arthur-s2-fanapp-spec`, PR #23): the twelve-piece kit in `obs-b2b-shared/src/ui/decor/`, the `decor { field, band, intensity }` contract block, the font pairings, auto Accent, per-preset light and dark ramps with `withMode`, and Club Level's brass, ivory ramp and serif (Club Level stays as a pure decor preset, W5-D53). For the Wave 5 branch only, three points of the vault chart `b2b\charts\design.md` (listed under "Supersessions", for the vault wrap).
 
 **Status:** Draft, 2026-09-28, Wave 5 Phase A. The kit is being built in Phase A in the fan app (`overboard-b2b-template`, branch `arthur-w5-fanapp`, worktree `.worktrees\template-w5`, brief `artifacts\wave-2026-09-27\briefs\w5-kit.md`) as additive files that no existing screen mounts. Phase B moves the screens onto it. Wave 5 is never merged to main (W5-D29).
 
@@ -51,7 +51,7 @@ The overhauled fan app needs one visual system that turns a tenant's two to four
 
 | Folder | Contents |
 |---|---|
-| `src/kit/palette/` | `types.ts` (`TenantPalette`, `Mode`, `KitTokens`, `DecorParams`), `color.ts` (hex ↔ sRGB ↔ HSL, WCAG luminance and contrast, `mix`, `shiftHue`, `lift`, `onColor`), `resolve.ts` (`resolvePalette`), `cssVars.ts` (`tokensToCssVars`, `applyKitVars`), `presets.ts` (`PRIME_TIME` and the gallery's sample palettes) |
+| `src/kit/palette/` | `types.ts` (`TenantPalette`, `Mode`, `KitTokens`, `DecorParams`), `color.ts` (hex ↔ sRGB ↔ HSL, WCAG luminance and contrast, `mix`, `shiftHue`, `lift`, `onColor`), `resolve.ts` (`resolvePalette`), `cssVars.ts` (`tokensToCssVars`, `applyKitVars`), `presets.ts` (`PRIME_TIME`, `CLUB_LEVEL` and the gallery's sample palettes) |
 | `src/kit/type.css` | The type scale classes and `--k-fs-*` tokens |
 | `src/kit/decor/` | One file per component plus `decor.css` |
 | `src/kit/shell/` | `KitShell`, `TopBar`, `TabBar`, `useChromeVisibility`, `chromeReducer` |
@@ -168,7 +168,7 @@ export interface DecorParams {
 }
 ```
 
-**`DECOR-37` — Prime Time is the one Overboard preset on the overhaul.** `PRIME_TIME` = intensity 0.7, angle −5°, texture none, radius 10 / 8 / 3 / 2 (card / control / chip / tag), accent default gold `#F5B32E` (the interface call Arthur accepted, `arthur-rulings-after-specs.md`, "The Prime Time accent is gold"). A preset carries decor params and a default accent; it never carries Team or Second (`THEME-08`). Club Level is not an overhaul preset: its identity was a serif face and an ivory ramp, and both are gone under Satoshi-only and platform ramps. A tenant who applied Club Level keeps its stored theme; the overhaul reads its colours and mode like any other.
+**`DECOR-37` — Two Overboard presets: Prime Time and Club Level.** `PRIME_TIME` = intensity 0.7, angle −5°, texture none, radius 10 / 8 / 3 / 2 (card / control / chip / tag), accent default gold `#F5B32E` (the interface call Arthur accepted, `arthur-rulings-after-specs.md`, "The Prime Time accent is gold"). `CLUB_LEVEL` (Arthur, W5-D53) = mode light, intensity 0.45, angle 0°, texture none, `shape.radiusBase` 10 (radius 13 / 10 / 4 / 2 through `radiiFromBase`), no default accent. A preset carries a mode, decor params and at most a default accent; it never carries Team or Second (`THEME-08`). Nothing Club-Level-specific survives the adaptation: no brass, ivory, Instrument Sans or pill chyrons. Its ground is the light ramp, its accent is the tenant's, and its chyrons follow `radiusBase`. If Phase B finds it needs a control the system lacks, it is dropped rather than special-cased.
 
 **`DECOR-38` — Where the params are stored.** **Phase B: to build** in the shared contract, additive and optional:
 
@@ -335,7 +335,7 @@ Kept from S2 (renumbered only where noted): `DECOR-01`, `DECOR-03`, `DECOR-05`, 
 - **DECOR-34 — No full-screen flash.**
 - **DECOR-35 — `KitShell` is the 480px column; decorative sides from 900px; no multi-column layout.**
 - **DECOR-36 — Hide-on-scroll follows the reducer table exactly.**
-- **DECOR-37 — Prime Time is the one Overboard preset,** gold accent default.
+- **DECOR-37 — Two Overboard presets:** Prime Time (gold accent default) and Club Level (a pure decor preset on the tenant's palette).
 - **DECOR-38 — Decor params are stored as an additive `decor { intensity, angle }` block plus the existing `surface.texture` and `shape.radiusBase`** (Phase B: to build).
 - **DECOR-39 — Load-time derivation; no data migration.**
 - **DECOR-40 — The pure palette half moves to `obs-b2b-shared/src/theme/kit/` in Phase B;** one copy of every colour rule.
@@ -407,7 +407,7 @@ Kept from S2 (renumbered only where noted): `DECOR-01`, `DECOR-03`, `DECOR-05`, 
 
 Decided since the first draft: auto Second's direction (W5-D42, `DECOR-03`), the band angle range (W5-D43, `DECOR-38`), the shared kit components (W5-D48, `DECOR-40`).
 
-1. **Club Level on the overhaul.** Dropped as a preset (`DECOR-37`). Confirm no tenant relies on it for the Wave 5 demo.
+Club Level stays as a pure decor preset (W5-D53, `DECOR-37`). No open questions remain.
 
 ## Recorded gaps
 
