@@ -2,6 +2,8 @@
 
 **Implements:** Arthur's 2026-09-27 preview ruling (`artifacts/review-2026-09-27/arthur-rulings-2026-09-27.md`, "Console redesign: comments", Preview): the console's preview shows only real screens of the **current** fan app, with the contest's real configuration, real players, photos and data, and nothing that doesn't exist. Navigation inside the preview is seamless, the console's screen tabs stay in sync as the admin clicks through, and there is a phone and a desktop preview. D-068: nothing fabricated appears on a customer surface.
 
+**Revision 2026-09-28 (Wave 4b):** the preview is **phone only** (Arthur: "No desktop preview anywhere. The fan app is mobile-only"). The console always sends `device: "phone"` and offers no desktop toggle; the field stays in the contract so older consoles and frames still speak it, and "Phone and desktop" below is superseded. The console's Brand page renders every screen from a built-in sample contest rather than a real one ([`admin-preview.spec.md`](../core-modules/1-draft/admin-preview.spec.md), "The sample contest"); the fan app renders it like any other render document. The live board's bingo count is now the shared derived count (`boardBingos`, [`end-to-end-flow.spec.md`](../core-modules/1-draft/end-to-end-flow.spec.md) §1.5), which the preview board's claims already equal.
+
 **Depends on:** [`../core-modules/1-draft/admin-preview.spec.md`](../core-modules/1-draft/admin-preview.spec.md), the console side (the frame, the tabs, the device toggle, and the admin read that builds the render document). [`../core-modules/1-draft/end-to-end-flow.spec.md`](../core-modules/1-draft/end-to-end-flow.spec.md) (Wave 3): the fan reads' shapes, the join refusals, `featuredGame`, board awards from the server, and the legal-document overlay the gate opens. [`entry-gate.spec.md`](entry-gate.spec.md): `EntryGateForm`, which the Join screen renders. [`styling.spec.md`](styling.spec.md): how a theme becomes CSS vars.
 
 **Supersedes:** for the current fan app, the S1/S2 preview contract (`artifacts/wave-2026-09-24/s1-s2-preview-interface.md`, workspace) and S2's draft of this spec on the unmerged `arthur-s2-fanapp-spec` docs branch. Kept from them: the sessionless `/preview` route in its own chunk, the `obs-preview:` message family with `v`, the origin allowlist on both sides, `frame-ancestors` on `/preview` only, the "no API call from the frame" rule, full-replace renders, and the text-only rule. Dropped: the six overhaul screens, every fixture and sample name, the PREVIEW chyron, and "taps never navigate".
@@ -235,6 +237,8 @@ Types are the shared package's: `AwardPrize` (the board read's award prize, `api
 - **Focus stays in the console** until the admin clicks or tabs into the frame. The preview never calls `focus()` on mount or on `render`.
 
 ## Phone and desktop
+
+*Superseded 2026-09-28: the preview is phone only (390×844); `document.device` is always `"phone"`.*
 
 The frame is the viewport, as on a real device, and the app lays itself out for it: 390×844 for Phone, 1280×800 for Desktop, where the current app centres its column (`max-w-lg`) as it does in a desktop browser. `document.device` is a hint only; the app's own responsive rules decide the layout from the frame's width.
 
