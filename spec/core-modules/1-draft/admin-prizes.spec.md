@@ -2,7 +2,7 @@
 
 **Implements:** PRD `GAME-02` (tiers belong to a contest; see "PRD requirements"), `PRIZE-01`, `PRIZE-03`, `PRIZE-07`, `ADM-03`, `ADM-04` (the delivery-method half, carried from [`prize-delivery.spec.md`](prize-delivery.spec.md)), and trivia's `TRV-49` / `TRV-50` on the prize side ([`../../features/1-draft/trivia-game-type.spec.md`](../../features/1-draft/trivia-game-type.spec.md)).
 
-**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — scope resolution, the write grant, reverification, the view-only presentation (D-059), Honesty by omission (Rule 13). [`admin-contests.spec.md`](admin-contests.spec.md) — the contest page, its tabs, the builder, Publish. [`contest-safety.spec.md`](contest-safety.spec.md) — the lock, `tierSnapshot`, `contest_locked`, and the prize-library revision's `prize_value_locked`. [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) — contest states (§3.1), contest deletion (§3.2), the fan app showing only recorded awards (§1.5), and the four prize-library fixes (§8), all referenced here and not redefined. [`prize-delivery.spec.md`](prize-delivery.spec.md) — the delivery engine, method registry, email template, attempt claim and staff resend. [`admin-lists.spec.md`](admin-lists.spec.md) — cursor paging and the list kit. [`admin-sponsors.spec.md`](admin-sponsors.spec.md) — sponsor records, their prize-popup logo, and sponsor deletion's cascade. [`admin-uploads.spec.md`](admin-uploads.spec.md) — the upload field and its route. [`admin-preview.spec.md`](admin-preview.spec.md) — the `FanAppPreview` host. [`admin-game-day.spec.md`](admin-game-day.spec.md) — the `reasonKind` failure categories.
+**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — scope resolution, the write grant, "No re-authentication", the view-only presentation (D-059), Honesty by omission (Rule 13). [`admin-contests.spec.md`](admin-contests.spec.md) — the contest page, its tabs, the builder, Publish. [`contest-safety.spec.md`](contest-safety.spec.md) — the lock, `tierSnapshot`, `contest_locked`, and the prize-library revision's `prize_value_locked`. [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) — contest states (§3.1), contest deletion (§3.2), the fan app showing only recorded awards (§1.5), and the four prize-library fixes (§8), all referenced here and not redefined. [`prize-delivery.spec.md`](prize-delivery.spec.md) — the delivery engine, method registry, email template, attempt claim and staff resend. [`admin-lists.spec.md`](admin-lists.spec.md) — cursor paging and the list kit. [`admin-sponsors.spec.md`](admin-sponsors.spec.md) — sponsor records, their prize-popup logo, and sponsor deletion's cascade. [`admin-uploads.spec.md`](admin-uploads.spec.md) — the upload field and its route. [`admin-preview.spec.md`](admin-preview.spec.md) — the `FanAppPreview` host. [`admin-game-day.spec.md`](admin-game-day.spec.md) — the `reasonKind` failure categories.
 
 **Supersedes:** the prize halves of [`admin-games-and-prizes.spec.md`](admin-games-and-prizes.spec.md) (including its 2026-09-27 library revision's drawer and contest-drawer tier editing) and of [`prize-delivery.spec.md`](prize-delivery.spec.md) (the Prizes screen, the Prize email card, the Delivery card); the Delivery queue screen of [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md); the prize email's "Presented by" credit source (the `prizePopup` placement holder); and Game day's "no retry control for tenants" ([`admin-game-day.spec.md`](admin-game-day.spec.md)), for the Deliveries tab only.
 
@@ -325,7 +325,7 @@ A list of the tiers that award it, one row each: the contest's name (linking to 
 
 #### 7. Delete
 
-A "Delete prize" section at the bottom, for admins and staff. When nothing awards the prize: **Delete prize** opens a centred dialog, "Delete this prize?", body "No contest awards it. Prizes fans already won aren't affected.", buttons "Delete prize" (danger) and "Cancel". No reverification: an unused library record reaches no fan. When a contest awards it, the section reads "Contests award this prize, so it can't be deleted." (the list above says which). Deleting returns to the Library tab.
+A "Delete prize" section at the bottom, for admins and staff. When nothing awards the prize: **Delete prize** opens a centred dialog, "Delete this prize?", body "No contest awards it. Prizes fans already won aren't affected.", buttons "Delete prize" (danger) and "Cancel". An unused library record reaches no fan. When a contest awards it, the section reads "Contests award this prize, so it can't be deleted." (the list above says which). Deleting returns to the Library tab.
 
 #### 8. The preview rail
 
@@ -442,18 +442,18 @@ Links at the foot: "Open fan" and "Open contest prizes".
 
 #### Resend and Send again
 
-| Action | Rows | Who | Reverified | What it does |
+| Action | Rows | Who | Typed confirmation | What it does |
 |---|---|---|---|---|
 | **Resend** | `failed`, reason `setup` or `other`, fewer than 3 resends | Tenant `org:admin` of the row's tenant, and staff | No | The same snapshot to the fan's account email, as the next attempt |
-| **Send to a different address** | `failed` or `bounced` | Staff | Yes | The existing staff resend with a corrected address ([`prize-delivery.spec.md`](prize-delivery.spec.md), "Corrected address") |
-| **Resend selected** | `failed` | Staff, cross-tenant view | Yes | The existing bulk resend, up to 100 loaded rows |
-| **Send again** | `fulfilled` | Staff | Yes, plus typed confirmation | The same snapshot again, as a new attempt on a row already sent |
+| **Send to a different address** | `failed` or `bounced` | Staff | No | The existing staff resend with a corrected address ([`prize-delivery.spec.md`](prize-delivery.spec.md), "Corrected address") |
+| **Resend selected** | `failed` | Staff, cross-tenant view | No | The existing bulk resend, up to 100 loaded rows |
+| **Send again** | `fulfilled` | Staff | Yes, the fan's display name | The same snapshot again, as a new attempt on a row already sent |
 
 When Resend isn't offered on a failed row, the drawer says what the admin can do instead, in one line: for an address failure, "The fan's email couldn't accept it. Ask Overboard to send it to a different address." with **Tell Overboard**; after three resends, "This prize has been resent three times. Tell Overboard and we'll look into it." with **Tell Overboard** (the support report carries the `redemptionId`).
 
-**Send again** opens a centred dialog: "Send this prize again?", "{fan} already has this prize. Sending it again gives them a second copy, including any code.", a required reason ("The fan says it never arrived" · "The fan lost it" · "Something else"), the typed confirmation "Type {fan display name} to confirm", "Send again" (danger) and "Cancel"; reverification runs on submit.
+**Send again** opens a centred dialog: "Send this prize again?", "{fan} already has this prize. Sending it again gives them a second copy, including any code.", a required reason ("The fan says it never arrived" · "The fan lost it" · "Something else"), the typed confirmation "Type {fan display name} to confirm", "Send again" (danger) and "Cancel". Nothing re-authenticates (revised 2026-09-28).
 
-**Why a tenant may resend.** [`prize-delivery.spec.md`](prize-delivery.spec.md) made resend staff-only when failures were visible only on a staff screen and the one resend path could also redirect a prize to a typed address. Its rules prevent a double send (Rules 4–5), an unaudited change (Rule 6) and fan PII travelling (Rule 7); none of them is about who clicks. A tenant that can award a prize can re-deliver the same prize: resending a failed send gives the fan nothing they weren't owed, and the conditional write plus the worker's attempt claim still make a second send impossible. The tenant path keeps Rules 4, 5, 6 and 8 and never touches Rule 7 (no corrected address). Sender reputation, which is platform-wide, is bounded three ways: address failures are excluded, each row gets at most three tenant resends, and duplicating a *sent* prize is staff-only and reverified. Game day keeps "no retry control"; its failed rows link to this drawer.
+**Why a tenant may resend.** [`prize-delivery.spec.md`](prize-delivery.spec.md) made resend staff-only when failures were visible only on a staff screen and the one resend path could also redirect a prize to a typed address. Its rules prevent a double send (Rules 4–5), an unaudited change (Rule 6) and fan PII travelling (Rule 7); none of them is about who clicks. A tenant that can award a prize can re-deliver the same prize: resending a failed send gives the fan nothing they weren't owed, and the conditional write plus the worker's attempt claim still make a second send impossible. The tenant path keeps Rules 4, 5, 6 and 8 and never touches Rule 7 (no corrected address). Sender reputation, which is platform-wide, is bounded three ways: address failures are excluded, each row gets at most three tenant resends, and duplicating a *sent* prize is staff-only and name-confirmed. Game day keeps "no retry control"; its failed rows link to this drawer.
 
 ### Staff extras
 
@@ -473,8 +473,8 @@ Overview's failed-sends tile → `/prizes/deliveries?status=failed`; the contest
 | Create, edit, delete a prize; edit a ladder | Yes | No | Yes |
 | Reveal a prize's code | Yes | No | Yes |
 | Resend a failed row | Yes, own tenant | No | Yes |
-| Send to a different address; Resend selected | No | No | Yes, reverified |
-| Send again | No | No | Yes, reverified and typed |
+| Send to a different address; Resend selected | No | No | Yes |
+| Send again | No | No | Yes, typed |
 | See the recorded failure reason | No | No | Yes |
 | Cross-tenant deliveries | No | No | Yes |
 | Edit the Prize email settings | Yes | No | Yes |
@@ -512,8 +512,8 @@ All under `/admin`, `requireAdmin`. Tenant targeting as everywhere: a tenant cal
 | POST | `/admin/all-prize-deliveries/search` | `requireAdmin` | staff only (403 first) | new |
 | GET | `/admin/prize-deliveries/:redemptionId` | `requireAdmin` | any admin scope | new |
 | POST | `/admin/prize-deliveries/:redemptionId/resend` | write gate | tenant `org:admin`, staff | new |
-| POST | `/admin/prize-deliveries/:redemptionId/send-again` | `requireAdminReverified` | staff only | new |
-| POST | `/admin/delivery-queue/resend` | `requireAdminReverified` | staff only | unchanged |
+| POST | `/admin/prize-deliveries/:redemptionId/send-again` | `requireAdmin` | staff only | new |
+| POST | `/admin/delivery-queue/resend` | `requireAdmin` | staff only | no re-authentication since 2026-09-28 |
 | GET | `/admin/prizes/email` | `requireAdmin` | any admin scope | unchanged |
 | PUT | `/admin/prizes/email` | write gate | tenant `org:admin`, staff | + `reply_to_in_use` |
 | POST | `/admin/prizes/email/preview` | `requireAdmin` | any admin scope | changed |
@@ -575,7 +575,7 @@ Body `{ expectedResendCount }`. One conditional write where status is `failed`, 
 
 ### `POST /admin/prize-deliveries/:redemptionId/send-again`
 
-Staff, reverified. Body `{ expectedResendCount, confirmName, reason: "not_received" | "lost" | "other" }`; `confirmName` must equal the fan's display name (a removed fan can't be sent again). One conditional write where status is `fulfilled` and the count matches → `pending`, `resendCount + 1`; then the queue message. Audit `prize_send_again` (new action) before the write.
+Staff; no re-authentication (2026-09-28). Body `{ expectedResendCount, confirmName, reason: "not_received" | "lost" | "other" }`; `confirmName` must equal the fan's display name (a removed fan can't be sent again). One conditional write where status is `fulfilled` and the count matches → `pending`, `resendCount + 1`; then the queue message. Audit `prize_send_again` (new action) before the write.
 
 ### `PUT /admin/prizes/email`
 
@@ -663,7 +663,7 @@ Until it ships, the word "Bounced" appears nowhere on screen.
 8. **`PZ-08` — Credit comes from the prize.** `providedBySponsorId` is the only source of "Provided by" in the popup, the email and their previews; one prize, one credit.
 9. **`PZ-09` — One to three tiers per bingo contest, distinct bingos 1–8.** Add tier disappears at three.
 10. **`PZ-10` — Tenant Resend re-sends, never re-awards.** Own tenant's failed rows only, not address failures, at most three, conditional on the count, audited first, same snapshot, no corrected address.
-11. **`PZ-11` — Duplicating a sent prize is staff-only**: reverified, name-confirmed, reasoned, audited first.
+11. **`PZ-11` — Duplicating a sent prize is staff-only**: name-confirmed, reasoned, audited first.
 12. **`PZ-12` — Status words mean what they say.** "Sent" is "accepted by our mail provider"; "Bounced" exists only once bounce capture does.
 13. **`PZ-13` — Deliveries are served from the server**: cursor paging, server-side search and filters, a real total, no cap.
 14. **`PZ-14` — Email identity is tenant configuration; the sending address is not.** Sender name, reply-to and subject (`{prize}` the only token) are the tenant's.

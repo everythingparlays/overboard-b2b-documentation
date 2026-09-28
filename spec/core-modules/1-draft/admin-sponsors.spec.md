@@ -2,11 +2,13 @@
 
 **Implements:** PRD `BRAND-02`, `BRAND-03`, `BRAND-04`, `TEN-02`, `TEN-04`, `RPT-04`, `SEC-02`, `ADM-03`, and Arthur's 2026-09-24 ruling on sponsors (WAVE-RULES, "Sponsors"). The field-by-field classification is [`documents/PRD/branding-field-split.md`](../../../documents/PRD/branding-field-split.md); this spec builds what it classifies, with one change to it: the prize popup is no longer a placement slot (below, "Retiring the `prizePopup` slot").
 
-**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — scope, targeting, the reverification list ("deleting the sponsor does"), Rule 13. [`admin-lists.spec.md`](admin-lists.spec.md) — the cursor-paging convention and the endless-scroll components every list here uses. [`admin-contests.spec.md`](admin-contests.spec.md) — the contest page whose Sponsors tab hosts the slot editor, and the lock. [`admin-prizes.spec.md`](admin-prizes.spec.md) — the prize page and its "Provided by" control, the award snapshot's `providedBy`, and the prize-type migration whose step 2 converts the `prizePopup` credit. [`admin-preview.spec.md`](admin-preview.spec.md) — `FanAppPreview`, which the sponsor page and the contest Preview tab host. [`admin-exports.spec.md`](admin-exports.spec.md) — the DPA field scope this model absorbs. [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the opt-in a sponsor's consent lives on. [`prize-delivery.spec.md`](prize-delivery.spec.md) — the prize email whose credit mark this spec re-sources.
+**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — scope, targeting, "No re-authentication" (a sponsor delete takes its typed name), Rule 13. [`admin-lists.spec.md`](admin-lists.spec.md) — the cursor-paging convention and the endless-scroll components every list here uses. [`admin-contests.spec.md`](admin-contests.spec.md) — the contest page whose Sponsors tab hosts the slot editor, and the lock. [`admin-prizes.spec.md`](admin-prizes.spec.md) — the prize page and its "Provided by" control, the award snapshot's `providedBy`, and the prize-type migration whose step 2 converts the `prizePopup` credit. [`admin-preview.spec.md`](admin-preview.spec.md) — `FanAppPreview`, which the sponsor page and the contest Preview tab host. [`admin-exports.spec.md`](admin-exports.spec.md) — the DPA field scope this model absorbs. [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the opt-in a sponsor's consent lives on. [`prize-delivery.spec.md`](prize-delivery.spec.md) — the prize email whose credit mark this spec re-sources.
 
 **Supersedes:** in [`prize-delivery.spec.md`](prize-delivery.spec.md), the "Presented by" section's source of the credit (the prize-popup placement holder), by `SP-11`, together with [`admin-prizes.spec.md`](admin-prizes.spec.md). In [`admin-sponsor-recap.spec.md`](admin-sponsor-recap.spec.md), the "Sponsor editions" keying by opt-in and its two sponsor gaps, by `SP-13`. In [`admin-branding.spec.md`](admin-branding.spec.md) and [`admin-surface.spec.md`](admin-surface.spec.md), the **Sponsors & Branding** destination: Sponsors becomes its own sidebar item.
 
 **Status:** Draft, written 2026-09-23 with the build. No open questions.
+
+**Revised 2026-09-28** (Arthur's Wave 4 walkthrough ruling) — the sponsor page's Data sharing section is an aligned table on the console's table primitives, with a Reference column and Export in its own actions column; "Where it appears" keeps the card header's inset. Sponsor delete takes the typed name only, with no re-authentication.
 
 **Revised 2026-09-27 (Wave 4)** — rulings: each slot has a **Whole contest** holder and optional **Different sponsor for one game** overrides (no "Inherited"), and an override without usable artwork falls back to the whole-contest holder; deleting a sponsor cascades instead of refusing; a sponsor may have several data-sharing agreements, each an opt-in linked to it with its own shared fields, reference and export; opt-in categories are gone; artwork fields are uploads ([`admin-uploads.spec.md`](admin-uploads.spec.md)). Edited in place below.
 
@@ -204,7 +206,7 @@ All under `/admin`, admin Clerk only, scope from `req.adminScope`, the usual tar
 | GET | `/admin/sponsors/:sponsorId` | `requireAdmin` | One sponsor, with its counts |
 | POST | `/admin/sponsors` | `requireAdmin` + write | Create |
 | PATCH | `/admin/sponsors/:sponsorId` | `requireAdmin` + write | Partial edit; `expectedUpdatedAt` precondition |
-| DELETE | `/admin/sponsors/:sponsorId` | `requireAdminReverified` + write | Cascades (`SP-14`); audited `sponsor_delete` |
+| DELETE | `/admin/sponsors/:sponsorId` | `requireAdmin` + write + typed name | Cascades (`SP-14`); audited `sponsor_delete` |
 | GET | `/admin/sponsors/:sponsorId/appearances` | `requireAdmin` | "Where it appears", cursor-paged |
 | GET | `/admin/contests/:contestId/placements` | `requireAdmin` | One contest's placements (the Sponsors tab) |
 | PUT | `/admin/contests/:contestId/placements` | `requireAdmin` + write | One contest's placements, whole |
@@ -248,7 +250,7 @@ The whole-profile `PUT /admin/sponsors/:sponsorId` goes with the retired drawer.
 
 ### `DELETE /admin/sponsors/:sponsorId`
 
-Reverified (admin-surface: "deleting the sponsor does"). Body `{ confirmName }`, the sponsor's name as typed in the dialog (trimmed, case ignored; 400 when it differs). Checks in order: 404 for another tenant's id; the write gate; reverification; the name.
+No re-authentication (revised 2026-09-28); the typed name is the confirmation. Body `{ confirmName }`, the sponsor's name as typed in the dialog (trimmed, case ignored; 400 when it differs). Checks in order: 404 for another tenant's id; the write gate; the name.
 
 **`SP-14` — Deleting a sponsor just works: it cascades** (ruling 2026-09-27; replaces the 2026-09-24 rule that refused while anything referred to it, and today's `sponsor_linked` refusal). Nothing is refused because the sponsor is in use. In order:
 
@@ -390,20 +392,23 @@ A flush card, "Where it appears", with a table (endless scroll, `kind=placements
 
 Under the table, the prizes it provides (endless, `kind=provides`), one line each: "Provides: Free hot dog in Hawks 2026", linking to the contest's Prizes tab (`/contests/:id/prizes`), with a "Preview" link that opens the contest's Preview tab on Prize with that tier and `slot=prizePopup`.
 
-Empty: "Not placed in any contest. Place sponsors on a contest's Sponsors tab." When it provides prizes but holds no placement, the table is left out and the provides lines stand alone.
+Empty: "Not placed in any contest. Place sponsors on a contest's Sponsors tab." When it provides prizes but holds no placement, the table is left out and the provides lines stand alone. The empty line and the provides lines sit on the card header's own 18px inset, with no doubled gap under the title (revised 2026-09-28).
 
 #### 3. Data sharing
 
-A flush card, "Data sharing" (revised 2026-09-27; it replaces the "Data" card and its inline "Data agreement" field). One row per agreement from `agreements[]`:
+A flush card, "Data sharing" (revised 2026-09-27; it replaces the "Data" card and its inline "Data agreement" field). A table on the console's own table primitives (revised 2026-09-28: headers and cells share one left edge on the card header's 18px inset, like every other console table), one row per agreement from `agreements[]`:
 
-- **The agreement's label**, linking to its row on Fields & Opt-ins (`/config?tab=optins&optIn=<optInId>`), with its version beneath ("Version 3 · Sep 12, 2026").
-- **Agreed:** "412 of 1,284 fans" (accepted at the current wording, of all members).
-- **Shared fields:** the scope as field labels ("First name · Last name · Email"), or "No fields chosen yet" when none is stored, in which case it has no export (`SP-03`).
-- **Agreement:** the reference, or nothing when none is stored.
-- **"Export"**: opens Exports with this agreement chosen in the "Who played" generator (`/exports?agreement=<optInId>`). Absent when no fields are chosen.
-- **"Edit on Exports"** under the rows, to the field scope card with the first agreement selected.
+| Column | Content |
+|---|---|
+| **Agreement** | The agreement's label, linking to its row on Fields & Opt-ins (`/config?tab=optins&optIn=<optInId>`), with its version beneath ("Version 3 · Sep 12, 2026") |
+| **Agreed** | "412 of 1,284 fans" (accepted at the current wording, of all members) |
+| **Shared fields** | The scope as field labels ("First name · Last name · Email"), or "No fields chosen yet" when none is stored, in which case it has no export (`SP-03`) |
+| **Reference** | The agreement's reference (`dpaReference`), or a dim dash when none is stored |
+| (actions, right-aligned) | **"Export"**: opens Exports with this agreement chosen (`/exports?agreement=<optInId>`). Absent when no fields are chosen |
 
-Under the rows, the quiet line "Link another agreement on Fields & Opt-ins", to the Opt-ins tab. With no agreement, the card reads "No data-sharing agreement yet." and the same link says "Link one on Fields & Opt-ins".
+**"Edit on Exports"** sits in the card header, to the field scope card with the first agreement selected.
+
+Under the table, on the card's inset with the table's hairline above it, the quiet line "Link another agreement on Fields & Opt-ins", to the Opt-ins tab. With no agreement, the card reads "No data-sharing agreement yet." and the same link says "Link one on Fields & Opt-ins".
 
 #### 4. Danger zone
 
@@ -417,9 +422,9 @@ The button opens a centred dialog built from `deleteCounts`:
   - "It's credited on 2 prizes. They'll show no sponsor."
   - "2 data-sharing agreements are unlinked. The opt-ins stay, and fans' answers are kept."
   - Then: "Past exports and prize emails keep its name. This can't be undone."
-- A field "Type Northside Credit Union to confirm", and the danger button "Delete sponsor", enabled once the name matches; "Cancel". Confirming runs reverification, then the delete (admin-surface: reverification follows the dialog's confirm).
+- A field "Type Northside Credit Union to confirm", and the danger button "Delete sponsor", enabled once the name matches; "Cancel". Confirming runs the delete; nothing else is asked (revised 2026-09-28).
 
-On success the console returns to `/sponsors`, whose head shows the line "Deleted Northside Credit Union.". A cancelled reverification leaves the dialog open with the quiet line "Nothing was deleted." A failure shows "Couldn't delete this sponsor. Try again." in the dialog.
+On success the console returns to `/sponsors`, whose head shows the line "Deleted Northside Credit Union.". A failure shows "Couldn't delete this sponsor. Try again." in the dialog.
 
 **States of the page**
 
@@ -489,7 +494,7 @@ That is the whole model: a slot has one sponsor for the whole contest, and a gam
 | Artwork | "Sign-in" · "Board banner" · "Slider" · "Prize logo" · the four lines in the block table · "Logo" · "Tagline" · "32/80" · "Banner" · "Banner link" · "Where the banner leads. Leave it blank to use the website." · "Icon" · "In the prize email" · the upload field's strings ([`admin-uploads.spec.md`](admin-uploads.spec.md)): "Drop an image here or browse" · "PNG, JPG, SVG or WebP · up to 5 MB · shown 40 px tall" · "Replace" · "Remove" |
 | Measured line | "1200×300 · fits" · "300×300 · will show at 36×36" · "800×200 · will show at 176×44 in the popup · fits the email" · "This image didn't load." |
 | Where it appears | "Where it appears" · "Contest" · "Game" · "Slot" · "Whole contest" · "Sign-in" · "Board banner" · "Slider" · "Preview" · "Provides: Free hot dog in Hawks 2026" · "Not placed in any contest. Place sponsors on a contest's Sponsors tab." |
-| Data sharing | "Data sharing" · "Version 3 · Sep 12, 2026" · "Agreed" · "412 of 1,284 fans" · "Shared fields" · "No fields chosen yet" · "Agreement" · "Export" · "Edit on Exports" · "Link another agreement on Fields & Opt-ins" · "No data-sharing agreement yet." · "Link one on Fields & Opt-ins" |
+| Data sharing | "Data sharing" · "Version 3 · Sep 12, 2026" · "Agreed" · "412 of 1,284 fans" · "Shared fields" · "No fields chosen yet" · "Agreement" · "Reference" · "—" · "Export" · "Edit on Exports" · "Link another agreement on Fields & Opt-ins" · "No data-sharing agreement yet." · "Link one on Fields & Opt-ins" |
 | Danger zone | "Danger zone" · "Deleting a sponsor can't be undone." · "Delete sponsor" · "Delete Coca-Cola?" · "This removes it everywhere:" · "3 placements in 2 contests. Those spots show the whole-contest sponsor or nothing." · "It's credited on 2 prizes. They'll show no sponsor." · "2 data-sharing agreements are unlinked. The opt-ins stay, and fans' answers are kept." · "Past exports and prize emails keep its name. This can't be undone." · "Type Coca-Cola to confirm" · "Cancel" · "Nothing was deleted." · "Couldn't delete this sponsor. Try again." |
 | Page states | "This sponsor doesn't exist." · "Back to sponsors" · "Couldn't load this sponsor." |
 | Sponsors tab | "Sign-in" · "Beneath the headline fans see before they join" · "Board banner" · "Across the board, between the header and the squares" · "Slider" · "The marker on the prize slider" · "Whole contest" · "Every game, including games added later" · "No sponsor" · "Add sponsor" · "Change" · "Remove" · "Different sponsor for one game" · "Game" · "Sponsor" · "Choose a game" · "Choose a sponsor" · "Cancel" · "Live" / "Final" · "No logo" / "No banner" / "No icon" · "Fans at this game see the whole-contest sponsor until Red River Pizza Co. has a board banner." · "Fans don't see this until Northside Credit Union has a board banner." · "Board banner · vs Denver · Sat" · "Board banner · Whole contest" · "Search sponsors" · "No board banner" · "Saved." · "Coca-Cola has no board banner." · "This contest is finalized, so its settings can't change." · "Couldn't save. Try again." · "None" |
@@ -506,10 +511,10 @@ That is the whole model: a slot has one sponsor for the whole contest, and a gam
 |---|---|---|
 | Sponsors page, sponsor page, Sponsors tab, their previews | `requireAdmin` (`org:tenant_config:read`) | Every admin role in its own tenant; OBS staff through `?tenant=` |
 | New sponsor, every inline edit, placements | `refuseReadOnlyWrite` (`useCanWrite` on the client) | Tenant `org:admin` of a tenant that is not paused; OBS staff |
-| Delete sponsor | The write gate, then reverification (`requireAdminReverified`, `useReverification`) | The same |
+| Delete sponsor | The write gate, then the typed name, checked on the server | The same |
 | Export field scope | On Exports, its own gate | As [`admin-exports.spec.md`](admin-exports.spec.md) |
 
-No reverification except delete: placing and editing are undone by editing again (`THEME-14`'s reasoning). The UI hiding a control is never the boundary; the server refuses the write regardless.
+No re-authentication anywhere (revised 2026-09-28): placing and editing are undone by editing again (`THEME-14`'s reasoning), and delete is guarded by its typed name. The UI hiding a control is never the boundary; the server refuses the write regardless.
 
 ---
 
@@ -561,7 +566,7 @@ The board resolves against its contest and its game: the game of the board's pro
 9. **A sponsor with no agreement has no export and is not on Exports.** One with several has one export per agreement.
 10. **A sponsor may have several agreements; an opt-in links at most one sponsor; there are no opt-in categories** (`SP-04`).
 11. **Migrations are dry-run by default and idempotent**, and run on the shared dev database: the sponsor-records migration creates and links; the agreement-scope migration copies the scope onto agreements.
-12. **Deleting a sponsor is reverified, audited first, and cascades** (`SP-14`): its placements go, prizes it provides lose it, its agreements are unlinked and kept, and history keeps its name.
+12. **Deleting a sponsor takes its typed name, is audited first, and cascades** (`SP-14`): its placements go, prizes it provides lose it, its agreements are unlinked and kept, and history keeps its name.
 13. **Only deletion is audited** (`SP-05`).
 14. **The fan wire is an allowlist** (`SP-06`); DPA data never reaches it.
 15. **One resolver decides slot holders** (`SP-07`), in the fan app, the server and the console's preview; a per-game holder without artwork falls back to the whole-contest holder.

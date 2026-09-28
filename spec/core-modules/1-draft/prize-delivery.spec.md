@@ -2,7 +2,7 @@
 
 **Implements:** PRD `PRIZE-01`, `PRIZE-04`, `PRIZE-05`, `PRIZE-06` (the assignment half — see "Codes"), `PRIZE-07`, `ADM-04` (the handler selection half), `AUTH-03` (email as the delivery channel), `GAME-02` (the tier fields a winner is told about). Ruling D-066: **OBS owns the notification and the assignment guarantee; sponsors own the value and its redemption.**
 
-**Depends on:** [`admin-games-and-prizes.spec.md`](admin-games-and-prizes.spec.md) — the Prizes screen, tier storage and the tier write. [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md) — the Delivery queue screen. [`admin-surface.spec.md`](admin-surface.spec.md) — scope resolution, reverification, and the **Honesty by omission** and **Fan's-eye view** principles, both of which this spec leans on hard. [`../../infra/environments.spec.md`](../../infra/environments.spec.md) — where the sending address is configured per stage.
+**Depends on:** [`admin-games-and-prizes.spec.md`](admin-games-and-prizes.spec.md) — the Prizes screen, tier storage and the tier write. [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md) — the Delivery queue screen. [`admin-surface.spec.md`](admin-surface.spec.md) — scope resolution, "No re-authentication", and the **Honesty by omission** and **Fan's-eye view** principles, both of which this spec leans on hard. [`../../infra/environments.spec.md`](../../infra/environments.spec.md) — where the sending address is configured per stage.
 
 **Supersedes:** the "visibility-only" posture of the Delivery queue (admin-obs-internal, Not in scope + Known gaps); the free-text `handlerId` field on the Prizes screen (admin-games-and-prizes, `/prizes`); and the per-handler hardcoded HTML templates in `prize-worker/src/email_templates/`.
 
@@ -243,7 +243,7 @@ The worker no longer reads a win's tier at send time. When it first handles a wi
 
 ### Endpoint
 
-`POST /admin/delivery-queue/resend` — `requireAdminReverified`, OBS staff only (403 before anything else). Body: `{ items: [{ redemptionId, expectedResendCount }], correctedEmail? }`, 1–100 items; `correctedEmail` only with exactly one item.
+`POST /admin/delivery-queue/resend` — `requireAdmin` (no re-authentication since 2026-09-28), OBS staff only (403 before anything else). Body: `{ items: [{ redemptionId, expectedResendCount }], correctedEmail? }`, 1–100 items; `correctedEmail` only with exactly one item.
 
 For each item, one conditional write moves the row from `failed` to `pending`: **where** `_id` matches, `status` is `failed` and `resendCount` equals `expectedResendCount` (absent counts as 0); **set** `status: pending`, `resendRequestedAt`, and the corrected address if one was given; **increment** `resendCount`. Then one queue message `{ type: "prize-resend", redemptionId, attempt }` goes out, with FIFO deduplication id `resend-{redemptionId}-{attempt}`.
 
@@ -263,7 +263,7 @@ A fan who typed a bad email can be reached at a corrected one. The address is wr
 
 *The screen is superseded by [`admin-prizes.spec.md`](admin-prizes.spec.md): the Delivery queue becomes the **Deliveries** tab of Prizes for tenants (their own sends, with a tenant Resend of failed rows) and `/obs/prize-deliveries` for staff across every tenant. The endpoint and its rules above are unchanged.*
 
-Failed rows, plus rows **being resent** (`pending` with a resend count) so an operator sees their action land: the row reads "Resending" until the worker reports back, then leaves the list or returns as failed with a fresh reason. The screen offers **Resend** per row (with the corrected-address option) and **Resend selected** for bulk. Reverification is prompted by the server's hint, as for finalization.
+Failed rows, plus rows **being resent** (`pending` with a resend count) so an operator sees their action land: the row reads "Resending" until the worker reports back, then leaves the list or returns as failed with a fresh reason. The screen offers **Resend** per row (with the corrected-address option) and **Resend selected** for bulk. Nothing re-authenticates (2026-09-28).
 
 ---
 
@@ -293,7 +293,7 @@ Supersedes the `/prizes` section of admin-games-and-prizes.spec.md where they di
 | GET | `/admin/prizes/email` | `requireAdmin` | any resolved admin scope |
 | PUT | `/admin/prizes/email` | `requireAdmin` + obs staff or tenant `org:admin` | tier-editing grant |
 | POST | `/admin/prizes/email/preview` | `requireAdmin` | any resolved admin scope (renders; changes nothing) |
-| POST | `/admin/delivery-queue/resend` | `requireAdminReverified` | obs staff only |
+| POST | `/admin/delivery-queue/resend` | `requireAdmin` | obs staff only |
 
 **The preview's input, since the prize library.** `POST /admin/prizes/email/preview` takes a library prize plus the `threeInARows` count it is being previewed at (the bingo line the email states), rather than a full tier object — the prize is where the emailed content and the delivery method now live; the bingo count contributes only the "You hit N bingos" line. **The preview's contest** (retired, Wave 4). The credit now comes from the draft prize's `providedBySponsorId`, resolved within the target tenant; a `contestId` sent by an older console is accepted and ignored.
 

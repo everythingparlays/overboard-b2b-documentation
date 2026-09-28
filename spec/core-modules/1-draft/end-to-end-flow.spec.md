@@ -262,8 +262,8 @@ This supersedes `admin-contests.spec.md` "Not in scope: Deleting a contest" and 
 admins (and OBS staff) may delete any **non-finalized** contest. Finalized contests are final and refuse with 409.
 
 `DELETE /admin/contests/:contestId` takes `{ expectedUpdatedAt?, confirmName }`. `confirmName` must equal the contest's name
-(trimmed, ignoring case), or the answer is 400. The console asks the operator to type the name. A contest fans have
-joined also requires reverification, the step-up the tenant delete uses.
+(trimmed, ignoring case), or the answer is 400. The console asks the operator to type the name. Since 2026-09-28 (Arthur's Wave 4
+walkthrough ruling) that is the whole confirmation, fans joined or not: nothing re-authenticates.
 
 The steps, in order:
 

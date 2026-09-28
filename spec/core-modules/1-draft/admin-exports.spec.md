@@ -2,9 +2,9 @@
 
 **Implements:** PRD `ADM-07`, `RPT-01`, `RPT-03`, `RPT-04`, `RPT-05`, `SEC-02`, `SEC-06`. HLD [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) `IDN-13` (via the mechanism defined in the Fans spec).
 
-**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — the permission table (`org:reports:read`), the `/exports` nav destination, the reverification list. [`admin-fans.spec.md`](admin-fans.spec.md) — `requireReverification` and the `B2BAdminAuditLog` collection, defined there and consumed here. [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the `OptInDefinition` shape this extends, the consent-state vocabulary the row filter reuses, and the tenant's `signupFields`, which are now what this module's exportable set is derived from.
+**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — the permission table (`org:reports:read`), the `/exports` nav destination. [`admin-fans.spec.md`](admin-fans.spec.md) — the `B2BAdminAuditLog` collection, defined there and consumed here. [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the `OptInDefinition` shape this extends, the consent-state vocabulary the row filter reuses, and the tenant's `signupFields`, which are now what this module's exportable set is derived from.
 
-**Status:** Draft. Amended 2026-09-21 for entry-gate editor v2: `EXPORT_FIELD_CATALOG` is retired in favour of a per-tenant exportable set, and field deletion prunes sponsor scopes. Amended 2026-09-23 for the sponsor model ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)): a sponsor is a record, the DPA scope lives on it, and the opt-in becomes the sponsor's consent. **Revised 2026-09-27 (Wave 4)**: a sponsor may have several data-sharing agreements; each agreement (an opt-in) carries its own scope and reference again, and is exported on its own (section "Several agreements per sponsor").
+**Status:** Draft. Amended 2026-09-21 for entry-gate editor v2: `EXPORT_FIELD_CATALOG` is retired in favour of a per-tenant exportable set, and field deletion prunes sponsor scopes. Amended 2026-09-23 for the sponsor model ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)): a sponsor is a record, the DPA scope lives on it, and the opt-in becomes the sponsor's consent. **Revised 2026-09-27 (Wave 4)**: a sponsor may have several data-sharing agreements; each agreement (an opt-in) carries its own scope and reference again, and is exported on its own (section "Several agreements per sponsor"). **Revised 2026-09-28 (Wave 4b)**: no re-authentication anywhere; a roster says why fans are left out, and the Generate panel previews it; whole-contest exports carry game dates; the usage report runs oldest first against a per-contest denominator (section "Wave 4b: exports that explain themselves", which wins where it disagrees with anything below).
 
 ## Overview
 
@@ -12,7 +12,7 @@ The Exports screen at `/exports`: the two tenant-scoped V1 reports — the spons
 
 **The whole change, in one line:** sponsor exports become generatable through the admin surface, with the DPA field scope stored on the sponsor's opt-in, row filtering derived from actual consent records, and every generation written to the audit log.
 
-**In scope:** the screen, four endpoints (`GET /admin/exports`, `POST /admin/exports/who-played`, `POST /admin/exports/usage`, `PUT /admin/exports/field-scope`), contracts in `obs-b2b-shared/src/api/admin/exports.ts`, one additive field on `OptInDefinition` (`exportFields` — `SEC-02`'s data-model requirement), and seed fixtures.
+**In scope:** the screen, six endpoints (`GET /admin/exports`, `GET /admin/exports/recent`, `POST /admin/exports/who-played`, `POST /admin/exports/who-played/preview`, `POST /admin/exports/usage`, `PUT /admin/exports/field-scope`), contracts in `obs-b2b-shared/src/api/admin/exports.ts`, one additive field on `OptInDefinition` (`exportFields` — `SEC-02`'s data-model requirement), and seed fixtures.
 
 **Not in scope:**
 
@@ -23,6 +23,48 @@ The Exports screen at `/exports`: the two tenant-scoped V1 reports — the spons
 - **Favorite-players and dashboard reporting** (`RPT-07` **[FUTURE]**) — the *report*. The field itself is now scopeable into a sponsor's "Who played" export like any other configured field; what stays unbuilt is `RPT-07`'s own aggregate view.
 
 ---
+
+## Wave 4b: exports that explain themselves (revised 2026-09-28)
+
+*Arthur's walkthrough rulings, 2026-09-27/28. Wins over every section below where they disagree.*
+
+**How exports work, in one paragraph.** There are two reports. **"Who played"** (`RPT-01`) is sponsor-facing: one **data-sharing agreement's** roster for one contest, optionally narrowed to one game. The agreement is chosen from a picker grouped by sponsor (a sponsor may have several agreements). Its rows are the contest's players who **accepted that agreement at its current wording**; its columns are **that agreement's stored field scope**. **"Usage"** (`RPT-03`) is aggregate: one row per contest, counting **every** fan, naming none. Field scope selection is unchanged.
+
+**Why past exports showed 0 rows.** Not a query bug: the data. The E2E consents walk edited the test tenant's live Coca-Cola agreement on every run (adding and removing a linked document), minting two new versions each time; it reached version 17. Every fan's acceptance was of an earlier wording, so every fan was rightly excluded. The walk now documents its **own throwaway opt-in** (never a data-sharing agreement) and removes it; the sponsor E2E check uses its **own throwaway agreement** instead of relinking the live one. Fixture consents are reseeded by the fixture reset, never re-stamped by a script.
+
+**Every excluded fan has a reason.** A player not included falls in exactly one bucket, judged on their current answers (`consents`, where the newest wording they answered wins):
+
+| Reason | Meaning | Wire key |
+|---|---|---|
+| Declined | Their answer to this agreement is a no, at this wording or an earlier one | `declined` |
+| Accepted an earlier wording | They accepted a wording the agreement has since replaced; they are asked again on their next visit, and until then nothing is released | `earlierWording` |
+| Not answered | Nothing on record for this agreement | `unanswered` |
+
+`accepted` at the current `textVersion` stays the only thing that includes a row: the same `accepted` as the Fields & Opt-ins stats and the Fans screen.
+
+- **Row filtering card** (`GET /admin/exports`, `counts.exclusions`): members, accepted, excluded, and beneath Excluded the three reasons, with "Asked again on their next visit" under the earlier-wording line.
+- **Preview in the Generate panel** (`POST /admin/exports/who-played/preview`, same body as the export): as soon as an agreement and a contest are chosen, and again whenever the agreement, contest or game changes, the panel shows "5 of 8 players included · 3 accepted an earlier wording" (the reasons with a count, largest first, zeros dropped) and the file's columns as labelled chips. With nobody playing: "No one has played this contest yet." With no scope set: no columns, and the existing "export fields haven't been chosen yet" line. A read for an earlier choice is never shown against the current one.
+- **One row selection.** The preview and the export call the same server function, so the preview's `included` is the file's `rowCount` and its reasons sum to `filteredOutCount`. The preview returns `{ players, included, exclusions, columns: { id, label }[] }` and nothing identifying; it is not audited, and like every read it needs no fresh sign-in. It shares the export's 404s (unknown agreement, contest or game) but does not 409 on a missing scope: it shows who played and says what to fix.
+- **After an export**, the note reads "who-played_test_x.csv — 0 rows; 4 fans left out: 3 accepted an earlier wording · 1 declined." (a single unanswered fan reads "1 hasn't answered"). Each past export's row count carries the same line ("Left out: …") when it was recorded.
+
+**Audit detail** (`fan_export`, since 2026-09-28) adds `contestName`, `gameLabel` (when narrowed to a game) and `exclusions` beside the existing ids and counts. "Recent exports" reads the contest and game by these stored names first, then the live names; an older row whose contest has since been deleted reads "Deleted contest", never an id. History stays readable after a contest is deleted. `usage_export` stores `contestName` when it names one contest.
+
+**Game date.** `picks` in scope contributes two columns, the picks and `gameDate`. Narrowed to a game, `gameDate` is that game's date. On a **whole-contest** export it is the date of each game the fan's picks are on (each board prop's `betEventId` → the event's time), distinct, oldest first, joined with "; ". A single-game contest reads as one date.
+
+**Usage rows.**
+
+- One row per contest, **oldest first** by the contest's first game; contests with no games yet come last, oldest-created first.
+- Columns: `contest, contest_date, members_by_last_game, players, boards, bingos, prizes_fulfilled, prizes_failed, gameplay_conversion, prize_claim_conversion`. `contest_date` is the first game's date.
+- **Gameplay conversion's denominator is per contest**: the members who had joined by the contest's last game (`joinedAt` ≤ its last event time; a membership with no join date counts), together with every one of its players (one who joined after kickoff in test mode is still one of its fans), so the rate never passes one. An old contest is not measured against fans who joined after it was over.
+- On screen a usage row's agreement column reads "All fans (counts only)", never "internal".
+
+**No re-authentication.** Nothing on this screen asks anyone to sign in again: "Who played", its preview and "Download" are plain requests on `requireAdmin` + tenant targeting, for OBS and tenant callers alike. The screen carries no "cancelled verification" state.
+
+**Staff see the tenant's screen.** The page head is the same for Overboard staff and a tenant: no "Fan actions for this workspace" shortcut. The internal fan-actions export stays reachable only from OBS Internal's own `/fan-actions`.
+
+**The agreement is always a real choice.** The field scope card and the Generate panel both use a picker grouped by sponsor, even when the tenant has one agreement (it is then preselected).
+
+**`GET /admin/exports`** now returns only `{ tenant, sponsors, exportableFields }`. Contests come from `GET /admin/contests/options` and history from `GET /admin/exports/recent`; the contract keeps `contests` and `recent` optional so an older consumer still parses.
 
 ## Several agreements per sponsor (revised 2026-09-27)
 
@@ -80,9 +122,9 @@ Filtering happens at generation time, in the query — there is no post-generati
 
 `/exports`, per Nick's 2026-09-14 mock. Standard scope shape: OBS follows the console-wide selection made in the sidebar switcher and the request names it explicitly as `?tenant=`; non-obs callers never carry the parameter.
 
-**Recent exports** (left): the audit log's export entries for this tenant — report, sponsor, game, row count with filtered-out count, when, and who ran it. **Download re-generates**: rows are filtered and fields scoped *at generation time*, so a fresh generation is the compliant artifact, and it goes through the same reverification gate as any other. The table is the audit trail wearing a UI; it cannot disagree with SEC-06 because it *is* SEC-06's record.
+**Recent exports** (left): the audit log's export entries for this tenant — report, agreement, scope, row count with who was left out and why, when, and who ran it. **Download re-generates**: rows are filtered and fields scoped *at generation time*, so a fresh generation is the compliant artifact. The table is the audit trail wearing a UI; it cannot disagree with SEC-06 because it *is* SEC-06's record.
 
-**Generate export**: pick the report; for "Who played", pick the sponsor and the contest (optionally narrowed to one game); generation streams back a CSV the browser saves. "Who played" generation triggers the reverification prompt (IDN-13 — releases PII); the usage report does not (aggregate-only, nothing identifying). Failures are stated plainly — most importantly the unconfigured-field-scope 409, which tells the operator what to fix rather than producing an empty file.
+**Generate export**: pick the report; for "Who played", pick the agreement and the contest (optionally narrowed to one game), and read the preview of who it includes; generation streams back a CSV the browser saves. Neither report asks anyone to sign in again (2026-09-28). Failures are stated plainly — most importantly the unconfigured-field-scope 409, which tells the operator what to fix rather than producing an empty file.
 
 **Field scope** (right): per sponsor opt-in, **the tenant's own exportable set as a checklist** — email, each field this tenant actually collects under the label the admin gave it, then picks — checked means the DPA authorizes it. The rows come from the wire as `{ id, label }`, resolved server-side through the same `fieldLabel` the gate and the config screen use, so an admin ticking "Shirt size" reads the words they typed on `/config` rather than a slug. A tenant that collects three fields sees five rows, and no row on this card is ever one that could only produce an empty column. Obs staff and the tenant's own `org:admin` edit and save; an `org:member` sees the same card as view-only state, one line of explanation, per the established presentation rule. Beneath it, the row-filtering arithmetic for the selected sponsor — and nothing beneath the numbers. The mock's caveat note ("excluded fans still count in aggregate reports, where nothing identifies them") is said once instead, as the usage report's own hint in the Generate drawer, where the operator is choosing that report. *(Superseded 2026-09-22 by the omission principle, admin-surface Rule 13: a real number carries no caveat caption; the fact moved to the one place it informs a decision.)*
 
@@ -97,17 +139,21 @@ All under `/admin`, admin Clerk instance only, scope from `req.adminScope`. Cont
 | Method | Path | Auth | Who |
 |---|---|---|---|
 | GET | `/admin/exports` | `requireAdmin` | Any resolved admin scope |
-| POST | `/admin/exports/who-played` | `requireAdmin` + reverification | Any resolved admin scope (`org:reports:read`) |
+| GET | `/admin/exports/recent` | `requireAdmin` | Any resolved admin scope |
+| POST | `/admin/exports/who-played` | `requireAdmin` | Any resolved admin scope (`org:reports:read`) |
+| POST | `/admin/exports/who-played/preview` | `requireAdmin` | Any resolved admin scope (`org:reports:read`) |
 | POST | `/admin/exports/usage` | `requireAdmin` | Any resolved admin scope (`org:reports:read`) |
 | PUT | `/admin/exports/field-scope` | `requireAdmin` + obs staff or tenant `org:admin` | The tenant's own admins, or OBS on any tenant (config) |
 
 **Tenant targeting** unchanged from every prior module (403 / 400 / 404 discipline).
 
-**`GET /admin/exports` returns** everything the screen needs in one read: the tenant's sponsor opt-ins (label, `exportFields`, and per-sponsor counts — members, opted-in at current version, excluded), **the tenant's exportable set as `{ id, label }[]` in column order** (the checklist's rows), the tenant's contests with their enabled games (the generation pickers), and the most recent export audit entries (report, parameters, row counts, actor, timestamp). The set is computed from `org.signupFields` on every read rather than stored, so it cannot go stale against a config publish that happened a second ago.
+**`GET /admin/exports` returns** the tenant's agreements (label, `exportFields`, and per-agreement counts — members, opted-in at current version, excluded, and since 2026-09-28 `exclusions` by reason) and **the tenant's exportable set as `{ id, label }[]` in column order** (the checklist's rows). Contests (the generation pickers) come from `GET /admin/contests/options`, and past exports from `GET /admin/exports/recent`, paged. The set is computed from `org.signupFields` on every read rather than stored, so it cannot go stale against a config publish that happened a second ago.
 
-**`POST /admin/exports/who-played` takes** `{ optInId, contestId, betEventId? }` (the agreement; revised 2026-09-27) and returns `{ success, tenant, filename, rowCount, filteredOutCount, csv }`. Rows: memberships passing the row filter that played — at least one board in the contest, narrowed to boards whose props belong to `betEventId` when given (a board's game is reachable through its props' `betEventId`; boards do not carry the event directly). Columns: the stored `exportFields` intersected with the tenant's exportable set, in that set's order — so an id no longer recognized is simply not a column; `picks` contributes the pick summary and game date `RPT-01` names. Unknown `optInId`, an opt-in that is not a data-sharing agreement, or a contest/event not the tenant's: 404 by the cross-tenant discipline; unconfigured scope: 409. Writes a `fan_export` audit entry (operator, tenant, agreement opt-in, parameters, row count — `SEC-06`'s exact list — plus, since 2026-09-27, the `sponsorName` and `optInLabel` at that moment).
+**`POST /admin/exports/who-played` takes** `{ optInId, contestId, betEventId? }` (the agreement; revised 2026-09-27) and returns `{ success, tenant, filename, rowCount, filteredOutCount, exclusions, csv }`. Rows: memberships passing the row filter that played — at least one board in the contest, narrowed to boards whose props belong to `betEventId` when given (a board's game is reachable through its props' `betEventId`; boards do not carry the event directly). Columns: the stored `exportFields` intersected with the tenant's exportable set, in that set's order — so an id no longer recognized is simply not a column; `picks` contributes the pick summary and game date `RPT-01` names (on a whole-contest export, each game the fan's picks are on). Unknown `optInId`, an opt-in that is not a data-sharing agreement, or a contest/event not the tenant's: 404 by the cross-tenant discipline; unconfigured scope: 409. Writes a `fan_export` audit entry (operator, tenant, agreement opt-in, parameters, row count — `SEC-06`'s exact list — plus, since 2026-09-27, the `sponsorName` and `optInLabel` at that moment, and since 2026-09-28 `contestName`, `gameLabel` and `exclusions`).
 
-**`POST /admin/exports/usage` takes** `{ contestId? }` (default: all the tenant's contests) and returns the same envelope: one CSV row per contest — members joined, boards played, distinct players, bingos, prizes fulfilled/failed, gameplay and prize-claim conversion rates (`RPT-03`'s trio, minus signup conversion — recorded gap: the platform does not yet count entry-gate visits, so there is no denominator). Every fan counts, declines included. Audited as `usage_export`.
+**`POST /admin/exports/who-played/preview` takes** the same body and returns `{ success, tenant, players, included, exclusions, columns }` from the export's own row selection. Same 404s; a missing scope answers `columns: []` rather than 409. Not audited: it releases nothing.
+
+**`POST /admin/exports/usage` takes** `{ contestId? }` (default: all the tenant's contests) and returns the same envelope: one CSV row per contest, oldest first — contest date, members who had joined by its last game, distinct players, boards played, bingos, prizes fulfilled/failed, gameplay and prize-claim conversion rates (`RPT-03`'s trio, minus signup conversion — recorded gap: the platform does not yet count entry-gate visits, so there is no denominator). Every fan counts, declines included. Audited as `usage_export`.
 
 **`PUT /admin/exports/field-scope` takes** `{ optInId, exportFields, dpaReference? }` (the reference since 2026-09-27) — validated against the tenant's exportable set, no duplicates — and returns the updated sponsor list plus a `changes` summary, the config PUT's precedent. An id outside the set is a 400 naming it in plain language, not a silent drop: the caller is a checklist that was rendered from that set, so an unknown id means the screen and the server disagree about what this tenant collects, and that is worth surfacing rather than absorbing. Enforced structurally — obs staff, or an `org:admin` of the owning organization; `requirePermission` is the eventual upgrade path, per the fields spec's reasoning verbatim.
 
@@ -121,7 +167,7 @@ Exports are generated in-process and returned in the response envelope (`csv` as
 
 `org:reports:read` — all admin roles, scoped to the caller's org (admin-surface permission table). This grant is coextensive with *any resolved admin scope*, so the reads and generations enforce nothing beyond `requireAdmin` + tenant targeting — the first module where tenant callers acted rather than viewed, which is the permission table working as designed, not an oversight. The field-scope write is config: structural, obs staff or the owning org's `org:admin`, shaped like every other config write. `RPT-02`'s `org:fan_data:export` appears nowhere in this module, by design.
 
-Reverification (IDN-13, mechanism in the Fans spec): "Who played" releases PII → gated, for OBS and tenant callers alike. The usage report and the catalog read release nothing identifying → not gated. The field-scope write is config, not PII release → not gated (and a stale scope edit is recoverable, unlike a release).
+No re-authentication (ruling 2026-09-28, superseding the IDN-13 step-up this module used to apply to "Who played"): every endpoint here is `requireAdmin` + tenant targeting, and the rows released are still bounded by the agreement's scope and its fans' current acceptance, applied at generation.
 
 ---
 
@@ -132,7 +178,8 @@ Reverification (IDN-13, mechanism in the Fans spec): "Who played" releases PII �
 3. **The exportable set is the tenant's own** — `email`, their configured fields in configured order, `picks` — derived on every read, and it is both what the checklist offers and what the CSV's columns are ordered by. There is no platform catalog of exportable fields.
 4. **Deleting a field prunes its id from every sponsor scope, in the publish that deletes it**, and an id in a stored scope that the tenant's set no longer contains is dropped at generation rather than exported or errored on. A scope entry never outlives the field it names.
 5. **Opted in means `accepted` at the current `textVersion`** — the one consent vocabulary, shared with the config stats and the Fans screen.
-6. **Every generation writes an audit entry** with operator, time, sponsor, parameters, and row count (`SEC-06`).
+6. **Every generation writes an audit entry** with operator, time, agreement, parameters, row count, and why fans were left out (`SEC-06`). A preview writes none.
+10. **An export explains its own size**: every left-out player is counted under exactly one reason (declined, accepted an earlier wording, not answered), on the card, in the preview, after generation and in history.
 7. **`RPT-02` is not reachable from this module** — no endpoint, no report-catalog entry, no link.
 8. **Generated exports are not persisted server-side.**
 9. **Aggregate reports identify no one** — the usage CSV carries counts and rates, never a fan field.
@@ -151,7 +198,7 @@ Reverification (IDN-13, mechanism in the Fans spec): "Who played" releases PII �
 ## References
 
 - PRD: [`ADM-07`, `RPT-01`–`RPT-07`, `SEC-02`, `SEC-06`, `OPT-04`](../../../documents/PRD/OBS_B2B_Platform_PRD.md) — §11.2's acceptance criteria are this module's test list
-- [`admin-fans.spec.md`](admin-fans.spec.md) — reverification middleware and audit log (defined there)
-- [`admin-surface.spec.md`](admin-surface.spec.md) — permission table, reverification list
+- [`admin-fans.spec.md`](admin-fans.spec.md) — audit log (defined there)
+- [`admin-surface.spec.md`](admin-surface.spec.md) — permission table
 - [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the open field model this module's exportable set derives from, and the publish path that prunes scopes on delete
 - Mock: `mocks/admin-console/Exports.png` (workspace) — layout source; cadence line deliberately not implemented

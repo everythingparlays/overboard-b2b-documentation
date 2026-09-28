@@ -120,10 +120,10 @@ The delivery method (`handlerId`) is chosen from a dropdown fed by the delivery-
 **Not on these screens. It belongs to OBS Internal, as its own surface.** Three reasons, in order of weight:
 
 1. **It is not tenant-scoped configuration.** Everything else on `/games` and `/prizes` is per-tenant config a tenant could plausibly own — and as of 2026-09-16 does own. Finalization is `org:contest:finalize`, obs-only *permanently* (admin-surface Rule 9, decision 2026-09) — it was never waiting on a ruling, and it is never coming to tenants. The 2026-09-16 ruling is precisely the case this argument anticipated: every other control on these screens flipped to tenant admins, and a permanently-obs action sitting among them would have flipped with them.
-2. **It is irreversible and requires reverification** (`IDN-13`). The admin-surface spec lists finalizing a contest beside exporting fan data and deleting a fan's data. Those live in OBS Internal (`/fan-actions`). An action that triggers real, unrecallable prize sends belongs with its peers behind the same reverification affordance, not one click from a config toggle.
+2. **It is irreversible** and takes a typed confirmation (the contest's name, checked on the server). An action that triggers real, unrecallable prize sends belongs with its OBS peers, not one click from a config toggle. (The `IDN-13` reverification it once required was ruled out on 2026-09-28.)
 3. **Its blast radius is platform-wide, not tenant-wide** (`PRIZE-06`). A failed send degrades sender reputation for every tenant. The admin-surface spec's own test — "whose mistake does it become?" — puts it with OBS.
 
-**Superseded for staff by the 2026-09-24 ruling:** Overboard staff get Finalize on the contest itself (today the contest drawer on Games & Contests, next the contest page and All contests rows), with the same typed-name confirmation and reverification as the tenant record. It still never renders for tenant scope. The screens do show `finalized` as a status badge: tenants **view** contest state, OBS **operates** finalization.
+**Revised 2026-09-28** (Arthur's Wave 4 walkthrough ruling, reversing the 2026-09-24 staff extra): Finalize is on the OBS pages only — All contests rows and the tenant page — with the typed-name confirmation. The workspace's screens, the contest page included, never render it, for staff or tenants. The screens do show `finalized` as a status badge: tenants **view** contest state, OBS **operates** finalization.
 
 ---
 
@@ -203,6 +203,6 @@ Both writes respond with the updated contest plus a `changes` summary, matching 
 ## References
 
 - PRD: [`ADM-02`, `ADM-04`, `ADM-06`, `BRAND-02`–`BRAND-04`, `GAME-01`–`GAME-04`, `PRIZE-01`–`PRIZE-07`, `TEN-05`](../../../documents/PRD/OBS_B2B_Platform_PRD.md)
-- [`admin-surface.spec.md`](admin-surface.spec.md) — access framework, nav table, reverification list
+- [`admin-surface.spec.md`](admin-surface.spec.md) — access framework, nav table, "No re-authentication"
 - [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) — the tenant-targeting and view-only presentation patterns this reuses
 - Mocks: `mocks/admin-console/Games-Contests.png`, `Prizes.png` (workspace) — layout source; code batches and the failed-send queue deliberately not implemented here, and sponsor assets built on Sponsors & Branding instead ([`admin-sponsors.spec.md`](admin-sponsors.spec.md))

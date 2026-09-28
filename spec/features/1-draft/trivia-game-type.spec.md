@@ -6,7 +6,7 @@
 the `gameType` discriminator and its lock kind, `refuseReadOnlyWrite`. [`admin-games-and-prizes.spec.md`](../../core-modules/1-draft/admin-games-and-prizes.spec.md) —
 the `/games` screen this extends. [`prize-delivery.spec.md`](../../core-modules/1-draft/prize-delivery.spec.md) —
 the redemption and fulfilment pipeline this reuses at the dispatch stage. [`admin-surface.spec.md`](../../core-modules/1-draft/admin-surface.spec.md) —
-scope resolution, `org:admin`/`org:member`, reverification.
+scope resolution, `org:admin`/`org:member`, "No re-authentication".
 
 **Status:** Draft (`1-draft`). Written 2026-09-26.
 
@@ -211,7 +211,7 @@ nothing is sent until a tenant admin clicks **Send prizes**, because standings s
 external event to hang automatic dispatch off (a fan finishing their run isn't when the contest is decided —
 close is), and because this is the natural place to hang `TRV-45`'s pre-fulfilment review.
 
-- **`POST /admin/contests/:contestId/trivia/send-prizes`** — `requireAdminReverified`, following the same
+- **`POST /admin/contests/:contestId/trivia/send-prizes`** — `requireAdmin` (no console action re-authenticates, 2026-09-28), following the same
   claim-and-dispatch shape as the existing delivery-queue resend endpoint: refuses if the contest isn't closed
   or standings aren't settled, refuses if already sent (idempotent — a second click is a no-op, not a
   duplicate send), resolves `settledStandings` against the contest's `positionBand` tiers, writes one
@@ -221,7 +221,7 @@ close is), and because this is the natural place to hang `TRV-45`'s pre-fulfilme
   the enqueue.
 - The contest detail drawer's **Prize tiers** section gains a **Send prizes** button once the contest is
   closed, disabled with its reason before that ("Closes at 9:45pm" / "Standings aren't settled yet"), and
-  becomes a **Sent — 214 awarded** state after, matching the reverification and irreversibility treatment
+  becomes a **Sent — 214 awarded** state after, matching the typed-confirmation and irreversibility treatment
   `admin-surface.spec.md` already gives Finalize.
 - `TRV-45`'s "which bands are reviewed" stays the PRD's open decision (§16 there) — this endpoint sends every
   banded position in one action either way; a review step ahead of the click, if bands end up needing one, is
@@ -293,7 +293,7 @@ same screen reads the frozen `settledStandings` and drops the banner.
    the same exclusion set as the original draw.
 7. **A run's score is frozen at completion; a contest's standings are frozen at close.** Neither is recomputed
    after, even by a later data correction.
-8. **Nothing is sent to a fan until an admin clicks Send prizes**, and that action is reverification-gated and
+8. **Nothing is sent to a fan until an admin clicks Send prizes**, and that action is confirmed and
    idempotent.
 9. **Game type is locked once a fan joins**, via the existing `ContestLock` `"gameType"` kind — no new lock
    mechanism.

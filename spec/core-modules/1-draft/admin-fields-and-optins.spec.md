@@ -223,7 +223,7 @@ Every opt-in may link its full document (the terms, the privacy policy, the spon
 - The gate preview underlines the linked words at once and opens the document over the preview when they are clicked, exactly as the fan app does.
 - The version line under the text reads "Version 3 · published Sep 12, 2026" as today, and the consequence note appears once text or a document differs from the published version.
 
-**The platform Terms opt-in** keeps its fixed checkbox text ("I agree to the Overboard Terms of Service and Privacy Policy.") and has two documents, `terms` ("Terms of Service") and `privacy` ("Privacy Policy"), shared by every tenant (`organizationId: null`). Tenant admins see its row read-only, with the two documents readable. **OBS staff** get "Edit Overboard's documents" on that row, which opens the same document editor for the two documents and publishes them through a staff-only endpoint (below), separately from the tenant's draft, because it changes every tenant at once. Its consequence dialog: title "Publish Overboard's documents?", body "Every fan on every team is asked to accept Overboard's terms again before their next board.", buttons "Publish for every team" and "Cancel"; reverified.
+**The platform Terms opt-in** keeps its fixed checkbox text ("I agree to the Overboard Terms of Service and Privacy Policy.") and has two documents, `terms` ("Terms of Service") and `privacy` ("Privacy Policy"), shared by every tenant (`organizationId: null`). Tenant admins see its row read-only, with the two documents readable. **OBS staff** get "Edit Overboard's documents" on that row, which opens the same document editor for the two documents and publishes them through a staff-only endpoint (below), separately from the tenant's draft, because it changes every tenant at once. Its consequence dialog: title "Publish Overboard's documents?", body "Every fan on every team is asked to accept Overboard's terms again before their next board.", buttons "Publish for every team" and "Cancel"; no re-authentication (2026-09-28). This control is one of the kept exceptions to "staff see what the workspace sees" (admin-surface, 2026-09-28): publishing the platform documents for every team has no other surface.
 
 **Endpoints (added):**
 
@@ -232,7 +232,7 @@ Every opt-in may link its full document (the terms, the privacy policy, the spon
 | GET | `/admin/config` | unchanged | Each opt-in gains `links` and, for the current version, `documents[]` with bodies (one read of `consent_versions`), for the editor |
 | PUT | `/admin/config` | unchanged | Each opt-in may carry `documents: { linkId?, linkText, title, body }[]`; absent keeps the stored ones, `[]` removes them all |
 | GET | `/admin/config/consent-versions/:optInId` | `requireAdmin` | Every stored version of one opt-in, newest first (text, documents' titles, publishedAt, publishedBy); `?version=` returns one with bodies. For the fan page's "Show wording" |
-| PUT | `/admin/platform-consent` | `requireAdminReverified`, OBS staff only | `{ documents: [{ linkId: "terms" \| "privacy", title, body }] }`. Writes the next platform version row, then sets the platform opt-in's `textVersion` and `publishedAt` on every tenant in one `updateMany`. Audited `platform_consent_publish` (version, staff user). |
+| PUT | `/admin/platform-consent` | `requireAdmin`, OBS staff only (no re-authentication since 2026-09-28) | `{ documents: [{ linkId: "terms" \| "privacy", title, body }] }`. Writes the next platform version row, then sets the platform opt-in's `textVersion` and `publishedAt` on every tenant in one `updateMany`. Audited `platform_consent_publish` (version, staff user). |
 | GET | `/b2b/org/:subdomain/consent-document/:optInId/:linkId` | public | `?version=N` optional. Returns `{ optInId, linkId, textVersion, title, body, publishedAt }`; 404 when there is none. A versioned read is immutable and cached for a day; the current read is cached 60 seconds beside the org cache and cleared by a publish |
 
 **Why this path, not the research note's `GET /b2b/consent-document/:optInId`:** the tenant comes from the subdomain like every other public fan read; `linkId` is needed because the platform opt-in has two documents; and `version` lets the gate show the document **as of the wording it displayed**, the same frozen-version discipline the consent submission already follows.
@@ -542,7 +542,7 @@ The fan-side machinery (entry-gate spec) already re-prompts on `(optInId, textVe
 Where the shipped console differs in detail from the text above:
 
 - The console's gate preview is the shared `WalkableGate`.
-- Each run of the consents walk publishes the walked opt-in again (a document added, then removed), so that opt-in's version climbs with every run on the test tenant.
+- The consents walk documents its own throwaway opt-in (linked to no sponsor, no export fields) and removes it at the end, so no tenant opt-in's version moves when it runs (2026-09-28; it used to edit a live agreement, which left its fans on an earlier wording and its exports empty).
 
 ## References
 

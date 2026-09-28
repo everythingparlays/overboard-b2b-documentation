@@ -5,7 +5,7 @@
 **Depends on:**
 
 - [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) (Wave 3). It owns the backend meaning of everything this spec puts on screen: every sport in the picker and its `sports` feed (§2), the stored state Draft → Open → Closed and its transitions (§3.1), contest deletion (§3.2), `featuredGame` (§3.3), the join refusal codes and `opensAt` (§3.4), and dev test mode (§5). This spec builds the console on top of those semantics and does not redefine them.
-- [`admin-surface.spec.md`](admin-surface.spec.md): scope resolution, the write grant (tenant `org:admin` and OBS staff), the reverification list, pages versus drawers, and the principles, above all Honesty by omission (Rule 13).
+- [`admin-surface.spec.md`](admin-surface.spec.md): scope resolution, the write grant (tenant `org:admin` and OBS staff), "No re-authentication", pages versus drawers, and the principles, above all Honesty by omission (Rule 13).
 - [`contest-safety.spec.md`](contest-safety.spec.md): the lock stamp `lockedAt`, the pure lock functions in `obs-b2b-shared`, the prize snapshot and the one-board-per-fan index.
 - [`admin-lists.spec.md`](admin-lists.spec.md): the cursor-paging convention, `InfiniteList`/`InfiniteTable`/`PickerList`, and the schedule picker's `GET /admin/games/candidates`.
 - [`admin-prizes.spec.md`](admin-prizes.spec.md): the prize library, the contest Prizes tab's ladder, and what makes a tier complete. [`admin-sponsors.spec.md`](admin-sponsors.spec.md): the Sponsors tab.
@@ -16,6 +16,8 @@
 
 **Status:** Draft. Written 2026-09-23 for the Games & Contests overhaul; rewritten 2026-09-24 for the console redesign.
 Revised 2026-09-27 for Wave 4 (Arthur's rulings of 2026-09-27): the Board tab, the builder's Board step and all prop pool curation are removed; the stored state Draft → Open → Closed replaces visibility, entries and the derived Draft; any non-finalized contest can be deleted; the builder keeps the console sidebar and moves its steps to a clickable progress bar with Save draft on every step; the home gains a list view and a type filter fed by the contest-type registry; the game picker always shows its sport filter.
+
+Revised 2026-09-28 (Arthur's Wave 4 walkthrough ruling): **no re-authentication** — Delete takes the typed name alone, fans joined or not, and Finalize the typed name alone; **staff see Games & Contests and the contest page exactly as the workspace does**, so Finalize is gone from the cards, the list rows, the contest page header and its Overview rail. Staff finalize only from All contests and the tenant page.
 
 ## Overview
 
@@ -193,7 +195,7 @@ The ruling: no contest versioning; before the first fan joins everything is edit
 | **Removing a game** | Editable | **Locked** |
 | **Contest type** | Editable while Draft | **Locked** |
 | Prize tiers | [`admin-prizes.spec.md`](admin-prizes.spec.md) | Its tier kinds (`tierRemoved`, `tierBingos`, `tierValue`) |
-| **Delete** | Typed name | Typed name **and reverification** (Wave 3 §3.2) |
+| **Delete** | Typed name | Typed name (the dialog says what goes with it; revised 2026-09-28, no reverification) |
 
 **Why removing a game locks.** A fan's board holds props from the games the contest ran at when they built it. The evaluator scores a square by its prop, not by whether the contest still lists the prop's game, so squares from a removed game keep scoring and keep paying. Removing a game after fans joined therefore does not remove it from play; it only removes it from the console, which then misreports what fans are playing. Locking is the one option that keeps every promise. Adding a game stays open because it only gives fans more to pick from.
 
@@ -228,7 +230,7 @@ Both views are endless lists over the same `GET /admin/contests` query: `Infinit
 1. **Band**, 4:1. The contest-wide Board banner sponsor's artwork, fitted without cropping on the tenant's band colour; with no contest-wide Board banner holder, the tenant's decorative band. Never a placeholder image. Over the band, top left: the state chip ("Draft", "Open", "Closed"), the "Finalized" badge when finalized, and the lock glyph when locked.
 2. **Body.** Type chip (from the registry); the name; the description, two lines, muted, omitted when empty. On the right, the sparkline: new players per day over the last 14 days, 96×28 in the tenant colour, captioned "+18 this week" or "None new this week", omitted until the first player. An Open contest whose entries haven't opened shows "Fans can join from Thu, Oct 1" in the sparkline's place until it has players.
 3. **Stats row**: **Players** ("412", or "412/500" with a limit), **Games** (the count, with the featured game under it, picked by Wave 3's `featuredGame`: "Live: Denver @ Fighting Hawks", "Next: Denver @ Fighting Hawks · Sat 7:00 PM", or "Final: Montana State @ Fighting Hawks · Sep 19"), **Prize tiers** (the count; no maximum shown).
-4. **Footer**: a Draft shows "Continue setup" (opens the builder at the first step that isn't done). Staff only: a ghost "Finalize" when the contest isn't finalized and every game has ended (the same test as Operations' `ready-to-finalize` row). A finalized contest shows "Finalized Sep 15". At the right, the **overflow menu** ("More actions"): "Close entries" (Open) or "Reopen entries" (Closed), "Duplicate", and "Delete" (not finalized). Members get no overflow.
+4. **Footer**: a Draft shows "Continue setup" (opens the builder at the first step that isn't done). A finalized contest shows "Finalized Sep 15". At the right, the **overflow menu** ("More actions"): "Close entries" (Open) or "Reopen entries" (Closed), "Duplicate", and "Delete" (not finalized). Members get no overflow.
 
 **The list view.** A dense table, one row per contest, same order and filters:
 
@@ -242,16 +244,15 @@ Both views are endless lists over the same `GET /admin/contests` query: `Infinit
 | Players | Count, "/500" when limited |
 | Prize tiers | Count |
 | Created | "Sep 21" |
-| (actions) | The same overflow menu as the card; staff "Finalize" under the same rule |
+| (actions) | The same overflow menu as the card |
 
-The row opens the contest page. The overflow and Finalize are their own focus stops and don't open the row.
+The row opens the contest page. The overflow is its own focus stop and doesn't open the row.
 
 **Interactions.**
 
-- A card or row opens `/contests/:contestId` (Overview). "Continue setup", "Finalize" and the overflow stop the click from reaching the card.
+- A card or row opens `/contests/:contestId` (Overview). "Continue setup" and the overflow stop the click from reaching the card.
 - **Close entries / Reopen entries** from the overflow write at once (PATCH `state`) and confirm on the card's footer (the row's Next game cell in the list): "Entries closed. Fans who joined keep playing." or "Entries open." A failure shows its sentence in the same place.
 - **Delete** opens the Delete dialog (below). On success the card or row is removed from the list and the count drops by one.
-- **Finalize** opens the Finalize dialog (below). On success the card shows the Finalized badge.
 
 **States.**
 
@@ -289,7 +290,6 @@ The row opens the contest page. The overflow and Finalize are their own focus st
 | Confirmations | "Entries closed. Fans who joined keep playing.", "Entries open." |
 | Draft footer | "Continue setup" |
 | Finalized footer | "Finalized Sep 15" |
-| Staff action | "Finalize" |
 | Empty / no matches | "No contests yet.", "No contests match.", "Clear search and filters" |
 | Member line | "Only organization admins can change contests." |
 | Later page failed | "Couldn't load more.", "Try again" |
@@ -302,7 +302,7 @@ A full page, reached from a card or row, from Overview and Game day links, and f
 
 - Back link: "Games & Contests" to `/games`, or "All contests" / the tenant's name when the page was opened from those (carried in navigation state, falling back to "Games & Contests").
 - Eyebrow "Contest · Bingo" (the registry label); H1 the name; chips: the state chip, "Finalized", the lock glyph.
-- Right: "Preview" (secondary; switches to the Preview tab); staff "Finalize" (ghost, same rule as the card); the overflow ("More actions"): "Duplicate", "Delete contest". The state actions are not in the header: they live in the Overview's state card, once.
+- Right: "Preview" (secondary; switches to the Preview tab); the overflow ("More actions"): "Duplicate", "Delete contest". The state actions are not in the header: they live in the Overview's state card, once.
 
 **Tabs**: "Overview · Games · Prizes · Sponsors · Preview", with counts on Games and Prizes. The tab is in the URL: `/contests/:contestId` (Overview), then `/games`, `/prizes`, `/sponsors`, `/preview`. An unknown tab segment opens Overview. A prize opens as its own full page ([`admin-prizes.spec.md`](admin-prizes.spec.md)).
 
@@ -362,7 +362,7 @@ Close entries, Reopen entries and Move to draft write at once (PATCH `state`) an
 
 - **Next game**: `featuredGame`'s line with its readiness dot from game day, linking to Game day on that game; "No upcoming games" when none.
 - **Lock**: "Not locked. Everything can change until the first fan joins." or "Locked since Sat Sep 27, 7:02 PM."
-- **Finalize**: staff see "Ready to finalize" with "Finalize" under the card rule, "Finalize after the last game" before it, or "Finalized on Sep 28". Tenants see "Overboard finalizes the contest after its last game." or "Finalized on Sep 28."
+- **Finalize**: everyone — staff included — reads "Overboard finalizes the contest after its last game." or "Finalized on Sep 28." (revised 2026-09-28: staff finalize from All contests or the tenant page).
 
 **Copy.**
 
@@ -378,7 +378,7 @@ Close entries, Reopen entries and Move to draft write at once (PATCH `state`) an
 | Field errors | "Give the contest a name.", "Keep it to 80 characters.", "Keep it to 300 characters.", "Keep it to 500 characters.", "Enter a number from 1 to 1,000,000.", "Another contest in this workspace already has this name." |
 | Test mode | "Test mode", "Off", "On", "Fans can join now, whatever the game times, and past games can be added." |
 | Danger zone | "Delete contest", "Deletes the contest, its fans' boards, its prize tiers and its sponsor placements. Prizes already sent stay on record." |
-| Rail | "What's next", "Next game", "No upcoming games", "Lock", "Not locked. Everything can change until the first fan joins.", "Locked since Sat Sep 27, 7:02 PM.", "Finalize", "Ready to finalize", "Finalize after the last game", "Overboard finalizes the contest after its last game.", "Finalized on Sep 28." |
+| Rail | "What's next", "Next game", "No upcoming games", "Lock", "Not locked. Everything can change until the first fan joins.", "Locked since Sat Sep 27, 7:02 PM.", "Finalize", "Overboard finalizes the contest after its last game.", "Finalized on Sep 28." |
 
 #### Games tab
 
@@ -473,18 +473,18 @@ The contest page's danger zone and header overflow, and the overflow on every ca
 | Body (fans joined) | "412 fans have boards in this contest. Their boards, its prize tiers and its sponsor placements are deleted. Prizes already sent stay on record. This can't be undone." |
 | Input label | "Type “Rivalry Week” to confirm" |
 | Buttons | "Delete contest", "Deleting…", "Cancel" |
-| Errors | "The contest name you typed doesn't match.", "A prize from this contest is being sent right now. Try again in a minute.", "This contest is finalized, so it can't be deleted.", "Verification cancelled. Nothing was deleted." |
+| Errors | "The contest name you typed doesn't match.", "A prize from this contest is being sent right now. Try again in a minute.", "This contest is finalized, so it can't be deleted." |
 | Result | The console returns to `/games` (from the contest page) or removes the card or row, and shows "Deleted Rivalry Week." above the list. |
 
-The confirming button is enabled only on a match (trimmed, ignoring case) and the server checks the typed name again. A locked contest runs reverification after the confirm (the console's `useReverification`); a cancelled reverification leaves the dialog open and says nothing happened.
+The confirming button is enabled only on a match (trimmed, ignoring case) and the server checks the typed name again. Nothing else is asked, fans joined or not (revised 2026-09-28).
 
 ### Staff: All contests (`/contests`)
 
-The table stays ([`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md), paged per [`admin-lists.spec.md`](admin-lists.spec.md)); its type column reads "Contest type" and its visibility column becomes **State** (the state chip and the Finalized badge). **A row opens the contest page** for that tenant: `/contests/:contestId?tenant=<slug>`, acting as that tenant, with the back link "All contests". **Each row carries "Finalize"** under the card's rule, absent otherwise. The staff tenant page's Contests table behaves the same way.
+The table stays ([`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md), paged per [`admin-lists.spec.md`](admin-lists.spec.md)); its type column reads "Contest type" and its visibility column becomes **State** (the state chip and the Finalized badge). **A row opens the contest page** for that tenant: `/contests/:contestId?tenant=<slug>`, acting as that tenant, with the back link "All contests". **Each row carries "Finalize"** under the tenant page's rule (published, not finalized, at least one game, none live or still to play), absent otherwise ([`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md)). The staff tenant page's Contests table behaves the same way.
 
 ### Finalize, wherever it appears
 
-Cards and rows, the contest page header and rail, All contests rows and the tenant page rows open one centred dialog. Staff only; reverification first; the typed name is checked by the server.
+Only on the OBS pages (revised 2026-09-28): All contests rows and the tenant page's Contests rows open one centred dialog. The workspace's cards, list rows and contest page never show Finalize, for staff or anyone. Staff only; the typed name is checked by the server; no re-authentication.
 
 | Element | Copy |
 |---|---|
@@ -492,7 +492,7 @@ Cards and rows, the contest page header and rail, All contests rows and the tena
 | Body | "Finalizing is permanent and cannot be undone. It marks the contest finished for every fan." |
 | Input label | "Type “Rivalry Week” to confirm" |
 | Buttons | "Finalize permanently", "Finalizing…", "Cancel" |
-| Errors | "The contest name you typed doesn't match.", "Verification cancelled. Nothing was finalized." |
+| Errors | "The contest name you typed doesn't match." |
 | Result (on the surface that opened it) | "Finalized." |
 
 ---
@@ -508,11 +508,11 @@ Cards and rows, the contest page header and rail, All contests rows and the tena
 | Add and remove games (lock permitting) | Yes | No | Yes |
 | Prize tiers, sponsor placements | Yes (their specs) | No | Yes |
 | Duplicate | Yes | No | Yes |
-| Delete (not finalized; reverified once locked) | Yes | No | Yes |
+| Delete (not finalized; typed name) | Yes | No | Yes |
 | Test mode (dev only) | Yes | No | Yes |
-| Finalize | No | No | Yes (reverified) |
+| Finalize (from All contests and the tenant page) | No | No | Yes |
 
-Enforcement is server-side: every write passes `refuseReadOnlyWrite` first (D-063), which refuses a member and a paused workspace's own admins; Delete of a locked contest passes `requireAdminReverified`; Finalize passes `requireAdminReverified` and `refuseNonObsStaff`. The console's `useCanWrite` and `useIsObsStaff` only decide what renders.
+Enforcement is server-side: every write passes `refuseReadOnlyWrite` first (D-063), which refuses a member and a paused workspace's own admins; both Delete and Finalize check the typed name in the handler; Finalize also passes `refuseNonObsStaff`. No route steps up (revised 2026-09-28). The console's `useCanWrite` and `useIsObsStaff` only decide what renders.
 
 ---
 
@@ -531,7 +531,7 @@ All under `/admin`, `requireAdmin`. Targeting as everywhere: a tenant caller's t
 | POST | `/admin/contests` | Tenant `org:admin`, OBS staff |
 | PATCH | `/admin/contests/:contestId` | Tenant `org:admin`, OBS staff |
 | POST | `/admin/contests/:contestId/duplicate` | Tenant `org:admin`, OBS staff |
-| DELETE | `/admin/contests/:contestId` | Tenant `org:admin`, OBS staff (Wave 3 §3.2; reverified when locked) |
+| DELETE | `/admin/contests/:contestId` | Tenant `org:admin`, OBS staff (Wave 3 §3.2; typed name) |
 | POST | `/admin/contests/:contestId/games` | Tenant `org:admin`, OBS staff |
 | DELETE | `/admin/contests/:contestId/games/:betEventId` | Tenant `org:admin`, OBS staff (lock permitting) |
 | POST | `/admin/contests/:contestId/finalize` | OBS staff only (unchanged) |
@@ -618,7 +618,7 @@ No body. Creates a Draft as described under the contest page (name "Copy of <nam
 
 ### `DELETE /admin/contests/:contestId`
 
-Wave 3 §3.2, unchanged: body `{ expectedUpdatedAt?, confirmName }`; finalized → 409; a send in flight → 409; audit first; boards and pending sends deleted; terminal redemptions kept with `contestName`; the contest's tiers and placements deleted; library prizes kept. Wave 4 adds only the console above and reverification for a locked contest (`requireAdminReverified` when `lockedAt` is set).
+Wave 3 §3.2, unchanged: body `{ expectedUpdatedAt?, confirmName }`; finalized → 409; a send in flight → 409; audit first; boards and pending sends deleted; terminal redemptions kept with `contestName`; the contest's tiers and placements deleted; library prizes kept. Wave 4 adds only the console above; since 2026-09-28 a locked contest asks for nothing more than the typed name.
 
 ### `POST /admin/contests/:contestId/games`
 
@@ -630,7 +630,7 @@ Query `expectedUpdatedAt`. Removes the game from `allowedBetEvents` (never from 
 
 ### `POST /admin/contests/:contestId/finalize`
 
-Unchanged ([`admin-obs-internal.spec.md`](admin-obs-internal.spec.md)). Only its callers change: the card, the list row, the contest page, All contests rows and the tenant page.
+Unchanged ([`admin-obs-internal.spec.md`](admin-obs-internal.spec.md)). Its callers are All contests rows and the tenant page (revised 2026-09-28: no longer the card, the list row or the contest page).
 
 ### Error codes and what the console shows
 
@@ -691,10 +691,10 @@ Unchanged ([`admin-obs-internal.spec.md`](admin-obs-internal.spec.md)). Only its
 8. **`CT-08` — Removing a game locks with the contest; adding never does.**
 9. **`CT-09` — Tenants never choose or see props.** The console has no prop screen, control, count or readiness item.
 10. **`CT-10` — The game picker always shows its sport filter,** fed by the sports the schedule actually holds.
-11. **`CT-11` — Any non-finalized contest can be deleted,** with a typed name, and reverification once fans have joined.
+11. **`CT-11` — Any non-finalized contest can be deleted,** with a typed name, whether or not fans have joined (revised 2026-09-28: no reverification).
 12. **`CT-12` — The builder keeps the console around it.** Steps are a clickable progress bar, every step is reachable at any time, and Save draft works from every step.
 13. **`CT-13` — Every growing list pages on the server with a cursor.** The contest list (both views), the Games tab and the game picker.
-14. **`CT-14` — Finalize is staff only and appears only when every game has ended**, hidden rather than disabled otherwise.
+14. **`CT-14` — Finalize is staff only, appears only on the OBS pages (All contests, the tenant page) and only when every game has ended**, hidden rather than disabled otherwise (revised 2026-09-28).
 15. **`CT-15` — Participation is the board count.** `numberParticipants` is never read.
 16. **`CT-16` — Contest names are unique within a tenant, ignoring case.**
 17. **`CT-17` — `ranAtBetEvents` only grows.**
@@ -725,7 +725,7 @@ Where the shipped console differs in detail from the text above:
 
 - PRD: [`ADM-03`, `ADM-04`, `ADM-06`, `BRAND-02`, `BRAND-04`, `GAME-01`–`GAME-04`, `GAME-C1`, `GAME-F1`, `PRIZE-03`, `TEN-05`, `TEN-C1`, `ADM-09`](../../../documents/PRD/OBS_B2B_Platform_PRD.md)
 - [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) — sports (§2), states, deletion, featured game and refusals (§3), test mode (§5), the harness (§6)
-- [`admin-surface.spec.md`](admin-surface.spec.md) — access, reverification, principles, Rule 13, routes
+- [`admin-surface.spec.md`](admin-surface.spec.md) — access, "No re-authentication", principles, Rule 13, routes
 - [`contest-safety.spec.md`](contest-safety.spec.md) — the lock, the snapshot, the unique board index
 - [`admin-lists.spec.md`](admin-lists.spec.md) — cursor paging and the list components
 - [`admin-prizes.spec.md`](admin-prizes.spec.md), [`admin-sponsors.spec.md`](admin-sponsors.spec.md), [`admin-preview.spec.md`](admin-preview.spec.md), [`admin-uploads.spec.md`](admin-uploads.spec.md)

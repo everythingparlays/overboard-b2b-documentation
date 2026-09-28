@@ -1,10 +1,12 @@
 # Core Module Spec: Admin — Tenant Lifecycle
 
-**Implements:** PRD `TEN-05`, `SEC-06`, `ADM-09`. HLD [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) `IDN-13`.
+**Implements:** PRD `TEN-05`, `SEC-06`, `ADM-09`. HLD [`multi-tenant-identity-auth.md`](../../../documents/HLDs/multi-tenant-identity-auth.md) (`IDN-13`'s step-up ruled out, 2026-09-28).
 
-**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — the access framework, Rule 4 (slug = subdomain), Rule 10 (the synced pair), Rule 11 (user-level obs staff-ness), and the reverification list. [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md) — the All-tenants screen these actions live on, and the `POST /admin/tenants` provisioning flow whose patterns they reuse.
+**Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — the access framework, Rule 4 (slug = subdomain), Rule 10 (the synced pair), Rule 11 (user-level obs staff-ness), and "No re-authentication". [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md) — the All-tenants screen these actions live on, and the `POST /admin/tenants` provisioning flow whose patterns they reuse.
 
 **Status:** Draft. Ruled 2026-09-15 (Arthur): the governing directive is that **OBS staff never need the Clerk dashboard for tenant work again**. Creation already ships in-app; this module ships the rest of the lifecycle — rename, suspend, resume, delete.
+
+**Revised 2026-09-28** (Arthur's Wave 4 walkthrough ruling) — **no re-authentication**: suspend, resume and delete run on `requireAdmin`, obs-only; delete keeps its typed subdomain, checked on the server, and its blocking audit. Nothing asks for credentials, and no dialog has a cancelled-prompt line.
 
 ## Overview
 
@@ -32,7 +34,7 @@ Four operations on an existing tenant, all OBS-only, all reached from the All-te
 
 ## Supersessions (ruled 2026-09-15, Arthur)
 
-1. **Tenant offboarding is now a surface.** `admin-obs-internal.spec.md` scoped it out with "deleting a production tenant is a legal-and-data question, not a screen." Arthur's ruling supersedes that: the delete surface works on any tenant, real fan data included, behind the platform's strongest guardrail stack (obs-only, reverification, typed-name confirmation server-checked). The legal question is answered by *who may do it and how deliberately*, not by keeping the capability in a shell script. The dev teardown script (`scripts/delete-tenant.mjs`) survives as developer tooling; the endpoint is the offboarding path — and unlike the script, it also removes the tenant's prize tiers, which the script orphans.
+1. **Tenant offboarding is now a surface.** `admin-obs-internal.spec.md` scoped it out with "deleting a production tenant is a legal-and-data question, not a screen." Arthur's ruling supersedes that: the delete surface works on any tenant, real fan data included, behind the platform's guardrail stack (obs-only, typed confirmation server-checked, audit first). The legal question is answered by *who may do it and how deliberately*, not by keeping the capability in a shell script. The dev teardown script (`scripts/delete-tenant.mjs`) survives as developer tooling; the endpoint is the offboarding path — and unlike the script, it also removes the tenant's prize tiers, which the script orphans.
 2. **Rename exists, display-name only.** admin-obs-internal's "no rename endpoint exists" was written when rename meant the subdomain. The subdomain stays immutable; the *display name* — the Clerk organization's `name` and `B2BOrganization.name`, which were only ever a label — is renameable, both together or neither.
 
 ---
@@ -65,7 +67,7 @@ Takes `?tenant=` and `{ name }`. Updates the Clerk organization's `name` and `B2
 3. **Database second.** If this fails, the handler sets the Clerk name back to what it was; if *that* fails, the response says loudly that the two systems now disagree and which name each holds — a divergence an operator knows about is fixable, a silent one is Rule 10 rotting.
 4. **Audit after success** (`tenant_rename`, fire-and-forget like `tenant_create`), with the old and new names in `detail` — organization display names, not PII.
 
-**No reverification, argued.** The admin-surface list draws its line at *cannot be undone by clicking again* — "Editing a sponsor logo does not qualify; deleting the sponsor does." A rename is undone by renaming back; nothing is released and nothing is destroyed. Gating it would dilute the signal a credential prompt carries on the actions where it means something. (Ruling left this open; this is the spec's call.)
+**No reverification.** A rename is undone by renaming back; nothing is released and nothing is destroyed. (Since 2026-09-28 no console action re-authenticates.)
 
 **The audit row is written before nothing** — rename deliberately breaks from audit-before-write because its first write is to an external system that may then be unwound: a pre-written audit row would attest a rename that never happened. The blocking-audit rule below is for the actions whose writes cannot be unwound.
 
@@ -73,7 +75,7 @@ Takes `?tenant=` and `{ name }`. Updates the Clerk organization's `name` and `B2
 
 ## Suspend and Resume (`POST /admin/tenants/suspend`, `/resume`)
 
-Both take `?tenant=`, obs-only, **reverification-gated** (per the 2026-09-15 ruling — suspending takes a customer's live program offline for every fan at once, and resume turns it back on; both deserve the walked-away-session protection even though both are reversible).
+Both take `?tenant=`, obs-only, each behind its confirm dialog (suspending takes a customer's live program offline for every fan at once, and resume turns it back on). The 2026-09-15 reverification is retired (2026-09-28).
 
 Semantics, identical in shape:
 
@@ -89,7 +91,7 @@ No Clerk write anywhere in either — see "Suspension is database-side" above.
 
 ## Delete (`POST /admin/tenants/delete`)
 
-The irreversible one, with the platform's full guardrail stack: obs-only (structural), **reverification** (IDN-13), and a **typed confirmation checked server-side** — the body's `confirmSubdomain` must equal the tenant's exact subdomain, the same double-check finalization uses. The subdomain rather than the display name, deliberately: it is unique by index, exact by construction, and it is what the operator sees in every hostname — display names can collide and can now be renamed mid-confirmation.
+The irreversible one, with the platform's guardrail stack: obs-only (structural) and a **typed confirmation checked server-side** — the body's `confirmSubdomain` must equal the tenant's exact subdomain, the same double-check finalization uses. The subdomain rather than the display name, deliberately: it is unique by index, exact by construction, and it is what the operator sees in every hostname — display names can collide and can now be renamed mid-confirmation.
 
 A POST rather than a DELETE because the confirmation must ride a request body, and DELETE bodies are dropped by enough intermediaries that the guardrail would be the fragile part.
 
@@ -120,9 +122,9 @@ Four additive entries in `ADMIN_AUDIT_ACTIONS`: `tenant_rename`, `tenant_suspend
 | Method | Path | Auth | Body |
 |---|---|---|---|
 | POST | `/admin/tenants/rename` | requireAdmin, obs-only in handler, `?tenant=` | `{ name }` |
-| POST | `/admin/tenants/suspend` | requireAdminReverified, obs-only, `?tenant=` | — |
-| POST | `/admin/tenants/resume` | requireAdminReverified, obs-only, `?tenant=` | — |
-| POST | `/admin/tenants/delete` | requireAdminReverified, obs-only, `?tenant=` | `{ confirmSubdomain }` |
+| POST | `/admin/tenants/suspend` | requireAdmin, obs-only, `?tenant=` | — |
+| POST | `/admin/tenants/resume` | requireAdmin, obs-only, `?tenant=` | — |
+| POST | `/admin/tenants/delete` | requireAdmin, obs-only, `?tenant=` | `{ confirmSubdomain }` |
 
 Contracts live in `obs-b2b-shared/src/api/admin/tenants.ts` beside the provisioning contract. `GET /admin/tenants/directory` rows additionally carry `status` and `suspendedAt`; `GET /admin/health`'s tenant scope carries an optional `status` (absent means active) so a tenant user's console can say the workspace is paused; `GET /b2b/org/:subdomain` carries the public `suspended` boolean.
 
@@ -133,8 +135,8 @@ Contracts live in `obs-b2b-shared/src/api/admin/tenants.ts` beside the provision
 Everything lives where the operator already is: the All-tenants drill-in drawer, plus a "Paused" badge on the directory row. In customer-visible copy the words are **pause / resume / paused** — "suspend" is the API's word, not the operator's.
 
 - **Display name** — an inline field with the current name, a save that appears when it changes, and a plain statement that the web address never changes.
-- **Availability** — pause/resume. Pause expands to state what it does (fans blocked immediately-ish, nothing deleted, resumable) before its confirming button; both are wrapped in `useReverification` with the standard cancel handling ("nothing was paused").
-- **Delete this tenant** — the `FinalizeZone` idiom: collapsed danger button → expanded consequences (what is removed, that fan accounts survive, that it cannot be undone) → typed subdomain gating the button → reverification → the server re-checks the typed value.
+- **Availability** — pause/resume. Pause expands to state what it does (fans blocked immediately-ish, nothing deleted, resumable) before its confirming button.
+- **Delete this tenant** — the `FinalizeZone` idiom: collapsed danger button → expanded consequences (what is removed, that fan accounts survive, that it cannot be undone) → typed subdomain gating the button → the server re-checks the typed value.
 
 For a **tenant user** whose organization is suspended: a console-wide banner ("paused — changes are turned off, your data is safe"), write controls disabled via `useCanWrite`, reads untouched. The server refuses the writes regardless, as always.
 
@@ -156,6 +158,6 @@ The **fan app** renders a full-screen paused message in the tenant's branding wh
 
 ## References
 
-- [`admin-surface.spec.md`](admin-surface.spec.md) — Rules 4, 10, 11; the reverification list; "Revocation latency" for the accepted-staleness posture.
+- [`admin-surface.spec.md`](admin-surface.spec.md) — Rules 4, 10, 11; "No re-authentication"; "Revocation latency" for the accepted-staleness posture.
 - [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md) — the All-tenants screen, provisioning, and the superseded offboarding scope-out.
 - `node-server/scripts/delete-tenant.mjs` — the teardown order's origin, kept as dev tooling.

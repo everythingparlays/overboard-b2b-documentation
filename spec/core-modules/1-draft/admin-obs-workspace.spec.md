@@ -8,6 +8,8 @@
 
 **Revised 2026-09-24** (ruling, Arthur) — All contests keeps its table, but a row now opens the contest's own page acting as that tenant, and carries Finalize. The `/contests` section carries the change; [`admin-contests.spec.md`](admin-contests.spec.md) owns the page and the Finalize rule.
 
+**Revised 2026-09-28** (Arthur's Wave 4 walkthrough ruling) — staff finalize **only** from the OBS pages: All contests and the tenant page. The contest page and the workspace's contest cards no longer carry Finalize, so the `ready-to-finalize` attention row opens the workspace's tenant page. The Finalize dialog asks for the typed contest name only, with no re-authentication. Support triage happens only in the support inbox.
+
 **Revised 2026-09-27** (Wave 4) — pointers only: contests have a stored state (Draft, Open, Closed; [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §3.1) in place of visibility, so All contests shows State and the attention rows read it; the Delivery queue is now Prize deliveries (all workspaces) at `/obs/prize-deliveries`, and a tenant's prize tiers are on the contest page's Prizes tab.
 
 ## Overview
@@ -20,7 +22,7 @@ With no tenant chosen, an Overboard operator used to land on a void: "pick a ten
 
 **Not in scope (and why):**
 
-- **A cross-tenant All fans screen.** Rejected, permanently for V1: it fails `RPT-05`'s composition (a fan's standing differs per workspace), it cannot honour reverification's per-tenant scoping, and it would be the largest PII surface on the platform — for convenience. Fans stay per-workspace.
+- **A cross-tenant All fans screen.** Rejected, permanently for V1: it fails `RPT-05`'s composition (a fan's standing differs per workspace), it cannot honour the per-tenant scoping of reveal and export, and it would be the largest PII surface on the platform — for convenience. Fans stay per-workspace.
 - **An All config screen.** The useful version is drift detection (flag the workspace with six required fields where peers have two). Recorded as its own idea.
 - **A dedicated cross-tenant audit/exports view** (what you hand a sponsor's security reviewer). The Recent activity band reads the same log; a filtered, exportable view is the next step. Recorded.
 - **`/tenants` deepened into an account view** (health, season summary, configuration-completeness checklist, audit feed, open reports). Mostly assembly of what this module builds; recorded.
@@ -45,9 +47,9 @@ Four bands, top to bottom:
    | `failed-sends` | A workspace with prizes sitting failed | Prize deliveries (all workspaces), filtered to that workspace |
    | `no-prize-tiers` | A contest that isn't a Draft, with games and no prize tier | That contest's Prizes tab (`/contests/:id/prizes`), in that workspace |
    | `no-games-enabled` | An Open contest with no games | That contest's Games tab, in that workspace |
-   | `ready-to-finalize` | An unfinalized contest all of whose games have **ended** | That contest's page, where staff Finalize |
+   | `ready-to-finalize` | An unfinalized contest all of whose games have **ended** | That workspace's tenant page, where staff Finalize (revised 2026-09-28) |
    | `paused-workspace` | A paused workspace, with how long | All tenants |
-   | `support-reports` | Unresolved Tell Overboard reports, with the oldest's age | Support inbox |
+   | `support-reports` | Unresolved Tell Overboard reports, with the oldest's age | Support inbox (`/inbox`; each report opens at `/inbox/:reportId`, the only triage page) |
 
    Clicking a workspace-scoped row sets the console's tenant first, so the destination opens on the right workspace.
 4. **Recent activity.** The audit log rendered as a cross-tenant feed — "Nick finalized Hawks Hockey Bingo · UND · 2h ago". Twenty newest. The actor's name is resolved from the admin sign-in (cached); the subject is resolved from the entry's ids (a contest's or workspace's name) — never a fan's name, which the log does not hold. Needs the audit log's `{ createdAt: -1 }` index (added by this module).
@@ -56,7 +58,7 @@ Four bands, top to bottom:
 
 "What's running this weekend across all clients" used to take N tenant switches. One row per contest on the platform: contest and workspace, contest type, state (with the Finalized badge), next game with its readiness dot, games, prize tiers, players, delivered / failed, and a Live badge. Filters: **This week** (a game live or in the next 7 days — the default), **Active** (not finalized), **Finished**, **All**; and a search over contest and workspace names. Row links: the contest → its contest page in that workspace; the next game → game day; the last game → its recap.
 
-**Revised 2026-09-24.** A row now opens the contest page itself, `/contests/:contestId?tenant=<slug>`, which sets the console's acting tenant to that workspace before it reads, so the page, the sidebar and every link on it act as that tenant; its back link returns to All contests. The game-type column reads "Contest type". Each row carries **Finalize** under the same rule as the contest cards: shown only when the contest isn't finalized and every one of its games has ended (the test behind the `ready-to-finalize` attention row), and absent rather than disabled otherwise. It opens the same reverified, typed-name dialog as everywhere else ([`admin-contests.spec.md`](admin-contests.spec.md), "Finalize, wherever it appears"). The next-game and recap links are unchanged.
+**Revised 2026-09-24.** A row now opens the contest page itself, `/contests/:contestId?tenant=<slug>`, which sets the console's acting tenant to that workspace before it reads, so the page, the sidebar and every link on it act as that tenant; its back link returns to All contests. The game-type column reads "Contest type". Each row carries **Finalize** under the tenant page's rule: shown only when the contest is published (not a Draft), isn't finalized, has at least one game, and none of its games is live or still to play — and absent rather than disabled otherwise. It opens the typed-name dialog ([`admin-contests.spec.md`](admin-contests.spec.md), "Finalize, wherever it appears"), which finalizes in the row's own workspace (`?tenant=<slug>`); the row then reads "Finalized." and drops the button, and a finalized row carries the **Finalized** badge beside its status. The contest's name opens its contest page in that workspace, `/contests/:contestId?tenant=<slug>`. The next-game and recap links are unchanged. *(Revised 2026-09-28: with Finalize gone from the workspace screens, All contests and the tenant page are the only places staff finalize; no re-authentication.)*
 
 ## `/schedule` — the season calendar
 
@@ -90,7 +92,7 @@ All three follow the cross-tenant read pattern (admin-obs-internal): structural 
 2. **The attention queue lists only what the platform can detect.** An undetectable condition has no row and no placeholder; it is recorded under Known gaps.
 3. **Readiness, phase and attribution are the game-day helpers'.** These screens cannot disagree with `/live` or Overview about the same game.
 4. **Activity names operators and subjects, never fans.**
-5. **No All fans.** Not in this module, not later without re-arguing `RPT-05` and reverification scoping.
+5. **No All fans.** Not in this module, not later without re-arguing `RPT-05` and per-tenant scoping.
 
 ## Known gaps (recorded, not blocking)
 
