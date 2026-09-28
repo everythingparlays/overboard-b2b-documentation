@@ -6,6 +6,8 @@
 
 **Status:** Draft — built on `arthur-ops` (2026-09-23).
 
+**Revised 2026-09-28** (Arthur's Wave 4 walkthrough ruling) — staff see Game day exactly as the workspace does: no multi-game strip, no raw failure reason, no Finalize link, and the readiness checklist links the same way for everyone (a paused workspace has no fix link; failed sends link to Game day). `GET /admin/live/strip` stays on the server; the console no longer calls it. "OBS additions" below is retired.
+
 ## Overview
 
 The console is a configuration tool shaped for a Tuesday. At 7:05pm on a Friday, with thousands of fans on boards and a sponsor's VP in the building, it is the wrong shape. Game day gives the live game the whole screen, and tells an operator — tenant or Overboard — whether the next game is ready before it starts.
@@ -96,11 +98,11 @@ Same screen for tenant users and Overboard staff (`ADM-01`). Read-only for every
 
 **Footer — the game's timeline.** Five-minute buckets from the start of the game window to now (or its end): boards created (bars), prizes delivered (bars), fans joined (line). The screenshot a team sends a sponsor.
 
-**OBS additions.** Overboard staff also see the **multi-game strip** above the header — every workspace with a game `in-play` or `pre-game`, its fans in play and failed sends, each a link that switches the console to that workspace's game. It is the most valuable OBS-only element and the reason the screen scales past one customer. Finalization appears only as a link to its OBS surface, and only once the game has ended — never as a control here.
+**OBS additions** (retired 2026-09-28). Overboard staff see the same screen as the workspace: no multi-game strip, no raw failure reason, no Finalize link. Staff watch every workspace's games from Operations, and finalize from All contests or the tenant page.
 
 ### Tenant admins see their own failed sends (decision)
 
-Today failed sends are OBS-only (the Delivery queue) while Overview already tells tenant admins the count. **Decided: tenant users see their own game's failed rows** — display name and a plain-language reason, no retry control — while the cross-tenant queue stays OBS-only. The reputation argument behind `PRIZE-06` is about who *acts* on a failure, not who *knows* about it, and a team learning that a fan's prize bounced from the fan is the worst version. Staff additionally see the worker's raw reason; a tenant caller's payload carries `reason: null` and reads the category:
+Today failed sends are OBS-only (the Delivery queue) while Overview already tells tenant admins the count. **Decided: tenant users see their own game's failed rows** — display name and a plain-language reason, no retry control — while the cross-tenant queue stays OBS-only. The reputation argument behind `PRIZE-06` is about who *acts* on a failure, not who *knows* about it, and a team learning that a fan's prize bounced from the fan is the worst version. Everyone reads the category (since 2026-09-28 staff too; the worker's raw reason is not drawn); a tenant caller's payload carries `reason: null`:
 
 | `reasonKind` | Derived from the worker's `failureReason` | The tenant reads |
 |---|---|---|
