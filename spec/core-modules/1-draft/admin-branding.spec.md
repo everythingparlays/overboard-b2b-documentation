@@ -21,6 +21,12 @@ theme resolver also derives a contrast-guarded hit colour (§4 there).
 - **No font option** (Wave 3, Satoshi everywhere): the Type group's font pickers are gone and `resolveTheme` resolves every font slot to Satoshi; stored font ids stay valid on the wire and nothing reads them. `THEME-04`'s allowlist is moot until a font choice returns.
 - **Logo and Progress marker are upload fields** (Wave 4, "Uploads everywhere"): a drop-or-browse box in place of each URL text row in the Images card, per [`admin-uploads.spec.md`](admin-uploads.spec.md). The stored value is still the URL (`branding.assets.logo`, `branding.assets.sliderTipImageUrl`), and an upload lands in the draft like any other edit, reaching fans at Publish. `brandingAssetsSchema` accepts only https URLs, ≤2000 characters, on write; stored values of any shape still read.
 
+**Revised 2026-09-28 (Wave 4b)** (Arthur's Wave 4 walkthrough) — three changes to the Brand page on main. The editor, the theme contract, presets, storage, endpoints and fan wire are unchanged.
+
+- **Brand is its own page.** The Sponsors tab above it is removed (an unnecessary shortcut): the head is the tenant eyebrow, the title "Brand" (the nav label) and the Discard / Publish changes actions, with no tab row. `/branding/sponsors` still redirects to `/sponsors`. The shared `SponsorsBrandingHead` is deleted.
+- **The preview is the console's phone preview of every fan screen.** Brand is "the one place every screen matters": the preview is `FanAppPreview` with host `brand` ([`admin-preview.spec.md`](admin-preview.spec.md)), mobile only, with tabs for Start, Sign in, Join, Contest list, Contest detail, Board and Prize. It is fed a **built-in sample contest**, never the tenant's own contests (admin-preview.spec.md, "The sample contest"), with the tenant's name and join gate, and the unpublished look laid over the org exactly where the fan app reads it (`overlay.branding`: the draft theme without font choices, and the draft images). "Use the standard look" previews as no theme, which is what fans get once it is published. The preview sticks beside the editor, its height fitted to the window. This replaces `BrandPreviewPanel` (the `.obs-gate-preview` gate plus sampler strip, `THEME-21`), which is deleted, and closes the "no full board preview" gap: the frame shows the fan app's own board. It reverses the 2026-09-27 note that kept this preview off main; Brand page v2 itself stays on the Wave 5 branch.
+- **No draft autosave.** The draft lives only in the page: it is not written to session storage, and the page always opens on what the server holds (the "Restored your unsaved changes" line is gone). Leaving the page with unpublished changes asks "Leave without saving?" (Leave / Keep editing, the centred dialog); with none, it just goes. Closing or reloading the tab gets the browser's own prompt while there are unpublished changes.
+
 ## Overview
 
 A tenant's colors, type, shape, finish and signature moments become real server-side configuration, editable by that tenant's own admins at `/branding`, applied by the fan app at runtime, and previewed in the console against the unsaved draft.
@@ -299,7 +305,7 @@ This is the only visual change this wave sanctions to an existing tenant, it is 
 
 ## The screen
 
-`/branding` — the **Brand** tab of **Sponsors & Branding** (the nav label since 2026-09-23; the Sponsors tab at `/branding/sponsors` is [`admin-sponsors.spec.md`](admin-sponsors.spec.md)) — per the fan-theming design contract. The [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) skeleton is copied wholesale — pick-tenant empty state, `key={qs}` remount on tenant switch, draft-and-publish with `sessionStorage` persistence under a distinct draft scope, inline publish notes rather than toasts, read-only presentation for `org:member`, and the console's own `ui/` primitives throughout.
+`/branding` — **Brand**, its own page since 2026-09-28 (it was the Brand tab of Sponsors & Branding; Sponsors is [`admin-sponsors.spec.md`](admin-sponsors.spec.md)) — per the fan-theming design contract. The [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) skeleton is copied wholesale — pick-tenant empty state, `key={qs}` remount on tenant switch, draft-and-publish with the draft held in the page only (no autosave; a "Leave without saving?" prompt when there are unpublished changes, since 2026-09-28), inline publish notes rather than toasts, read-only presentation for `org:member`, and the console's own `ui/` primitives throughout.
 
 **Groups, in plain product language** (Principle 2): **Look** (Light/Dark) · **Colors** (Team color, Second color, Accent, Live tone, and an Advanced reveal for explicit neutrals) · **Type** (Headline font, Body font, Number font, ALL-CAPS headlines, Headline weight) · **Shape** (Corner roundness, Density) · **Finish** (Border strength, Texture, Glow) · **Signature** (Hero band, Bingo counter) · **Assets** (Logo, Progress marker — the image that moves along the board's prize slider; a sponsor holding the slider slot at a game replaces it there).
 
@@ -308,6 +314,8 @@ This is the only visual change this wave sanctions to an existing tenant, it is 
 **The preset picker is the three shelves above**, in that order. Apply runs the shared `applyPreset`, so the tenant's own team colors survive (`THEME-08`). Save-as-preset, rename and delete act on "Your presets" only. **Promote to gallery appears only for OBS staff** — gated on the staff flag, not on write access, because a tenant `org:admin` has write access and must not have this. The server refuses it regardless; the gate is so the control is not offered to someone who cannot use it.
 
 ### Live preview
+
+*Retired 2026-09-28: the preview is the console's phone preview with the sample contest (revision above). Kept as written, for the record.*
 
 **`THEME-21` — The preview renders real shared components under the draft theme's resolved variables, and captions nothing.** The wrapper is `.obs-gate-preview` with an inline style of `themeToCssVars(draftTheme)`, which overrides the class's fallback palette by specificity. Inside it: the real `EntryGatePreview` from `obs-b2b-shared`, plus a sampler strip built **only** from real shared pieces and real tokens — a display-type headline, a primary CTA, chips, the ring gauge or the numeral per the draft's motif, a stat fraction, and one hit-treatment tile.
 
@@ -362,7 +370,7 @@ This is Principle 1 at its sharpest and it is worth stating as a rule because th
 Principle 1 makes this section load-bearing: it is the *only* place these live.
 
 - **Sponsor asset management** — closed 2026-09-23 by [`admin-sponsors.spec.md`](admin-sponsors.spec.md): a sponsor entity with a schedule, on its own tab, as predicted here.
-- **No full board preview in the console.** The gate plus the themed sampler is what can be rendered honestly from shared components today; a full board needs live contest data the console does not have and must not invent. Not captioned on screen.
+- **No full board preview in the console** — closed 2026-09-28: the phone preview shows the fan app's own board, built from the built-in sample contest (invented teams and players, never presented as the tenant's data).
 - **No stat fraction for Under props or non-player props.** The Under case is blocked on the existing progress bar's inverted semantics; the non-player case is blocked on there being no per-cell progress concept for it. Both render nothing rather than something approximate.
 - **Board freshness is 2-minute polling.** The fractions are as fresh as the poll, which is the platform's actual truth today, not a streaming feed. Nothing on screen claims live-to-the-second, and nothing on screen explains the cadence either.
 - **`BRAND-02`** — implemented by [`admin-sponsors.spec.md`](admin-sponsors.spec.md). This spec covers `BRAND-01`'s elements only.
