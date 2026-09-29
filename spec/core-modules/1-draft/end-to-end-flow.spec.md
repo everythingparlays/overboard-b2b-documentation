@@ -333,6 +333,19 @@ It never uses array order.
 
 ## 4. The fan board
 
+- **The prize progress bar is spaced by tier, not by bingo count** (revised 2026-09-28, Arthur's final walk). With N
+  tiers, tier k's notch sits at k/N of the bar: one tier at the far right; two at the middle and the right; three at a
+  third, two thirds and the right. The fill follows the same spacing: it reaches notch k exactly when the fan reaches
+  tier k's bingos, and between two tiers it moves by bingos toward the next tier's count; past the last tier the bar is
+  full. The marker rides the fill's tip. A contest with no tiers fills by bingos over the board's eight lines. Each
+  tier's label owns the stretch of bar from the notch before it to its own and ends under its notch, so labels
+  partition the bar and never overlap, whatever the number of tiers or the phone's width; a stretch too narrow for
+  the prize's name (many tiers on a small phone) shows the bingo count alone, and the name is a tap away (the tier's
+  details) and always read to a screen reader. The tier's details open across the bar's width, so a tier at the far
+  right never pushes them off screen. One pure function (`tierTrack`, `src/lib/tierProgress.ts` in the fan app) gives
+  the notches, the fill and the label stretches; the console's previews are the fan app in a frame, so they draw the
+  same bar.
+
 - **Full prop lines.** The line wraps to two lines at a real size (`text-sm`, `line-clamp-2`), replacing one truncated line
   at the undefined `text-md`. Markets get short forms:
 
