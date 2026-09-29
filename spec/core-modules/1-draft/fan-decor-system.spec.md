@@ -1,6 +1,6 @@
 # Core Module Spec: Fan Decor Kit — palette, tokens, type, decoration and shell (Wave 5)
 
-**Implements:** Arthur's 2026-09-27 rulings, "Fan app overhaul" (Satoshi only; desktop is the mobile column centred with tenant-coloured decorative sides; confetti kept inside the phone area in tenant colours; real player photos behind squares, never initials; no "peeking" text) and "Priorities" (Satoshi is the font everywhere, B2B and B2C, Prime Time included); the standing rule "function over mocks" (2026-09-28). Director's decisions W5-D01 to W5-D50, all binding (chiefly W5-D03, W5-D11, W5-D21, W5-D24, W5-D25, W5-D26, W5-D42, W5-D43, W5-D48, W5-D53; `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace), and the Phase A review rulings (`artifacts\wave-2026-09-27\briefs\w5-review-rulings.md`, workspace).
+**Implements:** Arthur's 2026-09-27 rulings, "Fan app overhaul" (Satoshi only; desktop is the mobile column centred with tenant-coloured decorative sides; confetti kept inside the phone area in tenant colours; real player photos behind squares, never initials; no "peeking" text) and "Priorities" (Satoshi is the font everywhere, B2B and B2C, Prime Time included); the standing rule "function over mocks" (2026-09-28). Director's decisions W5-D01 to W5-D50, all binding (chiefly W5-D03, W5-D11, W5-D21, W5-D24, W5-D25, W5-D26, W5-D42, W5-D43, W5-D48, W5-D53; `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace), and the Phase A review rulings (`artifacts\wave-2026-09-27\briefs\w5-review-rulings.md`, workspace), and Arthur's walk #3 colour comments (`artifacts\review-2026-09-27\arthur-rulings-console-final-walk.md`, "Walk #3 rulings", workspace), reconciled with the Wave 5 palette (Text colour and the Start page adopted; Main-as-ground and no-mode open).
 
 **Depends on:** Wave 4's specs on docs branch `arthur-w4-console` (PR #29, not merged to main; this branch is cut from the Wave 3 state and is rebased once Wave 4 and the Wave 4b fix pass merge): [`admin-branding.spec.md`](admin-branding.spec.md) (the stored theme contract `ThemeSettings`, `THEME-03` "the resolver is the only thing that computes", `THEME-05` status colours platform-owned, `THEME-08` presets keep the team's colours). On main: [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §4 (Wave 3's contrast-guarded hit colour, `contrastSafeHit`) and §7 (Satoshi self-hosted). Siblings on this branch: [`admin-brand-v2.spec.md`](admin-brand-v2.spec.md) (writes the palette and decor params), [`../../webapp/fan-app-v2.spec.md`](../../webapp/fan-app-v2.spec.md) and [`../../webapp/fan-contest-flow.spec.md`](../../webapp/fan-contest-flow.spec.md) (the screens that place the kit), [`../../webapp/fan-app-v2-console-touchpoints.spec.md`](../../webapp/fan-app-v2-console-touchpoints.spec.md).
 
@@ -79,6 +79,7 @@ export interface TenantPalette {
   accent: string;    // required, #RRGGBB
   second?: string;   // optional; Auto when absent
   live?: string;     // optional; Auto when absent
+  text?: string;     // optional; Auto (the mode ramp's text) when absent (DECOR-41)
 }
 export type Mode = "dark" | "light";
 ```
@@ -89,8 +90,12 @@ export type Mode = "dark" | "light";
 | **Accent** | yes | — | Band hairline, accent chyrons ("Go Crazy", next tier), Burst rays, confetti, Scorebug underline, Brackets, Track fill end, Medal 3, the hit colour when Team fails |
 | **Second** | no | Team with hue +18°, lightness moved away from the ground (W5-D42) | Double band's under-band, Stripes bar 2, DecorField strokes, GridTexture, Medal 2, the photo fallback gradient's end |
 | **Live** | no | The mode's fixed live tone: dark `#FF3B5C`, light `#B3364B` (the shared `DEFAULT_LIVE`) | The LIVE chyron and its dot only |
+| **Text** | no | The mode ramp's `--k-text` | All primary text; when set it replaces `--k-text` (`DECOR-41`) |
+
+**Second and Live are internal roles, never tenant-facing.** Brand v2 shows no Second or Live swatch; a stored `colors.secondary` or `colors.live` is still honoured. Arthur's walk #3 "Second is removed" is covered: Wave 5 never asks tenants for it.
 
 - **`DECOR-03` — Auto Second is derived, never stored.** When `second` is absent the resolver computes it; Brand v2 stores nothing for it. The derivation is Team's hue +18°, same saturation, lightness moved **away from the ground** (W5-D42, which corrects W5-D24's "toward the ground"): lighter than Team in dark mode, darker in light mode. `second-ink` is then lifted to 3:1 on the ground like every other ink, so the derivation can never produce an invisible Second.
+- **`DECOR-41` — Optional Text colour** (walk #3, adopted). When `text` is set it replaces the ramp's `--k-text`, guarded to ≥4.5:1 on both `--k-ground` and `--k-surface`: if it fails either, it is lifted along its own hue until it clears both. `--k-text-2` and `--k-text-3` stay the ramp's. Absent, the ramp's text applies (Auto). It exists for legibility on custom looks; it never changes the ground.
 - **`DECOR-05` — Live is never decorative.** `--k-live` appears only in the `live` Chyron, its dot and the live square state.
 - **Validation.** `resolvePalette` throws a typed `PaletteError` on a missing or malformed Team or Accent (`#RRGGBB`, case-insensitive). Callers never hand it user input unchecked: Brand v2 validates on entry, and the fan app maps a stored theme first (below).
 
@@ -104,6 +109,7 @@ The kit reads the palette out of the existing `branding.theme` (`ThemeSettings`,
 | `accent` | `colors.accent` | `colors.secondary`, else `colors.primary` (today's resolver chain, `resolve.ts`), so every stored theme resolves. Brand v2 requires an explicit Accent before its next publish (`BRAND2-02`) |
 | `second` | `colors.secondary` | Auto |
 | `live` | `colors.live` | Auto |
+| `text` | `colors.text` (**Phase B: to build**, additive and optional on `ThemeSettings.colors`; Wave 5 inherits main's field instead if the Wave 4 fix pass lands one, walk #3) | Auto |
 | `mode` | `mode` | `dark` (the contract requires it) |
 | decor params | `decor` (**Phase B: to build**, below), `shape.radiusBase` | Prime Time's params |
 
@@ -124,7 +130,7 @@ The kit reads the palette out of the existing `branding.theme` (`ThemeSettings`,
 | `--k-ground` | `#0A0D14` | `#F6F7FA` |
 | `--k-surface` | `#121722` | `#FFFFFF` |
 | `--k-raised` | `#1A2130` | `#EEF1F6` |
-| `--k-text` | `#F2F4F8` | `#12161F` |
+| `--k-text` | `#F2F4F8`, or the tenant's Text (`DECOR-41`) | `#12161F`, or the tenant's Text |
 | `--k-text-2` | `#B7BECC` | `#4E5A6E` |
 | `--k-text-3` | `#7F8798` | `#7A8599` |
 | `--k-hairline`, `--k-hairline-strong` | `rgb(158 178 208 / .16)`, `/ .30` | `rgb(31 42 61 / .12)`, `/ .24` |
@@ -225,7 +231,7 @@ All components paint only from `--k-*` tokens (`DECOR-01`), take `className`, an
 | `GradientRule` | `rule`, `edge` | Section dividers, featured card edges | Team-ink to Accent-ink, 2px |
 | `Stripes` | `corner`, `inline` | Contest card corner, section markers | Team, Second, Accent bars, `skewX(-10deg)` |
 | `Scorebug` | `card`, `rail`; `status: upcoming \| live \| final`; `away`, `home`, `tipTime` | Contest detail games, live board rail, Start's next game | **`DECOR-18` — never a score.** Detail line: "Tip Sun 7:30 PM", "Live", or "Final" (ruling 2026-09-24: no score or clock feed) |
-| `Track` | `value` 0–8 or absent; `stops: { at, label }[]` (one per tier of the contest; no fixed cap); `marker?` | Live board progress | `role="progressbar"`, `aria-valuenow`, `aria-valuetext` ("2 bingos. Next prize: Tier 2 at 3 bingos."); marker is the tenant's progress marker or a sponsor's slider icon (data), else a Team puck with the count |
+| `Track` | `value` 0–8 or absent; `stops: { at, label }[]` (one per tier of the contest; no fixed cap); `marker?` | Live board progress | `role="progressbar"`, `aria-valuenow`, `aria-valuetext` ("2 bingos. Next prize: Tier 2 at 3 bingos."); marker is the game's slider sponsor icon (the per-game override), else the tenant's own progress marker, else a Team puck with the count. This covers Arthur's per-game marker override (walk #3); the default is the tenant's own mark rather than a triangle |
 | `Burst` | `play`; `intensity?` | Behind the prize image; behind first place on the podium | Plays once when `play` turns true |
 | `Medal` | `1`, `2`, `3`, `tile` | Standings, results | Rank numeral is real text; ties share a medal |
 | `GridTexture` | `intensity?` | Page texture when texture is on | 3×3 board tile in Second |
@@ -300,7 +306,7 @@ A separate entry on the Wave 5 branch (never on main): `KitShell` with a control
 
 ## Rules
 
-Kept from S2 (renumbered only where noted): `DECOR-01`, `DECOR-03`, `DECOR-05`, `DECOR-06` (revised), `DECOR-07`, `DECOR-08`, `DECOR-09`, `DECOR-10`, `DECOR-11`, `DECOR-12` (revised), `DECOR-13` to `DECOR-20`, `DECOR-22`, `DECOR-23` (revised), `DECOR-24`. New: `DECOR-25` to `DECOR-40`.
+Kept from S2 (renumbered only where noted): `DECOR-01`, `DECOR-03`, `DECOR-05`, `DECOR-06` (revised), `DECOR-07`, `DECOR-08`, `DECOR-09`, `DECOR-10`, `DECOR-11`, `DECOR-12` (revised), `DECOR-13` to `DECOR-20`, `DECOR-22`, `DECOR-23` (revised), `DECOR-24`. New: `DECOR-25` to `DECOR-41`.
 
 - **DECOR-01 — Colour only from `--k-*` tokens** in `src/kit/decor/` and `src/kit/shell/`, enforced by a source-reading test.
 - **DECOR-03 — Auto Second is derived, never stored.**
@@ -338,6 +344,7 @@ Kept from S2 (renumbered only where noted): `DECOR-01`, `DECOR-03`, `DECOR-05`, 
 - **DECOR-37 — Two Overboard presets:** Prime Time (gold accent default) and Club Level (a pure decor preset on the tenant's palette).
 - **DECOR-38 — Decor params are stored as an additive `decor { intensity, angle }` block plus the existing `surface.texture` and `shape.radiusBase`** (Phase B: to build).
 - **DECOR-39 — Load-time derivation; no data migration.**
+- **DECOR-41 — Optional Text colour, guarded ≥4.5:1 on ground and surface; Second and Live are never tenant-facing.**
 - **DECOR-40 — The pure palette half moves to `obs-b2b-shared/src/theme/kit/` in Phase B;** one copy of every colour rule.
 
 ### Retired from S2
@@ -389,7 +396,7 @@ Kept from S2 (renumbered only where noted): `DECOR-01`, `DECOR-03`, `DECOR-05`, 
 
 ## Acceptance criteria
 
-1. `resolvePalette` returns a complete `KitTokens` for 2-, 3- and 4-colour palettes in both modes; absent Second and Live resolve to Auto; a missing or malformed Team or Accent throws `PaletteError`.
+1. `resolvePalette` returns a complete `KitTokens` for 2-, 3- and 4-colour palettes, with and without Text, in both modes; a Text under 4.5:1 on the ground or surface comes back lifted to ≥4.5:1 on both; absent Second and Live resolve to Auto; a missing or malformed Team or Accent throws `PaletteError`.
 2. For the four gallery palettes in both modes, every guarded token meets its ratio (`DECOR-28`), the bad case is lifted, and the output is deterministic across runs.
 3. Bears dark lands within ΔL ≤ 8 of `team-ink #5B8BE0` and `team-text #8FB0EC`; Fighting Hawks light `on-team` is near-black.
 4. Every key `tokensToCssVars` returns starts with `--k-`, none is undefined, and `applyKitVars` sets and clears them on one element; `document.documentElement` gains no `--k-` variable.
@@ -407,7 +414,9 @@ Kept from S2 (renumbered only where noted): `DECOR-01`, `DECOR-03`, `DECOR-05`, 
 
 Decided since the first draft: auto Second's direction (W5-D42, `DECOR-03`), the band angle range (W5-D43, `DECOR-38`), the shared kit components (W5-D48, `DECOR-40`).
 
-Club Level stays as a pure decor preset (W5-D53, `DECOR-37`). No open questions remain.
+Club Level stays as a pure decor preset (W5-D53, `DECOR-37`).
+
+1. **Main as the ground, and no light/dark mode (for Arthur).** Arthur's walk #3 comments on the current app ask for "Main = the fan app's background" and "remove dark/light mode". Wave 5 already answers the problem those comments address, differently: it puts the tenant colour in bands, fills, the active tab and hits on a neutral broadcast ground (the approved mocks), with every ink guarded by the resolver, and keeps light or dark as a tenant setting because it picks the ramp. A full-bleed tenant ground works for a navy team but not for a bright one (Fighting Hawks green behind every card and line of text); the neutral ground plus tenant bands handles both. Wave 5 can switch to Main-as-ground with a ramp derived from Main, which would also make the mode setting redundant; that mapping is sketched as W5-D55/D56 (proposed, not adopted). Which does Arthur want?
 
 ## Recorded gaps
 

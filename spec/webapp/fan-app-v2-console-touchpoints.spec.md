@@ -1,8 +1,8 @@
 # Webapp Spec: Fan App v2 — Console Touchpoints (Wave 5)
 
-**Implements:** Arthur's 2026-09-27 ruling "Wave order" ("Wave 5 also covers every console part affected by the overhaul, not just Brand: every preview (contest builder and contest page, prize popup, Fields & Opt-ins, sponsor artwork, Brand) and everything tied to them. All of it lives on the same unmerged branch."); the Wave 4 walkthrough rulings (contest previews show only Contest list, Contest detail, Board and Prize; no desktop preview anywhere; the prize preview becomes the same phone preview; Fields & Opt-ins gets the same phone-preview style; Brand previews every screen on a built-in sample contest); the standing rule "function over mocks". Director's decisions W5-D01 to W5-D50, all binding (chiefly W5-D28, W5-D30 to W5-D36 and W5-D47, W5-D52, W5-D54; `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace), and the Phase A review rulings (`artifacts\wave-2026-09-27\briefs\w5-review-rulings.md`, workspace), which rule on the console touchpoint audit (`artifacts\wave-2026-09-27\briefs\w5-console-touchpoints-audit.md`, workspace).
+**Implements:** Arthur's 2026-09-27 ruling "Wave order" ("Wave 5 also covers every console part affected by the overhaul, not just Brand: every preview (contest builder and contest page, prize popup, Fields & Opt-ins, sponsor artwork, Brand) and everything tied to them. All of it lives on the same unmerged branch."); the Wave 4 walkthrough rulings (contest previews show only Contest list, Contest detail, Board and Prize; no desktop preview anywhere; the prize preview becomes the same phone preview; Fields & Opt-ins gets the same phone-preview style; Brand previews every screen on a built-in sample contest); the standing rule "function over mocks". Director's decisions W5-D01 to W5-D50, all binding (chiefly W5-D28, W5-D30 to W5-D36 and W5-D47, W5-D52, W5-D54; `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace), and the Phase A review rulings (`artifacts\wave-2026-09-27\briefs\w5-review-rulings.md`, workspace), and Arthur's walk #3 colour comments (`artifacts\review-2026-09-27\arthur-rulings-console-final-walk.md`, "Walk #3 rulings", workspace), reconciled with the Wave 5 palette (Text colour and the Start page adopted; Main-as-ground and no-mode open), which rule on the console touchpoint audit (`artifacts\wave-2026-09-27\briefs\w5-console-touchpoints-audit.md`, workspace).
 
-**Depends on:** Wave 4's specs on docs branch `arthur-w4-console` (PR #29, not merged to main): [`fan-preview-mode.spec.md`](fan-preview-mode.spec.md) (the `/preview` contract, `PREV-01`–`PREV-15`), `../core-modules/1-draft/admin-preview.spec.md` (`FanAppPreview`, `PV-01`–`PV-12`, `GET /admin/contests/:contestId/preview`, `GET /admin/preview`), `admin-contests.spec.md`, `admin-prizes.spec.md`, `admin-sponsors.spec.md`, `admin-fields-and-optins.spec.md`, `admin-uploads.spec.md`. The Wave 4b fix pass (branches `arthur-w4b-*`; not built at the time of writing): four-screen contest previews with new labels, phone only, the prize rail as the phone preview, Fields & Opt-ins in the phone-preview style, `host: "brand"` and its built-in sample contest, test mode out of the console UI, the re-grounded prize model. This branch is rebased once Wave 4 and 4b merge; every file:line below is from the Wave 4 integration console (`.worktrees\admin-w4-int`, `39116f4`) and is re-checked then. Siblings: [`fan-app-v2.spec.md`](fan-app-v2.spec.md), [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md), [`../core-modules/1-draft/admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md), [`../core-modules/1-draft/fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md).
+**Depends on:** Wave 4's specs on docs branch `arthur-w4-console` (PR #29, not merged to main): [`fan-preview-mode.spec.md`](fan-preview-mode.spec.md) (the `/preview` contract, `PREV-01`–`PREV-15`), `../core-modules/1-draft/admin-preview.spec.md` (`FanAppPreview`, `PV-01`–`PV-12`, `GET /admin/contests/:contestId/preview`, `GET /admin/preview`), `admin-contests.spec.md`, `admin-prizes.spec.md`, `admin-sponsors.spec.md`, `admin-fields-and-optins.spec.md`, `admin-uploads.spec.md`. The Wave 4b fix pass (branches `arthur-w4b-*`; not built at the time of writing): four-screen contest previews with new labels, phone only, the prize rail as the phone preview, Fields & Opt-ins in the phone-preview style, `host: "brand"` and its built-in sample contest, test mode out of the console UI, the re-grounded prize model. This branch is rebased once Wave 4 and 4b merge; every file:line below is from the Wave 4 console as walked (`.worktrees\admin-w4-int`, branch `arthur-console-redesign` at `fda998d`) and is re-checked then. Siblings: [`fan-app-v2.spec.md`](fan-app-v2.spec.md), [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md), [`../core-modules/1-draft/admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md), [`../core-modules/1-draft/fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md).
 
 **Status:** Draft, 2026-09-28, Wave 5 Phase A (new). Built in Phase B on the console's, shared repo's and fan app's `arthur-w5-fanapp` branches; never merged (W5-D29).
 
@@ -54,7 +54,7 @@ The console shows fan-app screens in five places and describes fan behaviour in 
 | `contest` | Contest page › Preview (`/contests/:contestId/preview`; `ContestPreviewTab.tsx`) | `contests` "Contest list" · `contest` "Contest detail" · `board` "Board" · `prize` "Prize" | `contests` | `GET /admin/contests/:contestId/preview` (real data; a Draft as if published) | none |
 | `builder` | Builder › Review (`/contests/:contestId/setup/review`; `ContestBuilder.tsx:1023-1034`) | same four | `contests` | same | `contest`: unsaved name, description, player limit |
 | `prize` | Prize page rail (`/prizes/new`, `/prizes/:prizeId`; `PrizePage.tsx:1449-1530`) | `prize` only (no tab row) | `prize` | `GET /admin/preview` + `document.prize` (the prize as typed) | `prize` |
-| `sponsor` | Sponsor page frame (`SponsorPage.tsx:664-697`) | `start` "Start" · `board` "Board" · `prize` "Prize" | the focused slot's screen (`SCREEN_FOR`) | `GET /admin/contests/:contestId/preview` for the chosen contest | `sponsor`: unsaved artwork; `view.highlight` |
+| `sponsor` | Sponsor page frame (`SponsorPage.tsx`, `SponsorFrame`) | `start` "Start" (only when the sponsor is on Brand's Start page list) · `board` "Board" · `prize` "Prize" | the focused block's screen (`SCREEN_FOR`) | `GET /admin/contests/:contestId/preview` for the chosen contest | `sponsor`: unsaved artwork; `view.highlight` |
 | `brand` | Brand (`/branding`) | all seven: "Start" · "Sign in" · "Join" · "Contest list" · "Contest detail" · "Board" · "Prize" | `start` | `GET /admin/preview` (`org`, `membership`) + the built-in sample contest | `branding` (W5-D32) |
 | Fields host (name from the fix pass) | Fields & Opt-ins (`/config`) | `join` only, join or returning mode | `join` | `GET /admin/preview` | `membership` (W5-D36) |
 
@@ -80,12 +80,13 @@ The console shows fan-app screens in five places and describes fan behaviour in 
 
 | Slot | Upload rule (`UPLOAD_FIELDS`) | Box in the overhaul | Where the overhaul renders it | Preview screen |
 |---|---|---|---|---|
-| `signIn` (logo or tagline ≤80) | `sponsor.signInLogo`, ≥40px tall | 40px tall, ≤176px wide | **Start only**, as "Presented by" under the band, for the featured game's holder | `start` |
+| Start page (asset key `signIn`: logo or tagline ≤80; **no longer a contest slot**) | `sponsor.signInLogo` (label becomes "Start page logo"), ≥40px tall | 40px tall, ≤176px wide | **Start only**, as "Presented by" under the band, for every sponsor on Brand's tenant-level Start page list (`BRAND2-32`) | `start` |
 | `boardBanner` | `sponsor.boardBanner`, ≥480px wide | the 480px column (358px on a 390px phone), 4:1 until loaded, then its own ratio, never cropped | the live board, between the counter block and the squares | `board` |
 | `slider` | `sponsor.sliderIcon`, ≥36×36 | 36px on the longest side | the Track's marker at that game, in place of the tenant's marker | `board` |
 | `prizePopup` (logo) | `sponsor.prizePopupLogo`, ≥48px tall | 48px tall, ≤176px wide in the popup (32×160 in the email) | "Provided by" in the prize popup, for prizes this sponsor provides | `prize` |
 
-- `SCREEN_FOR` (`SponsorPage.tsx:664-669`) stays `{ signIn: "start", boardBanner: "board", slider: "board", prizePopup: "prize" }`.
+- **The contest sign-in slot goes** (walk #3, adopted): shared `PLACEMENT_SLOTS` becomes `["boardBanner", "slider"]` (`SPONSOR_SLOTS` keeps `signIn` as the start-page asset key, so stored artwork and upload ids don't change); the contest Sponsors tab and slot editor lose the row; start-page sponsors are chosen in Brand › Start page. Wave 5 inherits main's model at the Phase B rebase.
+- `SCREEN_FOR` stays `{ signIn: "start", boardBanner: "board", slider: "board", prizePopup: "prize" }`; the Start page block previews `start` only for a sponsor on the Start page list.
 - The highlight ring stays URL-matched (`src/preview/Highlight.tsx`: signIn → `signInLogo`, boardBanner → `boardBanner`, slider → `sliderIcon`, prizePopup → `prizePopupLogo`); a tagline-only sign-in holder gets no ring (recorded gap). The overhaul's components must render these images with the sponsor's URL as `src` so the ring can find them.
 - The sponsor's in-context frame still needs a contest where the sponsor appears; a sponsor in no contest gets no frame (Wave 4 rule; there is no sample contest on the sponsor page).
 
@@ -94,6 +95,8 @@ The console shows fan-app screens in five places and describes fan behaviour in 
 **`TOUCH-10` — Brand is the only host with sample data.** It frames all seven screens on the fix pass's built-in sample contest, with the tenant's real org and gate from `GET /admin/preview` and the draft overlaid through `PreviewOverlay.branding`. The sample's contents, its marking, its fixed board (the additive `PreviewDocument.board?`, so the Board tab always shows two bingos) and the overlay's shape are [`admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md) `BRAND2-26` and `BRAND2-27`. Every other host previews real data only (`PREV-09`).
 
 **Logo colours.** Brand's "From your logo" swatches come from `POST /admin/branding/sample-colours` (**Phase B: to build**, s4, review ruling B1; [`admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md)), which samples the uploaded logo on the server; the frame is not involved and the asset CDN is unchanged.
+
+**`TOUCH-16` — Theme controls.** Brand's Colours are Team, Accent and an optional Text (Auto) (`BRAND2-02`, walk #3's Text adopted); Second and Live are never shown (Wave 5 never asked tenants for Second, so walk #3's "Second is removed" is covered). Light or dark stays, and Main-as-ground is open for Arthur ([`fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md), Open questions).
 
 **`TOUCH-11` — The draft theme reaches only the Brand frame.** The contest, builder, prize, sponsor and Fields hosts paint with the tenant's **published** theme (`org.organization.branding` as served), never a Brand draft, so an unpublished look never appears on another page.
 
@@ -129,35 +132,39 @@ Brand's Words card links to Fields & Opt-ins › Screen text rather than duplica
 | Console field (Wave 4) | What the overhaul does with it | Console change on the Wave 5 branch |
 |---|---|---|
 | Contest name (`ContestBuilder.tsx:660`, `OverviewTab.tsx`) | The card and detail title, never a game's matchup (W5-D39) | None |
-| Description (≤300; help "Fans see this on the contest card.", `ContestBuilder.tsx:709`, `OverviewTab.tsx:346`) | Shown in full on the card **and** the detail page | Help becomes "Fans see this on the contest card and page." |
+| Description (≤300; help "Fans see this on the contest card.", `ContestBuilder.tsx:781`, `OverviewTab.tsx:510,575`) | Shown in full on the card **and** the detail page | Help becomes "Fans see this on the contest card and page." |
 | Player limit (`maxParticipants`, "No limit / Limit to N players") | The limit line: "N playing" always (once served); "M spots left" and a bar only with a limit (W5-D08) | None |
 | States Draft / Open / Closed and Finalized (`lib/contests.ts:242-248`) | Draft unseen; Open under Current (OPEN, or OPENS); Closed under Past, still playable; all games under way → LIVE under Current; Finalized → FINAL under Past | None: "Fans see this contest under Past and keep playing their boards." stays true |
 | "Fans can join from …" (`lib/contests.ts:285-289`) | OPENS chyron and "Opens {date}" CTA | None |
 | Test mode (`TestModeZone.tsx:52`, `OverviewTab.tsx:758`) | Nothing in the fan UI (W5-D09) | Removed from the UI by the fix pass |
 | Prize tiers (`PrizeLadder.tsx`, "N bingos", numbered) | "Tier n · m bingos" chyrons on detail, Track and popup; a tier at 7 or with an incomplete prize is hidden | The tier editor refuses 7 (to confirm at rebase; `FLOW-46`) |
-| Prize name, description, image (`PrizePage.tsx`) | Name = the popup's title; description = body text under it | Description help (`PrizePage.tsx:821`, "The headline fans see when they win, in the prize popup and the email.") becomes "What fans read under the prize name, in the prize popup and the email." (W5-D41) |
+| Prize name, description, image (`PrizePage.tsx:780,796,809`) | Name = the popup's title; description = body text under it | None: the fix pass already reworded the description help to "A line or two under the name, in the prize popup and the email." |
 | Provided by (`PrizePage.tsx:870`) | "Provided by {sponsor}" in the popup and on the detail page's prizes | None |
 | Claim button text and link (`PrizePage.tsx:964`, "Fans tap it in the prize popup and the email.") | Kept (Arthur, 2026-09-28; W5-D54): Nick's field, used by the popup and the email (traced) | None |
 | Prize code | Popup for the winner (Phase B) and the email | Field help to say fans see it in the popup and the email once Phase B ships |
 | Value, pick-up, shipping, expiry, type | Nothing | Removed by the fix pass's prize reground |
 | Opt-ins and documents (`OptInEditor.tsx`, `DocumentsEditor.tsx`, `PlatformDocuments.tsx`) | Documents over the gate, in the side menu (Terms, Privacy, each tenant document) and on Profile with the agreed version; optional opt-ins can be withdrawn on Profile | None |
-| Display name (reserved field; meta "Short text · always asked — it's the name on the fan's board", `FieldsOptins.tsx:567`) | Shown on standings, the side menu and Profile; the overhaul's board header shows the contest name | Meta becomes "Short text · always asked — it's the name other fans see on standings" |
+| Display name (reserved field; meta "Short text · always asked — it's the name on the fan's board", `FieldsOptins.tsx:557`) | Shown on standings, the side menu and Profile; the overhaul's board header shows the contest name | Meta becomes "Short text · always asked — it's the name other fans see on standings" |
 | Contest banner (fix pass) | The card's image and the detail band's background | Per the fix pass |
-| Sponsor sign-in slot line (`SponsorPage.tsx:411`, "Beneath the headline fans see before they join, and on Home.") | Start only | Becomes "Beneath the headline fans see before they sign in." (W5-D34; there is no Home) |
-| Slot editor line (`lib/slotSchedule.ts:18`, "Beneath the headline fans see before they join") | Start only | Becomes "Beneath the headline fans see before they sign in." |
+| Sponsor page "Sign-in" block (`SponsorPage.tsx:429-430`) | The sponsor's start-page artwork; where it shows is Brand's Start page list | Title "Start page"; line "On the start page, under the headline. Add this sponsor in Brand › Start page to show it." |
+| Contest slot editor's sign-in row (`lib/slotSchedule.ts:12,18,25,32,38`, `components/sponsors/SlotEditor.tsx:459`) | Removed with the slot | The `signIn` entries and the "Preview the sign-in screen" link are deleted |
 | Paused copy (`Layout.tsx:73-84`; `TenantPage.tsx:1151`, "Fans see a paused screen within a minute…") | The Paused screen with the tenant's paused words | None: still true (the org read is cached a minute) |
 | Nav "Games & Contests" (`lib/nav.ts:61`) and ledes "Contests your fans join, the games they run at and what they win." (`ContestBuilder.tsx:132`, `ContestPage.tsx:57`, `Games.tsx:122,289`) | — | None: the console section's own name; the lede is accurate (W5-D35) |
 
-**`TOUCH-15` — String corrections, the complete list** (W5-D35), each a one-line edit on the console's Wave 5 branch with its test expectation updated:
+**`TOUCH-15` — String corrections, the complete list** (W5-D35; walk #3's "Sign-in" → "Start page"), each a one-line edit on the console's Wave 5 branch with its test expectation updated:
 
-| File:line (Wave 4 integration) | From | To |
+| File:line (`arthur-console-redesign`, `fda998d`) | From | To |
 |---|---|---|
-| `src/pages/SponsorPage.tsx:411` | "Beneath the headline fans see before they join, and on Home." | "Beneath the headline fans see before they sign in." |
-| `src/lib/slotSchedule.ts:18` | "Beneath the headline fans see before they join" | "Beneath the headline fans see before they sign in" |
-| `src/pages/contests/ContestBuilder.tsx:709` | "Fans see this on the contest card." | "Fans see this on the contest card and page." |
-| `src/pages/contests/OverviewTab.tsx:346` | "Fans see this on the contest card." | "Fans see this on the contest card and page." |
-| `src/pages/prizes/PrizePage.tsx:821` | "The headline fans see when they win, in the prize popup and the email." | "What fans read under the prize name, in the prize popup and the email." |
-| `src/pages/FieldsOptins.tsx:567` | "Short text · always asked — it's the name on the fan's board" | "Short text · always asked — it's the name other fans see on standings" |
+| `src/pages/SponsorPage.tsx:429-430` | title "Sign-in"; "On the start screen, beneath the headline fans see before they join." | title "Start page"; "On the start page, under the headline. Add this sponsor in Brand › Start page to show it." |
+| `src/lib/slotSchedule.ts:12,18,25,32,38` | "Sign-in", "Beneath the headline fans see before they join", "No logo", "sign-in logo", "No sign-in logo" | deleted with the contest slot |
+| `src/lib/sponsorSchedule.ts:29` | "Sign-in" (dead `SLOT_LABELS`) | deleted |
+| `src/components/sponsors/SlotEditor.tsx:459` | "Preview the sign-in screen" | deleted with the slot |
+| `obs-b2b-shared/src/api/admin/uploads.ts:47` | label "Sign-in logo" | "Start page logo" (field id `sponsor.signInLogo` kept) |
+| `src/pages/contests/ContestBuilder.tsx:781` | "Fans see this on the contest card." | "Fans see this on the contest card and page." |
+| `src/pages/contests/OverviewTab.tsx:510,575` | "Fans see this on the contest card." | "Fans see this on the contest card and page." |
+| `src/pages/FieldsOptins.tsx:557` | "Short text · always asked — it's the name on the fan's board" | "Short text · always asked — it's the name other fans see on standings" |
+
+Already fixed upstream since the first draft, so no longer listed: the sponsor line's "and on Home" and the prize description help (now "A line or two under the name, in the prize popup and the email."). Not renamed: the preview tab "Sign in" (`FanAppPreview.tsx:86`) and "Sign-in method" (`TenantPage.tsx:966`), which mean signing in, not the start page.
 
 No console string uses "game" where it means "contest" (checked by searching the console's strings that mention both fans and games: the contest ledes, Test mode, and Game day's `Live.tsx` and `Operations.tsx` lines each mean real games).
 
@@ -207,13 +214,14 @@ No console string uses "game" where it means "contest" (checked by searching the
 - **TOUCH-06 — Per-host screens, labels and sources as tabled.**
 - **TOUCH-07 — Contest tabs show the overhaul's card, detail, board and popup on real data.**
 - **TOUCH-08 — The prize preview shows Nick's fields and never the code.**
-- **TOUCH-09 — Sponsor slots and boxes are unchanged; sign-in renders on Start only.**
+- **TOUCH-09 — Sponsor boxes are unchanged; the contest sign-in slot goes; start-page sponsors are tenant-level (Brand) and render on Start only.**
 - **TOUCH-10 — Brand is the only host with sample data.**
 - **TOUCH-11 — Only the Brand frame shows a draft theme.**
 - **TOUCH-12 — The Fields frame shows the overhaul's gate with a `membership` overlay, `view.gateMode` and draft `documents`** (Phase B).
 - **TOUCH-13 — Gate copy is edited and previewed in Fields; Words in Brand.**
 - **TOUCH-14 — Every console field keeps its storage; only the words whose meaning changed move.**
-- **TOUCH-15 — The six string corrections, and no others.**
+- **TOUCH-15 — The string corrections listed, and no others.**
+- **TOUCH-16 — Brand colours are Team, Accent and an optional Text; Second and Live are never shown.**
 
 ## Acceptance criteria
 
@@ -221,11 +229,11 @@ No console string uses "game" where it means "contest" (checked by searching the
 2. The contest Preview tab and the builder's Review offer exactly "Contest list", "Contest detail", "Board", "Prize"; clicking through the frame from Contest list to the card to Build my board keeps the "Contest detail" tab selected; Generate lands on "Board".
 3. The Contest detail tab for a contest with no player limit shows no bar and no "spots" text.
 4. The prize rail shows the prize name as the title, the description under it, and no code, value, shipping or pick-up, for a prize that has a code.
-5. The sponsor page's Sign-in block reads "Beneath the headline fans see before they sign in."; focusing it switches the frame to Start and rings the logo.
+5. The sponsor page's block reads "Start page"; for a sponsor on Brand's Start page list, focusing it switches the frame to Start and rings the logo; contest Sponsors has no sign-in row.
 6. Only the Brand frame ever shows "Sample contest"; no other host's frame shows a sample name.
 7. Editing Team on Brand changes only the Brand frame; the contest Preview tab keeps the published colours.
 8. The Fields frame shows the tenant's unsaved field in the overhaul's gate, switches to returning mode from the Returning section, and opens an unsaved document over the gate.
-9. The six strings in `TOUCH-15` read as specified, with their tests updated; nothing else in the console changes wording.
+9. The strings in `TOUCH-15` read as specified, with their tests updated; nothing else in the console changes wording.
 
 ## Open questions
 

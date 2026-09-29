@@ -1,6 +1,6 @@
 # Webapp Spec: Fan App v2 — Shell, Navigation and Screens (Wave 5)
 
-**Implements:** Arthur's 2026-09-27 rulings "Fan app overhaul" (footer bar with Contests, Your boards, Profile; no home screen; Current/Past tabs; header and footer hide on scroll-down and return on scroll-up; the sidebar's items; desktop is the mobile column with decorative sides; Satoshi only; no "peeking" text) and the standing rule "function over mocks" (2026-09-28); the Wave 4 walkthrough rulings for the fan app (Terms and Privacy always in the side menu with the tenant's opt-in documents under them; contests, not games, with the contest's own name and description; mobile only; no pointless confirmations). Director's decisions W5-D01 to W5-D50, all binding (chiefly W5-D01 to W5-D07, W5-D24 to W5-D26, W5-D33, W5-D37, W5-D39, W5-D40, W5-D49, W5-D50, W5-D51; `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace), and the Phase A review rulings (`artifacts\wave-2026-09-27\briefs\w5-review-rulings.md`, workspace). PRD `OPT-01`–`OPT-05` (through the entry gate), `BRAND-02` (the sign-in sponsor on Start).
+**Implements:** Arthur's 2026-09-27 rulings "Fan app overhaul" (footer bar with Contests, Your boards, Profile; no home screen; Current/Past tabs; header and footer hide on scroll-down and return on scroll-up; the sidebar's items; desktop is the mobile column with decorative sides; Satoshi only; no "peeking" text) and the standing rule "function over mocks" (2026-09-28); the Wave 4 walkthrough rulings for the fan app (Terms and Privacy always in the side menu with the tenant's opt-in documents under them; contests, not games, with the contest's own name and description; mobile only; no pointless confirmations). Director's decisions W5-D01 to W5-D50, all binding (chiefly W5-D01 to W5-D07, W5-D24 to W5-D26, W5-D33, W5-D37, W5-D39, W5-D40, W5-D49, W5-D50, W5-D51; `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace), and the Phase A review rulings (`artifacts\wave-2026-09-27\briefs\w5-review-rulings.md`, workspace), and Arthur's walk #3 colour comments (`artifacts\review-2026-09-27\arthur-rulings-console-final-walk.md`, "Walk #3 rulings", workspace), reconciled with the Wave 5 palette (Text colour and the Start page adopted; Main-as-ground and no-mode open). PRD `OPT-01`–`OPT-05` (through the entry gate), `BRAND-02` (the sign-in sponsor on Start).
 
 **Depends on:** Wave 4's specs on docs branch `arthur-w4-console` (PR #29, not merged to main): [`fan-preview-mode.spec.md`](fan-preview-mode.spec.md), [`entry-gate.spec.md`](entry-gate.spec.md) (revision 2026-09-27: opt-in documents over the gate), `../core-modules/1-draft/admin-fields-and-optins.spec.md` (revision 2026-09-27: opt-ins linked to a sponsor or not, kept versions, `consentHistory`, documents), `admin-contests.spec.md` (states, description), `admin-prizes.spec.md`, `admin-sponsors.spec.md`. The Wave 4b fix pass (branches `arthur-w4b-*`, not built at the time of writing): the shared derived bingo function (W5-D40), the re-grounded prize model (W5-D41), per-contest banners, the current app's menu listing tenant documents. On main: [`../core-modules/1-draft/end-to-end-flow.spec.md`](../core-modules/1-draft/end-to-end-flow.spec.md) (Wave 3: derived game status, `featuredGame`, join refusal codes, server awards, the legal overlay). This branch is cut from the Wave 3 state of docs `main` and is rebased once Wave 4 and 4b merge; names above marked "to confirm at rebase" are checked then. Siblings on this branch: [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md), [`fan-app-v2-console-touchpoints.spec.md`](fan-app-v2-console-touchpoints.spec.md), [`../core-modules/1-draft/fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md), [`../core-modules/1-draft/admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md).
 
@@ -203,11 +203,11 @@ A task flow's sticky CTA or action bar follows the same rules as the tab bar it 
 3. Double `HeroBand`: the tenant name, then "BINGO" fitted to the column (`.k-fit`).
 4. The tagline: Words `startTagline` (default "Pick your players. Win prizes.").
 5. The next game, when one exists and has not started: a `Scorebug` card with "Next game", "{Away} @ {Home}" with the team logos when present, and "Tip Sun 7:30 PM".
-6. "Presented by" and the sign-in sponsor's logo (or tagline), linked to its website when set: the `signIn` holder at the featured game.
+6. "Presented by" and the tenant's start-page sponsors (Brand › Start page, `BRAND2-32`), in their order, each as its start-page logo (or tagline) linked to its website when set. Start-page sponsors are tenant-level; there is no contest sign-in slot any more (walk #3).
 7. The primary button: Words `startCta` (default "Continue with email") → `/sign-in` (forwarding `next`), as today.
 8. "Powered by Overboard".
 
-**Data:** `GET /b2b/org/:subdomain` (`organization.name`, `organization.branding.theme`, `.logo`, `.text` **Phase B: to build**, `suspended`); `GET /b2b/org/:subdomain/sponsors` (`nextGame` with `eventTime`, `homeTeam`, `awayTeam` and their `logoUrl`; `featured`; `sponsors`; `placements`). Both exist.
+**Data:** `GET /b2b/org/:subdomain` (`organization.name`, `organization.branding.theme`, `.logo`, `.text` **Phase B: to build**, `suspended`); `GET /b2b/org/:subdomain/sponsors` (`nextGame` with `eventTime`, `homeTeam`, `awayTeam` and their `logoUrl`; `sponsors`; the start-page list, main's model at the rebase, else `startPage` **Phase B: to build**). The org read and the sponsor read exist.
 
 **States:**
 | State | What shows |
@@ -217,7 +217,7 @@ A task flow's sticky CTA or action bar follows the same rules as the tab bar it 
 | Unknown tenant (org read answers no organization) | The `FAN-13` card with "We couldn't find this site." and no retry (nothing to retry) |
 | Paused | The Paused screen |
 | No next game, or it has started | No scorebug (the sponsor schedule carries no game status, so a started game is never shown as "next") |
-| No sign-in sponsor | No "Presented by" |
+| No start-page sponsors | No "Presented by" |
 | Sponsor schedule loading | The "Presented by" block holds its space invisibly (today's rule) |
 | No logo | The band's text is the mark |
 | Offline | The offline banner; the CTA still navigates |
@@ -485,7 +485,7 @@ Kept, revised or new: `FAN-01`–`FAN-10`, `FAN-12`, `FAN-13`, `FAN-15`–`FAN-1
 
 | Screen | Data sources (endpoint / model / field) | Server calls on fan action | States covered |
 |---|---|---|---|
-| Start | `GET /b2b/org/:subdomain` (name, `branding.theme`, `.logo`, `.text`*, `suspended`); `GET /b2b/org/:subdomain/sponsors` (`nextGame`, `featured`, `sponsors`, `placements`) | none (navigation only) | org loading, failed, unknown tenant, paused, no next game, started game, no sponsor, no logo, offline |
+| Start | `GET /b2b/org/:subdomain` (name, `branding.theme`, `.logo`, `.text`*, `suspended`); `GET /b2b/org/:subdomain/sponsors` (`nextGame`, `sponsors`, start-page list*) | none (navigation only) | org loading, failed, unknown tenant, paused, no next game, started game, no start-page sponsors, no logo, offline |
 | Sign in / up / reset | Clerk; org read for theme | Clerk | Clerk loading, field and form errors, code errors, network |
 | Join gate | `GET /b2b/membership` (`pendingConsents` + `links`, `signupFields`, `pendingFields`, `gateCopy`); `GET /b2b/org/:subdomain/consent-document/:optInId/:linkId?version=` | `POST /b2b/join`, `POST /b2b/consent`, `PATCH /b2b/membership` | loading, failed (closed), join, returning, submitting, stale wording, no documents, document missing/failed, offline |
 | Contests | `GET /b2b/contest/list-contests` (no `status`; `contestName`, `description`, `contestStatus` + `opensAt`, `state`, `finalized`, `allowedBetEvents` with derived `status`, `prizeTiers`); `GET /b2b/board/my-boards` | none | loading, failed, Current empty, Past empty, not open yet, live, full (unknowable here), closed, finalized, joined, no prizes, no sponsors, trivia (never listed), paused, offline |
@@ -520,7 +520,7 @@ Kept, revised or new: `FAN-01`–`FAN-10`, `FAN-12`, `FAN-13`, `FAN-15`–`FAN-1
 | Terms "Sample text…" callout and sample paragraphs (`terms.html`) | Cut | No placeholder legal text; unpublished shows "Overboard hasn't published this yet." |
 | Paused screen copy | Kept | Matches today's `SuspendedScreen`, now Words-editable (Phase B) |
 | Gate: "Already playing? Sign in" link; CTA → sign-up | Changed | Wave 4 flow: CTA → sign-in, which links to sign-up |
-| Gate "Presented by Hometown Grill" wordmark | Kept (as data) | The real `signIn` sponsor's logo or tagline; absent when none |
+| Gate "Presented by Hometown Grill" wordmark | Kept (as data) | The tenant's start-page sponsors' logos or taglines (Brand › Start page); absent when none |
 | Gate next-game scorebug "Tip Sun 7:30 PM" | Kept | `nextGame` exists; no LIVE (no status on it) |
 | Gate "Chicago Bears" h1 + giant "Bingo" | Kept | Tenant name from the API; BINGO fitted (`DECOR-31`) |
 | Six code boxes (`sign-up.html`) | Changed | One six-digit input with OS fill (`FAN-23`) |
