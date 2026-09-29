@@ -303,3 +303,55 @@ tenant-self-serve rulings — see the "Revised 2026-09" notes)".
 - **Why:** Arthur's statement of the platform's state.
 - **Date:** 2026-09-27.
 - **Status:** In effect.
+
+### 25. `BRAND-01`: the onboarding colours live in shared code; the console wears the tenant's accent
+
+- **What:** The set-once team colours (primary, secondary, accent) that the fan app used to carry in
+  its own bundle now live once, in `obs-b2b-shared/src/theme/seeds.ts`, and the fan app, backend and
+  console all read them. A theme saved on Brand still wins over them. The console's accent follows the
+  tenant's hit colour (the colour fans see on bingo-square hits and progress bars); a tenant with no
+  colours, or only greys, gets a neutral white accent. The old slug-hash colours are gone.
+- **Why:** Arthur's final console walk: bears and fightinghawks had team colours in the fan app that
+  the console neither showed on Brand nor wore as its accent.
+- **Date:** 2026-09-28 (on `arthur-console-redesign`).
+- **Status:** In effect.
+
+### 26. `BRAND-01`: Brand offers only the team colours, light or dark, logo and progress marker
+
+- **What:** The console's Brand page is cut to a minimal baseline: the three team colours BRAND-01
+  names, light or dark, the team logo and the progress marker. Type, shape, finish, signature,
+  presets and the Overboard gallery are no longer offered to tenants (the server endpoints stay).
+  `branding-field-split.md` still lists type, shape, finish and signature; this entry supersedes that
+  list for the console.
+- **Why:** Arthur's final walk: a clean fallback in case the fan-app overhaul isn't adopted, with
+  nothing that could conflict with it.
+- **Date:** 2026-09-28 (on `arthur-console-redesign`).
+- **Status:** In effect.
+
+### 27. `PRIZE-03`: staff finalize from the workspace's contest screens too
+
+- **What:** Finalize is back on a workspace's contest card and contest page, for Overboard staff only
+  (marked Staff), in both the Admin and Member points of view. Tenant admins and members never see it.
+  It remains on All contests and the tenant page. Finalization stays Overboard-only.
+- **Why:** Arthur's final walk, reversing the Wave 4 walkthrough ruling that kept Finalize on the OBS
+  pages only.
+- **Date:** 2026-09-28 (on `arthur-console-redesign`).
+- **Status:** In effect.
+
+### 28. §15 Administrative surface: staff can delete a support report
+
+- **What:** Overboard staff can delete a report from the OBS support inbox, with a confirmation; the
+  deletion is audit-logged. Tenants can't delete reports.
+- **Why:** Arthur's final walk.
+- **Date:** 2026-09-28 (on `arthur-console-redesign`).
+- **Status:** In effect.
+
+### 29. Entry gate (no PRD requirement names it): the Start screen shows no game
+
+- **What:** The fan Start screen shows no matchup or game. Nick's entry-gate spec and identity HLD
+  never asked for one; the hardcoded "UNO vs UND" was an early template default, and our later
+  data-driven matchup is removed too. The featured game still decides which sponsor presents the
+  sign-in screen.
+- **Why:** Arthur's final walk: keep it only if Nick wanted it, and he didn't spec it.
+- **Date:** 2026-09-28 (on `arthur-console-redesign`).
+- **Status:** In effect.
