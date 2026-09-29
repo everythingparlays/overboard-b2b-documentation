@@ -415,8 +415,9 @@ tenant-self-serve rulings — see the "Revised 2026-09" notes)".
   There is no second colour. Light or dark mode is removed: no setting and no label. Cards, surfaces,
   borders, muted text, hit and progress shades, toasts and confetti are derived from these colours, and
   nothing about the fan app's look is hardcoded per tenant. The onboarding colours of the live tenants
-  (bears, fightinghawks) were mapped into the new colours, and stored themes were migrated. This
-  supersedes the "light or dark" part of entry 26.
+  (bears, fightinghawks) were mapped into the new colours, and stored themes were migrated. Theme
+  presets and the Overboard gallery are removed, and so are the bundled seeds for tenants that don't
+  exist (bbgs, warriors). This supersedes the "light or dark" part of entry 26.
 - **Why:** Arthur's third console walk: the colours a tenant sets must be the colours fans see, and
   bears' navy background was hardcoded where no one could edit it.
 - **Date:** 2026-09-29 (on `arthur-console-redesign`).
