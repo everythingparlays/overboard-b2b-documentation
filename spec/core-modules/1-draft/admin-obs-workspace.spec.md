@@ -100,7 +100,7 @@ All three follow the cross-tenant read pattern (admin-obs-internal): structural 
 - **Cross-tenant audit/exports view**, **tenant account view**, **config drift detection** — recorded follow-ups.
 - **Readiness is checked against today's configuration.** A calendar dot for a game three weeks out answers "if it were today"; it cannot know about changes planned before then.
 - **Activity actor names** depend on the admin sign-in being reachable; an unresolvable operator reads as their workspace ("Overboard staff").
-- **Ended is inferred** for games the feed never marked final (tip-off + 6 h — see game day).
+- **Ended is inferred** for games the feed never marked final: every visible prop resolved, or the sport's usual length since tip-off — the one phase rule (see game day).
 
 ## References
 

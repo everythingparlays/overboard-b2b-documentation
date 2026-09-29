@@ -45,7 +45,7 @@ A workspace's sponsors are its sponsor opt-ins (`kind: "sponsor"`); the edition 
 ### The three new aggregations (the mock's †)
 
 1. **Final score** — read from the feed's `eventDetails` (`homeTeamScore`/`awayTeamScore`) when the feed says `Final`; otherwise not shown.
-2. **Joined on game night** — memberships whose `joinedAt` falls in the game window (tip-off − 90 min to tip-off + 6 h, capped at now).
+2. **Joined on game night** — memberships whose `joinedAt` falls in the game window (tip-off − 90 min to the sport's usual length after tip-off, capped at now — see game day).
 3. **Most-picked players** — for the game's attributed boards, each board's nine props → the prop's athlete (`entityInfo`) → counted once per board. Top five by boards.
 
 ### Print
