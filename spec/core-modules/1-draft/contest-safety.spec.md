@@ -30,6 +30,7 @@ The ruling rejects versioning (the survey-style "mint a new version" model) in f
 | Setting | Before the first fan | After |
 |---|---|---|
 | Name, description, visibility, entries (open/closed), player limit | Editable | **Editable** |
+| The banner, and each game's progress marker (cosmetic) | Editable | **Editable** |
 | Games: adding one | Editable | **Editable** |
 | Games: removing one | Editable | **Locked** |
 | Contest type | Set at creation | **Locked** (not editable anywhere today; any future editor must honour this) |

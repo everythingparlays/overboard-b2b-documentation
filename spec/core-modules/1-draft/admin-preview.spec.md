@@ -95,7 +95,7 @@ One row of controls above the frame, on the console background:
 
 **The console adds no label** to the frame, and the frame carries none (`PV-08`).
 
-There is no game selector: the admin picks a game inside the frame, on the Contest screen's own game tabs, exactly as a fan does. The sponsor page passes `view.gameId` when it needs a particular game's slots.
+There is no game selector: the admin picks a game inside the frame, on the Contest screen's own game tabs, exactly as a fan does. The sponsor page passes `view.gameId` when it needs a particular game's slots, and the Games tab's "See it on the board" opens the Board screen for one game (`?screen=board&game=<id>`), so the board carries that game's progress marker ([`admin-contests.spec.md`](admin-contests.spec.md), "Progress marker"). The marker comes from the contest read (`gameMarkerImageUrls`), so the preview shows what is saved.
 
 **Accessibility.** The iframe's title is "Fan app preview". The tabs and segmented controls are radio groups. When the screen changes, a polite live region says "Showing Board". Focus never moves into the frame on its own; Tab reaches it after the controls.
 

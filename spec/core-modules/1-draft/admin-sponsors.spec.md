@@ -385,7 +385,7 @@ Sizes are CSS pixels. The banner's are at the fan app's widest column, 480px; on
 
 - **Sign-in logo:** the sponsor's name as a wordmark (a sponsor with a tagline and no logo can hold the slot, `SP-02`).
 - **Board banner:** nothing; a sponsor without one cannot hold the slot (`SP-02`), and the layout closes around it (`SP-08`).
-- **Slider icon:** the tenant's own progress marker, as at any game with no slider sponsor.
+- **Slider icon:** what the game shows with no slider sponsor: its own marker, else the tenant's Brand marker, else the triangle in the tenant's Text colour ([`admin-contests.spec.md`](admin-contests.spec.md), "Progress marker").
 - **Prize-popup logo:** the sponsor's initial on a disc beside its name. The "Provided by" credit always shows.
 
 #### 2. Where it appears
@@ -553,7 +553,7 @@ No re-authentication anywhere (revised 2026-09-28): placing and editing are undo
 |---|---|---|
 | Sign-in screen and Home, beneath the headline | the `signIn` holder at the featured game | "Presented by", the logo (linked to the website) or the name, and the tagline |
 | Board, between header and grid | the `boardBanner` holder at (contest, the board's game) | The banner, full width, as one link |
-| Board's progress slider | the `slider` holder at (contest, the board's game) | The icon as the moving marker; else the tenant's marker; else the Overboard mark |
+| Board's progress slider | the `slider` holder at (contest, the board's game) | The icon as the moving marker; else the game's own marker; else the tenant's Brand marker; else the triangle in the Text colour (`resolveProgressMarker`) |
 | Prize popup, prize ladder, prize email | the awarded prize's `providedBySponsorId`, as the tier's copy carries it (the snapshot's copied `providedBy`, for the email) | "Provided by", the prize logo or the name, linked to the website |
 
 The board resolves against its contest and its game: the game of the board's props.
