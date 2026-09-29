@@ -19,6 +19,8 @@ Revised 2026-09-27 for Wave 4 (Arthur's rulings of 2026-09-27): the Board tab, t
 
 Revised 2026-09-28 (Arthur's Wave 4 walkthrough ruling): **no re-authentication** — Delete takes the typed name alone, fans joined or not, and Finalize the typed name alone; **staff see Games & Contests and the contest page exactly as the workspace does**, so Finalize is gone from the cards, the list rows, the contest page header and its Overview rail. Staff finalize only from All contests and the tenant page.
 
+Revised again 2026-09-28 (Arthur's final walk, which wins): **Finalize is back on the contest card, the list row, the contest page header and its Overview rail, for Overboard staff only**, marked as a staff action (an indigo "Staff" tag beside the button). Tenant admins and members never see it. Staff keep it in either point of view (the Admin/Member view-as toggle changes what a workspace would see, not who the staffer is). See "Finalize, wherever it appears".
+
 ## Overview
 
 Until the redesign a contest lived on a card inside a long `/games` page, was created in a five-field drawer, and was edited in a second drawer that could show its prize tiers and sponsors but not change them. The card listed every game the contest ran at inline, so a season-long contest made a page tens of thousands of pixels tall. Prize tiers were edited on another screen, sponsor placements on a third, and the fan-facing result could not be seen anywhere. The one free-text field was labelled console-only while the fan wire sent it to every fan. Nothing stopped an operator from removing a game or re-counting a prize tier mid-game.
@@ -252,7 +254,7 @@ Both views are endless lists over the same `GET /admin/contests` query: `Infinit
 1. **Band**, 4:1: the contest's banner (above): its own image, else its Board banner sponsor's artwork, else the tenant's brand band in the tenant's own colours, logo and name. Never a placeholder image and never a colour made up from the slug. Over the band, top left: the state chip ("Draft", "Open", "Closed"), the "Finalized" badge when finalized, and the lock glyph when locked.
 2. **Body.** Type chip (from the registry); the name; the description, two lines, muted, omitted when empty. On the right, the sparkline: new players per day over the last 14 days, 96×28 in the tenant colour, captioned "+18 this week" or "None new this week", omitted until the first player. An Open contest whose entries haven't opened shows "Fans can join from Thu, Oct 1" in the sparkline's place until it has players.
 3. **Stats row**: **Players** ("412", or "412/500" with a limit), **Games** (the count, with the featured game under it, picked by Wave 3's `featuredGame`: "Live: Denver @ Fighting Hawks", "Next: Denver @ Fighting Hawks · Sat 7:00 PM", or "Final: Montana State @ Fighting Hawks · Sep 19"), **Prize tiers** (the count; no maximum shown).
-4. **Footer**: a Draft shows "Continue setup" (opens the builder at the first step that isn't done). A finalized contest shows "Finalized Sep 15". At the right, the **overflow menu** ("More actions"): "Close entries" (Open) or "Reopen entries" (Closed), "Duplicate", and "Delete" (not finalized). Members get no overflow.
+4. **Footer**: a Draft shows "Continue setup" (opens the builder at the first step that isn't done). For Overboard staff, a contest the server calls ready to finalize shows **Finalize** with its "Staff" tag (revised 2026-09-28). A finalized contest shows "Finalized Sep 15". At the right, the **overflow menu** ("More actions"): "Close entries" (Open) or "Reopen entries" (Closed), "Duplicate", and "Delete" (not finalized). Members get no overflow.
 
 **The list view.** A dense table, one row per contest, same order and filters:
 
@@ -387,7 +389,7 @@ Close entries, Reopen entries and Move to draft write at once (PATCH `state`) an
 
 - **Next game**: `featuredGame`'s line with its readiness dot from game day, linking to Game day on that game; "No upcoming games" when none.
 - **Lock**: "Not locked. Everything can change until the first fan joins." or "Locked since Sat Sep 27, 7:02 PM."
-- **Finalize**: everyone — staff included — reads "Overboard finalizes the contest after its last game." or "Finalized on Sep 28." (revised 2026-09-28: staff finalize from All contests or the tenant page).
+- **Finalize**: a tenant admin or member reads "Overboard finalizes the contest after its last game." or "Finalized on Sep 28." Overboard staff (revised 2026-09-28, final walk) read "Every game has ended." with **Finalize** and its "Staff" tag once the contest is ready, and otherwise why it can't be finalized yet, in the one rule's order: "A draft can't be finalized. Publish it and play its games first.", "A contest with no games can't be finalized. Add a game first.", or "Finalize opens once every game has ended."
 
 **Copy.**
 
@@ -519,7 +521,7 @@ A contest is **ready to finalize** when it is **not finalized, not a draft, has 
 
 ### Finalize, wherever it appears
 
-Only on the OBS pages (revised 2026-09-28): All contests rows and the tenant page's Contests rows open one centred dialog. The workspace's cards, list rows and contest page never show Finalize, for staff or anyone. Staff only; the typed name is checked by the server; no re-authentication.
+Staff only, wherever it appears (revised 2026-09-28, Arthur's final walk): All contests rows, the tenant page's Contests rows, and — marked with an indigo "Staff" tag — the workspace's contest cards, list rows, contest page header and Overview rail. Every one opens the same centred dialog (`FinalizeContestDialog`); the tenant page no longer keeps its own copy. It is offered only when the server's `readyToFinalize` is true, and hidden rather than disabled otherwise, except on the Overview rail, which tells staff why. Tenant admins and members never see it; staff keep it in either point of view. The typed name is checked by the server; no re-authentication.
 
 | Element | Copy |
 |---|---|
@@ -545,7 +547,7 @@ Only on the OBS pages (revised 2026-09-28): All contests rows and the tenant pag
 | Duplicate | Yes | No | Yes |
 | Delete (not finalized; typed name) | Yes | No | Yes |
 | Test mode (dev only, through the dev API; no console control) | Yes | No | Yes |
-| Finalize (from All contests and the tenant page) | No | No | Yes |
+| Finalize (All contests, the tenant page, and the workspace's cards, list rows and contest page, marked "Staff") | No | No | Yes |
 
 Enforcement is server-side: every write passes `refuseReadOnlyWrite` first (D-063), which refuses a member and a paused workspace's own admins; both Delete and Finalize check the typed name in the handler; Finalize also passes `refuseNonObsStaff`. No route steps up (revised 2026-09-28). The console's `useCanWrite` and `useIsObsStaff` only decide what renders.
 
@@ -730,7 +732,7 @@ As [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md), plus the one rule
 11. **`CT-11` — Any non-finalized contest can be deleted,** with a typed name, whether or not fans have joined (revised 2026-09-28: no reverification).
 12. **`CT-12` — The builder keeps the console around it.** Steps are a clickable progress bar, every step is reachable once the draft exists, and Save draft works from every step.
 13. **`CT-13` — Every growing list pages on the server with a cursor.** The contest list (both views), the Games tab and the game picker.
-14. **`CT-14` — Finalize is staff only, on the OBS pages, by one rule** (not finalized, not a draft, at least one game, every game ended), hidden rather than disabled otherwise; the server refuses a contest that isn't ready.
+14. **`CT-14` — Finalize is staff only, by one rule** (not finalized, not a draft, at least one game, every game ended), hidden rather than disabled otherwise; the server refuses a contest that isn't ready. Revised 2026-09-28: it appears on the OBS pages and, marked as a staff action, on the workspace's contest cards, list rows and contest page, where the Overview rail tells staff why a contest isn't ready.
 15. **`CT-15` — Participation is the board count.** `numberParticipants` is never read.
 16. **`CT-16` — Contest names are unique within a tenant, ignoring case.**
 17. **`CT-17` — `ranAtBetEvents` only grows.**
