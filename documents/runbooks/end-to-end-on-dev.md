@@ -390,7 +390,7 @@ source of truth.
   read what it would do, then add `--apply`.
   - It deletes the `test` tenant's contests (apart from the harness's), their boards, tiers and
     deliveries, deliveries of contests that no longer exist, library prizes and sponsors other than the
-    harness's and Coca-Cola, the export history, and seed fans beyond the seven it keeps.
+    harness's and the fictional data-sharing sponsor Lakeshore Soda Co. (an older fixture's "Coca-Cola" record is renamed in place, with a new agreement version), the export history, and seed fans beyond the seven it keeps.
   - It reseeds the minimum that makes every console screen walkable: a Draft, an Open ("This Week"),
     a Closed contest ready to finalize (with sent, waiting and failed deliveries) and a Finalized one;
     two library prizes; and seven seed fans whose consents cover accepted, declined, not answered,
