@@ -12,7 +12,7 @@ Errors in the console end in a red card; the workflow after is texting Nick. Eve
 
 Second-order value: every recorded spec gap that confuses a paying customer becomes an evidence-backed report. The inbox doubles as a prioritized list of which gaps hurt customers. Product intelligence disguised as support.
 
-**The whole change, in one line:** one `B2BSupportReport` collection with a closed, PII-free context; a report drawer that shows exactly what will be sent; status chips on the thing reported; and a staff inbox at `/support` with Open, All and Patterns.
+**The whole change, in one line:** one `B2BSupportReport` collection with a closed, PII-free context; a report drawer that shows exactly what will be sent; status chips on the thing reported; and a staff inbox at `/support` with All, Open and Patterns.
 
 **In scope:** the model and contract (`obs-b2b-shared/src/{interfaces/b2b/B2BSupportReport,models/support-report,api/admin/support}.ts`); five endpoints; the report drawer and chips; the report action on every console error card, on game day's failed deliveries, on the fan drawer, and as a console-wide **Get help**; `/support` (the inbox for staff, "Your reports" for a workspace); the nav badge; the oldest-unresolved tile on Platform health; two audit actions.
 
@@ -91,7 +91,7 @@ Arthur's walkthrough ruling: a **Support** page in the workspace sidebar that li
 
 | Route | Who | What |
 |---|---|---|
-| `/support` | everyone with a workspace in view | **Support** — the workspace's reports, newest first, endless scroll (admin-lists.spec.md), search on the message, status filter (Open / Resolved / All). In the Workspace sidebar section, last. Staff with a tenant chosen see exactly that tenant's list — no internal reports, no staff actions (superseded 2026-09-28, "sides"). The old "not in the sidebar" decision is reversed. |
+| `/support` | everyone with a workspace in view | **Support** — the workspace's reports, newest first, endless scroll (admin-lists.spec.md), search on the message, status filter (All / Open / Resolved), opening on All (Walk #3, 2026-09-29: "All" is always the first filter option). In the Workspace sidebar section, last. Staff with a tenant chosen see exactly that tenant's list — no internal reports, no staff actions (superseded 2026-09-28, "sides"). The old "not in the sidebar" decision is reversed. |
 | `/support/:reportId` | the report's workspace, or staff looking at its screens | **The report page**: what was sent, the thread, a reply box, and the status. No triage here (superseded 2026-09-28: triage is on `/inbox/:reportId`). A full page with a URL, so a report can be linked from anywhere. |
 | `/inbox` | staff | **Support inbox** (OBS Internal, badge unchanged): every workspace's reports, paged, with a **workspace filter**, search, status and reason filters, the Patterns view, and the two response-time metrics. Rows open `/inbox/:reportId`, the report page with the triage panel (2026-09-28). `/support` used to be the inbox for staff; it now always means the workspace page. |
 
@@ -203,7 +203,7 @@ Deliberately without it: the shell's "Couldn't load your workspace" (it renders 
 Same route, rendered by identity (admin-surface **Seamlessness**): staff get the inbox, a workspace's users get Your reports.
 
 - **Nav.** OBS Internal → **Support inbox**, with a badge counting **unresolved** reports (open + acknowledged) — never "unread". Hidden when zero.
-- **Views.** **Open** (unresolved, oldest first — age is the thing that must not grow), **All** (newest first, capped at 200 with `truncated`), and **Patterns**: clusters of two or more reports sharing a fingerprint — "7 reports, 3 workspaces, the same refusal" is one product bug, not seven tickets.
+- **Views**, in this order, opening on **All** (Walk #3, 2026-09-29): **All** (newest first, with the status and reason filters, each opening on "any"), **Open** (unresolved, oldest first — age is the thing that must not grow), and **Patterns**: clusters of two or more reports sharing a fingerprint — "7 reports, 3 workspaces, the same refusal" is one product bug, not seven tickets.
 - **A report** opens in a drawer: everything the reporter saw and sent, the reporter and workspace, age, a **Go to** link that opens the route in that workspace (jump-to-context), and actions: **Acknowledge**, **Assign to me** / unassign, **Resolve** (outcome resolved or won't-fix, with a required note), **Merge into…** (another open report), **Reopen**.
 - **Merge.** The duplicate records `mergedInto`; reads show a merged report with its target's status and resolution, so the duplicate's reporter gets the same answer on their own chip. Merge is audited as a resolution.
 

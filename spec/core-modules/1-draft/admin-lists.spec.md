@@ -172,3 +172,4 @@ Bulk selection on an endless list (Delivery queue) selects **loaded** rows; "Sel
 5. **Aggregates are per page.** No request aggregates a whole platform collection to draw one page.
 6. **No load-more button.** Loading is automatic; the only button a list shows is **Try again** after a failed page.
 7. **Counts are real.** The count is the server's total for the current search and filters, never the number of rows loaded.
+8. **"All" is always the first filter option** (Walk #3, 2026-09-29), in every segmented filter, select and combobox ("All", "All workspaces", "All contests", "Any time", "Any status"). A list opens on it unless its own spec names another default: the staff deliveries list opens on Failed (admin-prizes.spec.md, "Staff extras") and the Schedule opens on the workspace's own games (admin-schedule.spec.md), each with "All" still first.
