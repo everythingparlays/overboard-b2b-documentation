@@ -43,7 +43,7 @@ A report is a conversation between a workspace and Overboard. Every report and e
 | Written from | Side | Who |
 |---|---|---|
 | A workspace's own screens (Workspace and Configuration: Overview, Game day, Games & Contests, a contest's page, Fans, Support, …) | `workspace` | the workspace's people, **and Overboard staff looking at that workspace's screens** |
-| The OBS internal screens (Support inbox, Operations, All tenants, a tenant's staff page, All contests, Prize deliveries, Fan actions, Platform health, Season calendar) | `overboard` | Overboard staff only |
+| The OBS internal screens (Support inbox, Operations, All tenants, a tenant's staff page, All contests, All prizes, Fan actions, Platform health, Season calendar) | `overboard` | Overboard staff only |
 
 - **Staff on a workspace's screens are the workspace.** A report a staffer files there is the workspace's: it joins the workspace's own Support list and reads as the workspace's in the inbox. A reply they send there is the workspace talking: it reopens a resolved report exactly as a workspace reply does, and it never counts as Overboard answering (first response, the unread dot).
 - **Staff on the OBS screens are Overboard.** A report filed there is Overboard's own internal note — about the workspace in view, or platform-wide with none — and never appears on the workspace's screens. Inbox replies, internal notes and every triage action are Overboard's side.
