@@ -34,7 +34,7 @@ Everything is stated so the honest boundary is checkable:
 - **Boards played** — boards under the tenant's contests (ObjectId ids; redemptions keep string ids — the known mismatch the fans module handles, handled the same way); 14-day delta from `createdAt`.
 - **Prizes delivered / failed** — redemption counts by status; the failed count is worded as the dead-letter figure and matches `/delivery-queue`.
 - **Live now** — an enabled game whose reference status is `InProgress`, with boards-in-play, bingos hit (`claimedLineIndices` totals) and prize counts for its contest. No quarter/clock: the reference feed's lifecycle is all the platform has. Null hides the banner.
-- **Upcoming games** — enabled games from four hours back (so in-progress stays visible), soonest first, capped; contest status is the derived one, never recomputed screen-side.
+- **Upcoming games** — enabled games from four hours back (so in-progress stays visible), soonest first, capped; contest status is the derived one, never recomputed screen-side. One row per contest and game: a game two contests share is a row for each, each with its own contest's tiers, status and readiness.
 - **Needs attention** — only detectable conditions: failed sends (error), contests with games but no prize tiers (warning), visible contests with no games enabled (warning). The mock's "code batch under 10%" has no model behind it and is omitted, not decorated.
 - **Consent coverage** — per non-blocking opt-in: members accepted at the **current** wording over total members, the same arithmetic as the exports screen's RPT-05 card, with the same footnote.
 

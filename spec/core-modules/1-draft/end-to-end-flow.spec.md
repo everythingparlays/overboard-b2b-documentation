@@ -302,6 +302,8 @@ It never uses array order.
   when it runs several. A multi-game contest is one card, one board. *(Wave 3's card led with the featured game's
   matchup and team logos.)*
 - **The contest page** is headed by the contest's own name, with "Draft Your Squad" under it and the description in full.
+  A closed or finished contest says "Entries closed" there instead, and shows no draft count or Generate Bingo Board
+  button: nothing on it invites drafting.
 - **The board** is headed by the contest's own name; a board drawn from one game shows that game's matchup and time as a
   small line under it. "My boards" already lists boards by contest name.
 - **The draft page** lists only the games still open for entries, each as a tab in tip-off order, opening on the featured
