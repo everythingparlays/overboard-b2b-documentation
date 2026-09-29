@@ -82,6 +82,7 @@ Collection `{prefix}contests` (`obs-b2b-shared/src/models/b2b.ts`, interface `in
 | `description` (new) | string | no | Trimmed, ≤300 characters; empty string stored as absent | Fan-facing, on the contest card. Starts empty on every existing contest (see Migration). |
 | `internalNote` (new) | string | no | Trimmed, ≤500 characters | Console only. Never on any fan wire (the fan reads' allowlist below). Holds what `contestDescription` held. |
 | `bannerImageUrl` (Wave 4b) | string | no | An https URL, ≤2000 characters, from the `contest.banner` upload; `null` or `""` clears it | The contest's own banner image. Absent means the banner falls back (see "Banner" below). Cosmetic, so it stays editable after the lock. Never sent to fans as such: fans read `banner`. |
+| `gameMarkerImageUrls` (Walk #3) | map: bet event id → string | no | Each value an https URL from one of the tenant's own uploads (`contest.gameMarker`); a game the contest doesn't run is refused | Each game's own progress marker (contest × game). A game not named shows the default (see "Progress marker" below). Cosmetic, so it stays editable after the lock. Read through `gameMarkerUrlOf`. |
 | `contestType` (new; replaces `gameType`) | one of the contest-type registry's keys | yes | A registry key | Read through `contestTypeOf()`, which answers `contestType ?? gameType ?? "bingo"` during the migration window. Changeable only while Draft and unlocked. |
 | `state` | `"draft" \| "open" \| "closed"` | yes | Wave 3 §3.1 | Stored. Read through `contestState()`. Default `draft`. |
 | `showContest`, `closed` | boolean | — | Kept consistent with `state` by every writer (Wave 3 §3.1) | Legacy mirrors for older readers. No console control writes them directly. |
@@ -179,7 +180,7 @@ Name uniqueness stays check-then-write (Known gaps).
 
 Wave 3 owns the checks and their codes (§3.1, §3.4): a draft answers 404 to fans, a closed contest refuses joins with `closed`, a full one with `full`, a non-playable type with `not_playable_here`, a game with no players yet with `no_players_yet`, and entries not yet open with `not_open_yet` plus `opensAt`. Every control on these screens maps to one of those.
 
-Both fan reads (`GET /b2b/contest/list-contests`, `GET /b2b/contest/:contestId`) return the allowlisted projection only: `contestId`, `contestName`, `description`, `contestType`, `banner` (below), the fan status, games, the fan fields of prize tiers. `internalNote`, `state` internals, `lockedAt`, `testMode` and audit-relevant fields never leave the admin surface.
+Both fan reads (`GET /b2b/contest/list-contests`, `GET /b2b/contest/:contestId`) return the allowlisted projection only: `contestId`, `contestName`, `description`, `contestType`, `banner` (below), the fan status, games, the fan fields of prize tiers. The contest read also carries `gameMarkerImageUrls` for the games the contest runs (absent when none has one), for the board's progress marker. `internalNote`, `state` internals, `lockedAt`, `testMode` and audit-relevant fields never leave the admin surface.
 
 ### Banner
 
@@ -192,6 +193,19 @@ Every contest has a banner: a wide band across the top of its card and its page,
 The server sends the choice, not pixels: `{ kind: "image", source: "custom" | "sponsor", imageUrl, sponsorName? }` or `{ kind: "brand", from, to, ink, logoUrl?, name }`. The console's rows and the contest page carry it as `contestBanner` (the page also carries `bannerImageUrl` and `defaultBanner`, what Remove goes back to); both fan reads carry it as `banner`. The console card and the fan card draw the same view, so they agree. The console's slug-derived tint (`tenantColors`) is no longer used for contests.
 
 **Editing.** The builder's Basics step and the Overview's Basics card carry the banner field: the console's drag-and-drop or browse upload, a 4:1 preview of what fans see, and one line saying what shows now ("Showing your brand colors. Upload an image to use your own.", "Showing Northside's board banner. Upload an image to use your own.", or "Your image. Remove it to go back to your brand colors."). **Remove** returns the contest to its default. Uploading only stores the file; the contest takes it when the form is saved, like every other field.
+
+### Progress marker
+
+The mark that rides a board's prize progress bar (Arthur's Walk #3 ruling, 2026-09-29). One pure shared function decides it for one contest and one game, `resolveProgressMarker` (`interfaces/b2b/ProgressMarker.ts`), and the fan board, the console's preview (the fan app itself) and the Games tab all read it:
+
+1. **The sponsor holding the slider** at that contest and game (a paid placement, `resolveSponsorSlots`), with its slider icon.
+2. **The game's own marker** (`gameMarkerImageUrls[betEventId]`), set on the contest's Games tab.
+3. **The tenant's Brand marker** (`branding.assets.sliderTipImageUrl`).
+4. **The default: a small triangle** above the bar, pointing down at the fill's tip, in the tenant's Text colour. The fan app draws it in `--foreground` (the theme's `neutrals.textPrimary`), so it always follows the theme; no colour is stored or hardcoded for it.
+
+The fan app shows the first image that loads and falls through to the next when one fails, ending on the triangle, so a broken file costs its own layer and never the marker. A board spread over several games has no one game, so only a contest-wide sponsor and the Brand marker can apply to it; the console's preview builds a one-game board when opened from a game (`?game=`), so it shows that game's marker.
+
+**Editing.** On the Games tab (below), each game row has the game's own marker as a compact upload with Remove, saved with the tab's one Save. The image must be one of the tenant's own uploads: the server refuses any other address (400, "Upload the image here instead of linking to it."). Remove returns the game to the default. The builder's Games step lists games without per-game settings, so it has no marker control; a new contest's markers are set from its page. Duplicate keeps the markers of the games it carries.
 
 ### Unsaved changes
 
@@ -212,7 +226,7 @@ The ruling: no contest versioning; before the first fan joins everything is edit
 
 | Setting | Before the first board | After |
 |---|---|---|
-| Name, description, internal note, player limit, banner | Editable | Editable |
+| Name, description, internal note, player limit, banner, each game's progress marker | Editable | Editable |
 | Close entries, Reopen entries | Editable | Editable |
 | **Move to draft** | Offered | **Absent** (fans can't have a contest they played hidden from them, Wave 3 §3.1) |
 | Adding games | Editable | Editable |
@@ -409,9 +423,11 @@ Close entries, Reopen entries and Move to draft write at once (PATCH `state`) an
 
 #### Games tab
 
-An `InfiniteTable` of the contest's games (`GET /admin/contests/:contestId/games`): games in progress first, then upcoming soonest first, then played games newest first. Columns: **Sport** (the readable name: "NFL", "College football"…), **Game** (matchup, "Denver @ Fighting Hawks"), **Tip-off** ("Sat Oct 3 · 7:00 PM"), **State** ("Upcoming", "Live", "Final", from Wave 3's derived game status), and a **Remove** action before the lock.
+An `InfiniteTable` of the contest's games (`GET /admin/contests/:contestId/games`): games in progress first, then upcoming soonest first, then played games newest first. Columns: **Sport** (the readable name: "NFL", "College football"…), **Game** (matchup, "Denver @ Fighting Hawks"), **Tip-off** ("Sat Oct 3 · 7:00 PM"), **State** ("Upcoming", "Live", "Final", from Wave 3's derived game status), **Progress marker**, and a **Remove** action before the lock.
 
-Nothing saves as it's clicked (see "Unsaved changes"): games to add and games to remove wait in the tab, and the save bar ("1 game to add and 1 to remove", "Discard", "Save") writes them all. Save adds in one call, then removes each game, every write on the version the previous one answered with; a refusal keeps what didn't go through on screen, with its sentence in the bar.
+Nothing saves as it's clicked (see "Unsaved changes"): games to add, games to remove and progress markers to change wait in the tab, and the save bar ("1 game to add and 1 to remove, 1 progress marker to change", "Discard", "Save") writes them all. Save adds in one call, then removes each game, then writes each game's marker (a game being removed is skipped), every write on the version the previous one answered with; a refusal keeps what didn't go through on screen, with its sentence in the bar.
+
+- **Progress marker** (every row; see "Progress marker" above): the game's own marker as a compact upload box (`contest.gameMarker`, the Brand marker's types and size), "Replace" and "Remove"; with none, the default above the box, captioned "Default": the Brand marker ("Your Brand marker."), else the triangle drawn in the tenant's Text colour on its background ("A triangle in your text color."). The box's hint is said once above the table ("PNG, JPG, WebP or SVG, up to 5 MB, at least 36 × 36 px. Shown at up to 48 × 36 px, in place of the Brand marker on that game's boards."). A staged change reads "Changes when you save". When a sponsor's slider icon covers the game, the row says so first, with the icon: "Northside Bank's icon shows on this game", and the game's own marker stays editable underneath, for when the placement ends. "See it on the board" opens the Preview tab on the Board screen for that game (`?screen=board&game=<id>`). Editable after the lock (cosmetic); read-only for members and on a finalized contest, where it shows the marker or the default.
 
 - **Remove** (before the lock) marks the row "Removed when you save", with "Keep" to take it back. The game's placements are kept, dormant, so a later re-add restores them.
 - **After the lock** the Remove column is gone and one line sits above the table: the `gameRemoved` lock sentence.
@@ -425,10 +441,11 @@ No props appear here or anywhere in the console.
 
 | Element | Copy |
 |---|---|
-| Columns | "Sport", "Game", "Tip-off", "State" |
+| Columns | "Sport", "Game", "Tip-off", "State", "Progress marker" |
 | State | "Upcoming", "Live", "Final" |
 | Actions | "Add games", "Remove", "Keep", "Done", "Don't add Denver @ Fighting Hawks" |
-| Waiting | "Removed when you save", "To add when you save", "2 games picked", "1 game to add and 1 to remove" |
+| Waiting | "Removed when you save", "To add when you save", "2 games picked", "1 game to add and 1 to remove", "1 progress marker to change", "Changes when you save" |
+| Progress marker | "Default", "Your Brand marker.", "A triangle in your text color.", "Northside Bank's icon shows on this game", "See it on the board", "Upload the image here instead of linking to it." |
 | Empty | "No games yet." |
 | Picker | "Search teams", "Sport", "All sports", "Any date", "Next 7 days", "Next 30 days", "Choose dates", "48 games", "No games match.", "No upcoming college football games yet.", "No upcoming games yet." |
 | Errors | "Denver @ Fighting Hawks has already started.", the `gameRemoved` lock sentence |
@@ -626,7 +643,11 @@ The contest page's read. The list row's fields plus `internalNote`, `bannerImage
 
 ### `GET /admin/contests/:contestId/games`
 
-The Games tab. Cursor-paged; order: live, then upcoming soonest first, then played newest first, then `_id`. Rows: `betEventId`, `sport`, `matchup`, `eventTime`, `status` (`Upcoming|Live|Final`, from `deriveGameStatus`), `removable` (false once locked or finalized).
+The Games tab. Cursor-paged; order: live, then upcoming soonest first, then played newest first, then `_id`. Rows: `betEventId`, `sport`, `matchup`, `eventTime`, `status` (`Upcoming|Live|Final`, from `deriveGameStatus`), `removable` (false once locked or finalized), `markerImageUrl` (the game's own marker, or null) and `sponsorMarker` (`{ sponsorId, name, imageUrl }` of the sponsor whose slider icon covers the game, by `resolveSponsorSlots` over the contest's live placements, or null). The response also carries `brandMarkerImageUrl` (the Brand marker, or null), what a game with no marker of its own shows.
+
+### `PUT /admin/contests/:contestId/games/:betEventId/marker`
+
+Body `{ imageUrl: string | null, expectedUpdatedAt? }`. Sets the game's own progress marker, or clears it with `null` or `""`. The URL must be https, ≤2000 characters, and one of this tenant's own uploads (under the asset store's public base, in `tenants/<organizationId>/<field>/<uuid>.<ext>`); anything else, or any address on a server with no asset store, is a 400 "Upload the image here instead of linking to it." (`errors.imageUrl`). A game the contest doesn't run → 404 ("That game isn't part of this contest."). Finalized → 409 `contest_finalized`. **Never refused by the lock**: the marker is cosmetic. The precondition is part of the write filter (409 `stale_contest`). Audited `contest_update` with `fields: ["gameMarker"]`, the game id and whether it was cleared. Responds with the contest and `changes: { betEventId, markerImageUrl }`.
 
 ### `POST /admin/contests`
 
@@ -652,7 +673,7 @@ Body: any of `{ contestName, description, internalNote, maxParticipants, contest
 
 ### `POST /admin/contests/:contestId/duplicate`
 
-No body. Creates a Draft as described under the contest page (name "Copy of <name>", made unique and trimmed to 80), carrying the source's banner image. Tiers are new documents naming the same library prizes; placements are copied for the all-games scope and for the games carried over (those not started). Audited `contest_duplicate` with the source id. Responds **201** with the new contest.
+No body. Creates a Draft as described under the contest page (name "Copy of <name>", made unique and trimmed to 80), carrying the source's banner image and the progress markers of the games it carries. Tiers are new documents naming the same library prizes; placements are copied for the all-games scope and for the games carried over (those not started). Audited `contest_duplicate` with the source id. Responds **201** with the new contest.
 
 ### `DELETE /admin/contests/:contestId`
 
@@ -713,7 +734,7 @@ As [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md), plus the one rule
 
 ## Dev fixtures
 
-**Revised 2026-09-28 (Arthur: a clean slate for `test`).** `reset-test-fixtures.mjs` replaces the accumulated fixtures with the minimum that makes every console screen walkable: "Test Tenant — Draft" (one upcoming game, one tier), "Test Tenant — This Week" (open, the current week's games, two tiers), "Test Tenant — Ready to finalize" (closed, two games that ended, boards, and sent, waiting and failed deliveries) and "Test Tenant — Finalized"; two library prizes; seven seed fans covering each consent state. "Test Tenant Bingo" and the archived early contests are gone. It touches only the `test` organization under the `arthur_` prefix, is dry-run unless `--apply`, and converges on the same set when re-run. The E2E harness's contest, prize and sponsor are kept. `seed-test-tenant.mjs` still creates the tenant record and its configuration.
+**Revised 2026-09-28 (Arthur: a clean slate for `test`).** `reset-test-fixtures.mjs` replaces the accumulated fixtures with the minimum that makes every console screen walkable: "Test Tenant — Draft" (one upcoming game, one tier), "Test Tenant — This Week" (open, the current week's games, two tiers), "Test Tenant — Ready to finalize" (closed, two games that ended, boards, and sent, waiting and failed deliveries) and "Test Tenant — Finalized"; two library prizes; seven seed fans covering each consent state. "Test Tenant Bingo" and the archived early contests are gone. `seed-test-images.mjs` then shows the progress marker's cases on "Test Tenant — This Week", through the real upload path: the first upcoming game has its own marker, the next is on the default triangle (the script clears the Brand marker, so the tenant's default is the triangle), and a third, when there is one, carries Pinecrest's slider icon. It touches only the `test` organization under the `arthur_` prefix, is dry-run unless `--apply`, and converges on the same set when re-run. The E2E harness's contest, prize and sponsor are kept. `seed-test-tenant.mjs` still creates the tenant record and its configuration.
 
 ---
 
