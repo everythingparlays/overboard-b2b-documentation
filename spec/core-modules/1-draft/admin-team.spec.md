@@ -23,6 +23,23 @@ The Team screen at `/team`: who can administer this organization, and the invite
 - **MFA enrollment status and last sign-in per member.** Both appear in the mock; neither is reachable. See "What the mock asks for that Clerk's client cannot give".
 
 
+## Revision 2026-09-28, final walk — the member view, and a role-aware capability panel
+
+Arthur's final console walkthrough. This section wins over every one below wherever they disagree.
+
+- **Staff in the member view** ([`admin-surface.spec.md`](admin-surface.spec.md), "Staff point of view") see a workspace's Team exactly as its member does: the roster, with no "Invite admin", no role change or Remove, and no invitations (they are not even read — Clerk never lists them to a member). The header reads "Only an organization admin can invite or remove". The admin view, the default, is the 2026-09-28 staff screen below. A staffer sitting in a tenant organization they belong to gets the same: the member view withholds the controls Clerk would otherwise offer them.
+- **"What this organization can do" groups what is allowed on one side and what is not on the other** — two columns when the card has room (measured on the card, not the window), stacked with Allowed first when it does not. A line under the title says whose view it is ("As an admin of Test." / "As a member of Test."). Each thing not allowed says who does it instead: "An admin does this" or "Overboard does this".
+- **It speaks to the reader's role.** Admins never read what members can't do; members read exactly that. The lines mirror the server's gates: tenant configuration writes (games, contests, prize tiers, sponsors, brand, signup fields and opt-ins, export field choices, prize resends) are open to the tenant's admins and Overboard staff; membership changes are the organization admin's (Clerk's own permission); finalizing, fan contact exports, fan-data deletion and any other team's data stay with Overboard; sponsor and usage exports and reports to Overboard are open to everyone.
+
+| | Admin | Member |
+|---|---|---|
+| Allowed | Set up this team's games, contests and prize tiers · Manage sponsors and the brand fans see · Choose the signup fields and opt-ins fans fill in · Choose which fields each sponsor's export includes · Resend prize emails that didn't arrive · Invite and remove people, and change their roles · Download sponsor and usage exports · Send a report to Overboard | See this team's games, contests, prizes, sponsors and settings · Download sponsor and usage exports · Send a report to Overboard |
+| Not allowed | Finalize a contest · Export fans' contact details or delete a fan's data · See any other team's data (each: Overboard does this) | Change games, contests, prizes, sponsors, the brand or signup fields · Invite or remove people (each: An admin does this) · and the admin's three Overboard lines |
+
+The OBS organization's own panel keeps its cross-team lines, split the same way.
+- **US spelling:** the banner reads "Every admin account must enroll a second factor" and "An invited admin can't reach this console until enrollment completes."
+- Team's roster no longer wears a hue (it points to no other page; [`admin-surface.spec.md`](admin-surface.spec.md), "Hues").
+
 ## Revision 2026-09-28 — staff see the workspace's Team as its admin does; no re-authentication
 
 Arthur's Wave 4 walkthrough ruling. This section wins over the 2026-09-24 one below wherever they disagree.
@@ -136,7 +153,7 @@ That is a judgement call, so: the mock is plainly our design system, not Clerk's
 
 **Header.** Title, and the mock's subtitle: membership in this organization is what grants access — there is no per-user tenant field (`IDN-12`). "Invite admin" sits top-right, rendered only for callers Clerk says may manage memberships.
 
-**MFA banner.** States `IDN-10`/`SEC-08` in words: every admin account must enrol a second factor, enforcement is instance-wide, and an invited admin cannot reach the console until enrolment completes. Informational, always shown — it is the answer to "why can't my new teammate get in yet?", which is this screen's most likely support question.
+**MFA banner.** States `IDN-10`/`SEC-08` in words: every admin account must enroll a second factor, enforcement is instance-wide, and an invited admin cannot reach the console until enrollment completes. Informational, always shown — it is the answer to "why can't my new teammate get in yet?", which is this screen's most likely support question.
 
 **Members table.** One row per membership: avatar initials, name, email, role badge, status, and the row action. Pending invitations are listed in the same table beneath the members, as the mock shows them — an invited person is part of "who can administer this organization" in the reader's mind, and splitting them into a second table makes the screen answer that question in two places. Invitation rows carry an `Invited` status badge and a `Revoke` action; member rows carry `Active` and `Remove`.
 

@@ -16,6 +16,8 @@
 
 **Revised 2026-09-28** (Arthur's Wave 4 walkthrough ruling) — **no re-authentication anywhere, for everybody**: destructive actions keep the typed-name confirmation only, checked server-side. And **staff see a workspace's screens exactly as its admin or member would**: the 2026-09-24 staff extras are removed, apart from the listed exceptions. Staff finalize only from the OBS pages, and triage support only in the OBS inbox. The focus ring fits each control's own shape. "No re-authentication", "Staff see what the workspace sees", "Focus ring", the Route surface, the dialogs paragraph and Rules 14–15 carry it.
 
+**Revised 2026-09-28, final walk** (Arthur's final console walkthrough) — **staff act on every tenant the same way**, through the tenant choice and never an organization switch, and a real organization switch keeps the shell on screen; **staff get an Admin / Member point-of-view toggle** in place of the Console look control; **only pages that widgets point to keep a hue**; screens load on demand and reads are cached briefly. "One switcher", "Staff point of view", "Hues" and "Loading and caching" carry it.
+
 ## Overview
 
 The access framework for the internal/tenant admin application: who can sign in, what they can reach, and how the backend tells them apart from fans.
@@ -203,7 +205,8 @@ A **separate application and deployment** at `admin.overboardsports.com`, not a 
 The fan template is tenant-branded and deployed per tenant; admin is one deployment serving all tenants, with its own Clerk publishable key, its own theme, and an org switcher instead of tenant resolution. Sharing a bundle would ship admin code to every fan and put two Clerk instances in one page.
 
 - **One switcher, in the sidebar** (ruling, 2026-09-16). The console previously had two selectors — Clerk's `<OrganizationSwitcher>` in the sidebar for *who you are*, and an "Acting on tenant" pill in the top bar for *which tenant you act on*. Two controls for one question is one too many, and which of the two applied depended on whether the target happened to be an org you were a member of — an implementation detail from the operator's side. **The top-bar pill is removed and Clerk's switcher is replaced by a custom sidebar switcher.**
-- **What the switcher lists.** Every user sees their real Clerk organization memberships; selecting one calls Clerk's `setActive`, semantics unchanged. **OBS staff additionally see every tenant from `GET /admin/tenants`** — the DB tenant directory, which is the source of truth for what tenants exist. Selecting a tenant they hold a Clerk membership in switches the active org (`setActive`); selecting one they do not sets the internal acting-on context instead. **One deduped list**: a tenant that appears both as a membership and as a directory entry shows once, and the two cases look and feel identical. Which mechanism fires is ours to know, not the operator's to learn. **Pending invitations are listed too**, after the user's own organizations: choosing one accepts the invitation and switches to that organization, the same way picking a membership does, and a join that fails says so and leaves the user where they were. The switcher is the console's one place to accept an invitation — Clerk's sign-in step offers invitations only while no organization is active, and the active one survives sign-out, so without it a user invited to a second organization would stay locked into their first. The same reasoning decides who gets a switcher at all: a user with one organization and nowhere else to go sees it as a fixed card, and a pending invitation counts as somewhere else, so it earns the switcher in place of the card.
+- **What the switcher lists** (revised 2026-09-28, final walk). Every non-staff user sees their real Clerk organization memberships; selecting one calls Clerk's `setActive`. **OBS staff see Overboard's own organization first ("OBS internal"), then every tenant from `GET /admin/tenants`** — the DB tenant directory, which is the source of truth for what tenants exist. **Every tenant is chosen the same way, whether or not staff hold a Clerk membership in it: it sets the acting-on tenant, and staff stay in (or return to) the `obs` organization.** A staffer's own tenant memberships appear once among the directory's rows (deduped by slug) and behave exactly like them; choosing OBS internal clears the choice. There is no organization switch between tenants, so nothing reloads and the choice is never lost. A staffer an older session left active in a tenant organization is moved back to `obs` once, the first time they choose anything, with the new choice written before the move. The directory's first page is read as soon as health says staff, so every row is there when the list opens; search and paging run on the server as before. **Pending invitations are listed too**, after the user's own organizations: choosing one accepts the invitation and switches to that organization, the same way picking a membership does, and a join that fails says so and leaves the user where they were. The switcher is the console's one place to accept an invitation — Clerk's sign-in step offers invitations only while no organization is active, and the active one survives sign-out, so without it a user invited to a second organization would stay locked into their first. The same reasoning decides who gets a switcher at all: a user with one organization and nowhere else to go sees it as a fixed card, and a pending invitation counts as somewhere else, so it earns the switcher in place of the card.
+- **A real organization switch keeps the shell** (revised 2026-09-28, final walk). For a member of several organizations the switch is Clerk's. The sidebar, top bar and switcher stay on screen with the previous organization's scope while the new one's `/admin/health` loads; only the page content waits, behind a quiet in-content loading state, and it is keyed on the organization, so no screen ever renders on the previous organization's answer. The full-screen "Checking your admin access" state is only for a session's first answer.
 - **The acting-on machinery stays as wiring; only its UI goes.** The `TenantContext` that held the console-wide choice is unchanged underneath — set once, applies to every per-tenant screen, survives routes and reloads, dropped at sign-out, reset when the stored slug no longer appears in `GET /admin/tenants`. It changes nothing about the wire: **every OBS request still names the tenant explicitly as `?tenant=<slug>`**, including when the operator is acting on their own active tenant org. Explicit, never implicit.
 - **"Create organization" appears for OBS staff only**, and routes to the console's own All-tenants Create-tenant flow (`POST /admin/tenants`, OBS Internal spec) — never Clerk's widget, which creates a Clerk org with no `B2BOrganization` behind it and breaks the synced-pair invariant. A non-obs user never sees the entry, and Rule 8 still stands: self-creation is disabled instance-wide, so the entry is a link to the one provisioning path rather than a second one.
 - **Cross-tenant screens are not filtered by the selection.** All tenants, Platform health and Prize deliveries (all workspaces) answer questions about the set of tenants and ignore it (the All-tenants drawer flows the other way: it *sets* the selection and opens that tenant's Overview; since 2026-09-24 that drawer is the tenant page, whose "Open as this tenant" does the same). Fan actions already had a tenant filter, so the selection pre-fills it, with "All tenants" still available. Team ignores it — membership reads the active organization from the session, not a tenant slug.
@@ -297,6 +300,16 @@ Arthur's walkthrough ruling: "Full pages instead of drawers for contest create/e
 
 **Confirmations are centred dialogs**, not drawers and not inline zones: Finalize, Delete (fan, tenant, sponsor, contest, prize, prize tier), Pause and Resume, Send again. Delete contest covers any contest that isn't finalized (revised 2026-09-27; [`admin-contests.spec.md`](admin-contests.spec.md)). Delete sponsor just works: it removes the sponsor from every placement and credit automatically and the dialog says what goes with it; it never asks the admin to remove the sponsor elsewhere first ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)). A dialog states the consequence in plain words, names the thing it acts on, and puts the confirming action on the right. Where it takes a typed confirmation (Finalize and delete a contest: the contest name; delete a sponsor: its name; delete a tenant: its subdomain; delete a fan: their display name), the confirming button is enabled only on an exact match and the server checks the typed value again. No dialog asks for credentials (revised 2026-09-28).
 
+### Staff point of view (ruling, 2026-09-28, final walk)
+
+The staff-only **Console look** control (Floodlight / Prime Time) is removed; Prime Time is parked. In its place, the sidebar footer carries an **Admin / Member** toggle ("View as"), shown only to staff with a tenant in view — a chosen tenant, or a tenant organization they sit in — and never on OBS internal. **Every tenant starts in the Admin view**; the choice is kept per user for the tab, beside the tenant choice, and resets when the tenant changes.
+
+- **Admin view:** the tenant's screens exactly as its admin sees them. Staff keep write, and a paused tenant stays writable for them (the pause is for the tenant's own admins).
+- **Member view:** the tenant's screens exactly as a member sees them. Every write control follows the one client-side write check, so it is off everywhere, with the member's read-only notes and messages; Team shows the roster only, with no invite, role change, removal or invitations, and "What this organization can do" speaks to a member.
+- **In both views**, the staff operator tools Arthur keeps on tenant screens stay with staff: Finalize on the contest card and page, editing Overboard's own documents on Fields & Opt-ins, the paused banner's resume link, and the Fan page's fan-data-rights actions. Support triage and delete stay in the OBS inbox.
+
+It is a view, not a permission: the server still answers staff as staff, and every tenant user's own role is unaffected.
+
 ### Staff see what the workspace sees (ruling, 2026-09-28)
 
 Arthur's Wave 4 walkthrough ruling reverses the 2026-09-24 staff extras: **when Overboard staff have a workspace chosen, its screens show them exactly what that workspace's admin or member would see.** Staff-only work happens on the OBS pages: staff finalize a contest from **All contests** or the **tenant page** ([`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md), [`admin-tenant-page.spec.md`](admin-tenant-page.spec.md)), and triage support only in the **support inbox**, `/inbox` and `/inbox/:reportId` ([`admin-support.spec.md`](admin-support.spec.md)). What staff may *do* on a workspace screen is unchanged — they write tenant configuration as its admin does — only the staff-only controls and wording went.
@@ -330,28 +343,25 @@ The prize Deliveries screens' staff controls (bulk resend, Send again, Send to a
 
 ---
 
-## Hues (ruling, 2026-09-24)
+## Hues (ruling 2026-09-24, revised 2026-09-28 final walk)
 
-Arthur's walkthrough ruling: every sidebar destination gets a hue, shown as a thin bar on its **right edge**, so icons and text never shift; in-page coloured sections use the Overview KPI tile's top-wrapping outline, never little squares; **visible to everyone**, not a staff toggle. This supersedes D-067's "Signal wayfinding" overlay as an opt-in axis: hues are now part of the default console, and the "Hues" control leaves the staff "Console look" switcher (the Display control stays).
+A hue marks a page only where widgets elsewhere point to it (Arthur's final walk: "back off every sidebar item has a colour"). Hues are **visible to everyone**, never a staff toggle. Alarm red stays exclusively status; no hue is red; every hue clears 4.5:1 on the card surface.
 
-**One hue per family, every destination in a family.** Alarm red stays exclusively status; no hue is red. Every hue clears 4.5:1 on the card surface.
+| Hue | Sidebar pages | Widgets that wear it |
+|---|---|---|
+| Games (violet) | Games & Contests; staff: All contests | Boards, contests and games KPI tiles; the games cards on Overview, Game day, a contest's Overview tab, the fan and tenant pages |
+| Prizes (orange) | Prizes; staff: Prize deliveries | Prizes-delivered tiles, prize tier and prize cards |
+| Fans (cyan) | Fans | Fans-joined tiles, the fan profile card |
+| Consents (pink) | Fields & Opt-ins | Overview's consent coverage card, the fan page's opt-ins card |
+| Support (lime) | Support; staff: Support inbox | Support inbox tiles and patterns, a report's thread and answer, Platform health's oldest-report tile |
 
-| Family | Destinations |
-|---|---|
-| Home | Overview |
-| Live | Game day, Operations |
-| Games | Schedule, Games & Contests, All contests, Season calendar |
-| Prizes | Prizes, Prize deliveries (all workspaces) |
-| Fans | Fans, Fan actions |
-| Consents | Fields & Opt-ins, Exports |
-| Brand | Sponsors, Brand |
-| People | Team, All tenants |
-| Support | Support, Support inbox |
-| Health | Platform health |
+**Every other page** — Overview, Game day, Schedule, Exports, Sponsors, Brand, Team, Operations, All tenants, Season calendar, Platform health, Fan actions — gets **the same neutral near-white bar as Overview**. A card about none of the five takes no hue.
+
+**Distinct at a glance.** The five sit at least 45 degrees apart on the colour wheel (51 or more today: orange, lime, cyan, violet, pink) and are fully saturated, so an outline points at one page and never reads as the neutral bar or a neutral white tenant accent. Each workspace hue names exactly one workspace page.
 
 **Placement.**
 1. **Sidebar:** a 3px bar inside the item's right edge, rounded, full item height minus the item's vertical padding. Resting at reduced strength, full strength on hover and on the active item. Absolutely positioned — the item's icon, label and badge never move, and the active item's existing left bar is untouched.
-2. **In-page sections about one family:** the KPI tile's 2px top-wrapping inset outline (`KpiTile`), applied to any `Card` given `entity=`. The 6px square before card titles is removed everywhere.
+2. **In-page sections about one family:** the KPI tile's 2px top-wrapping inset outline (`KpiTile`), applied to any `Card` given `entity=`.
 3. **Chart series:** unchanged.
 
 Nothing else takes a hue: not status pills, text, numbers, buttons, or tables.
@@ -365,6 +375,12 @@ The console wears **the acting tenant's accent**: the colour its fans see on bin
 - **Legible on the console.** Text in the accent is lifted along its own hue to 4.5:1 on the console surface; the accent's own marks (dots, bars, fills) are lifted to 3:1, so a dark team colour still reads on the near-black console.
 - **Follows a save at once.** After Brand saves, the console re-reads the accent (`useTenantAccent().refresh()`) without a reload.
 - **Tenant colours are the only accent.** The staff "Console look" switcher is removed and Prime Time is parked; there is one console look.
+
+## Loading and caching (2026-09-28, final walk)
+
+- **Screens load on demand.** Each screen is its own chunk, fetched on first visit and, once the console has drawn, in the background while the browser is idle. The shell stays mounted while a screen arrives; the wait is a quiet in-content state, never the full-screen one. Charts, drag-and-drop, Clerk and React are separate long-lived chunks.
+- **Reads are cached for 30 seconds**, keyed by the session token's user, session and active organization plus the exact path (`?tenant=` included), so one tenant's, organization's or user's answer is never served to another. Simultaneous asks share one request, and after 5 seconds a cached answer is re-read in the background. Any write drops the session's cache, a read in flight during a write is not kept, and sign-out and organization switches clear it. Live state that is polled (Game day, the support badge) always reads fresh.
+- **The support badge** re-reads every 60 seconds while the tab is visible, pauses while it is hidden, and catches up when it is shown again.
 
 ## Focus ring (revised 2026-09-28)
 
