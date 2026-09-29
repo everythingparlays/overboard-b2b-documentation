@@ -22,6 +22,16 @@ Second-order value: every recorded spec gap that confuses a paying customer beco
 - **Auto-resolution** (resolve a report when the platform observes the fix — a redemption later fulfilled, tiers later added). Designed for, not built: the subject pair makes it a read-side rule. Recorded.
 - **Report buttons inside screens other slices own this wave** — export refusals (Exports), contest and game rows (Games & Contests), publish rejections (Fields & Opt-ins, Branding), and lifecycle divergence (All tenants). Their *load* failures are covered on day one through the error card; the inline, pre-loaded buttons are recorded for those owners.
 
+## Revision 2026-09-28 — staff delete a report from the inbox
+
+Arthur's final walk: Overboard staff can **delete** an inbox item, after a confirmation; a workspace can't. This section wins over every older line in this spec.
+
+- **Where.** The inbox's rows carry an overflow ("More actions for this report") with **Delete report**, beside the row's link, never inside it; the report page on Overboard's side (`/inbox/:reportId`) has **Delete report** at the foot of the triage panel. A workspace's Support page and its report pages never offer it, and neither does a staffer's view of a workspace's Support.
+- **The confirmation** is the console's centred dialog, as for a library prize (a report has no name to type): title "Delete this report?"; the report's title and workspace; "Its conversation is deleted with it. Nobody can open it again. This can't be undone." — or, when duplicates were merged into it, "Its conversation and the duplicate(s) merged into it are deleted too."; buttons "Cancel" and "Delete report" ("Deleting…").
+- **What goes.** The report and its thread (the thread lives on the report), and every duplicate merged into it: a duplicate reads its status and answer from the report it was folded into, so it cannot outlive it. Nothing else points at a report.
+- **After.** The row leaves the list, the inbox's counts take the server's answer, the nav badge re-reads its count, and the page says "Report deleted." (or "Report and its duplicates deleted."). Deleting from the report page returns to the inbox with the same line.
+- **Endpoint.** `DELETE /admin/support/reports/:reportId` — requireAdmin; Overboard staff only, refused with 403 before anything is read; 404 for an unknown id. It writes the new audit action **`support_report_delete`** (kind "support"; detail: the report id, the ids of the duplicates deleted with it, and its status, surface and kind — never the message) **before** anything is removed, and refuses with 500 "Couldn't save a record of the deletion, so nothing was deleted. Try again." when it can't. Answers `{ success, deletedReportIds, counts }` (`deleteSupportReportResponseSchema`, additive). Recent activity reads it as "deleted a report".
+
 ## Revision 2026-09-28 — sides: staff see a workspace's Support as the workspace does
 
 Arthur's Wave 4 walkthrough rulings: staff see tenant screens exactly as a tenant member or admin would; a report staff file from a tenant workspace is attributed to the tenant side; on the tenant Support screen the tenant's messages are "You" and Overboard's are "Overboard", and in the OBS inbox it is the reverse; staff never appear to be talking to themselves; the tenant Support page has no staff features (no internal note, no assign, no acknowledge or resolve), and the OBS inbox is the only triage surface. This section wins over every older line in this spec.
@@ -218,6 +228,7 @@ Same route, rendered by identity (admin-surface **Seamlessness**): staff get the
 | GET | `/admin/support/inbox` | requireAdmin | staff only; `?view=open|all` |
 | GET | `/admin/support/summary` | requireAdmin | staff only — the badge and the Platform health tile |
 | PATCH | `/admin/support/reports/:reportId` | requireAdmin | staff only; acknowledge / resolve / assign / merge / reopen |
+| DELETE | `/admin/support/reports/:reportId` | requireAdmin | staff only; deletes the report, its thread and its merged duplicates, audited first (revision 2026-09-28) |
 
 - **POST** validates the strict context, derives the fingerprint, snapshots the reporter's name, writes `support_report_create` (fire-and-log — the report itself is the durable record), returns 201 with the report. A `membershipId` or `redemptionId` in context or subject must belong to the target workspace, else 404 (the probe answer): a report cannot be used to confirm another tenant's ids exist.
 - **GET reports** returns at most 200, newest first. A merged report reads with its target's status and resolution.
