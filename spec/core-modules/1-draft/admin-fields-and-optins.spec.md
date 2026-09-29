@@ -105,17 +105,20 @@ From Arthur's Wave 4 walkthrough. Where this section and older text below disagr
 
 The gate preview sits in the same phone as the contest, prize and Brand previews ([`admin-preview.spec.md`](admin-preview.spec.md), `PhonePreview`): one row of controls, then a 390-wide screen in the bezel. The control row is a segmented "Screen" choice, **Join | Returning**. The card title ("What fans see") and the caption line are gone (no label around a preview, `PV-08`); "What fans see" stays as the region's accessible name. The phone sticks beside the editor, its height fitted to the window, and the gate scrolls inside it. It is still the in-page gate (`GatePreviewPanel` rendering the shared `EntryGateForm` through `WalkableGate`), not a frame of the fan app, because it follows every keystroke of the unsaved draft.
 
-### 2. The preview follows the section being worked on
+### 2. The preview follows what is being worked on
 
-The preview moves when the tab changes and **every time a row or section is opened** (reopening one after scrolling the phone by hand lands there again), never while the admin types:
+The preview moves when the tab changes, **every time a row or section is opened** (reopening one after scrolling the phone by hand lands there again), and (revised 2026-09-29, Arthur's Walk #3) **whenever an item is pointed at or focused**, to the exact spot where its words appear. It never moves while the admin types. It uses the console's one hover-to-preview mechanism ([`admin-preview.spec.md`](admin-preview.spec.md), "The preview follows what you point at"): it waits for the pointer to rest, and keeps the last spot when the pointer leaves.
 
-| Opened | The preview shows |
+| Opened, pointed at or focused | The preview shows |
 |---|---|
+| The Opt-ins tab | The join screen, scrolled to the consents |
+| A sign-up field, or Display name | The join screen, scrolled to that field |
+| An opt-in (Overboard's terms included) | The join screen, scrolled to that opt-in's consent |
+| A linked document in an opt-in | That document, opened over the gate as the fan app opens it; Back returns to the gate |
 | Screen text › Joining | The join screen, at the top |
 | Screen text › Returning | The returning screen |
 | Screen text › Consents & footer | The join screen, scrolled to the consents and footer |
-| A sign-up field, or Display name | The join screen, scrolled to that field |
-| The Opt-ins tab | The join screen, scrolled to the consents |
+| A line of screen text | Its screen, scrolled to it: Join heading and Join intro at the top of Join, Join button at the button, Consents heading at the consents, Footer note at the note; Returning heading and intro on the returning screen |
 
 With nothing outstanding for returning fans, Returning shows the settled state ("Returning fans go straight in.") as before.
 

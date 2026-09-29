@@ -8,6 +8,8 @@
 
 **Status:** Draft, written 2026-09-23 with the build. No open questions.
 
+**Revised 2026-09-29** (Arthur's Walk #3) — the sponsor page's preview draws no highlight ring: pointing at, or focusing, an artwork block switches the preview to the screen that shows it, and the Prize logo block opens the popup of the tier this sponsor provides in the contest shown ([`admin-preview.spec.md`](admin-preview.spec.md), "The preview follows what you point at"). "Where it appears" previews no longer carry `sponsor=`/`slot=`, and a provided prize's Preview opens its own tier.
+
 **Revised 2026-09-29 (Walk #3): the Start page is the tenant's, not a contest's** (ruling, Arthur: "remove the
 'Sign-in' slot from contest Sponsors, since it isn't a contest field. Brand gets a Start page section where the tenant
 adds and removes start-page sponsors. Rename 'sign-in' to 'Start page' wherever it means the start page.")
@@ -22,7 +24,7 @@ adds and removes start-page sponsors. Rename 'sign-in' to 'Start page' wherever 
   `nextGame` (the console's Sponsors read and older fan apps read them), but the Start screen reads only `startPage`.
 - **The kit's keys are renamed**: `signInLogo` → `startPageLogo`, `signInTagline` → `startPageTagline`, and the upload
   field `sponsor.signInLogo` → `sponsor.startPageLogo` ("Start page logo"). `startPage` replaces `signIn` as a
-  `SponsorSlot` (a highlight target on the sponsor page, like `prizePopup`), never a placement slot.
+  `SponsorSlot` (a place on screen the sponsor page previews, like `prizePopup`), never a placement slot.
 - **Back-compat until the migration runs:** every reader goes through `normalizeSponsorAssets` (a legacy key is read as
   its new key when the new one is empty; legacy keys never leave the server). The store still accepts a legacy
   `signIn` placement slot (`STORED_PLACEMENT_SLOTS`); every read drops it, a placement holding nothing else is not shown,
@@ -185,7 +187,7 @@ A library prize (`B2BPrize`) carries `providedBySponsorId?: TId`, one of the ten
 - **Readers** never resolve `prizePopup` as a placement. The worker's credit (from the snapshot), the popup's credit and the recap read the prize's provider only (through the tier's copy).
 - **Writes** refuse `prizePopup` in a placements body (400 "The prize credit is set on the prize."). A stored `prizePopup` value is not shown on the Sponsors tab, and a placements save carries it over untouched, so an older deployment reading the shared dev database keeps its credit until cleanup.
 - **The public fan read** stops sending `prizePopup` from the first deploy (below, "The fan wire").
-- **`prizePopup` stays a `SponsorSlot` value.** It no longer names a placement slot, but it still names a place on screen: the preview's `view.highlight` points at the popup credit with `slot: "prizePopup"` ([`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md), "The highlight"). `PLACEMENT_SLOTS` is what placement writes validate against.
+- **`prizePopup` stays a `SponsorSlot` value.** It no longer names a placement slot, but it still names a place on screen: the prize logo in the popup credit, which the sponsor page's Prize logo block previews. (The preview's `view.highlight`, which once ringed it, is deprecated and ignored since 2026-09-29.) `PLACEMENT_SLOTS` is what placement writes validate against.
 
 ### Attribution: which sponsors a game credits
 
@@ -406,7 +408,7 @@ Two columns at ≥1280px: the slot blocks on the left, and `FanAppPreview` on th
 
 **Every image field is the console's upload field** ([`admin-uploads.spec.md`](admin-uploads.spec.md)): a box to drop an image on or click to browse, with the accepted types, the 5 MB limit and the fan app's box size as its hint ("PNG, JPG, SVG or WebP · up to 5 MB · shown 40 px tall"). Filled, it shows the image, its file name and size, "Replace" and "Remove"; Remove saves `null`. There is no URL box.
 
-**The frame shows each slot in its real spot.** Focusing a block, or any field in it, switches the frame to the screen that holds that slot and rings it with the preview's highlight: Start page on Start, Board banner and Slider on Board, Prize logo on Prize (`view.highlight` with `slot: "prizePopup"`). What the frame renders is the fan app itself, on the tenant's saved brand, with this sponsor's artwork as saved: an upload saves when it completes, and the frame shows the new image at once. The frame's contest is chosen from a select above it listing the contests in "Where it appears", defaulting to the one with the next game. A sponsor that appears in no contest has no frame (there is no sample contest to show it in): the slot blocks, their measured lines and the prize email's mark stand alone, and "Where it appears" says how to place it. The mechanics (the render document, the contest-wide resolution for the selected game, the highlight) are [`admin-preview.spec.md`](admin-preview.spec.md)'s.
+**The frame shows each slot in its real spot.** Pointing at a block, or focusing any field in it, switches the frame to the screen that holds that slot (revised 2026-09-29: nothing is ringed; the switch is the feature): Start page on Start, Board banner and Slider on Board, Prize logo on Prize, **opening the popup of the tier this sponsor provides** in the contest shown (the first such tier; tier 1 when it provides none there). The frame waits for the pointer to rest and keeps the last screen when the pointer leaves. What the frame renders is the fan app itself, on the tenant's saved brand, with this sponsor's artwork as saved: an upload saves when it completes, and the frame shows the new image at once. The frame's contest is chosen from a select above it listing the contests in "Where it appears", defaulting to the one with the next game. A sponsor that appears in no contest has no frame (there is no sample contest to show it in): the slot blocks, their measured lines and the prize email's mark stand alone, and "Where it appears" says how to place it. The mechanics (the render document, the contest-wide resolution for the selected game, the jump to the screen that shows a block) are [`admin-preview.spec.md`](admin-preview.spec.md)'s.
 
 **The prize email's mark** is not a fan-app screen, so the Prize logo block also shows it directly: "In the prize email", the logo at the email's exact box (32px tall, up to 160px wide) on the email card's white. This is the one sample drawn in console markup, and it is narrow by design: the email's card is white by construction ([`prize-delivery.spec.md`](prize-delivery.spec.md), "How it is built"), and the question the admin has is whether the logo survives on white, which a logo at its exact size on that white answers truthfully.
 
@@ -436,9 +438,9 @@ A flush card, "Where it appears", with a table (endless scroll, `kind=placements
 - **Game** is "Whole contest" for a contest-wide placement, else the matchup and tip-off ("vs Denver · Sat 7:00 PM").
 - **Slot** is "Board banner" or "Slider".
 - **The Start page** (since 2026-09-29): when the tenant's Start page lists the sponsor, the card opens with "On the Start page, under “Presented by”." and "Edit on Brand" (to `/branding`), and the empty line below is not shown.
-- **"Preview"** opens the contest's Preview tab on that slot's screen and game, with this sponsor's artwork highlighted (`/contests/:id/preview?screen=board&game=<id>&sponsor=<sponsorId>&slot=boardBanner`).
+- **"Preview"** opens the contest's Preview tab on that slot's screen and game (`/contests/:id/preview?screen=board&game=<id>`).
 
-Under the table, the prizes it provides (endless, `kind=provides`), one line each: "Provides: Free hot dog in Hawks 2026", linking to the contest's Prizes tab (`/contests/:id/prizes`), with a "Preview" link that opens the contest's Preview tab on Prize with that tier and `slot=prizePopup`.
+Under the table, the prizes it provides (endless, `kind=provides`), one line each: "Provides: Free hot dog in Hawks 2026", linking to the contest's Prizes tab (`/contests/:id/prizes`), with a "Preview" link that opens the contest's Preview tab on Prize with that tier's popup (`?screen=prize&tier=<n>`, `n` counted from 1 in tier order: the row's 0-based `tierIndex` plus one).
 
 Empty: "Not placed in any contest. Place sponsors on a contest's Sponsors tab." When it provides prizes but holds no placement, the table is left out and the provides lines stand alone. The empty line and the provides lines sit on the card header's own 18px inset, with no doubled gap under the title (revised 2026-09-28).
 
@@ -608,7 +610,7 @@ The board resolves against its contest and its game: the game of the board's pro
 2. **One sponsor per slot, at every game** (`SP-01`): a whole-contest holder, and at most one different sponsor per game, which replaces it at that game only. The console adds wherever a scope has no holder, and nowhere else.
 3. **Two placement slots, each placeable only with its artwork** (`SP-02`): Board banner, Slider. The Start page is the tenant's ordered list, set on Brand.
 4. **The prize credit follows the prize's "Provided by"** (`SP-11`). Popup and email read the same field, the email from the snapshot; a provider without a prize logo is credited by name.
-5. **Retiring `prizePopup` migrates the contest-wide credit, logs the game-level rows, and removes nothing** (`SP-12`). Writes refuse the slot; stored values survive until cleanup; `prizePopup` remains a highlight target.
+5. **Retiring `prizePopup` migrates the contest-wide credit, logs the game-level rows, and removes nothing** (`SP-12`). Writes refuse the slot; stored values survive until cleanup; `prizePopup` still names the popup credit the Prize logo block previews.
 6. **A sponsor is attributed to a game by its placements and the prizes it provides; opt-ins are a metric** (`SP-13`). One helper decides it for the recap and for "Where it appears".
 7. **Placements stay editable after the first fan joins**; a finalized contest refuses them.
 8. **The DPA scope and reference live on each agreement** (the opt-in); no stored scope, no export (`SP-03`). An unlinked agreement stays exportable by its opt-in.
@@ -629,7 +631,7 @@ The board resolves against its contest and its game: the game of the board's pro
 
 ## Known gaps (recorded, not blocking, never on screen)
 
-- **The `prizePopup` cleanup.** Strip `prizePopup` from stored placements, delete placements left with no slots, and drop the value from the stored enum, once every environment has run `prize-type-migration.mjs` and no deployed code reads the slot. `SponsorSlot` keeps the value as a highlight target.
+- **The `prizePopup` cleanup.** Strip `prizePopup` from stored placements, delete placements left with no slots, and drop the value from the stored enum, once every environment has run `prize-type-migration.mjs` and no deployed code reads the slot. `SponsorSlot` keeps the value: it names the popup credit on screen.
 - **No per-game prize credit.** A prize has one provider wherever it is awarded; the game-level `prizePopup` rows the migration logs had no faithful home. If a sponsor ever needs to fund one game's prizes only, that is a separate contest's tiers, or a per-game provider override on the tier.
 - ~~**No image upload.**~~ **Closed 2026-09-27** by [`admin-uploads.spec.md`](admin-uploads.spec.md).
 - **One prize logo for two grounds.** The same image sits on the popup's card (dark or light with the tenant's theme) and on the email's white card. The sponsor page now shows both, which makes the problem visible; a separate email logo is the fix if tenants need it.
@@ -661,5 +663,5 @@ Where the shipped console differs in detail from the text above:
 - [`admin-sponsor-recap.spec.md`](admin-sponsor-recap.spec.md) — the recap, whose editions `SP-13` re-keys
 - [`prize-delivery.spec.md`](prize-delivery.spec.md) — the prize email's credit mark, re-sourced by `SP-11`
 - [`admin-branding.spec.md`](admin-branding.spec.md), [`admin-exports.spec.md`](admin-exports.spec.md), [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md), [`admin-surface.spec.md`](admin-surface.spec.md)
-- [`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md) — the fan app's preview mode: the render document and the highlight
+- [`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md) — the fan app's preview mode: the render document and the preview board
 - Superseded (workspace): the S1/S2 preview interface, `artifacts/wave-2026-09-24/s1-s2-preview-interface.md`

@@ -9,6 +9,7 @@
 **Status:** Draft. Written 2026-09-24 for the S1 console redesign.
 Revised 2026-09-27 for Wave 4: the frame shows the current fan app with real data and in-frame navigation, the tabs follow it, the fixtures, sample players and PREVIEW chyron are gone, the Brand page leaves the host list on main (Brand page v2 and its preview are Wave 5), and the console builds the render document from one admin read.
 Revised 2026-09-28 for Wave 4b (Arthur's walkthrough): the desktop view and its toggle are removed, a contest's preview offers only its own screens (Contest list, Contest detail, Board, Prize), Brand hosts the frame on main with every screen fed by a built-in sample contest (the current Brand page, not Brand page v2), and Fields & Opt-ins shows its gate in the same phone.
+Revised 2026-09-29 (Arthur's Walk #3): the highlight ring is removed, since switching the preview on hover is the feature; every preview follows what the admin points at or focuses beside it, through one mechanism (below, "The preview follows what you point at"); a prize item opens the popup of its own tier; and a closed or finalized contest still previews Board and Prize, with its real props and their real progress.
 
 ## Overview
 
@@ -57,7 +58,7 @@ interface FanAppPreviewProps {
   screen?: PreviewScreen;      onScreenChange?(screen: PreviewScreen | null): void;
   /** @deprecated Accepted and ignored: the preview is always the phone. */
   device?: "phone" | "desktop"; onDeviceChange?(device: "phone" | "desktop"): void;
-  view?: PreviewView;          // prize tier, game, highlight
+  view?: PreviewView;          // prize tier, game
   refreshKey?: unknown;        // change it after a save and the frame reads again
   fit?: boolean;               // fit the phone's height to the window (a preview beside a long editor)
 }
@@ -74,7 +75,7 @@ The phone itself is **`PhonePreview`** (`src/components/preview/PhonePreview.tsx
 | Contest page, Preview tab | `/contests/:id/preview` | The saved contest | `contests`, or the URL's `?screen=` | `contests`, `contest`, `board`, `prize` |
 | Builder, Review step | `/contests/:id/setup/review` | The draft, with Basics' unsaved edits overlaid | `contests` | `contests`, `contest`, `board`, `prize` |
 | Prize full page | [`admin-prizes.spec.md`](admin-prizes.spec.md) | The prize as typed, on its own (a prize belongs to no contest): `document.prize` with no `contest`, in the tenant's theme, with its "Provided by" credit | `prize` | `prize` only |
-| Sponsor page | [`admin-sponsors.spec.md`](admin-sponsors.spec.md) | A contest where the sponsor appears, with its unsaved artwork overlaid in its real spots and highlighted; `view.gameId` when the slot being looked at is a game's own. A sponsor that appears in no contest gets no frame | The screen holding the slot | `start`, `board`, `prize` |
+| Sponsor page | [`admin-sponsors.spec.md`](admin-sponsors.spec.md) | A contest where the sponsor appears, with its unsaved artwork overlaid in its real spots. A sponsor that appears in no contest gets no frame | `start`; then the screen holding the artwork block pointed at | `start`, `board`, `prize` |
 | Brand | [`admin-branding.spec.md`](admin-branding.spec.md) | The built-in sample contest (below), in the tenant's name, gate and unpublished look | `start` | All seven |
 
 **A contest's preview shows only the screens that are about the contest** (Arthur, 2026-09-28): Contest list, Contest detail, Board and Prize. Start, Sign in and Join are the tenant's, not the contest's, and they are previewed on Brand, the one place every screen matters. A click inside the frame can still reach a screen the host doesn't offer (the start screen after signing out from the menu); no tab is selected then, and the Preview tab's address keeps `?screen=` empty rather than moving the frame back.
@@ -83,13 +84,13 @@ The phone itself is **`PhonePreview`** (`src/components/preview/PhonePreview.tsx
 
 The builder's Basics step has no mini preview any more: its question (how the card reads) is answered on Review, where the whole contest can be clicked through. A host whose spec needs another screen set passes `screens`.
 
-**The Preview tab keeps its selection in the URL:** `?screen=` (one of the contest's four screens), plus `?tier=` on Prize, `?game=` for one game's board (sent as `view.gameId`), and `?sponsor=` with `?slot=` for a highlight. When the admin clicks inside the frame and the frame reports a new screen, the URL's `screen` is replaced (not pushed), so Back leaves the Preview tab rather than stepping through the admin's clicks. These are console URLs; the frame's own URL never carries a query.
+**The Preview tab keeps its selection in the URL:** `?screen=` (one of the contest's four screens), plus `?tier=` on Prize (counted from 1, in tier order: a link to a tier's popup passes its position plus one) and `?game=` for one game's board (sent as `view.gameId`). An old `?sponsor=` or `?slot=` is ignored. When the admin clicks inside the frame and the frame reports a new screen, the URL's `screen` is replaced (not pushed), so Back leaves the Preview tab rather than stepping through the admin's clicks. These are console URLs; the frame's own URL never carries a query.
 
 ### The chrome
 
 One row of controls above the frame, on the console background:
 
-- **Screen tabs** (left): a segmented control. Before `ready` it shows the host's screens, disabled. After `ready`, the host's screens that `ready.screens` lists, in the frame's order, labelled "Start", "Sign in", "Join", "Contest list", "Contest detail", "Board", "Prize". Choosing one sends `navigate`. **The tabs follow the frame:** on `obs-preview:navigated` the console selects the tab the frame names (none, if it names no screen or one the host doesn't offer) and sends nothing back. Hidden when a host offers one screen. **A screen this contest can't show is disabled, with the reason on the tab** (revised 2026-09-28): a contest with no game open for entry, or no players yet, has no board and so no prize ("This contest has no board to show yet."); one with no prize tiers has no prize. A host that asks for such a screen (the sponsor page following its board artwork) leaves the phone and the tab where they are and says the reason once beside the tabs; a screen the frame refuses anyway (`error` naming it) is disabled the same way and the tab goes back to the screen the phone shows. The chosen tab always names the phone's screen.
+- **Screen tabs** (left): a segmented control. Before `ready` it shows the host's screens, disabled. After `ready`, the host's screens that `ready.screens` lists, in the frame's order, labelled "Start", "Sign in", "Join", "Contest list", "Contest detail", "Board", "Prize". Choosing one sends `navigate`. **The tabs follow the frame:** on `obs-preview:navigated` the console selects the tab the frame names (none, if it names no screen or one the host doesn't offer) and sends nothing back. Hidden when a host offers one screen. **A screen this contest can't show is disabled, with the reason on the tab** (revised 2026-09-29): only what truly can't exist. A contest whose games have no players yet has no board and so no prize ("This contest has no board to show yet."); one with no prize tiers has no prize. **A closed or finalized contest keeps Board and Prize:** with no game open for entry, the frame builds the board from every one of its games' real props, with their real outcomes and progress, so it shows the hits and bingos fans see ([`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md), "Building the preview board"). A host that asks for a screen it can't show (an item pointed at, below) leaves the phone and the tab where they are and says the reason once beside the tabs; a screen the frame refuses anyway (`error` naming it) is disabled the same way and the tab goes back to the screen the phone shows. The chosen tab always names the phone's screen.
 - **Tier** (on Prize, when the contest has more than one tier, not on the prize page): a segmented control "Tier 1 · Tier 2 · Tier 3", by number. It sends `navigate` with `view.prizeTierIndex`. **Choosing another tier closes the previous tier's popup and opens the new one at once** (revised 2026-09-28, Arthur's final walk): never the old popup left on top with the new one behind it, never a second click. The frame answers the choice with a board that holds only the chosen tier's award, and the fan board's popups follow the awards the board holds ([`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md), "The Prize screen"). The same holds in the builder's Review & preview step, which mounts the same preview.
 - **Every chooser is one line** (revised 2026-09-29, Arthur's Walk #3; this replaces "Brand's seven tabs wrap inside the column"). The screen tabs and the tier control are compact segmented controls (a smaller label and tighter segments than the console's toolbar pills) that never wrap, with the outline hugging the tabs. When a chooser's tabs would not fit the control row (a narrow column, longer labels, more tabs), it becomes one compact dropdown with the same accessible name ("Screen", "Prize tier"), the same options in the same order, and the same unreachable screens disabled with their reason; it goes back to tabs as soon as they fit. The console measures rather than assuming labels or a tab count, so renaming a tab or dropping one needs no layout change. The screen tabs and the tier control share the row when both fit, and the tier control takes its own line when they don't. The same component (`PreviewTabs`, `src/components/preview/PreviewTabs.tsx`) draws the tabs on Brand, the contest's Preview tab, the builder's Review & preview, the sponsor page, the prize page and Fields & Opt-ins (Join / Returning).
 - **One phone, no device choice.** The fan app is mobile-only (Nick, 2026-09-27), so the preview is always the phone: 390×844 CSS px in a bezel, shown at 1:1 and never scaled, so artwork in the frame is at its true size; in a column narrower than the phone the frame scrolls sideways inside its container. A host that sticks the preview beside a long editor (Brand) passes `fit`, and the screen's height follows the window (never above 844, never below 560) while the app scrolls inside it, as on a shorter phone. Every render says `device: "phone"`; a mount still passing `device` is ignored.
@@ -109,8 +110,49 @@ The render document is built from **`GET /admin/contests/:contestId/preview`** (
 | Contest Preview tab | None: every other tab of the contest page saves inline, so saved is current. |
 | Builder Review | Basics' unsaved name, description and player limit, applied to the contest wherever the fan wire carries them (the contest read and its entry in `contests`). |
 | Prize page | No contest read: the tenant sections come from `GET /admin/preview`, and `document.prize` is the prize as typed, in the award's prize shape with `providedBy` resolved from its sponsor. |
-| Sponsor page | The sponsor's unsaved artwork, applied to its entry in `schedule` for the slot and scope it holds (one holder per slot per scope, as the app renders it); `view.highlight` on the slot being looked at. |
+| Sponsor page | The sponsor's unsaved artwork, applied to its entry in `schedule` for the slot and scope it holds (one holder per slot per scope, as the app renders it). Nothing is ringed: the frame draws nothing the live app doesn't. |
 | Brand | No contest read: the tenant sections come from `GET /admin/preview`, the sample contest replaces `contests` and `contest`, and `overlay.branding` lays the unpublished theme and images on `org.organization.branding` exactly where the public org read carries them. A reset theme ("Reset to starting look" or "Reset to neutral look") is no theme, as it is once published, so the frame shows the onboarding colours or the neutral look. `overlay.startPage` (2026-09-29) lays the Start page card's list as it stands on `schedule.startPage` and `schedule.sponsors`, so the Start screen shows an add, removal or move at once; the card hands its list over through `lib/preview/startPageDraft.ts`, keyed by the tenant query, and only the Brand host reads it. |
+
+### The preview follows what you point at
+
+Revised 2026-09-29 (Arthur's Walk #3). **Wherever a form or list sits beside a preview, resting the pointer on an item, or moving keyboard focus to it, switches the preview to the screen and state that shows it.** There are no rings or highlights: the frame shows the fan app and nothing else (`PV-08`).
+
+**One mechanism** (`src/lib/preview/previewJump.ts`, `src/components/preview/PreviewJumpArea.tsx`):
+
+- The page renders a **`PreviewJumpArea`** in place of the element that already holds the form and its preview. It is a plain `div` that listens for `mouseover` and `focus` and hands jumps to the preview inside it.
+- Each item says what shows it with **`data-preview-target={previewTarget({...})}`**: a fan-app `screen`, a prize `tier` (by position, tier id, prize id or sponsor), a `pane` (the prize page's popup or email), or a gate `mode` and spot (a selector, an opt-in's consent, or an opt-in document). **The innermost marked element wins**, so a section can point at a screen and an item inside it at a spot on that screen.
+- The preview listens with **`usePreviewJumpListener`** and applies what it understands: `FanAppPreview` a screen and tier, `GatePreviewPanel` a gate screen, spot or document, the prize page's rail a pane. A screen the host doesn't offer is ignored; one this contest can't show says why beside the tabs instead of moving.
+- **It waits for the pointer or focus to rest** (150 ms), so sweeping the mouse across a list moves the frame once, to where the pointer stops; moving on to unmarked space before then cancels it.
+- **The preview keeps the last state on mouse-out** rather than snapping back, so the admin can move to the phone and look at it, or click through from there. Coming back to an item after the preview was moved by hand jumps again.
+- **Keyboard:** focus triggers the same jump, once per item however focus moves inside it.
+- A page that aims its preview by itself (Fields & Opt-ins, a row it just opened) jumps at once through the same area (`usePreviewJumps`).
+
+**A prize item opens the popup of the tier it belongs to**, counted in tier order (by bingos to win, as the fan app and the Tier control count). A row passes its own position or tier id, so a prize awarded by several tiers opens the hovered row's tier; a sponsor's prize logo opens the first tier that sponsor provides in the contest shown. (Before 2026-09-29 the sponsor page opened tier 1 whatever the sponsor provided, and its "Provides … Preview" link sent a 0-based position where the Preview tab counts from 1; both are fixed.)
+
+**The targets, page by page:**
+
+| Page | Item pointed at or focused | The preview shows |
+|---|---|---|
+| Brand | The logo | Start |
+| | The progress marker | Board |
+| | The Start page sponsors card | Start |
+| | A colour row | Nothing moves: colours show on every screen |
+| Fields & Opt-ins | A sign-up field row, or the display name | Join, scrolled to that field |
+| | An opt-in row (Overboard's terms included) | Join, scrolled to that opt-in's consent |
+| | A linked document in an opt-in | That document, opened over the gate as the fan app opens it |
+| | A Screen text section | Joining: the top of Join; Returning: the returning screen; Consents & footer: that part of Join |
+| | A line of screen text | The screen it appears on, scrolled to it: the heading, the intro, the Join button, the consents heading or the footer note |
+| Builder, Review | Name | Contest list |
+| | Contest type, Games | Contest detail |
+| | Prize tiers | Prize, tier 1's popup |
+| | Sponsors | Board |
+| Sponsor page | Start page block | Start |
+| | Board banner, Slider | Board |
+| | Prize logo | Prize, the popup of the tier this sponsor provides |
+| Prize page | The prize, Claim, Button, Provided by | The Prize popup pane |
+| | Delivery, the code | The Email pane |
+
+The **contest page** has no preview beside its tabs (Preview is a tab of its own), so it has no hover targets; its links to a screen ("Preview" beside a placement or a provided prize) open the Preview tab on that screen and tier. The **Prizes Email tab**'s preview is the email itself, which already follows every field as it is typed.
 
 ### The sample contest (Brand)
 
@@ -221,6 +263,7 @@ There is no other console copy: no label on the frame, no caption about data, no
 11. **`PV-11` — The phone only, never scaled.** There is no other device; a fitted phone is shorter, never smaller.
 12. **`PV-12` — The preview writes nothing**, so every viewer of the host page gets all of it.
 13. **`PV-13` — A chooser never wraps.** The screen tabs and the tier control are each one line at every width the host page supports: compact tabs when they fit, one compact dropdown when they don't.
+14. **`PV-14` — The preview follows what the admin points at.** Hovering or focusing an item beside a preview shows the screen and state that show it, through the one mechanism above, after the pointer rests; nothing is ringed.
 
 ## Known gaps (recorded, not blocking)
 
@@ -232,7 +275,7 @@ There is no other console copy: no label on the frame, no caption about data, no
 Where the shipped console differs in detail from the text above:
 
 - `FanAppPreview` takes `overlay.contest.description` (the same as `contestDescription`). `screen` is controlled only when `onScreenChange` is passed; otherwise it is the opening value.
-- The contest Preview tab keeps its selection in the address: `?screen=`, `?tier=` (counted from 1), `?game=`, and `?sponsor=` with `?slot=` for a highlight. An old `?device=` is ignored.
+- The contest Preview tab keeps its selection in the address: `?screen=`, `?tier=` (counted from 1) and `?game=`. An old `?device=`, `?sponsor=` or `?slot=` is ignored.
 - The prize page's rail mounts the frame itself. No separate prize preview page ships.
 - The frame needs `VITE_FAN_APP_ORIGIN` in the console and the console's origin in the fan app's `VITE_PREVIEW_PARENT_ORIGINS`.
 - The sponsor schedule read with `asPublished` skips the server's one-minute cache, so a just-placed sponsor shows at once.

@@ -94,8 +94,9 @@ The admin's own name and email are never used: the session's user has none, and 
 
 Generate builds a board with the **same function the server uses**: the board-filling logic moves out of `node-server/src/game/bingo/board.ts` and `createBoard.ts` into `obs-b2b-shared/src/boards/buildBoard.ts`, a pure function `buildBoard({ pool, draftedPlayerIds, random })`. The server calls it with `Math.random`; the preview calls it with a random source seeded from the contest id and the drafted players, so the same draft gives the same board until the admin changes it.
 
-- **The pool** is `document.contest.props` for the games the server would draw from (games not started; every game for a test-mode contest), exactly as `createBoard` selects them.
-- **Hits and progress** are the props' real current values (`consensusOutcome`, `progressValue`). A board on upcoming games shows no hits; a test-mode board on a played game shows the hits that really happened.
+- **The pool** is `document.contest.props` for the games the server would draw from (games not started; every game for a test-mode contest), exactly as `createBoard` selects them; `view.gameId` narrows it to that game.
+- **A closed or finalized contest** (revised 2026-09-29, Arthur's Walk #3) has no game open for entry, so no fan can draft from it, but fans who joined hold boards on its games. For the Board and Prize screens the pool is then **every one of its games' props**, so the preview board is built from the contest's real games and real props, with their player photos. Generate is still refused as the server refuses it (`closed`). Nothing is read from, or written to, any fan's real board.
+- **Hits and progress** are the props' real current values (`consensusOutcome`, `progressValue`). A board on upcoming games shows no hits; a board on played games (a closed or finalized contest, or a test-mode contest) shows the hits, progress and bingos that really happened.
 - **The bingo count** is what the evaluator would claim: the shared `newlyCompletedLines(cells, [])` from `obs-b2b-shared/src/scoring/bingo-lines.ts` sets the board's `claimedLineIndices`. The browser never counts lines any other way (Wave 3 §1.5 holds).
 - **Awards** on the preview board are empty, so the popup never opens by itself: only the server records a prize, and the preview has no server. The Prize screen (below) is how an admin sees the popup.
 
@@ -213,7 +214,7 @@ interface PreviewView {
   prizeTierIndex?: number;
   /** Board and Prize: build the preview board from this game only (sponsor page). */
   gameId?: string;
-  /** A sponsor artwork to ring (sponsor page). */
+  /** Deprecated (2026-09-29): accepted and ignored. The frame draws no ring. */
   highlight?: { sponsorId: string; slot: SponsorSlot };
 }
 ```
@@ -224,7 +225,7 @@ Types are the shared package's: `AwardPrize` (the board read's award prize, `api
 
 **Props carry only what the fan wire carries for a board cell:** id, game id, player (`entityInfo` with name, team, position, jersey, photo and `showPhotoUri`), market, line and alternate line, outcome type, `progressValue`, `consensusOutcome`. `showProp: false` props are never sent.
 
-**The highlight.** With `view.highlight`, the artwork of that sponsor in that slot gets a 2px ring in the console's accent colour, drawn by the preview shell over the artwork's box. It is the one thing the frame draws that the live app doesn't, and only the sponsor page asks for it.
+**No highlight** (revised 2026-09-29, Arthur's Walk #3: "Switching the preview on hover is the feature"). The frame draws nothing the live app doesn't. The console moves the frame to the screen that shows what the admin points at instead ([`admin-preview.spec.md`](../core-modules/1-draft/admin-preview.spec.md), "The preview follows what you point at"). `view.highlight` stays in the contract, optional and deprecated, so an older console's `view` still parses; the frame ignores it and no console sends it.
 
 ---
 
