@@ -138,6 +138,8 @@ The same engine for dropdown-like lists, which the ruling names explicitly (Game
 | Support inbox | Reports | `GET /admin/support/inbox` | Open: oldest first; All: newest first | message | workspace, status, reason, pattern |
 | Support inbox | "Same problem as another report?" → `Combobox` | `GET /admin/support/inbox?view=open` | oldest first | message | — |
 
+**The switcher's staff directory loads ahead** (2026-09-28, final walk): its first page is read as soon as the console knows the user is staff, not when the list opens, so every row is there the moment it does. Search and further pages still run on the server, as the list asks for them.
+
 Bulk selection on an endless list (Delivery queue) selects **loaded** rows; "Select all" says how many it selected ("Selected 100 of 342"), and a resend batch keeps its 100-row cap. The queue's list and count leave out sends whose contest or workspace no longer exists; its total tiles are plain per-status counts.
 
 **Kept for older clients.** `/admin/live` still returns its first 40 feed lines and 25 failures, `GET /admin/exports` still carries its 20 recent exports, and `GET /admin/games` keeps its 30-day, 200-game candidate window for the contest cards the redesign replaces. The console reads the paged endpoints; these stay only so an older console keeps working until it is gone.
