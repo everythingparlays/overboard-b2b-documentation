@@ -109,7 +109,7 @@ The render document is built from **`GET /admin/contests/:contestId/preview`** (
 | Builder Review | Basics' unsaved name, description and player limit, applied to the contest wherever the fan wire carries them (the contest read and its entry in `contests`). |
 | Prize page | No contest read: the tenant sections come from `GET /admin/preview`, and `document.prize` is the prize as typed, in the award's prize shape with `providedBy` resolved from its sponsor. |
 | Sponsor page | The sponsor's unsaved artwork, applied to its entry in `schedule` for the slot and scope it holds (one holder per slot per scope, as the app renders it); `view.highlight` on the slot being looked at. |
-| Brand | No contest read: the tenant sections come from `GET /admin/preview`, the sample contest replaces `contests` and `contest`, and `overlay.branding` lays the unpublished theme and images on `org.organization.branding` exactly where the public org read carries them. A cleared theme ("Use the standard look") is no theme, as it is once published. |
+| Brand | No contest read: the tenant sections come from `GET /admin/preview`, the sample contest replaces `contests` and `contest`, and `overlay.branding` lays the unpublished theme and images on `org.organization.branding` exactly where the public org read carries them. A reset theme ("Reset to starting look" or "Reset to neutral look") is no theme, as it is once published, so the frame shows the onboarding colours or the neutral look. |
 
 ### The sample contest (Brand)
 
