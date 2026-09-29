@@ -132,6 +132,8 @@ The same engine for dropdown-like lists, which the ruling names explicitly (Game
 | Operations | Recent activity | `GET /admin/audit` (new; replaces the fixed 20 rows) | newest first | — | workspace, kind of change |
 | All tenants | Tenants table | `GET /admin/tenants/directory` | name A–Z (database order) | name or subdomain | status |
 | All contests | Contests table | `GET /admin/all-contests` | All (the default, listed first; revised 2026-09-28), Active, Finished: newest first; "This week": live, then soonest game (derived over the seven-day window) | contest or workspace name | All / This week / Active / Finished, workspace |
+| All prizes | Library table (admin-prizes.spec.md, "All prizes") | `GET /admin/all-prizes` (Walk #3) | newest prize first | prize name or description, or workspace name | workspace ("All workspaces" first) |
+| Prizes, Email; All prizes, Email | Preview prize → `Combobox` | the workspace's loaded library (≤200, searched in the browser); staff: `GET /admin/all-prizes?tenant=` | library order; newest first | prize name (and description) | — |
 | Platform health | Tenants table | `GET /admin/platform-health` | live first, then name (derived over the set of tenants) | name | — |
 | Delivery queue | Failed sends (bulk select) | `GET /admin/delivery-queue` | most recent failure first | prize, contest or workspace name | workspace, reason |
 | Fan actions | Tenant select → `Combobox` | `GET /admin/tenants?view=directory` | name A–Z | name | — |
@@ -172,3 +174,4 @@ Bulk selection on an endless list (Delivery queue) selects **loaded** rows; "Sel
 5. **Aggregates are per page.** No request aggregates a whole platform collection to draw one page.
 6. **No load-more button.** Loading is automatic; the only button a list shows is **Try again** after a failed page.
 7. **Counts are real.** The count is the server's total for the current search and filters, never the number of rows loaded.
+8. **"All" is always the first filter option** (Walk #3, 2026-09-29), in every segmented filter, select and combobox ("All", "All workspaces", "All contests", "Any time", "Any status"). A list opens on it unless its own spec names another default: the staff deliveries list opens on Failed (admin-prizes.spec.md, "All prizes (staff)") and the Schedule opens on the workspace's own games (admin-schedule.spec.md), each with "All" still first.
