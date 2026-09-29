@@ -51,6 +51,78 @@ theme resolver also derives a contrast-guarded hit colour (§4 there).
 | Logo | `assets.logo` (upload field `brand.logo`) | Fan app Start and Join screens, the side menu, the paused screen |
 | Progress marker | `assets.sliderTipImageUrl` (upload field `brand.progressMarker`) | Fan app board progress-bar marker, unless a sponsor holds the slider slot at that game or the game has its own marker ([`admin-contests.spec.md`](admin-contests.spec.md), "Progress marker"); with none, a triangle in the Text colour |
 
+## Start page (revised 2026-09-29, Walk #3)
+
+Ruling (Arthur, Walk #3): "Remove the 'Sign-in' slot from contest Sponsors, since it isn't a contest field. Brand gets a
+**Start page** section where the tenant adds and removes start-page sponsors." The Start page is the fan app's first
+screen (`/`, before a fan signs in): the tenant's logo, "{Team} Bingo", "Pick your players. Win prizes.", the sponsors
+under "Presented by", and "Continue with Email". It belongs to no contest, so its sponsors are the tenant's own.
+
+**Storage.** `B2BOrganization.startPageSponsorIds?: ObjectId[]`, the tenant's Start page sponsors in the order fans see
+them. A top-level organization field, not part of `branding.theme` (the theme is the look; this is a list of sponsor
+records). Absent or empty: no sponsor block. Each id is one of the tenant's sponsors; at most 12
+(`START_PAGE_SPONSORS_MAX`).
+
+**Endpoints** (contracts in `obs-b2b-shared/src/api/admin/start-page.ts`):
+
+- `GET /admin/start-page` (`requireAdmin`, the usual OBS-only `?tenant=`): `{ tenant, sponsors: [{ sponsorId, name,
+  websiteUrl?, startPageLogo?, startPageTagline? }] }`, in order, read fresh (not from the org cache). An id whose
+  sponsor no longer exists is skipped.
+- `PUT /admin/start-page` (`refuseReadOnlyWrite`: tenant `org:admin` of a tenant that isn't paused, or OBS staff): body
+  `{ sponsorIds: string[] }`, the whole list in order; an empty list clears the field. Refused at the contract: a repeat
+  ("Each sponsor can be listed once."), more than 12 ("The Start page shows up to 12 sponsors."), an id that isn't one.
+  Refused by the handler, writing nothing: an id that isn't one of this tenant's sponsors (400
+  `start_page_unknown_sponsor`, "One of these sponsors no longer exists. Reload the page and try again.", the same
+  answer whether it was deleted or is another tenant's). Last write wins between two admins, as for placements. Not
+  audited (configuration, undone by editing again). Clears the org cache and the fan sponsor schedule.
+
+**The fan wire.** `GET /b2b/org/:subdomain/sponsors` carries `startPage` (the ids, in order, of sponsors that still
+exist) and includes those sponsors in `sponsors` ([`admin-sponsors.spec.md`](admin-sponsors.spec.md), "The fan wire").
+The fan app's Start screen reads only this list: no contest placement and no featured game speaks for it.
+
+**The card.** "Start page", right after Images. Lede: "The sponsors fans see under “Presented by” before they sign in, in
+this order. Changes save as you make them." (members: without the last sentence).
+
+- **Rows**, in order: a drag handle (the Fields & Opt-ins sortable list: drag, touch-hold, or the handle with Space and
+  the arrow keys), what fans see (the Start page logo on the white plate, or the name set in its place), the sponsor's
+  name (linking to its sponsor page) with its tagline, or "No Start page logo, so fans see its name.", and "Remove".
+- **"Add sponsor"** opens the sponsor picker (search, endless list) titled "Start page". It leaves out the sponsors
+  already listed and disables none (any sponsor can stand on the Start page); with every sponsor listed it says
+  "Every sponsor is already on the Start page.". At 12 the button is disabled with "The Start page shows up to 12
+  sponsors."; otherwise a quiet link "Logos and taglines are set on each sponsor's page." goes to Sponsors.
+- **Empty:** "No sponsors on the Start page. Fans see no sponsor there."
+- **Saving: each add, removal and move saves at once** (one `PUT` of the whole list), with "Saving…" then "Saved."
+  in the card header. A refused save puts the last saved list back and shows the server's message under the list
+  ("Couldn't save the Start page. Try again." for anything unexpected). **Why not Brand's draft and Publish:** Publish
+  ships the look (theme and images) in one `PUT /admin/branding`; the Start page list is a list of sponsor records, and
+  sponsors save as they go everywhere else (the sponsor page saves field by field). Folding it into Publish would make a
+  sponsor change wait on an unrelated publish, and the page's Discard and leave prompt would have to cover records they
+  don't own. So the card sits on Brand, where the Start page is designed, and saves like the rest of sponsors.
+- **Members** see the rows with no handle, Remove or Add.
+- **Loading:** two row skeletons. **Load failed:** "Couldn't load the Start page's sponsors." with Retry.
+
+**The preview.** The Brand preview's Start screen shows the card's list as it stands, before the save comes back
+(`overlay.startPage`, fed through `lib/preview/startPageDraft.ts`, keyed by the tenant so another tenant's preview never
+gets it; [`admin-preview.spec.md`](admin-preview.spec.md)). The sample contest keeps the tenant's saved Start page
+sponsors; no contest placement is carried.
+
+**The fan app** ([`admin-sponsors.spec.md`](admin-sponsors.spec.md), render rules): "Presented by", then each sponsor, in
+order. One sponsor takes the column: its logo on a white plate spanning it, as wide as the plate, its height following
+its shape up to 96 px; with no logo (or one that doesn't load), its name in a tile the same size. Several sit two to a
+row on plates 64 px tall; an odd last one takes the row. Each tagline sits under its mark; a mark with a website is the
+link. None: no block. A tenant with no sponsor records still gets its legacy name and logo (`SP-09`).
+
+**Deleting a sponsor** takes it off the list (`SP-14`).
+
+**Function audit.**
+
+| Control | Writes | Read by |
+|---|---|---|
+| Add sponsor | `PUT /admin/start-page` (list + the pick) | Fan wire `startPage`, the fan Start screen, the Brand preview |
+| Remove | `PUT /admin/start-page` (list − the row) | The same |
+| Drag / keyboard move | `PUT /admin/start-page` (the new order) | The same; the order is the fan's |
+| Name link | nothing | Opens the sponsor page |
+
 ## Overview
 
 A tenant's colors, type, shape, finish and signature moments become real server-side configuration, editable by that tenant's own admins at `/branding`, applied by the fan app at runtime, and previewed in the console against the unsaved draft.
