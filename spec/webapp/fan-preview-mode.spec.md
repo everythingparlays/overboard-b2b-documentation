@@ -110,7 +110,7 @@ The screens are the current app's routes and states. `ready.screens` lists them 
 
 | Screen | Where it is in the app | Reached by clicking | Session step it needs |
 |---|---|---|---|
-| `start` | `/`, signed out: logo, "{Team} Bingo", "Pick your players. Win prizes.", "Presented by", the next game card, "Continue with Email" | Sign out | `signedOut` |
+| `start` | `/`, signed out: the Start page: logo, "{Team} Bingo", "Pick your players. Win prizes.", "Presented by" and the tenant's Start page sponsors (2026-09-29; none: no block), "Continue with Email". No game card (2026-09-28) | Sign out | `signedOut` |
 | `signIn` | `/sign-in`: the email sign-in form | "Continue with Email" | `signedOut` |
 | `join` | `/contests` for a signed-in non-member: `EntryGateForm` with the tenant's fields, consents and gate copy; Terms, Privacy and opt-in documents open over it (Wave 3 §4) | Submitting Sign in | `signedIn` |
 | `contests` | `/contests`: the Upcoming and Past tabs and the contest cards | Submitting the gate; the back arrow on Contest | `member` or `playing` |

@@ -6,6 +6,8 @@
 
 **Status:** Draft. **Revised 2026-09-27 (Wave 4):** opt-in categories are gone, every published version's wording and documents are stored, and each fan's answers are kept per version, so the fan page shows the wording (and documents) of any answer given since that change ([`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md), revision 2026-09-27).
 
+**Revised 2026-09-29** (Arthur's Walk #3 rulings) — **fans are named by display name**, never by first and last name: the roster, its search, the fan page and every other console screen that names a fan use the display name the fan chose at the gate, and the real name shows only once contact information is revealed. **Last name and ZIP join the hidden contact fields**, masked on the server until the audited reveal. **The fan page shows everything the fan gave at join**: the display name, the email, every sign-up answer under the tenant's label, and answers to fields the tenant has since stopped asking. Seeded fans carry handle-style display names, and a backfill names any fan without one ("Dev fixtures" below).
+
 **Revised 2026-09-28** (Arthur's Wave 4 walkthrough ruling) — **no re-authentication**: revealing contact fields, deleting a fan and exporting a fan's activity no longer ask for credentials. Reveal is audited; deletion keeps the typed display name, checked server-side, and writes its audit entry first. The `requireReverification` mode and the `ADMIN_REVERIFICATION_ENFORCED` flag are gone; "Reverification" below becomes "No step-up". On a fan's page, staff read a failed prize in the same plain words as the workspace.
 
 **Revised 2026-09-24** (ruling, Arthur) — "Full pages instead of drawers": the fan detail drawer is replaced by the **fan page** at `/fans/:membershipId`, with a URL a support report or a colleague can link to. The roster becomes an endless-scroll list on cursor paging ([`admin-lists.spec.md`](admin-lists.spec.md), which lands with G1's PR this wave), and its rows open the page. "The fan page" below replaces the drawer section; the endpoints gain three additive changes ("Changes for the fan page"); every rule stands, and Rules 8–10 are new.
@@ -32,13 +34,13 @@ The Fans screen at `/fans`: the tenant's membership roster — profile fields, c
 
 `/fans`, per Nick's 2026-09-14 mock. Same scope shape as every workspace screen: the tenant being acted on comes from the console-wide sidebar switcher, and OBS with nothing chosen gets the "Pick a tenant" state, which sets that same selection; an OBS request names the tenant explicitly as `?tenant=<slug>`; a non-obs user's URL never carries the parameter.
 
-**The table.** One row per membership: display name with masked email beneath, joined date, one chip per active opt-in (accepted / declined / pending at the current `textVersion` — the same three states, computed by the same rules, as the Fields & Opt-ins stats, so the two screens can never disagree about a fan), profile completeness (Complete, or Missing N against the tenant's current required fields), boards played, prizes won with failed deliveries called out. Search (name or email) plus two filters: opt-in state per opt-in, and missing-required-field.
+**The table.** One row per membership: display name (the one the fan chose at the gate — never their first and last name; a membership without one reads "No display name") with masked email beneath, joined date, one chip per active opt-in (accepted / declined / pending at the current `textVersion` — the same three states, computed by the same rules, as the Fields & Opt-ins stats, so the two screens can never disagree about a fan), profile completeness (Complete, or Missing N against the tenant's current required fields), boards played, prizes won with failed deliveries called out. Search (display name or email) plus two filters: opt-in state per opt-in, and missing-required-field.
 
 *Revised 2026-09-24:* the table is an **endless-scroll list** (`InfiniteTable`, [`admin-lists.spec.md`](admin-lists.spec.md)): search and filters across the top, the server's total for the current search and filters as the count ("3,860 fans", "12 match"), and more rows loading as the reader nears the bottom, with no page numbers and no "load more" button. It pages by cursor, newest joined first, and the search still travels in the POST body. **A row opens the fan page** (`/fans/:membershipId`); the row is a link, so it also opens in a new tab. Returning from the page restores the list's search, filters and scroll position from in-memory history state, never from the URL (Rule 1).
 
 **Search is a POST.** A name or email fragment is PII and never belongs in a URL, a browser history, or an access log — the search endpoint takes its query in the request body, and the screen never reflects it into the query string. The only query parameter on this surface is the OBS caller's `?tenant=<slug>`, which is not PII.
 
-**Masked by default.** Contact fields — email, phone, address, birthday — arrive masked from the server (`m•••••@gmail.com`); masking is not a UI affordance the client could skip. The banner above the table says, in plain product words: contact fields are masked; revealing them is written to the audit log. *(Revised 2026-09-22 — the mock's wording carried the spec id and "fan PII" onto the screen; admin-surface's Plain product language principle keeps both off it. The requirement — masking, audit — is unchanged; since 2026-09-28 there is no reverification.)*
+**Masked by default.** Contact fields — email, last name, phone, birthday, ZIP, address — arrive masked from the server (`m•••••@gmail.com`); masking is not a UI affordance the client could skip. The banner above the table says, in plain product words: contact fields are masked; revealing them is written to the audit log. *(Revised 2026-09-22 — the mock's wording carried the spec id and "fan PII" onto the screen; admin-surface's Plain product language principle keeps both off it. The requirement — masking, audit — is unchanged; since 2026-09-28 there is no reverification.)*
 
 **Reveal contact fields** re-runs the current view with `reveal: true` and writes one audit entry (operator, tenant, row count). Revealed state is page state: it does not survive navigation, and each new page of results under reveal is its own audited request. Reveal is available to tenant callers too — a team user holds `org:reports:read` and receives these same fans' contact fields in their sponsor exports; what reveal adds is the audit trail, not a new grant.
 
@@ -56,7 +58,9 @@ A full page inside the console shell. `:membershipId` is the membership id, whic
 
 **1. Header.** Back link "Fans" (to the roster, restored as the reader left it). Eyebrow "Fan". H1 the display name. Under it, the email (masked unless revealed) and "Joined Sep 3, 2026". A status chip with the roster's own vocabulary: "Complete", or "Missing 2 fields" when the fan's stored answers don't satisfy the tenant's current required fields — the same computation as the roster's profile column, so the two never disagree. Right-aligned: **"Reveal contact fields"** (every caller; audited, see "Changes for the fan page"), "Tell Overboard" (the existing report drawer, carrying the membership id), and for staff an overflow menu with **"Export this fan's activity"**.
 
-**2. Profile.** The tenant's sign-up fields in their configured order, each as label and answer. Contact fields (email, phone, address, birthday) are masked until revealed. A required field with no stored answer reads "Not answered" beside a "Required" chip; an optional one with no answer is left out. Fields the fan answered that the tenant has since removed are not shown (they are not part of the tenant's gate any more).
+**2. Profile.** Everything the fan gave at join (revised 2026-09-29): the **display name** they chose, their **email**, then the tenant's sign-up fields in their configured order, each as label and answer, then any answers the fan gave to fields the tenant has since stopped asking, each marked "No longer asked" (still the fan's information, so still shown; labelled with the platform's name for a well-known field, else the field's id). Contact fields (email, last name, phone, birthday, ZIP, address) are masked until revealed, each with a lock mark ("Hidden until you reveal contact fields"). A required field with no stored answer reads "Not answered" beside a "Required" chip; an optional one with no answer is left out. The opt-ins card (3) carries each consent answer with its wording version and date.
+
+**Which fields are contact information.** Fields are tenant-configurable, so contact fields are identified by the field's **stable id**, never its label (shared `isContactFieldId`, `entry-gate/fields.ts`): the well-known `lastName`, `phone`, `birthday`, `zip` and `address`, and any id for the same datum — a field re-keyed after a type change (`zip-text`), a de-duplicated custom field (`zip-2`), or one slugged from its label (`last-name`, `zip-code`, `postal-code`, `mobile-number`, `date-of-birth`). The rule errs towards hiding. First name stays visible: the console names fans by display name, and a first name alone identifies nobody.
 
 **3. Opt-ins.** One row per opt-in the tenant currently has:
 
@@ -104,7 +108,7 @@ Every resolved admin scope reads the page (tenant `org:admin`, `org:member`, sta
 | Where | String |
 |---|---|
 | Header | "Fans" (back), "Fan" (eyebrow), "Joined {date}", "Complete", "Missing {n} fields", "Reveal contact fields", "Tell Overboard", "Export this fan's activity" |
-| Profile | "Profile", "Not answered", "Required" |
+| Profile | "Profile", "Display name", "No display name", "Email", "Not answered", "Required", "No longer asked", "Hidden until you reveal contact fields" |
 | Opt-ins | "Opt-ins", "Accepted", "Declined", "Not answered yet", "Version {n}", "Current", "Earlier wording", "Show wording", "Consent history" |
 | Contests & boards | "Contests & boards", "In progress", "Settled", "No boards yet." |
 | Prizes | "Prizes", "Queued", "Sent", "Failed", "See in Prize deliveries", "No prizes yet." |
@@ -144,7 +148,9 @@ All additive; nothing an existing client sends changes meaning.
 - **`POST /admin/fans/search`** accepts an optional `membershipId` in the body, narrowing the result to that one membership. This is how the fan page reveals: it re-runs the search for its own fan with `reveal: true`, under the same `fan_pii_reveal` audit entry (row count 1). Reveal stays on one endpoint (Rule 2), and the page gains it without a second unmasked path.
 - **`POST /admin/fan-actions/export`** accepts an optional `membershipId` in the body, with `?tenant=` then required: the export narrowed to one fan. Same identifier-only columns, same `RPT-05` exclusion, same `fan_actions_export` audit action with the membership id in `detail`. It is the existing internal export (`RPT-02`) narrowed, not the "Export this view" roster export this spec rejects: it adds no PII and no new recipient.
 
-**Masking is server-side** (`maskEmail`, `maskPhone`, and full masking for address and birthday, in `util/admin-fans.ts`): first character plus domain for emails, last two digits for phones. The default response contains no unmasked contact PII, so a logged response body or a misbehaving client cannot leak what was never sent.
+**Masking is server-side** (`maskEmail`, `maskPhone`, and full masking for every other contact field — last name, birthday, ZIP, address — in `util/admin-fans.ts`, by the shared `isContactFieldId`): first character plus domain for emails, last two digits for phones. The default response contains no unmasked contact PII, so a logged response body or a misbehaving client cannot leak what was never sent.
+
+**Profile rows (2026-09-29, additive).** The fan page's `profileFields[]` and the one-fan search row's `profileFields[]` are built by one function (`fanProfileRows`): the fields asked today in render order, then answers to fields no longer asked. Each row may carry `label` (the tenant's, else the platform's, else the id), `collected` (false for a field no longer asked) and `contact` (hidden until reveal). Reserved ids are never shown as answers.
 
 ---
 
@@ -194,6 +200,13 @@ Reads: every resolved admin scope — `ADM-01`'s shared-screen model; the roster
 8. **The fan page's URL carries the membership id and nothing else** (2026-09-24). No name, email or search text reaches a URL; returning to the roster restores its search from history state, not from the address.
 9. **A membership the target tenant does not own renders the same "not found" as a deleted one** (2026-09-24). Rule 4's 404, drawn without saying which case it is.
 10. **The fan activity export is staff only, enforced server-side** (2026-09-24), and the page draws no raw failure reason for anyone (2026-09-28). A tenant caller's detail read carries no `failureReason`, and a tenant caller naming `membershipId` on the fan-actions export is refused like any other non-staff call.
+
+---
+
+## Dev fixtures (2026-09-29)
+
+- **Seeded fans have display names.** `reset-test-fixtures.mjs` and `seed-test-tenant.mjs` give every seed fan a handle-style display name ("MalQ_BearDown", "AdaLovesHoops") separate from the first and last name fields, plus a last name and ZIP where the tenant asks them. One seed fan keeps no ZIP on purpose: it is the missing-required-field filter's subject. Re-running either script converges existing seed fans.
+- **Backfill.** `scripts/backfill-fan-display-names.mjs` (dry run by default, `test` by default, `--tenant <slug>`, `--apply` writes) names any membership whose display name is missing or blank: the fan's first name (or "Fan") plus a number from the membership id, never the hidden last name, never a name another member of the tenant already uses. Each write is conditional on the name still being blank. The plan is `scripts/lib/display-name-backfill-plan.cjs`, with its own tests.
 
 ---
 

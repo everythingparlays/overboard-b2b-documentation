@@ -163,7 +163,7 @@ All six authorize on **user-level obs staff-ness**, whatever organization the ca
 
 **`POST /admin/tenants` takes** `{ subdomain, name, authVariant?, firstAdminEmail }` and returns 201 `{ tenant, clerkOrganizationId, invitation: { email, role: "org:admin", status: "sent"|"failed", message? } }`; 400 malformed/reserved, 409 duplicate or Clerk refusal, 500 with rollback (or the orphaned org id) on partial failure.
 
-**`GET /admin/platform-health` returns** platform totals plus per-tenant `{ fanCount, contestCount, gamesNext24h, liveNow, failedSends, pendingSends, lastBoardAt }`.
+**`GET /admin/platform-health` returns** platform totals plus per-tenant `{ fanCount, contestCount, gamesNext24h, liveNow, failedSends, pendingSends, lastBoardAt }`. `liveNow` means an enabled game is `in-play` by the one phase rule ([`admin-game-day.spec.md`](admin-game-day.spec.md), "Phases") — not the feed's word alone, which rarely leaves `Scheduled`; the total counts tenants, not games.
 
 **`GET /admin/delivery-queue` returns** status totals plus failed rows `{ tenant, contest, prizeName, fan: { membershipId, displayName }, failureReason, failedAt }`, newest first, capped at 100 with a `truncated` flag.
 

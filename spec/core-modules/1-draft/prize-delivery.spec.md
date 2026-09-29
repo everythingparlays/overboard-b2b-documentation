@@ -102,7 +102,7 @@ The engine (claim, attempts, registry, resend, local loop) is unchanged.
    reaches a snapshot.
 4. **Where things are edited and seen.** The email settings (sender name, reply-to, subject) are the **Prize email**
    card on Prizes → Deliveries, still through `GET/PUT /admin/prizes/email`. The Delivery queue is Prizes → Deliveries
-   for a tenant and `/obs/prize-deliveries` for staff. `POST /admin/prizes/email/preview` takes
+   for a tenant and `/obs/prize-deliveries` for staff (All prizes → Deliveries, `/obs/prizes/deliveries`, since Walk #3). `POST /admin/prizes/email/preview` takes
    `{ prize, prizeId?, threeInARows, settings? }`; its `contestId` is retired.
 
 Rule 10 below changes accordingly: **the email credits the prize's "Provided by" sponsor as snapshotted, or no
@@ -120,6 +120,35 @@ So the resolution is: **one developer-built template, parameterised by the tier.
 
 ## The standard prize email
 
+### The wording is platform data (Walk #3, 2026-09-29)
+
+Every word of the email that is neither prize data nor a tenant setting is the platform's **prize-email wording**
+(`PrizeEmailWording` in `obs-b2b-shared/src/interfaces/b2b/PrizeEmail.ts`): the default subject, the heading ("You
+won"), the line under the prize ("You hit {bingos}."), the code label ("Your code"), the claim steps heading ("How to
+claim"), the sponsor label ("Provided by") and the footer ("You're receiving this because you won a prize playing
+with {team}."). The values in brackets are the built-in wording, used for any field nothing is stored for.
+
+- **Stored once, in the database.** One `platform_settings` document (`_id: "platform"`, collection
+  `<prefix>platform_settings`, model `B2BPlatformSettingsModel`) holds `prizeEmailWording` (only the fields staff
+  changed), `prizeEmailWordingUpdatedBy` and `prizeEmailWordingUpdatedAt`. A missing document means the built-in
+  wording; no seed is needed.
+- **Edited by Overboard staff only**, on All prizes → Email (`GET`/`PUT /admin/platform-prize-email`,
+  [`admin-prizes.spec.md`](admin-prizes.spec.md)); refused server-side for anyone else, audited
+  (`prize_email_wording_update`) before it is saved.
+- **Placeholders:** `{prize}` (the prize's name), `{team}` (the tenant's name) and `{bingos}` ("1 bingo", "3
+  bingos"). Anything else in braces, markup and line breaks are refused at the contract. The renderer fills the
+  placeholders into plain text, then escapes the result like every other value, so neither the wording nor what
+  fills it can become markup; the subject stays header-safe.
+- **Precedence:** a tenant's own sender name, reply-to and subject beat the platform's wording wherever both exist.
+  The platform subject is only the default for a tenant with none.
+- **Read at send time.** The renderer takes the wording as input (`PrizeEmailInput.wording`) and stays pure. The API's
+  preview reads the stored document (or a staff-only unsaved draft); the worker reads the same document through its
+  store (`DeliveryStore.loadPrizeEmailWording`, via `DeliveryContext.wording()`), so staff preview what winners get.
+  If the worker can't read it, the prize is still sent, in the built-in wording, and the worker logs it: wording is
+  presentation, never a reason to fail a send.
+- **One template.** Still one data-driven template for every tenant, sponsor and prize; staff change its words, never
+  its structure.
+
 ### What it merges — and the omission rule
 
 *Revised by [`admin-prizes.spec.md`](admin-prizes.spec.md), "The prize email" (Wave 4b, 2026-09-28): the email renders by presence, not by a type; no value, place, window or shipping line; the name is the headline; the credit reads "Provided by" from the prize, as snapshotted at award time. The "Details list" row below is retired.*
@@ -130,11 +159,11 @@ The email is built from real, configured data only. **Anything unconfigured is o
 |---|---|---|
 | Sender name | `organization.prizeEmail.fromName` | the tenant's `name` |
 | Reply-To | `organization.prizeEmail.replyTo` | no Reply-To header |
-| Subject | `organization.prizeEmail.subject`, `{prize}` → prize name | `You won: {prize}` |
+| Subject | `organization.prizeEmail.subject`, `{prize}` → prize name | the platform wording's default subject (built in `You won: {prize}`) |
 | Header mark | `branding.assets.logo` (http/https only) | the tenant's name as a wordmark |
 | Accent color | `branding.theme.colors.primary` | the platform default accent |
-| Kicker + headline | "You won" + `prizeName` | — (both required) |
-| Bingo line | `tierIndex + 1` — "You hit 2 bingos." | — (always known) |
+| Kicker + headline | the wording's heading (built in "You won") + `prizeName` | — (both required) |
+| Bingo line | the wording's line under the prize, `{bingos}` from `tierIndex + 1` — "You hit 2 bingos." | — (always known) |
 | Prize image | `prizeImageUrl` (http/https only) | no image block |
 | Description | `prizeDescription` | — (required) |
 | ~~Details list~~ | retired 2026-09-28: a prize has no value, redemption method, place or window | — |
@@ -142,7 +171,7 @@ The email is built from real, configured data only. **Anything unconfigured is o
 | How to claim | `prizeClaimInstructions` | no section |
 | Button | `prizeClaimButtonLinkUrl` (http/https only) + `prizeClaimButtonText` | no button without a link; "Claim your prize" when a link has no text |
 | Presented by | the sponsor holding the prize-popup slot where the prize was won (below, "Presented by") | no mark |
-| Footer | "You're receiving this because you won a prize playing with {tenant}." | — |
+| Footer | the wording's footer (built in "You're receiving this because you won a prize playing with {team}.") | — |
 
 The fan's name is **not** merged. Signup fields are tenant-configurable and a name may not exist; a greeting that sometimes reads "Hi ," or "Hi there" is worse than none. The email carries no tracking pixel and no link rewriting.
 

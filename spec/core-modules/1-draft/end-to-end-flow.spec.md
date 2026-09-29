@@ -207,7 +207,9 @@ Three B2B behaviours made it look like a filter, and all three change:
 | started, past that length | `Final` |
 
 Every server read that hands a game to a screen applies it: the fan contest list and detail, the board's populated games,
-and the console's game rows and picker. The stored feed value is never written.
+the fan sponsor schedule's featured and next game, and the console's game rows, picker and sponsor slot editor. Every
+console game-day phase ends a game by the same rule (`gamePhase`, [`admin-game-day.spec.md`](admin-game-day.spec.md),
+"Phases"; Walk #3, 2026-09-29). The stored feed value is never written.
 
 **Not ours:** a college-hockey sport code and updater. The consumer side adds it (ruling 2026-09-27). The one UND game
 stored as `NHL` stays as D2C wrote it.

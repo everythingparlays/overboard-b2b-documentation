@@ -183,11 +183,13 @@ One generic template driven by the prize's data (Arthur, 2026-09-28: never per s
 
 No type ordering, no pick-up lead line, no "Ships within" line, no expiry line, and **no value**. The worker never reads the board's game to find a sponsor.
 
+**The words around the prize are platform data** (Walk #3, 2026-09-29). "You won", "You hit {bingos}.", "Your code", "How to claim", "Provided by", the footer ("You're receiving this because you won a prize playing with {team}.") and the default subject ("You won: {prize}") are the built-in values of the platform's **prize-email wording**, which Overboard staff edit on All prizes → Email (below). It is stored once for the platform (the `platform_settings` document), not in code; an unset field is the built-in value. The API's preview and the worker's send both read it, so what staff preview is what winners get. Still one template, never per sponsor or per prize.
+
 ## The screens
 
 ### Navigation
 
-Workspace sidebar: one item, **Prizes** (`/prizes`, hue: prizes). There is no Emails item and no separate deliveries item: Deliveries and Email are tabs of Prizes. OBS Internal: **Prize deliveries** (`/obs/prize-deliveries`) replaces Delivery queue. Redirects: `/delivery-queue` → `/obs/prize-deliveries`; `/prizes?contest=<id>` → `/contests/<id>/prizes`.
+Workspace sidebar: one item, **Prizes** (`/prizes`, hue: prizes). There is no Emails item and no separate deliveries item: Deliveries and Email are tabs of Prizes. OBS Internal: **All prizes** (`/obs/prizes`, hue: prizes), directly under All contests (Walk #3, 2026-09-29; it replaces Prize deliveries, which replaced Delivery queue). Redirects: `/obs/prize-deliveries` → `/obs/prizes/deliveries` (query kept); `/delivery-queue` → `/obs/prizes/deliveries`; `/prizes?contest=<id>` → `/contests/<id>/prizes`.
 
 ### The Prizes page
 
@@ -331,11 +333,11 @@ What the tab no longer shows: the line counting how often fans reached a bingo c
 
 Route `/prizes/deliveries`. Tenant mode for tenants, and for staff with a tenant selected.
 
-**Layout.** One column: tiles, toolbar, table. Every row is one the server recorded; the list never synthesises a row. The email settings are on the **Email** tab. Staff with a tenant selected see this tab exactly as the tenant's own admins do (Arthur's ruling: staff see tenant screens as the tenant does); their own tools are on `/obs/prize-deliveries`.
+**Layout.** One column: tiles, toolbar, table. Every row is one the server recorded; the list never synthesises a row. The email settings are on the **Email** tab. Staff with a tenant selected see this tab exactly as the tenant's own admins do (Arthur's ruling: staff see tenant screens as the tenant does); their own tools are on All prizes → Deliveries (`/obs/prizes/deliveries`).
 
 **Tiles** (KpiTile): "Sent" (`fulfilled` rows sent in the last 30 days, caption "Last 30 days"), "Failed" (all `failed` rows, and `bounced` once it exists; caption "Needs attention" above zero, else "Nothing to fix"; the number in the status red only above zero), "Queued" (`pending` rows, "Sending now"). Each filters the list on click. Tiles show the tenant's totals and ignore the search and filters.
 
-**Toolbar** (sticky, the list kit's `InfiniteTable`): search "Search by fan name or email"; **Status** segmented "All · Sent · Failed · Queued"; **Contest** Combobox ("All contests", endless scroll); **Date** "Any time · Today · Last 7 days · Last 30 days · Custom…"; the count, "412 deliveries". Filters reached by link show as removable chips: "Prize: $25 gift code", "Tier 2 · Denver Weekend", "Fan: J. Smith". Every filter lives in the URL (`?status=&contest=&tier=&prize=&fan=<membershipId>&from=&to=`); the search text does not, because it can be an email address.
+**Toolbar** (sticky, the list kit's `InfiniteTable`): search "Search by display name or email" (it matches the display name the fan chose, never a real name — 2026-09-29); **Status** segmented "All · Sent · Failed · Queued"; **Contest** Combobox ("All contests", endless scroll); **Date** "Any time · Today · Last 7 days · Last 30 days · Custom…"; the count, "412 deliveries". Filters reached by link show as removable chips: "Prize: $25 gift code", "Tier 2 · Denver Weekend", "Fan: J. Smith". Every filter lives in the URL (`?status=&contest=&tier=&prize=&fan=<membershipId>&from=&to=`); the search text does not, because it can be an email address.
 
 **Table** (endless scroll, newest win first):
 
@@ -359,13 +361,15 @@ A row opens the detail drawer; `?delivery=<redemptionId>` deep-links to it.
 
 Route `/prizes/email`. The tenant's prize email identity, on its own tab (Arthur, 2026-09-27: not inside Deliveries). These settings are real and used end to end by the worker; they are not expanded further until the prize model owner confirms how prizes are delivered.
 
-**Layout.** The settings card, and beside it (≥1100px; under it below that) the server's real email bound to the unsaved settings, with "Subject: …" and "From: …" and **Open full width**. Its sample prize is the tenant's most recently updated Complete prize ("Shown with your most recently updated prize."); with none, a built-in sample ("Shown with a sample prize.": "Sample prize", "This is where your prize's description goes."). The brand (logo, colour) comes from Brand, as in every real send.
+**Layout.** The settings card, and beside it (≥1100px; under it below that) the server's real email bound to the unsaved settings, with "Subject: …" and "From: …" and **Open full width**. The brand (logo, colour) comes from Brand, as in every real send.
+
+**Which prize the preview shows** (Walk #3, 2026-09-29). A **Prize** picker in the preview's head: the console's searchable, paged chooser (`Combobox`, [`admin-lists.spec.md`](admin-lists.spec.md)), each option the prize's thumbnail, name and sponsor. It starts on the first prize in the library (the Library tab's order: most recently updated first). The preview renders the chosen prize's real content (name, description, image, claim steps, button, delivery method, sponsor credit, and its stored code, merged on the server from its id) through the server's own renderer. With no prizes, there is no picker and the preview uses a built-in sample ("Shown with a sample prize until you add one.": "Sample prize", "This is where your prize's description goes.").
 
 **The card.** Title "Prize email"; lede "How your prize emails introduce themselves."
 
 1. **Sender name.** ≤80. Placeholder: the tenant's display name (the real default). Help: "What winners see as the sender."
 2. **Reply-to.** Optional email address. Placeholder "promotions@yourteam.com". Help: "Where a winner's reply goes."
-3. **Subject.** ≤150. Placeholder "You won: {prize}" (the default). Help: "{prize} becomes the prize name." Any other `{…}` is the field error "Only {prize} can be filled in."
+3. **Subject.** ≤150. Placeholder: the platform's default subject (built in: "You won: {prize}"; staff can change it, and its `{team}` shows as the tenant's name). Help: "{prize} becomes the prize name." Any other `{…}` is the field error "Only {prize} can be filled in."
 4. **Sending address.** Read-only: "Sent from {address}". It is the platform's `PRIZE_FROM_ADDRESS`; when the server doesn't know it, the row is absent.
 
 Footer: "Save" (primary, disabled until changed) and "Discard"; success shows "Saved." inline. Clearing every field saves the defaults. Clearing the Reply-to is always allowed: no prize depends on it. Member and paused: values as text, no footer. Not audited: reversible configuration, like Brand.
@@ -400,12 +404,36 @@ When Resend isn't offered on a failed row, the drawer says what the admin can do
 
 - **Tenant mode** (a tenant selected, `/prizes/deliveries`): exactly what the tenant's admins see (revised 2026-09-28, Arthur's ruling that staff see tenant screens as the tenant does). No recorded reason, no **Send to a different address**, no **Send again** and no "All workspaces" header link there.
 - **Staff tools** — the recorded reason, **Send to a different address**, **Send again** — are on the cross-tenant view only.
-- **Cross-tenant view** (`/obs/prize-deliveries`, OBS Internal): eyebrow "Overboard", H1 "PRIZE DELIVERIES", lede "Every workspace's prize sends." The Deliveries tab's list without the Prize email card (email settings are per tenant), plus a **Tenant** column (name, linking to `/obs/tenants/:slug`) and a **Tenant** filter. Status defaults to Failed. Row checkboxes and **Resend selected** ("Selected 100 of 342" when fewer rows are loaded than the total). Tiles show platform totals.
+- **Cross-tenant view**: All prizes → **Deliveries** (below).
 - **No cap.** The list pages with a cursor to the end ([`admin-lists.spec.md`](admin-lists.spec.md) Rule 1), and the count is the real total.
+
+### All prizes (staff)
+
+Walk #3 (2026-09-29): staff's prize screen across every workspace, shaped like the Prizes page. OBS Internal, directly under All contests. Eyebrow "OBS INTERNAL", H1 "ALL PRIZES", lede "Every workspace's prizes and sends, and the prize email's wording." Three tabs; a tenant caller gets "Overboard staff only" and no tabs (the server refuses them too).
+
+**Library** (`/obs/prizes`). Every prize in every workspace's library, from `GET /admin/all-prizes`: paged with a cursor and endless scroll, searched and filtered on the server ([`admin-lists.spec.md`](admin-lists.spec.md)). Toolbar: search "Search prizes or workspaces" (the prize's name or description, or its workspace's name) and the workspace chooser (`TenantCombobox`, **All workspaces** first and the default); the count is the real total. Newest prize first. Columns: Prize (thumbnail, name, description), Workspace (links to `/obs/tenants/:slug`), Provided by, Awarded from, the Complete / Needs details pill. A row opens that workspace's prize page (`/prizes/:prizeId?tenant=<slug>`). Empty: "No prizes in any workspace yet."; filtered: "No prizes match." with Clear.
+
+**Deliveries** (`/obs/prizes/deliveries`). Every workspace's prize sends, as the old Prize deliveries was: the Deliveries tab's list plus a **Tenant** column (name, linking to `/obs/tenants/:slug`) and a **Tenant** filter. Status defaults to Failed (the one filter that doesn't open on All; [`admin-lists.spec.md`](admin-lists.spec.md) Rule 8). Row checkboxes and **Resend selected** ("Selected 100 of 342" when fewer rows are loaded than the total). Tiles show platform totals. The old address redirects here with its query.
+
+**Email** (`/obs/prizes/email`). The platform's prize-email wording, which only Overboard staff edit (the server enforces it). Card "Prize email wording", with three plain lines: what it is ("The words every workspace's prize email uses around the prize itself. Leave a field empty to use the wording shown in it."), what wins over it ("A workspace's own sender name, reply-to and subject come first. The subject here is only used when a workspace hasn't set its own."), and the placeholders (`{prize}` the prize's name, `{team}` the workspace's name, `{bingos}` how many bingos won it). Fields, each one line with the built-in wording as its placeholder:
+
+| Field | Built in | Limit | Help |
+|---|---|---|---|
+| Default subject | You won: {prize} | 150 | Used when a workspace hasn't set its own subject. |
+| Heading | You won | 40 | The small line above the prize's name. |
+| Line under the prize | You hit {bingos}. | 200 | The line under the prize's name. |
+| Code label | Your code | 40 | Above the prize's code, when it has one. |
+| Claim steps heading | How to claim | 40 | Above the prize's claim steps, when it has them. |
+| Sponsor label | Provided by | 40 | Before the sponsor's name, when a sponsor provides the prize. |
+| Footer | You're receiving this because you won a prize playing with {team}. | 300 | The last line, under the email. |
+
+Plain text only: markup ("… is plain text. Leave out HTML tags"), line breaks and any other `{…}` ("The only placeholders are {prize}, {team}, {bingos}") are refused in the form and by the server; everything is escaped when the email is drawn. Save (disabled until changed or while invalid) and Discard; "Saved. Every prize email uses it now."; "Last changed {when}." A field saved empty goes back to the built-in wording. The claim button's own default label ("Claim your prize") is prize wording shared with the popup and is not edited here.
+
+Beside it, the **preview**: a **Workspace** chooser (starts on the first workspace) and a **Prize** chooser (that workspace's newest prize, server-paged from `GET /admin/all-prizes?tenant=`; a sample prize when it has none), and the real email from `POST /admin/prizes/email/preview?tenant=<slug>` with the unsaved wording as `wording`: "As this workspace's winners get it, with its own sender name and subject where it set them."
 
 ### Links in
 
-Overview's failed-sends tile → `/prizes/deliveries?status=failed`; the contest Overview's "Failed sends" tile → `?status=failed&contest=<id>`; the ladder's per-tier counts → `?contest=<id>&tier=<tierId>`; the prize page's counts → `?prize=<prizeId>`; the fan page's Prizes section → `?fan=<membershipId>`; Game day's "Couldn't be delivered" rows → `?delivery=<redemptionId>`; Operations' failed-sends item → `/obs/prize-deliveries?tenant=<slug>`.
+Overview's failed-sends tile → `/prizes/deliveries?status=failed`; the contest Overview's "Failed sends" tile → `?status=failed&contest=<id>`; the ladder's per-tier counts → `?contest=<id>&tier=<tierId>`; the prize page's counts → `?prize=<prizeId>`; the fan page's Prizes section → `?fan=<membershipId>`; Game day's "Couldn't be delivered" rows → `?delivery=<redemptionId>`; Operations' failed-sends item, Platform health and the tenant page → `/obs/prizes/deliveries?tenant=<slug>`.
 
 ### Permissions
 
@@ -460,6 +488,9 @@ All under `/admin`, `requireAdmin`. Tenant targeting as everywhere: a tenant cal
 | PUT | `/admin/prizes/email` | write gate | tenant `org:admin`, staff | unchanged |
 | POST | `/admin/prizes/email/preview` | `requireAdmin` | any admin scope | changed |
 | GET | `/admin/prizes/handlers` | `requireAdmin` | any admin scope | unchanged |
+| GET | `/admin/all-prizes` | `requireAdmin` | staff only (403 first) | new (Walk #3) |
+| GET | `/admin/platform-prize-email` | `requireAdmin` | staff only (403 first) | new (Walk #3) |
+| PUT | `/admin/platform-prize-email` | `requireAdmin` | staff only (403 first); audited | new (Walk #3) |
 
 **Retired:** `GET /admin/prizes` (the ladder read replaces it; its `unawarded` goes) and `GET /admin/delivery-queue` (replaced by `POST /admin/all-prize-deliveries/search`). No per-tier endpoints exist: a tier is written only through the whole-list PUT.
 
@@ -519,13 +550,21 @@ Body `{ expectedResendCount }`. One conditional write where status is `failed`, 
 
 Staff; no re-authentication (2026-09-28). Body `{ expectedResendCount, confirmName, reason: "not_received" | "lost" | "other" }`; `confirmName` must equal the fan's display name (a removed fan can't be sent again). One conditional write where status is `fulfilled` and the count matches → `pending`, `resendCount + 1`; then the queue message. Audit `prize_send_again` (new action) before the write.
 
+### `GET /admin/all-prizes`
+
+Walk #3. Staff only (403 before any read). Query `q`, `tenant`, `cursor`, `limit` (the paging convention). Every workspace's library prizes, newest first (`_id` descending); `q` matches the prize's name or description, or its workspace's name; `tenant` narrows to one workspace (404 for an unknown one). Each row is the library read (`adminPrizeSchema`: never the code, `hasCode`) plus `tenant: { slug, name }`; usages and credits are read for the page's prizes only. Response `{ prizes, page }`.
+
+### `GET` and `PUT /admin/platform-prize-email`
+
+Walk #3. Staff only, the read too (403 before anything else). GET answers `{ wording, defaults, updatedAt }`: `wording` holds only the fields staff changed, `defaults` the built-in wording. PUT takes `{ wording }` whole (an omitted field goes back to its default) and answers the same view. Validation (shared `prizeEmailWordingSchema`): each field trimmed, non-empty, within its limit, no control characters, no markup, and only `{prize}`, `{team}` and `{bingos}`. A save that changes nothing writes and records nothing. Otherwise the audit row `prize_email_wording_update` is written first, platform-scoped, with the names of the fields changed and reset (never the wording); if it can't be written, nothing is saved ("Couldn't save a record of the change, so the wording wasn't saved. Try again."). Stored in the one `platform_settings` document (`_id: "platform"`, fields `prizeEmailWording`, `prizeEmailWordingUpdatedBy`, `prizeEmailWordingUpdatedAt`), created on first save.
+
 ### `PUT /admin/prizes/email`
 
-Unchanged. (Wave 4's `reply_to_in_use` is gone: no prize depends on the Reply-to.)
+Unchanged. `GET` (and the PUT's answer) gives `defaults.subject` as the platform's default subject, with `{team}` filled in with the tenant's name. (Wave 4's `reply_to_in_use` is gone: no prize depends on the Reply-to.)
 
 ### `POST /admin/prizes/email/preview`
 
-Takes `{ prize, prizeId?, threeInARows, settings? }`: the draft prize (content fields, including `providedBySponsorId`), the saved prize's id to merge its stored code when the draft has none, the count for the bingo line, and unsaved settings (the Prize email card). The credit is resolved from the draft's `providedBySponsorId` within the tenant; unknown shows no credit. The `contestId` parameter and its prize-popup lookup are retired (accepted and ignored).
+Takes `{ prize, prizeId?, threeInARows, settings? }`: the draft prize (content fields, including `providedBySponsorId`), the saved prize's id to merge its stored code when the draft has none, the count for the bingo line, and unsaved settings (the Prize email card). The credit is resolved from the draft's `providedBySponsorId` within the tenant; unknown shows no credit. The `contestId` parameter and its prize-popup lookup are retired (accepted and ignored). The email uses the platform's stored wording; staff may send an unsaved `wording` draft instead (All prizes → Email), and a non-staff caller sending one is refused (403).
 
 ### The fan wire
 
@@ -588,7 +627,7 @@ Until it ships, the word "Bounced" appears nowhere on screen.
 11. **`PZ-11` — Duplicating a sent prize is staff-only**: name-confirmed, reasoned, audited first.
 12. **`PZ-12` — Status words mean what they say.** "Sent" is "accepted by our mail provider"; "Bounced" exists only once bounce capture does.
 13. **`PZ-13` — Deliveries are served from the server**: cursor paging, server-side search and filters, a real total, no cap.
-14. **`PZ-14` — Email identity is tenant configuration; the sending address is not.** Sender name, reply-to and subject (`{prize}` the only token) are the tenant's.
+14. **`PZ-14` — Email identity is tenant configuration; the sending address is not.** Sender name, reply-to and subject (`{prize}` the only token) are the tenant's, and each beats the platform's wording where both exist (the platform subject is only the default).
 15. **`PZ-15` — Retired** (2026-09-28): no prize depends on the Reply-to.
 16. **`PZ-16` — Prize edits never reach a finalized contest or an award.** The cascade skips finalized contests' tiers; snapshots are never rewritten, by an edit, a sponsor delete or anything else.
 17. **`PZ-17` — The migration never makes a live tier stop awarding.**
@@ -596,6 +635,7 @@ Until it ships, the word "Bounced" appears nowhere on screen.
 20. **`PZ-20` — No draft autosave.** The prize page and the ladder open from the server and save only on Save; "Leave without saving?" asks only with unsaved changes, and always before a new prize exists.
 21. **`PZ-21` — Anything the popup or the email doesn't use is not offered as if it did**, and every field's help says where it really shows.
 19. **`PZ-19` — The prize side never mentions bingos.** The qualifier belongs to the tier or band.
+22. **`PZ-22` — The prize email's wording is platform data, and only Overboard staff change it** (Walk #3). Stored once, read by the preview and the worker, validated and escaped, audited before it is saved; one template for every workspace, sponsor and prize.
 
 ## Known gaps (recorded, not blocking)
 
@@ -618,7 +658,7 @@ Where the shipped console differs in detail from the text above:
 ## As built (Wave 4b)
 
 - The prize page's sections all start open; a folded section's summary line is built from its fields.
-- The Email tab previews with the most recently updated Complete prize, as the old card did.
+- The Email tab previewed with the most recently updated Complete prize, as the old card did. Superseded (Walk #3): a picker chooses the prize, starting on the first in the library.
 - The ladder's New prize trip for a row not yet saved waits a moment (about 40ms) before leaving, so the contest screen hears that the row travels in the address and doesn't ask.
 
 ## Questions for the prize model owner

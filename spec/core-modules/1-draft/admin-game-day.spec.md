@@ -37,16 +37,18 @@ Incident-mode semantics, not a screensaver.
 
 ### Phases
 
-The feed lags, so a game's phase is derived from the feed **and** the schedule (`LIVE_PHASES`):
+The feed lags, so a game's phase is derived from the feed **and** the schedule (`LIVE_PHASES`, `gamePhase` in `node-server/src/util/admin-game.ts`). A game ends by **the same rule the fan app uses** (`deriveGameStatus`, [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §2), in this order: the feed says `Final`; else **every visible prop of the game has resolved**; else **the sport's usual length** has passed since tip-off (`gameDurationHours`: NFL/CFB 4.5 h, NBA/WNBA/CBB 3 h, NHL 3.5 h, MLB 4 h, SOC 2.5 h, MMA 6 h, any other sport 6 h).
 
 | Phase | When |
 |---|---|
 | `upcoming` | Tip-off is more than 90 minutes away. |
 | `pre-game` | Tip-off is within 90 minutes and the game has not started. |
-| `in-play` | The feed says `InProgress`, **or** tip-off has passed less than `IN_PLAY_MAX_HOURS = 6` ago and the feed has not said `Final`. |
-| `ended` | The feed says `Final`, **or** tip-off was 6 or more hours ago. |
+| `in-play` | Tip-off has passed (or the feed says `InProgress`) and the game has not ended. |
+| `ended` | The feed says `Final`; or every visible prop has resolved; or the sport's usual length has passed since tip-off. A feed stuck on `InProgress` past that point is the same lagging feed, so the rule wins. |
 
-The LIVE badge renders only when the feed says `InProgress`. A game `in-play` by schedule alone reads "Under way"; an `ended` game reads "Final" only when the feed says so, "Ended" otherwise. The screen never claims more certainty than its source.
+**One rule, every screen (Walk #3, 2026-09-29).** Eagles @ Bears read "Under way" hours after it ended: the feed never left `Scheduled`, and the console held every game in play for a flat six hours while the Overview band re-derived "under way" from the clock. The flat cap (`IN_PLAY_MAX_HOURS`) is retired. Each request reads the props' finality once (`phaseFinality`, one aggregate over the games it places) and every caller passes it to `gamePhase`: `/live` and its game picker, the calendar, the recap, Overview, All contests, the OBS overview strip and Platform health. Overview's upcoming games carry the server's `phase`, and its band takes it (`bandGame`) instead of guessing. Where Mongo must filter by phase (the `/live` picker's upcoming/recent split, All contests' week view, Platform health's live set), it pre-filters on the longest game length (`MAX_GAME_DURATION_HOURS`) and `gamePhase` decides in code; the picker names the games already over inside that span so both lists page exactly.
+
+The LIVE badge renders only when the feed says `InProgress` **and** the rule still has the game in play. A game `in-play` by schedule alone reads "Under way"; an `ended` game reads "Final" only when the feed says so, "Ended" otherwise. The screen never claims more certainty than its source.
 
 ---
 
@@ -77,7 +79,7 @@ The level is the worst issue's (`blocked` → red, `attention` → amber, none �
 Three states, decided by the payload and the server clock:
 
 1. **Live** (`liveNow` present). A full-width band leads the screen: the LIVE tag, the matchup, the contest, tip-off and elapsed time ("Started 7:05 PM · 1h 12m"), four real tiles — boards in play, bingos hit, prizes delivered, and **couldn't be delivered** (danger-toned, shown only when non-zero) — the freshness cue, and **Open game day**. Tiles are the contest-scoped counts `liveNow` already carries (see [`admin-overview.spec.md`](admin-overview.spec.md)); `/live` has the game-attributed ones. The KPI row and the 14-day tables sit below it.
-2. **Pre-game** (the next upcoming game is inside the 90-minute window and nothing is live). The band shows a minute-resolution countdown ("Tip-off in 47 min"), the matchup and contest, and the readiness verdict inline — a green "Ready for tip-off", or the blocking issues named, each linking to where it is fixed.
+2. **Pre-game or under way** (the server places a game `pre-game` or `in-play` and nothing is live). The band shows a minute-resolution countdown ("Tip-off in 47 min"), the matchup and contest, and the readiness verdict inline — a green "Ready for tip-off", or the blocking issues named, each linking to where it is fixed. Once the game is `in-play` (or the countdown reaches tip-off after the page loaded) it reads "Under way" with the elapsed time. Only the server's phase ends it: the band never decides from the clock that a game is over, and a game the server has ended is never banded.
 3. **Otherwise.** No band. If a game is inside the 48-hour horizon, a **Next game** card in the side column shows its readiness checklist. Nothing renders for a workspace with no game in that window.
 
 Overview still fetches once per mount; the band's freshness cue dates the numbers exactly as before. The live band polls nothing — `/live` is where polling lives.
@@ -114,7 +116,7 @@ Today failed sends are OBS-only (the Delivery queue) while Overview already tell
 
 ### Attribution — how a number is "this game's"
 
-A board belongs to a contest, not to a game. **When the contest runs exactly one game, its boards are that game's** — exact, and the common case (UND runs one contest per game). **When it runs several, a board counts toward a game when any of its nine squares is one of that game's props** — the only honest link the data holds. Redemptions follow their board. "Fans in play" is distinct fans across those boards. "Fans joined" counts memberships created inside the **game window**: from the pre-game window's start (tip-off − 90 min) to the in-play limit (tip-off + 6 h), capped at now.
+A board belongs to a contest, not to a game. **When the contest runs exactly one game, its boards are that game's** — exact, and the common case (UND runs one contest per game). **When it runs several, a board counts toward a game when any of its nine squares is one of that game's props** — the only honest link the data holds. Redemptions follow their board. "Fans in play" is distinct fans across those boards. "Fans joined" counts memberships created inside the **game window**: from the pre-game window's start (tip-off − 90 min) to the sport's usual length after tip-off (`gameDurationHours`), capped at now. The window is fixed per game, so a recap's numbers do not move when the last prop resolves.
 
 This is the rule for every game-attributed number the platform shows: `/live`, the OBS strip, the season calendar's outcomes, and the sponsor recap all use the same helper, so they cannot disagree.
 
@@ -150,7 +152,7 @@ This is the rule for every game-attributed number the platform shows: `/live`, t
 - **Games and Prizes live touches** (live row pinned with a badge; confirm before disabling a live game; delivery card live-counts) — owned by the Games & Contests and Prizes overhauls; not built here.
 - **Per-tile rates** — second pass; arithmetic over `createdAt`.
 - **Attribution for multi-game contests depends on prop replication.** A board whose props are missing from `readonly_props` cannot be attributed to a game in a multi-game contest; it counts toward no game rather than a guessed one.
-- **No end-of-game timestamp.** The feed records no end time, so "ended" is `Final` or tip-off + 6 h. A genuinely longer game (a long rain delay) would read "Ended" early.
+- **No end-of-game timestamp.** The feed records no end time, so "ended" is `Final`, every visible prop resolved, or the sport's usual length since tip-off. A game running well past its sport's length with props still open (a long rain delay) would read "Ended" early; one whose props all resolve before the final whistle reads "Ended" a little early too. Both are rarer and shorter than the six-hour cap they replace.
 - **Polling, not push.** Ten-second polling; a socket layer is not justified by one screen.
 - **Game format on the live game.** The live payload does not carry the contest's `gameType`; the tile reads "Bingos hit" because bingo is the only format. When a second format ships, add `gameType` to `liveGameSchema` and word the tile by it.
 - **`/live` re-reads every board of the contest on each poll.** Fine at today's volumes; the first thing to aggregate if one contest reaches tens of thousands of boards.
