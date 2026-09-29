@@ -115,13 +115,13 @@ Every signed-in screen renders inside `KitShell` ([`fan-decor-system.spec.md`](.
 - Left: the back button (48×48) or, on the three tab screens, the tenant mark (the tenant logo at 28px, else the tenant name in `.k-d4`).
 - Centre: the screen title, one line, ellipsis.
 - Right: the menu button (48×48, accessible name "Open menu").
-- Over a hero band it is transparent and uses `--k-on-team`; elsewhere it sits on the blurred 92% ground (`DECOR-36`) with a hairline once scrolled.
+- Over a hero band it is transparent and uses `--k-on-main`; elsewhere it sits on the blurred 92% ground (`DECOR-36`) with a hairline once scrolled.
 - On the live board it also shows the connection dot (W5-D19, [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md)).
 
 ### Footer tab bar
 
 **`FAN-65` — The footer is a tab bar with icon and label** (W5-D01): **Contests** (`Trophy`), **Your boards** (`LayoutGrid`), **Profile** (`User`), lucide-react icons at 22px over 11px labels.
-- The active tab: icon and label in `--k-team-ink`, a 3px `--k-team-ink` hairline segment on the tab's top edge, `aria-current="page"`.
+- The active tab: icon and label in `--k-main-ink`, a 3px `--k-main-ink` hairline segment on the tab's top edge, `aria-current="page"`.
 - The bar is a `nav` labelled "Main"; each tab is a link to `/contests`, `/boards`, `/profile`; the bottom safe-area inset is added under it; each target is at least 48px tall.
 - A tab stays active on its own sub-screens: Contests for `/contest/:id…`, Your boards for `/board/:id`.
 - Tapping the active tab scrolls its screen to the top.
@@ -164,7 +164,7 @@ A task flow's sticky CTA or action bar follows the same rules as the tab bar it 
 
 - **Where the tenant documents come from.** No fan read lists them today: `GET /b2b/membership` carries links only for *pending* opt-ins, and `GET /b2b/org/:subdomain` carries no opt-ins. The Wave 4b fix pass must add a source for the current app's menu (walkthrough ruling); the overhaul reads the same one. If 4b ships none, **Phase B: to build** `organization.documents: { optInId, linkId, title }[]` on the public org read (every current tenant opt-in's `links`, platform opt-in excluded, in opt-in order), cached with the org and cleared by a config publish. The read follows Wave 4b's work and is aligned at the Phase B rebase (decision sheet, 2026-09-28).
 - **No opt-in documents:** the documents group shows Terms and Privacy only.
-- The current route's item carries `aria-current="page"` and a 3px Team-ink bar at its left edge. The sheet traps focus and returns it to the menu button.
+- The current route's item carries `aria-current="page"` and a 3px Main-ink bar at its left edge. The sheet traps focus and returns it to the menu button.
 
 ### Loading, errors, offline, toasts
 
@@ -324,7 +324,7 @@ W5-D06. The fan's boards in this tenant.
 
 **Layout:** header "Your boards"; one row per board: a 46px mini-board, the contest name (`.k-d4`, two lines), the status chyron (`FAN-18`), "{n} bingos" ("1 bingo"), and the chevron; the row links to `/board/:boardId`. Points appear on the row only once the evaluator writes them (W5-D17, `FLOW-34`).
 
-**Mini-board:** hit (Team-ink fill), miss (strike), pending (hairline), empty (dashed). No live square (W5-D23; [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md) "The mini-board").
+**Mini-board:** hit (Main-ink fill), miss (strike), pending (hairline), empty (dashed). No live square (W5-D23; [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md) "The mini-board").
 
 **Order:** Live first, then Open, then Not yet open, then Past (most recent first).
 
@@ -547,7 +547,7 @@ The roll-up below adds every other spec's mock deviations.
 1. A signed-in fan opening `/`, `/sign-in`, `/sign-up`, `/forgot-password` or an unknown path lands on `/contests`; a signed-out fan on an unknown path lands on `/`.
 2. A signed-out fan opening `/contest/abc` lands on `/?next=%2Fcontest%2Fabc`; after sign-in and the join gate they are on `/contest/abc` with no further navigation; a `next` of `//evil.example` or `/sign-in` is ignored.
 3. `/dashboard` redirects to `/boards`; `/test-sign-in` does not exist.
-4. The tab bar shows Contests, Your boards and Profile with icons and labels on those three screens, the live board and standings, and nowhere else; the active tab has the Team-ink icon, label and top hairline.
+4. The tab bar shows Contests, Your boards and Profile with icons and labels on those three screens, the live board and standings, and nowhere else; the active tab has the Main-ink icon, label and top hairline.
 5. Scrolling down more than 12px beyond 64px hides the header and tab bar over 240ms; scrolling up 12px shows them; they never hide within 64px of the top; a route change, a sheet opening or keyboard focus in a bar shows them; content does not shift; with reduced motion the change is instant.
 6. The side menu lists Contests, Your boards, Profile, Terms of Service, Privacy Policy, one row per tenant document, Sign out and "Powered by Overboard"; with no tenant documents it lists Terms and Privacy only; Terms is listed while unpublished and opens "Overboard hasn't published this yet."
 7. The Contests tabs read "Current" and "Past"; a contest whose games are all under way and none final, and whose state is open, shows under Current with LIVE; an admin-closed contest shows under Past.

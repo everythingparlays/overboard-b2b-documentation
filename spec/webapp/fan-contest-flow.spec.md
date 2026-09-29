@@ -258,7 +258,7 @@ Cell-level codes come back as `cellErrors: [{ position, code }]` so the grid mar
 1. **Header:** Back; the contest's own name (never a matchup); the connection dot (`FLOW-42`); menu.
 2. **Scorebug rail:** one per contest game, `InProgress` first, then by tip-off; horizontal scroll with several games. Never scores.
 3. **Counter:** the bingo count (`.k-d-hero` numeral) with "Bingos" and "of 8 lines"; points under it only once real (`FLOW-34`).
-4. **Track:** 0–8 with one stop per winnable tier of the contest (`FLOW-46`; no fixed cap, bounded by the contest's tiers) labelled with the prize name and "{m} bingos"; the marker is the game's `slider` sponsor's icon when one holds that slot (the per-game override), else the tenant's progress marker, else a Team puck (`DECOR` Track). This covers Arthur's per-game marker override (walk #3); the default is the tenant's own mark rather than a triangle.
+4. **Track:** 0–8 with one stop per winnable tier of the contest (`FLOW-46`; no fixed cap, bounded by the contest's tiers) labelled with the prize name and "{m} bingos"; the marker is the game's `slider` sponsor's icon when one holds that slot (the per-game override), else the tenant's progress marker, else a Main puck (`DECOR` Track). This covers Arthur's per-game marker override (walk #3); the default is the tenant's own mark rather than a triangle.
 5. **Sponsor board banner:** the `boardBanner` holder (contest-wide, or the board's game's own when the board draws from one game), between the counter block and the squares, at the Wave 4 box (4:1 at the 480px column, never cropped; W5-D34).
 6. **The grid** (`FLOW-27`).
 7. **Standings row:** "Standings: you're {12th} of {340}" ("tied {1st}" when shared) linking to standings, or "Standings appear at tip-off" before the first tip-off.
@@ -288,7 +288,7 @@ A `Miss` that isn't final is shown by game status (live or pending), never as mi
 
 ### The bingo indicator (`FLOW-28`, W5-D18)
 
-Straight-line overlay pills (the kit's `BingoLine`) across each completed line in the derived function's output (never `claimedLineIndices`, which records claims, not the board's state), Team-ink, drawn in over 500ms the first time the page sees the line complete; lines already complete on load draw static. **Acceptable for now; improve later** (ruling). When a line completes while the page is open: the stroke draws, its three squares flash Accent once, the counter bumps (1.0 → 1.15 → 1.0 over 300ms) and the Track marker glides; nothing loops; under reduced motion the line appears static. Announcements, polite: "{Player} hit {line}." and "Bingo! {2} of 8".
+Straight-line overlay pills (the kit's `BingoLine`) across each completed line in the derived function's output (never `claimedLineIndices`, which records claims, not the board's state), Main-ink, drawn in over 500ms the first time the page sees the line complete; lines already complete on load draw static. **Acceptable for now; improve later** (ruling). When a line completes while the page is open: the stroke draws, its three squares flash Accent once, the counter bumps (1.0 → 1.15 → 1.0 over 300ms) and the Track marker glides; nothing loops; under reduced motion the line appears static. Announcements, polite: "{Player} hit {line}." and "Bingo! {2} of 8".
 
 ### Refresh (`FLOW-42`, W5-D19)
 
@@ -343,7 +343,7 @@ Straight-line overlay pills (the kit's `BingoLine`) across each completed line i
 - **Cut:** prize type, approximate value, redemption method, location, window and shipping. The award projection still carries `prizeType`; the popup never branches on it.
 - **Code security:** the code is shown only inside the winner's own board read, which already requires the board's `clerkUserId`; it never reaches a list, the preview or standings.
 
-**Celebration (W5-D21):** the kit's `Confetti` (≈80 pieces, 1.8s, gravity and drift, `--k-team-ink`, `--k-second-ink`, `--k-accent`) inside the shell column and clipped by it, so on desktop it never touches the decorative sides; the Burst plays once. **No full-screen flash.** Under reduced motion: the static Burst only.
+**Celebration (W5-D21):** the kit's `Confetti` (≈80 pieces, 1.8s, gravity and drift, `--k-main-ink`, `--k-second-ink`, `--k-accent`) inside the shell column and clipped by it, so on desktop it never touches the decorative sides; the Burst plays once. **No full-screen flash.** Under reduced motion: the static Burst only.
 
 **Closing:** any button, Escape or the scrim closes it and shows the next unseen award. With `seenAt` (Phase B): closing calls `POST /b2b/board/:boardId/awards/:awardId/seen` (`awardId` is the redemption row's `_id`, which the award projection gains, Phase B) (idempotent; sets `seenAt` on the redemption row once); a failed call keeps the award closed for this session and retries on the next load. The backfill on that deploy marks every existing award seen, so no fan gets a second popup for an old win.
 
@@ -367,12 +367,12 @@ Built from the contest's boards joined to each fan's membership `displayName` in
 
 - **`FLOW-33` — Ranking** (W5-D22): bingos, most first; then points, most first (once points exist; until then bingos alone). Boards equal on both share a rank and the next rank skips (competition ranking, "1224", as B2C's `addRankToBoards`). Entry time orders a tied group on screen and never changes a rank. A shared rank reads "Tied {1st}" wherever the fan's own rank is written as words.
 - **`FLOW-35` — Visible from the first tip-off** (the earliest game's `eventTime` in the past). Before it `state` is `hidden` and the page shows "Standings appear at tip-off". `final` once finalized.
-- **`FLOW-36` — The page:** header chyron LIVE while a game is `InProgress`, FINAL once finalized; "{N} playing"; rows with rank (a `Medal` for 1–3, a numeral tile after; tied rows share it), the **display name** (never a real name), bingos as the big numeral, points small once real, and the mini-board; the fan's own row reads "You" with a Team hairline and is pinned to the bottom when off screen (tapping it scrolls to it); endless scroll, 50 rows a page; refresh every 30 seconds while visible, never reordering rows under a touch.
+- **`FLOW-36` — The page:** header chyron LIVE while a game is `InProgress`, FINAL once finalized; "{N} playing"; rows with rank (a `Medal` for 1–3, a numeral tile after; tied rows share it), the **display name** (never a real name), bingos as the big numeral, points small once real, and the mini-board; the fan's own row reads "You" with a Main-ink hairline and is pinned to the bottom when off screen (tapping it scrolls to it); endless scroll, 50 rows a page; refresh every 30 seconds while visible, never reordering rows under a touch.
 - **`FLOW-37` — Final:** "Final standings", a podium for the top three (`Medal`s, `Burst` behind first; fewer boards show fewer places), and a "Your result" card: "{12th} of {340}" (or "Tied …"), the highest award's tier chyron and prize name, each award as a row (name, "Provided by {sponsor}", "Details emailed" only when `fulfilled`; tapping reopens the popup content without confetti), and "Back to Your boards". A fan with no board sees no card and no pinned row.
 
 ### The mini-board (`FLOW-48`, W5-D23)
 
-Standings, results and Your boards draw each board as a 46px 3×3: **hit** (Team-ink fill), **miss** (strike), **pending** (hairline), **empty** (dashed). **The yellow (live) square is dropped.**
+Standings, results and Your boards draw each board as a 46px 3×3: **hit** (Main-ink fill), **miss** (strike), **pending** (hairline), **empty** (dashed). **The yellow (live) square is dropped.**
 
 **Answer to Arthur's question, "what did the yellow square mean":** in the mocks it meant "this square's game is in progress" (`screens.css` `i.l`, an Accent tint with an Accent-ink ring). It is traceable (the derived game status), but at 46px it reads as a second kind of hit and adds nothing to progress toward lines, which is the mini-board's only job. The full board keeps its live state, with brackets and the meter.
 

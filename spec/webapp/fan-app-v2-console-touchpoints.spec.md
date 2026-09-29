@@ -96,7 +96,7 @@ The console shows fan-app screens in five places and describes fan behaviour in 
 
 **Logo colours.** Brand's "From your logo" swatches come from `POST /admin/branding/sample-colours` (**Phase B: to build**, s4, review ruling B1; [`admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md)), which samples the uploaded logo on the server; the frame is not involved and the asset CDN is unchanged.
 
-**`TOUCH-16` — Theme controls.** Brand's Colours are Team, Accent and an optional Text (Auto) (`BRAND2-02`, walk #3's Text adopted); Second and Live are never shown (Wave 5 never asked tenants for Second, so walk #3's "Second is removed" is covered). Light or dark stays, and Main-as-ground is open for Arthur ([`fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md), Open questions).
+**`TOUCH-16` — Theme controls.** Brand's Colours are Main (the team colour, W5-D65), Accent, Text (White/Black presets) and Button text (Auto) (`BRAND2-02`, W5-D66); Second and Live are never shown (Wave 5 never asked tenants for Second, so walk #3's "Second is removed" is covered). Light or dark stays as the ramp selector behind the neutral broadcast ground, which Arthur kept (W5-D65).
 
 **`TOUCH-11` — The draft theme reaches only the Brand frame.** The contest, builder, prize, sponsor and Fields hosts paint with the tenant's **published** theme (`org.organization.branding` as served), never a Brand draft, so an unpublished look never appears on another page.
 
@@ -221,7 +221,7 @@ No console string uses "game" where it means "contest" (checked by searching the
 - **TOUCH-13 — Gate copy is edited and previewed in Fields; Words in Brand.**
 - **TOUCH-14 — Every console field keeps its storage; only the words whose meaning changed move.**
 - **TOUCH-15 — The string corrections listed, and no others.**
-- **TOUCH-16 — Brand colours are Team, Accent and an optional Text; Second and Live are never shown.**
+- **TOUCH-16 — Brand colours are Main, Accent, Text and Button text; Second and Live are never shown.**
 
 ## Acceptance criteria
 
@@ -231,7 +231,7 @@ No console string uses "game" where it means "contest" (checked by searching the
 4. The prize rail shows the prize name as the title, the description under it, and no code, value, shipping or pick-up, for a prize that has a code.
 5. The sponsor page's block reads "Start page"; for a sponsor on Brand's Start page list, focusing it switches the frame to Start and rings the logo; contest Sponsors has no sign-in row.
 6. Only the Brand frame ever shows "Sample contest"; no other host's frame shows a sample name.
-7. Editing Team on Brand changes only the Brand frame; the contest Preview tab keeps the published colours.
+7. Editing Main on Brand changes only the Brand frame; the contest Preview tab keeps the published colours.
 8. The Fields frame shows the tenant's unsaved field in the overhaul's gate, switches to returning mode from the Returning section, and opens an unsaved document over the gate.
 9. The strings in `TOUCH-15` read as specified, with their tests updated; nothing else in the console changes wording.
 

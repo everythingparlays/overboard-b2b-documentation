@@ -1,6 +1,6 @@
 # Core Module Spec: Admin — Brand v2 (Wave 5 branch)
 
-**Implements:** Arthur's 2026-09-27 rulings: "Wave order" (the console's Brand page v2, as mocked with the fan-app v2 mocks, is built on the Wave 5 branch, never on main), "Priorities" (Satoshi everywhere; remove the font option from Brand), "Uploads everywhere" (drag-and-drop plus browse, no URL boxes); the Wave 4 walkthrough rulings for Brand (remove the Sponsors tab; Brand's preview is the one place every screen matters: Start, Sign in, Join, Contest list, Contest detail, Board and Prize on a built-in sample contest, mobile only) and console-wide (no desktop preview; "Leave without saving?" only with unsaved changes); the standing rule "function over mocks". Director's decisions W5-D01 to W5-D50, all binding (chiefly W5-D24, W5-D27, W5-D28, W5-D31, W5-D32, W5-D33, W5-D43, W5-D46, W5-D47, W5-D48, W5-D52, W5-D53, W5-D54; `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`), and the Phase A review rulings (`artifacts\wave-2026-09-27\briefs\w5-review-rulings.md`, workspace), and Arthur's walk #3 colour comments (`artifacts\review-2026-09-27\arthur-rulings-console-final-walk.md`, "Walk #3 rulings", workspace), reconciled with the Wave 5 palette (Text colour and the Start page adopted; Main-as-ground and no-mode open). PRD `BRAND-01` (as reclassified by `admin-branding.spec.md`), `ADM-02`, `ADM-03`, `TEN-02`.
+**Implements:** Arthur's 2026-09-27 rulings: "Wave order" (the console's Brand page v2, as mocked with the fan-app v2 mocks, is built on the Wave 5 branch, never on main), "Priorities" (Satoshi everywhere; remove the font option from Brand), "Uploads everywhere" (drag-and-drop plus browse, no URL boxes); the Wave 4 walkthrough rulings for Brand (remove the Sponsors tab; Brand's preview is the one place every screen matters: Start, Sign in, Join, Contest list, Contest detail, Board and Prize on a built-in sample contest, mobile only) and console-wide (no desktop preview; "Leave without saving?" only with unsaved changes); the standing rule "function over mocks". Director's decisions W5-D01 to W5-D50, all binding (chiefly W5-D24, W5-D27, W5-D28, W5-D31, W5-D32, W5-D33, W5-D43, W5-D46, W5-D47, W5-D48, W5-D52, W5-D53, W5-D54, W5-D65, W5-D66; `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`), and the Phase A review rulings (`artifacts\wave-2026-09-27\briefs\w5-review-rulings.md`, workspace), and Arthur's walk #3 colour comments (`artifacts\review-2026-09-27\arthur-rulings-console-final-walk.md`, "Walk #3 rulings", workspace), reconciled with the Wave 5 palette (Text colour and the Start page adopted; Main-as-ground and no-mode open). PRD `BRAND-01` (as reclassified by `admin-branding.spec.md`), `ADM-02`, `ADM-03`, `TEN-02`.
 
 **Depends on:** Wave 4's specs on docs branch `arthur-w4-console` (PR #29, not merged to main; this branch is rebased after Wave 4 and the 4b fix pass merge): [`admin-branding.spec.md`](admin-branding.spec.md) (the theme contract, presets and gallery, storage, `GET/PUT /admin/branding`, `PUT /admin/branding/presets`, `POST /admin/branding/promote`, the fan wire, `THEME-03`–`THEME-20`), [`admin-uploads.spec.md`](admin-uploads.spec.md) (`UploadField`, `POST /admin/uploads`, `POST /admin/uploads/complete`, fields `brand.logo` and `brand.progressMarker`), [`admin-preview.spec.md`](admin-preview.spec.md) and `../../webapp/fan-preview-mode.spec.md` (`FanAppPreview`, the render document, `GET /admin/preview`), [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) (the nine gate-copy keys). The Wave 4b fix pass (not built at the time of writing): `host: "brand"` and its built-in sample contest source (W5-D31). Siblings on this branch: [`fan-decor-system.spec.md`](fan-decor-system.spec.md) (the palette, tokens, decor params, Prime Time), [`../../webapp/fan-app-v2.spec.md`](../../webapp/fan-app-v2.spec.md) (where the Words show), [`../../webapp/fan-app-v2-console-touchpoints.spec.md`](../../webapp/fan-app-v2-console-touchpoints.spec.md).
 
@@ -49,40 +49,43 @@ Today's Brand page (`obs-b2b-admin-frontend/src/pages/Branding.tsx`, under the `
 - **Card title:** "Presets". **Help:** "Start from a look. Your colours stay yours."
 - **Shelves:** **Overboard** (Prime Time and Club Level, `DECOR-37`); **Gallery** (staff-curated, hidden when empty, as today); **Yours** (the tenant's saved looks, up to 20 (`THEME_PRESET_CAP`), then a **Save current look** card).
 - **Club Level, adapted** (Arthur, W5-D53). With its font gone (Satoshi only), Club Level is exactly {mode light, `decor.intensity` 0.45, `decor.angle` 0°, `surface.texture` none, `shape.radiusBase` 10}. Every one of those is already a Brand v2 control, so it applies on top of the tenant's own palette through `applyPreset` with nothing new to build, and it gives the shelf a genuine second look beside Prime Time. Nothing Club-Level-specific survives: no brass, no ivory, no Instrument Sans, no pill chyrons. Its ground is the light ramp, its accent is the tenant's Accent, and its chyrons follow `radiusBase`. If Phase B finds it needs a control the system lacks, it is dropped rather than special-cased.
-- **Card:** a 148×104 thumbnail and the name; the whole card is one button "Apply {name}". The card matching the draft's look shows a 2px Team ring and an "In use" chip. Yours cards have a ⋯ menu (in-page, not native) with **Rename**, **Delete** (inline "Delete {name}? This can't be undone." with Delete and Cancel, because the whole array is rewritten), and **Add to gallery** (OBS staff only, as today).
+- **Card:** a 148×104 thumbnail and the name; the whole card is one button "Apply {name}". The card matching the draft's look shows a 2px Main ring and an "In use" chip. Yours cards have a ⋯ menu (in-page, not native) with **Rename**, **Delete** (inline "Delete {name}? This can't be undone." with Delete and Cancel, because the whole array is rewritten), and **Add to gallery** (OBS staff only, as today).
 - **Save current look:** the card becomes a name input (max 60, "Name this look", Save, Cancel) and writes the whole array through `PUT /admin/branding/presets` (exists). At 20 it is disabled with "You can keep 20 looks. Delete one to save another."
 - **Thumbnail:** a static composition of three kit pieces (a `HeroBand` fragment, one `Chyron` reading "LIVE", two `Square`s, one hit and one pending) painted by the kit's resolver from the draft palette and the preset's mode and decor params. It is a swatch of a look, never a preview of the tenant's app, and shows no data. The console renders them with the kit components lifted to `obs-b2b-shared/src/ui/kit/` in Phase B slice s0 and never re-implements them (W5-D48, `DECOR-40`). **Phase B: to build.**
-- **`BRAND2-01` (revised) — Applying a preset changes the look and never the palette.** It takes the preset's `mode`, decor params (`decor.intensity`, `decor.angle`), `surface.texture` and `shape.radiusBase`, and keeps Team, Accent and Text (and any stored Second or Live). The one exception: a draft with no Accent takes the preset's (Prime Time's gold `#F5B32E`). Implemented as the shared `applyPreset` (`THEME-08`, which already keeps primary and secondary) plus the page carrying Accent and Live. Applying is a draft edit; the preset list writes (save, rename, delete, promote) are immediate, as today.
+- **`BRAND2-01` (revised) — Applying a preset changes the look and never the palette.** It takes the preset's `mode`, decor params (`decor.intensity`, `decor.angle`), `surface.texture` and `shape.radiusBase`, and keeps Main, Accent and Text (and any stored Second or Live). The one exception: a draft with no Accent takes the preset's (Prime Time's gold `#F5B32E`). Implemented as the shared `applyPreset` (`THEME-08`, which already keeps primary and secondary) plus the page carrying Accent and Live. Applying is a draft edit; the preset list writes (save, rename, delete, promote) are immediate, as today.
 
 ### 2. Colours
 
-- **Card title:** "Colours". **Help:** "Team and Accent are required. Text follows the page until you change it."
-- **`BRAND2-02` (revised) — Team, Accent and an optional Text** (W5-D24; Text adopted from walk #3):
+- **Card title:** "Colours". **Help:** "Main is your team colour, used for bands, fills and tabs. Accent is for buttons and highlights."
+- **`BRAND2-02` (revised) — Main, Accent, Text and Button text** (W5-D24, W5-D65, W5-D66; Text adopted from walk #3):
 
 | Swatch | Writes | Required | Auto means |
 |---|---|---|---|
-| **Team** | `colors.primary` | yes | — |
-| **Accent** | `colors.accent` | yes | — |
-| **Text** | `colors.text` (**Phase B: to build**, additive; main's field if the fix pass lands one) | no | absent; the mode ramp's text (`DECOR-41`) |
+| **Main** (the team colour) | `palette.main` (and `colors.primary`, kept equal for older readers) | yes | — |
+| **Accent** | `palette.accent` (and `colors.accent`) | yes | — |
+| **Text** | `palette.text` | always set | no Auto: the swatch offers **White** and **Black** presets beside the picker and, with nothing stored, shows and publishes the mode ramp's text (`DECOR-41`, W5-D66) |
+| **Button text** | `palette.buttonText` | no | "Auto": black or white by contrast with Accent; an override is guarded ≥4.5:1 on Accent (`DECOR-42`) |
+
+`palette` is the stored shape Step 0 adds (`{ main, accent, text?, buttonText? }`, **Phase B: to build**, additive).
 
 **No Second or Live swatch.** Both stay internal roles the kit derives (`DECOR-03`, `DECOR-05`) and are never shown; a stored `colors.secondary` or `colors.live` is carried through and still honoured. Arthur's walk #3 "Second is removed" is covered: Wave 5 never asks tenants for it.
 
-- **Anatomy:** Team and Accent as two large swatches (96×96), Text as a smaller one (64×64) labelled "Optional". Each shows its effective colour, name, and uppercase hex always visible (`BRAND2-06`); Text carries an "Auto" chip while auto. Each is a button "{Name} colour, {hex}{, auto}. Edit".
+- **Anatomy:** Main and Accent as two large swatches (96×96), Text and Button text as two smaller ones (64×64). Each shows its effective colour, name, and uppercase hex always visible (`BRAND2-06`); Button text carries an "Auto" chip while auto. Each is a button "{Name} colour, {hex}{, auto}. Edit".
 - **A stored theme with no Accent** (possible under today's contract): the Accent swatch shows hatched with "Choose an accent", and **Publish is disabled** with the line "Choose an accent colour to publish." The fan app meanwhile renders the resolver's fallback (`DECOR-39`). The server keeps `colors.accent` optional, so main's Brand page keeps working against the same data.
-- **Validation:** every written value is `#RRGGBB` uppercase (the contract refuses shorthand and alpha). Team and Accent can't be cleared.
+- **Validation:** every written value is `#RRGGBB` uppercase (the contract refuses shorthand and alpha). Main and Accent can't be cleared.
 - **No neutral controls** (`BRAND2-03`, revised): Page, Cards and Text leave the page. Stored `colors.neutrals` are carried through on publish (principle) and are not read by the overhauled fan app (`DECOR-23`). No note about them is shown.
 
 ### The in-page colour picker
 
 Tapping a swatch (or Enter or Space on it) opens the picker: an anchored popover (232px) at 600px and wider, a bottom sheet under 600px; `role="dialog"`, one open at a time.
 
-1. **Header:** the colour's name, and "Auto: readable on the page" (Text) while auto.
+1. **Header:** the colour's name; "Auto: readable on Accent" (Button text) while auto; for Text, two preset buttons **White** and **Black**.
 2. **Saturation and brightness square**, 200×140, HSV; a 14px ring cursor.
 3. **Hue strip**, 200×14 visible, 48px hit area.
 4. **Hex field** (six characters, paste with or without `#`) and a before-and-after chip.
 5. **From your logo:** up to six 28px swatches from the uploaded logo, returned by **`POST /admin/branding/sample-colours`** (**Phase B: to build**, review ruling B1). The server maps the logo's public URL to its key under the tenant's `tenants/<organizationId>/` prefix, reads the object from the bucket, samples it (64×64, alpha ≥ 128, 4-bit buckets, kept when at least 48 apart in RGB, at most six) and answers `{ colours: string[] }` (`#RRGGBB`). The console never reads the image's pixels, so the asset CDN needs no CORS change and there is no deploy. Hidden when there is no logo, when the logo is a legacy URL outside the bucket, or when the call fails.
 6. **Contrast readout** (`BRAND2-07`, revised), computed with the kit's resolver (`resolvePalette`, `onColor`, `contrastRatio`), never a console reimplementation: "Text on {Name}: {white|near-black}, {ratio}:1", adding "(below the 4.5:1 reading standard)" under 4.5; and, when the colour is within 1.5:1 of the mode's ground, "Close to the page colour ({ratio}:1). The app lifts it where it has to be read." Factual; never blocks.
-7. **Reset to auto** (Text, while overridden) and **Done**. For Text, the readout adds "The app lifts it to 4.5:1 where it's lower." when it is under 4.5:1 on the page or card colour.
+7. **Reset to auto** (Button text, while overridden) and **Done**. For Button text, the readout adds "The app lifts it to 4.5:1 where it's lower." under 4.5:1 on Accent. For Text, the readout adds "The app lifts it to 4.5:1 where it's lower." when it is under 4.5:1 on the page or card colour.
 
 **Pointer:** press moves the cursor and captures the pointer; `touch-action: none` on the square and strip. **Keyboard** (`BRAND2-05`): Tab order square → hue → hex → logo swatches (one stop, arrows between) → Reset → Done; focus trapped; the square and strip are `role="slider"` with arrows stepping 1 and Shift+arrows 10; Enter commits a valid hex; an invalid hex shows "Use six digits, like #1D428A." and commits nothing; **Esc** closes and restores the opening value including its Auto state; Done, an outside click or the sheet's scrim keeps the value; focus returns to the swatch. **`BRAND2-04` — No native popups:** no `<input type="color">` or `<select>` on the page (a lint rule); range sliders stay native elements.
 
@@ -92,6 +95,7 @@ Where it lives: `src/components/ui/ColorPicker.tsx`, conversions in `src/lib/col
 
 - **Card title:** "Light or dark". **Control:** the console `Segmented`, "Dark | Light". **Help:** "Fans always see this, whatever their phone is set to."
 - **Writes:** `mode`. The kit's ramps are fixed per mode (`DECOR-23`), so a flip needs no ramp swap. Stored neutrals are carried through untouched.
+- Mode is the ramp selector behind the neutral broadcast ground (W5-D65, W5-D66). If Arthur removes light/dark at Phase B, the dark ramp becomes the only one and this section goes.
 - The preview shows the draft's mode. There is no peek toggle and no "Peeking at…" text (W5-D27).
 
 ### 4. Start page
@@ -137,7 +141,7 @@ A disclosure, collapsed by default: "Fine-tune", help "Most looks don't need the
 | Band angle | Slider 0° to −12°, step 1, value "−5°" | `decor.angle` | −12…0 (W5-D43) | −5° |
 | Texture | Segmented "None · Bingo grid" | `surface.texture` | `none` / `bingoGrid` | None (a stored `dotgrid` shows as Bingo grid, which is how the overhaul renders it) |
 
-Help lines: Decoration "The board fragments and glow behind your screens."; Band angle "The slant of the team-colour band."; Texture "A faint board pattern on the page background." **`BRAND2-19` (revised) — Fine-tune maps to the contract exactly**, and `decor` is **Phase B: to build** (`DECOR-38`).
+Help lines: Decoration "The board fragments and glow behind your screens."; Band angle "The slant of the band in your Main colour."; Texture "A faint board pattern on the page background." **`BRAND2-19` (revised) — Fine-tune maps to the contract exactly**, and `decor` is **Phase B: to build** (`DECOR-38`).
 
 ### Footer, drafts and leaving
 
@@ -250,9 +254,11 @@ No data migration (`BRAND2-20`). UI state is derived on load; every field is car
 | Stored field (`B2BOrganization.ts`) | Brand v2 control | Read by the overhauled fan app | On publish |
 |---|---|---|---|
 | `mode` | Light or dark | yes | written |
-| `colors.primary` | Team | yes (Team) | written |
-| `colors.accent` | Accent (required) | yes; absent → Second, else Team (`DECOR-39`) | written; required to publish |
-| `colors.text` (**Phase B**) | Text (Auto when absent) | yes (`DECOR-41`) | written or absent |
+| `colors.primary` | Main (read when `palette.main` is absent) | yes (Main) | written equal to Main |
+| `colors.accent` | Accent (required) | yes; absent → Second, else Main (`DECOR-39`) | written; required to publish |
+| `palette.main`, `palette.accent` (**Phase B**, Step 0) | Main, Accent | yes | written; `colors.primary` and `colors.accent` written equal |
+| `palette.text` (**Phase B**) | Text | yes (`DECOR-41`) | written (always) |
+| `palette.buttonText` (**Phase B**) | Button text (Auto when absent) | yes (`DECOR-42`) | written or absent |
 | `colors.secondary` | none (never shown) | yes, as the internal Second; absent → derived | carried through |
 | `colors.live` | none (never shown) | yes; absent → the mode's tone | carried through |
 | `colors.neutrals` (ground, surface, surfaceRaised, text ramp, borderBase, border) | none | no (platform ramps) | carried through |
@@ -301,7 +307,7 @@ Unchanged: tenant targeting (`?tenant=` for staff only), the read-only refusal f
 Kept from S2 (revised where noted): `BRAND2-01`–`BRAND2-07`, `BRAND2-11`, `BRAND2-12`, `BRAND2-14`–`BRAND2-17`, `BRAND2-19`–`BRAND2-21`, `BRAND2-23`–`BRAND2-25`. New: `BRAND2-26`–`BRAND2-32`.
 
 - **BRAND2-01 — Presets first; applying one changes the look, never the palette** (an Accent-less draft takes the preset's accent).
-- **BRAND2-02 — Team and Accent required; Text optional (Auto);** Second and Live are never shown.
+- **BRAND2-02 — Main (the team colour) and Accent required; Text always set (White/Black presets); Button text Auto;** Second and Live are never shown.
 - **BRAND2-03 — No neutral controls;** stored neutrals are carried through.
 - **BRAND2-04 — No native popups** (lint-enforced), except the file chooser behind an upload and native range sliders.
 - **BRAND2-05 — The picker is keyboard-complete.**
@@ -364,13 +370,13 @@ Kept from S2 (revised where noted): `BRAND2-01`–`BRAND2-07`, `BRAND2-11`, `BRA
 | Caption "Your draft as fans will see it. Nothing changes for them until you publish." | Cut | `PV-08`: no label around the frame |
 | Sponsors as a Brand tab (today's `SponsorsBrandingHead`) | Cut | Walkthrough ruling; Sponsors is its own nav item (the mock already had it in the sidebar only) |
 | "Club Level" preset card | Kept, adapted | A pure decor preset on the tenant's own palette (W5-D53); its brass, ivory and serif are gone |
-| Colours help "Team is required. The other three follow it until you change them." | Changed | Team and Accent required, Text optional (W5-D24; walk #3) |
+| Colours help "Main is required. The other three follow it until you change them." | Changed | Main and Accent required, Text optional (W5-D24; walk #3) |
 | Accent swatch with an "Auto" chip | Changed | Accent is required; no Auto |
 | "Second" swatch with its "Auto" chip | Cut | Second is an internal, derived role, never tenant-facing (walk #3 "Second is removed", covered) |
 | "Live" as the fourth swatch | Cut | Live is derived per mode and never tenant-facing |
 | "From your logo" swatches | Kept | Server-side sampling endpoint (Phase B, review ruling B1) |
 | Prize claim instructions and claim button (on the Prize tab's popup) | Kept (Arthur, 2026-09-28) | Nick's `B2BPrize` fields, used by the popup and the email (traced; W5-D54). The sample's prizes set neither |
-| Contrast chip "Text on Team: white, 18.1:1" and "Close to the page colour (1.1:1)…" | Kept, reworded | The warning now says the app lifts the colour where it must be read (`DECOR-28`) |
+| Contrast chip "Text on Main: white, 18.1:1" and "Close to the page colour (1.1:1)…" | Kept, reworded | The warning now says the app lifts the colour where it must be read (`DECOR-28`) |
 | "PNG, SVG or WebP, up to 1 MB" | Changed | Wave 4 upload rules: PNG, JPEG, WebP, SVG, 5 MB |
 | Logo tile "1200×300", Replace, Remove | Kept | `UploadField`'s measured line |
 | Words: "No contests message: Shown on Home when nothing is scheduled." | Changed | Key `noContests`, shown on Contests (no home) |
@@ -385,16 +391,16 @@ Kept from S2 (revised where noted): `BRAND2-01`–`BRAND2-07`, `BRAND2-11`, `BRA
 
 1. `/branding` shows Presets, Colours, Light or dark, Start page, Logo and marker, Words, Fine-tune (collapsed), in that order, and no Font section, Sponsors tab, device toggle, peek toggle, "Peeking at" text, Second swatch or Live swatch.
 2. Searching the built console for `type="color"` and `<select` on this page finds nothing.
-3. Applying Prime Time to a draft with Team `#0B162A`, Accent `#FFB224` and Text `#F2E8D5` keeps all three and changes mode, decor params, texture and radius base; applying it to a draft with no Accent sets Accent to `#F5B32E`.
+3. Applying Prime Time to a draft with Main `#0B162A`, Accent `#FFB224` and Text `#F2E8D5` keeps all three and changes mode, decor params, texture and radius base; applying it to a draft with no Accent sets Accent to `#F5B32E`.
 4. A stored theme with no `colors.accent` loads with Accent reading "Choose an accent" and Publish disabled; choosing one enables Publish.
 5. Publishing a colour change for a tenant whose stored theme has custom neutrals, Club Level type and `heroMotif: "none"` leaves those fields byte-identical in `GET /admin/branding`.
-6. The picker, keyboard only: open Team with Enter, Shift+Right three times, Tab to the hue strip, Left five times, type `0B162A`, Enter, Esc: the swatch shows its opening colour and focus is on it; Tab never left the picker.
-7. The contrast readout for Team `#0B162A` reads "Text on Team: white, 18.1:1".
+6. The picker, keyboard only: open Main with Enter, Shift+Right three times, Tab to the hue strip, Left five times, type `0B162A`, Enter, Esc: the swatch shows its opening colour and focus is on it; Tab never left the picker.
+7. The contrast readout for Main `#0B162A` reads "Text on Main: white, 18.1:1".
 8. `PUT /admin/branding` with `text: { startTagline: "Go {team}" }` stores it, `GET /b2b/org/:subdomain` returns it in `organization.branding.text` (also for a paused tenant), and a 61-character `startTagline` or a `{name}` token is refused with 400.
 9. Blank Words values publish as absent and the fan app shows the defaults.
 10. The preview frame answers `ready` with `app: 'overhaul'`; the tabs read Start, Sign in, Join, Contest list, Contest detail, Board, Prize; clicking through the frame moves the tabs; there is no Phone/Desktop control.
 11. The Contest list tab shows only "Sample contest", the Board tab shows two bingos with every square on the no-photo fallback, and the Prize tab shows "Sample prize 2"; none of the tenant's real contests, players or prizes appears.
-12. Changing Team in the picker repaints the frame within ~100ms of the last change, without a publish; the tenant's live fan app is unchanged until Publish.
+12. Changing Main in the picker repaints the frame within ~100ms of the last change, without a publish; the tenant's live fan app is unchanged until Publish.
 13. Focusing the No contests message input shows the Contest list tab's empty state with the draft text.
 14. An `org:member` sees every control disabled, the read-only line, and a working preview.
 15. Leaving with unsaved changes asks "Leave without saving?" with Leave and Keep editing; leaving a clean page asks nothing.
