@@ -77,6 +77,8 @@ theme resolver also derives a contrast-guarded hit colour (§4 there).
 | Logo | `assets.logo` (upload field `brand.logo`) | Fan app Start and Join screens, the side menu, the paused screen, the tab icon |
 | Progress marker | `assets.sliderTipImageUrl` (upload field `brand.progressMarker`) | Fan app board progress-bar marker, unless a sponsor holds the slider slot at that game or the game has its own marker ([`admin-contests.spec.md`](admin-contests.spec.md), "Progress marker"); with none, a triangle in the Text colour |
 
+*The 2026-09-28 function audit (Main/Second/Accent colour, Background Dark/Light) is superseded by the table above.*
+
 ## Start page (revised 2026-09-29, Walk #3)
 
 Ruling (Arthur, Walk #3): "Remove the 'Sign-in' slot from contest Sponsors, since it isn't a contest field. Brand gets a
@@ -148,8 +150,6 @@ link. None: no block. A tenant with no sponsor records still gets its legacy nam
 | Remove | `PUT /admin/start-page` (list − the row) | The same |
 | Drag / keyboard move | `PUT /admin/start-page` (the new order) | The same; the order is the fan's |
 | Name link | nothing | Opens the sponsor page |
-
-*The 2026-09-28 function audit (Main/Second/Accent colour, Background Dark/Light) is superseded by the table above.*
 
 ## Overview
 
