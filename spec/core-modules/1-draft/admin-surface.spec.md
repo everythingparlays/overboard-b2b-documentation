@@ -82,7 +82,7 @@ Path 2 is cached in-process, **5-minute TTL, positive and negative results alike
 
 **Obs powers follow the user, whatever org is active.** Concretely:
 
-- **OBS Internal endpoints and screens authorize on user-level obs-staff-ness**, not on the active org. An operator with a tenant org active still reaches `/platform-health`, `/obs/prize-deliveries`, `/fan-actions` and the finalize route.
+- **OBS Internal endpoints and screens authorize on user-level obs-staff-ness**, not on the active org. An operator with a tenant org active still reaches `/platform-health`, `/obs/prizes` (All prizes), `/fan-actions` and the finalize route.
 - **`?tenant=` targeting works for obs staff whatever org is active**, defaulting to the active tenant org when no `?tenant=` is given. Explicitness is unchanged — the request still names the tenant (see "Route surface").
 - **Non-obs users are exactly as before.** Their scope is their active organization, they may never name a tenant, and nothing above is reachable.
 
@@ -250,7 +250,8 @@ There is **no Emails item** (2026-09-27): the tenant's prize email settings (sen
 | `/settings/emails` | `/prizes/email` |
 | `/prizes?contest=<id>` | That contest's Prizes tab, `/contests/<id>/prizes` |
 | `/branding/sponsors` | `/sponsors` |
-| `/delivery-queue` | `/obs/prize-deliveries` |
+| `/delivery-queue` | `/obs/prizes/deliveries` |
+| `/obs/prize-deliveries` | `/obs/prizes/deliveries` (query kept; Walk #3) |
 
 Not in the nav, reached from a game: **Game recap** (`/recap`, [`admin-sponsor-recap.spec.md`](admin-sponsor-recap.spec.md)). An Overboard staffer with no tenant chosen lands on Operations rather than on Overview's "Pick a tenant" card.
 
@@ -350,7 +351,7 @@ A hue marks a page only where widgets elsewhere point to it (Arthur's final walk
 | Hue | Sidebar pages | Widgets that wear it |
 |---|---|---|
 | Games (violet) | Games & Contests; staff: All contests | Boards, contests and games KPI tiles; the games cards on Overview, Game day, a contest's Overview tab, the fan and tenant pages |
-| Prizes (orange) | Prizes; staff: Prize deliveries | Prizes-delivered tiles, prize tier and prize cards |
+| Prizes (orange) | Prizes; staff: All prizes | Prizes-delivered tiles, prize tier and prize cards |
 | Fans (cyan) | Fans | Fans-joined tiles, the fan profile card |
 | Consents (pink) | Fields & Opt-ins | Overview's consent coverage card, the fan page's opt-ins card |
 | Support (lime) | Support; staff: Support inbox | Support inbox tiles and patterns, a report's thread and answer, Platform health's oldest-report tile |
@@ -404,7 +405,7 @@ Arthur's rulings of 2026-09-27 (`artifacts/review-2026-09-27/arthur-rulings-2026
 - **The builder keeps the sidebar.** It is a page in the main column, with its steps as a clickable progress bar across the top and Save draft on every step.
 - **Contest states and deletion.** Draft, Open and Closed replace the visibility and entries switches, and any non-finalized contest can be deleted (typed name; since 2026-09-28 the typed name alone, even once fans have joined).
 - **Uploads everywhere** (Rule 16).
-- **Redirects**: `/prize-deliveries` and `/settings/emails` → `/prizes/deliveries`; `/prizes?contest=<id>` → that contest's Prizes tab; `/branding/sponsors` → `/sponsors`; `/delivery-queue` → `/obs/prize-deliveries`.
+- **Redirects**: `/prize-deliveries` and `/settings/emails` → `/prizes/deliveries`; `/prizes?contest=<id>` → that contest's Prizes tab; `/branding/sponsors` → `/sponsors`; `/delivery-queue` → `/obs/prize-deliveries` (since Walk #3, `/obs/prizes/deliveries`).
 
 ## Principles
 

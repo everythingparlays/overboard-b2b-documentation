@@ -22,7 +22,7 @@ Staff have had a Season calendar since 2026-09-23: every enabled game at every w
 | Readiness and outcomes | Shown on the workspace's own games, as on the staff calendar | Unchanged |
 | Links | A game opens Game day for it (own games) | Unchanged: opens Game day in that workspace |
 
-Both views keep Month and List. The toggle is a `Segmented` control ("Our games" / "All games" for a workspace, "In contests" / "All games" for staff) and is remembered per browser tab.
+Both views keep Month and List. The toggle is a `Segmented` control ("All games" / "Our games" for a workspace, "All games" / "In contests" for staff; "All" is always the first option, Walk #3 2026-09-29). It opens on the default view above and is remembered per browser tab.
 
 **The list view pages** (admin-lists.spec.md): from the chosen day forward, soonest first, loading the next page as the reader scrolls — a season, not a month. Search on team names; filters for sport and (staff) workspace. The month grid stays range-bound (at most 62 days, as today) and keeps "+N" opening the day drawer.
 

@@ -355,3 +355,69 @@ tenant-self-serve rulings — see the "Revised 2026-09" notes)".
 - **Why:** Arthur's final walk: keep it only if Nick wanted it, and he didn't spec it.
 - **Date:** 2026-09-28 (on `arthur-console-redesign`).
 - **Status:** In effect.
+
+### 30. `BRAND-02`: the Start page's sponsors are a tenant-level list on Brand, not a per-game slot
+
+- **What:** `BRAND-02` lists "sign-in screen logo and tagline" among each game's sponsor assets, and
+  `branding-field-split.md` treats sign-in as a per-game placement slot resolved through the tenant's
+  featured game. Instead, the Start page's sponsors are now one ordered, tenant-level list that the
+  tenant adds to and removes from on Brand. Contests no longer have a Sign-in sponsor slot. The
+  sponsor's artwork for it is the "Start page logo" and "Start page tagline". Existing sign-in
+  placements were migrated into each tenant's list. "Sign in" still names the real sign-in form.
+- **Why:** Arthur's third console walk: the Start page isn't a contest field.
+- **Date:** 2026-09-29 (on `arthur-console-redesign`).
+- **Status:** In effect. Supersedes the last sentence of entry 29 ("The featured game still decides
+  which sponsor presents the sign-in screen").
+
+### 31. `BRAND-01` and `BRAND-02`: the progress marker defaults to a triangle and can be set per game
+
+- **What:** With nothing uploaded, the progress marker is a downward triangle in the tenant's Text
+  colour, not the Overboard logo. Besides the tenant's marker on Brand, a tenant can set a marker for
+  one game of one contest. What a board shows is decided in one place, in this order:
+  1. a sponsor's slider icon on that game
+  2. the game's own marker
+  3. the Brand marker
+  4. the triangle
+- **Why:** Arthur's third console walk.
+- **Date:** 2026-09-29 (on `arthur-console-redesign`).
+- **Status:** In effect.
+
+### 32. `PRIZE-04`: the prize email's platform wording is stored and edited by Overboard staff
+
+- **What:** `PRIZE-04` says prize emails use "a custom HTML template associated with a specific
+  prize… template creation and upload is performed by developers." Entry 10 already made it one
+  data-driven template for every prize. Its wording that isn't prize data is now stored in the database
+  instead of in code, and Overboard staff edit it on All prizes → Email. That wording covers:
+  - the default subject
+  - the heading
+  - the line under the prize
+  - the code label
+  - the claim-steps heading
+  - the sponsor label
+  - the footer
+
+  Edits are validated, escaped and audit-logged, with a live preview. A tenant's own sender name,
+  reply-to and subject still come first.
+- **Why:** Arthur's third console walk: Overboard staff (and Nick) should be able to change the
+  email's wording without a deploy.
+- **Date:** 2026-09-29 (on `arthur-console-redesign`).
+- **Status:** In effect.
+
+### 33. `BRAND-01`: the team's colours are Main, Accent, Text and Button text, with no light or dark mode
+
+- **What:** `BRAND-01` names "team brand colors (primary, secondary, accent)". The tenant now sets
+  four colours on Brand:
+  - **Main**, the fan app's background
+  - **Accent**, for buttons, highlights, bingo hits, progress, and the console's accent
+  - **Text**, white or black, default white
+  - **Button text**, automatically black or white on Accent, which the tenant can override
+
+  There is no second colour. Light or dark mode is removed: no setting and no label. Cards, surfaces,
+  borders, muted text, hit and progress shades, toasts and confetti are derived from these colours, and
+  nothing about the fan app's look is hardcoded per tenant. The onboarding colours of the live tenants
+  (bears, fightinghawks) were mapped into the new colours, and stored themes were migrated. This
+  supersedes the "light or dark" part of entry 26.
+- **Why:** Arthur's third console walk: the colours a tenant sets must be the colours fans see, and
+  bears' navy background was hardcoded where no one could edit it.
+- **Date:** 2026-09-29 (on `arthur-console-redesign`).
+- **Status:** In effect.

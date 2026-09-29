@@ -10,6 +10,8 @@
 
 **Revised 2026-09-28** (Arthur's Wave 4 walkthrough ruling) — staff finalize **only** from the OBS pages: All contests and the tenant page. The contest page and the workspace's contest cards no longer carry Finalize, so the `ready-to-finalize` attention row opens the workspace's tenant page. The Finalize dialog asks for the typed contest name only, with no re-authentication. Support triage happens only in the support inbox.
 
+**Revised 2026-09-29** (Walk #3) — pointer only: staff's Prize deliveries is now **All prizes** (`/obs/prizes`), directly under All contests, with Library, Deliveries and Email tabs ([`admin-prizes.spec.md`](admin-prizes.spec.md), "All prizes (staff)"). The failed-sends attention row links to its Deliveries tab.
+
 **Revised 2026-09-27** (Wave 4) — pointers only: contests have a stored state (Draft, Open, Closed; [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §3.1) in place of visibility, so All contests shows State and the attention rows read it; the Delivery queue is now Prize deliveries (all workspaces) at `/obs/prize-deliveries`, and a tenant's prize tiers are on the contest page's Prizes tab.
 
 ## Overview
@@ -44,7 +46,7 @@ Four bands, top to bottom:
    | Kind | Detects | Links to |
    |---|---|---|
    | `game-not-ready` | A game in the next **24 hours** whose readiness is not clean — the pre-kickoff row, the highest-value one | That workspace's game day, on that game (the checklist links to each fix) |
-   | `failed-sends` | A workspace with prizes sitting failed | Prize deliveries (all workspaces), filtered to that workspace |
+   | `failed-sends` | A workspace with prizes sitting failed | All prizes → Deliveries, filtered to that workspace |
    | `no-prize-tiers` | A contest that isn't a Draft, with games and no prize tier | That contest's Prizes tab (`/contests/:id/prizes`), in that workspace |
    | `no-games-enabled` | An Open contest with no games | That contest's Games tab, in that workspace |
    | `ready-to-finalize` | A contest **ready to finalize** by the one rule ([`admin-contests.spec.md`](admin-contests.spec.md), "Finalize: the one rule"): not finalized, not a draft, at least one game, every game ended | All contests, where staff Finalize |
@@ -100,7 +102,7 @@ All three follow the cross-tenant read pattern (admin-obs-internal): structural 
 - **Cross-tenant audit/exports view**, **tenant account view**, **config drift detection** — recorded follow-ups.
 - **Readiness is checked against today's configuration.** A calendar dot for a game three weeks out answers "if it were today"; it cannot know about changes planned before then.
 - **Activity actor names** depend on the admin sign-in being reachable; an unresolvable operator reads as their workspace ("Overboard staff").
-- **Ended is inferred** for games the feed never marked final (tip-off + 6 h — see game day).
+- **Ended is inferred** for games the feed never marked final: every visible prop resolved, or the sport's usual length since tip-off — the one phase rule (see game day).
 
 ## References
 
