@@ -335,7 +335,7 @@ Route `/prizes/deliveries`. Tenant mode for tenants, and for staff with a tenant
 
 **Tiles** (KpiTile): "Sent" (`fulfilled` rows sent in the last 30 days, caption "Last 30 days"), "Failed" (all `failed` rows, and `bounced` once it exists; caption "Needs attention" above zero, else "Nothing to fix"; the number in the status red only above zero), "Queued" (`pending` rows, "Sending now"). Each filters the list on click. Tiles show the tenant's totals and ignore the search and filters.
 
-**Toolbar** (sticky, the list kit's `InfiniteTable`): search "Search by fan name or email"; **Status** segmented "All · Sent · Failed · Queued"; **Contest** Combobox ("All contests", endless scroll); **Date** "Any time · Today · Last 7 days · Last 30 days · Custom…"; the count, "412 deliveries". Filters reached by link show as removable chips: "Prize: $25 gift code", "Tier 2 · Denver Weekend", "Fan: J. Smith". Every filter lives in the URL (`?status=&contest=&tier=&prize=&fan=<membershipId>&from=&to=`); the search text does not, because it can be an email address.
+**Toolbar** (sticky, the list kit's `InfiniteTable`): search "Search by display name or email" (it matches the display name the fan chose, never a real name — 2026-09-29); **Status** segmented "All · Sent · Failed · Queued"; **Contest** Combobox ("All contests", endless scroll); **Date** "Any time · Today · Last 7 days · Last 30 days · Custom…"; the count, "412 deliveries". Filters reached by link show as removable chips: "Prize: $25 gift code", "Tier 2 · Denver Weekend", "Fan: J. Smith". Every filter lives in the URL (`?status=&contest=&tier=&prize=&fan=<membershipId>&from=&to=`); the search text does not, because it can be an email address.
 
 **Table** (endless scroll, newest win first):
 
