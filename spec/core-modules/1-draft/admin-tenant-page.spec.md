@@ -185,7 +185,7 @@ The page is full width inside the console shell (the sidebar stays; this is not 
 
 - **"Fan-app domain"**: the address, and a status: "Ready" or "Not configured". "Not configured" names the missing list or lists ("Not accepted for sign-in", "Not in the allowed origins", or both) and links to the fan-origin runbook, "How to add a fan-app domain". This is a staff surface, so an internal link belongs here; it renders only when the runbook's URL is configured in the console (recorded gap: the runbook is not written yet). A muted line under the row reads "Checks that the backend accepts requests and sign-ins from this address."
 - **"Sign-in method"**: "Email". Read-only, no control.
-- **"Brand"**: the preset name ("Prime Time"), or "Custom look", or "Standard look", with the tenant's two team colours as swatches.
+- **"Brand"**: the preset name ("Prime Time"), or "Custom look", or "Standard look", with the tenant's two team colours as swatches: the colours fans see, which are the saved theme's, else the tenant's onboarding colours (`effectiveTheme`, shared `theme/seeds.ts`). There are no swatches when the tenant has neither.
 - **Links that open the tenant's own screens as the tenant**: "Team", "Fields & Opt-ins", "Brand". Each sets the acting-on selection to this tenant and navigates to `/team`, `/config` or `/branding`.
 
 **7. Danger zone.** A card titled "Danger zone", outlined in the status red, last on the page. Rules and endpoints are [`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md)'s, unchanged; only the presentation moves from inline drawer zones to centred dialogs (admin-surface, "Pages, drawers and dialogs").

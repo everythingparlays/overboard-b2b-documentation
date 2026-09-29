@@ -356,6 +356,16 @@ Arthur's walkthrough ruling: every sidebar destination gets a hue, shown as a th
 
 Nothing else takes a hue: not status pills, text, numbers, buttons, or tables.
 
+## Accent (ruling, 2026-09-28)
+
+The console wears **the acting tenant's accent**: the colour its fans see on bingo-square hits, check badges and every progress bar (the theme resolver's `hit`, the first of primary, secondary and accent that reads on the fan app's ground). It tints the scope family (`--scope`, `--scope-text`, `--scope-soft`, `--scope-border`, `--scope-on`): the active nav item, the workspace card, eyebrows, table-head rules and the focus ring.
+
+- **Source.** The server sends it as `brandColor` on `/admin/health`'s `scope.tenant` (the session's tenant), on `/admin/workspace` (the tenant staff chose) and on each `/admin/tenants` row. It is `brandAccent(effectiveTheme(subdomain, branding.theme))` from `obs-b2b-shared/src/theme/seeds.ts`: the theme saved on Brand, else the tenant's onboarding colours, which now live in that one shared file instead of the fan app's bundle.
+- **No colour, no hue.** A tenant with no colours, or whose accent is a grey, black or white (the neutral look in either mode), gets `null`, and the console wears a clean neutral white accent (the `tokens.css` statics, the same `#e5e5e5` the fan app's neutral default uses). The OBS scope with no tenant chosen is neutral too. The console never invents a tenant colour: the old slug-hash palette is gone.
+- **Legible on the console.** Text in the accent is lifted along its own hue to 4.5:1 on the console surface; the accent's own marks (dots, bars, fills) are lifted to 3:1, so a dark team colour still reads on the near-black console.
+- **Follows a save at once.** After Brand saves, the console re-reads the accent (`useTenantAccent().refresh()`) without a reload.
+- **Tenant colours are the only accent.** The staff "Console look" switcher is removed and Prime Time is parked; there is one console look.
+
 ## Focus ring (revised 2026-09-28)
 
 The focus highlight fits each control's real shape (Arthur's walkthrough: it sat misaligned on the compact search fields). One ring, `--focus-ring` (a 2px gap in the page colour, then 2px of the scope colour), in three weights:

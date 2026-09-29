@@ -54,7 +54,7 @@ Admin-surface Rule 10 says the record and the Clerk org are *created, changed, a
 
 ### Cache semantics, stated plainly
 
-The fan-side tenant resolver caches organizations in-process for 60 seconds. Every lifecycle write calls `clearOrgCache()`, so the process that took the write serves the new state immediately. **Other processes serve the old state for up to one TTL** — a suspended tenant's fans may play for up to another minute, a resumed tenant's fans may see the paused screen for up to another minute. Accepted: suspension is an operator action with a known small lag, the same posture as obs-staff revocation latency (admin-surface, "Revocation latency"). The admin surface itself is unaffected — `resolveAdminScope` reads the record fresh per request.
+The fan-side tenant resolver caches organizations in-process for 60 seconds. Every lifecycle write calls `clearOrgCache()`, so the process that took the write serves the new state immediately. **Other processes serve the old state for up to one TTL** — a suspended tenant's fans may play for up to another minute, a resumed tenant's fans may see the paused screen for up to another minute. Accepted: suspension is an operator action with a known small lag, the same posture as obs-staff revocation latency (admin-surface, "Revocation latency"). The admin surface reads the same cache (revised 2026-09-28, `node-server/src/util/org-cache.ts`): `resolveAdminScope` and staff `?tenant=` targeting look the organization up through it, so admin reads carry the same one-minute lag across processes. **Admin writes do not:** any non-GET admin request drops the cache before it resolves anything, so a write always starts from a fresh read and can never save over another process's change.
 
 ---
 

@@ -142,7 +142,7 @@ Bulk selection on an endless list (Delivery queue) selects **loaded** rows; "Sel
 
 **Kept for older clients.** `/admin/live` still returns its first 40 feed lines and 25 failures, `GET /admin/exports` still carries its 20 recent exports, and `GET /admin/games` keeps its 30-day, 200-game candidate window for the contest cards the redesign replaces. The console reads the paged endpoints; these stay only so an older console keeps working until it is gone.
 
-**Indexes.** `node-server/scripts/create-list-indexes.mjs` creates the list indexes per environment (dry run by default).
+**Indexes.** `node-server/scripts/create-list-indexes.mjs` creates the list indexes per environment (dry run by default): the Fans roster's `roster_newest_first`, and `by_contest_status` (`{ contestId: 1, status: 1 }`) on prize redemptions for one contest's counts.
 
 ### Skipped, with the reason
 
