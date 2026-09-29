@@ -39,17 +39,45 @@ theme resolver also derives a contrast-guarded hit colour (§4 there).
 - **The console accent follows.** After a successful publish the page calls `useTenantAccent().refresh()` (`lib/ThemeContext.tsx`), so the console's accent (the tenant's `hit`, `brandAccent(effectiveTheme(slug, stored))`) updates without a reload.
 - **The preview** is unchanged (host `brand`, the built-in sample contest, the draft theme and images laid over the org). Its Start screen shows no matchup (ruling item 6; `nextGame` leaves `sampleContest.ts`).
 
+**Revised 2026-09-29 (Walk #3): the four-colour model** (Arthur's Walk #3 rulings, "The colour model, final for the current app"). This block wins over everything below it; the older text is kept for the record. It also supersedes the 2026-09-28 block's Colours, Light or dark and highlight bullets.
+
+- **Four colours, nothing else about colour.** `ThemeSettings.colors` is `{ main, accent, text, buttonText? }` and `mode` is gone:
+  - **Main** is the fan app's background.
+  - **Accent** is actions: buttons, bingo hits and their check badge, progress bars, chips, the selected player, focus rings, and the console's accent. It takes the description Main had.
+  - **Text** is the text on Main: white or black, white by default.
+  - **Button text** is the text and icons on Accent-coloured things. Absent means **auto**: black or white, whichever reads better on Accent, recomputed when Accent changes. It can be set to white or black. "Auto" is never stored as a value.
+- **No second colour, no light or dark mode** anywhere: no setting, no label, no computed mode shown to anyone. The fan app has no `dark` class, no `dark:` variants and no next-themes; the stylesheet keeps one fallback block, which is the resolver's neutral default.
+- **Everything else is derived** by `resolveTheme` in `obs-b2b-shared/src/theme/resolve.ts` as hue-preserving OKLCH tones, never plain white or black:
+  - Cards, the raised surface, the progress track and borders are Main stepped by contrast (1.15, 1.3, 1.45 and 1.6 to 1 against Main): lighter, or darker when Main is too pale for lighter to show, keeping Main's hue.
+  - Muted text is Text blended toward Main in OKLab, kept at 4.5:1 on a card.
+  - Hits and progress (`--hit`) are Accent, its lightness nudged only when needed to reach 3:1 against a card and the track. It is never swapped for another colour. Bears' `#e64100` already reads, so it is used as is.
+  - Toasts are a pale Accent tint with dark Accent-hued text; confetti is Accent in three shades plus a lifted Main.
+  - The browser's `color-scheme`, the player-photo blend (screen on a dark Main, normal on a light one) and the "Powered by" wordmark are picked by contrast against Main. They are outputs, never a mode.
+- **Stored themes in the older shape** are read through `normalizeTheme` (`obs-b2b-shared/src/theme/normalize.ts`):
+  - Main = the stored ground, else the old mode's platform ground.
+  - Accent = the colour the old resolver showed on hits.
+  - Text = the stored page text, else white or black by contrast on Main.
+  - Button text is auto.
+  - Every reader goes through it: the Brand read, the fan wire, the console accent, the contest banner, the prize email and the fan app's boot cache. `PUT /admin/branding` accepts only the new shape.
+  - `node-server/scripts/theme-colour-migration.mjs` (dry run by default, `--apply` to write, idempotent) rewrites stored themes the same way.
+- **Seeds** (`theme/seeds.ts`) are bears (Main `#0b162a`, Accent `#e64100`, Text white) and fightinghawks (Main `#000000`, Accent `#009A44`, Text white), Button text auto. `test` has none and renders the neutral default (Main `#0a0a0a`, Accent `#e5e5e5`, Text white), and the console stays neutral white for it. The stale bundled tenants (bbgs, warriors) are removed.
+- **Presets and the gallery are removed** from the contract, the storage, the endpoints (`PUT /admin/branding/presets`, `POST /admin/branding/promote`) and `GET /admin/branding`'s response. A publish drops a stored preset array. The staff tenant page names a look "Custom" or "Standard". The `theme_preset_promote` audit action stays so old log entries still read.
+- **The page.** The Colors card has four rows: Main and Accent (the console's picker and a hex field), and Text and Button text as segmented choices (White / Black; Auto (white or black, naming the ink it picks) / White / Black). A Text stored as neither white nor black shows its value until an ink is picked. The highlight line says whether the hits use the Accent or a lighter or darker shade of it. Reset returns to the seed or the neutral look.
+- **Default images follow the colours.** The contest banner's default band runs from Main to Accent, inked in Text or Button text, whichever reads better at the band's worse end. Monograms (the logo default, the tab icon, the band's monogram) are Button text on Accent.
+
 **Function audit (what each control writes, and what reads it):**
 
 | Control | Writes (`PUT /admin/branding`) | Read by |
 |---|---|---|
-| Main colour | `theme.colors.primary` | Fan app `--primary` (buttons), `--ring`, team tints, the picked player's ring; the highlight colour and the console accent when it clears 3:1 |
-| Second colour | `theme.colors.secondary` (absent: follows main) | Fan app `--secondary` (the picked player card's outline), prize confetti; the highlight colour when the main one doesn't stand out |
-| Accent colour | `theme.colors.accent` (absent: follows second) | Fan app `--accent` (ghost-button hover; the angled band for a stored theme that has it on), prize confetti; the highlight colour when neither above stands out |
-| Background (Dark / Light) | `theme.mode`, and `theme.colors.neutrals` (kept, swapped or removed as above) | Fan app `<html>` class via next-themes, every surface and text variable, the Overboard wordmark variant, the boot cache |
+| Main color | `theme.colors.main` | Fan app `--background`, and every derived surface: `--card`, `--surface-raised`, `--border`, `--progress-track`, muted text, the photo blend, `color-scheme`, the wordmark; the banner band's start |
+| Accent color | `theme.colors.accent` | Fan app `--primary` and `--ring` (buttons, chips, the selected player, focus), `--hit` (bingo hits, check badge, progress), toasts, confetti, the prize pill, "Joined"; the banner band's end; the monogram; the console accent |
+| Text color (White / Black) | `theme.colors.text` | Fan app `--foreground` and `--card-foreground`, muted text; the default progress-marker triangle |
+| Button text color (Auto / White / Black) | `theme.colors.buttonText` (absent: auto) | Fan app `--primary-foreground` and `--hit-foreground`; the monogram's initials |
 | Reset | `theme: null` | Fan app falls back to the onboarding seed or `DEFAULT_THEME`; the backend's `effectiveTheme` for the console accent |
-| Logo | `assets.logo` (upload field `brand.logo`) | Fan app Start and Join screens, the side menu, the paused screen |
+| Logo | `assets.logo` (upload field `brand.logo`) | Fan app Start and Join screens, the side menu, the paused screen, the tab icon |
 | Progress marker | `assets.sliderTipImageUrl` (upload field `brand.progressMarker`) | Fan app board progress-bar marker, unless a sponsor holds the slider slot at that game |
+
+*The 2026-09-28 function audit (Main/Second/Accent colour, Background Dark/Light) is superseded by the table above.*
 
 ## Overview
 
@@ -96,6 +124,8 @@ The PRD text is not edited by this spec. `BRAND-01` remains the requirement; thi
 ---
 
 ## The theme contract (v2)
+
+*Superseded 2026-09-29 by the four-colour contract (revision at the top): `colors` is `{ main, accent, text, buttonText? }`, there is no `mode` and no `neutrals`, and the derivation rules there replace the table below. Kept as written, for the record.*
 
 The stored shape is **pure data** — JSON-serializable, no functions, no computed values, no derived colors. Types live in `obs-b2b-shared/src/interfaces/b2b/B2BOrganization.ts`; the zod contract in `obs-b2b-shared/src/api/admin/branding.ts`; the Mongoose subschemas in `obs-b2b-shared/src/models/b2b.ts`. It supersedes the fan template's eight-hex `TenantColors`, which survives in the template as the legacy seed shape only.
 
@@ -206,6 +236,8 @@ The fixtures carry the exact hexes extracted from the mocks. Where a mock disagr
 
 ## Presets, gallery, and curation
 
+*Removed 2026-09-29 (presets are gone): the shelves, `applyPreset`, the gallery collection and its endpoints no longer exist. Kept as written, for the record.*
+
 Three shelves, three different things, deliberately not one list.
 
 | Shelf | What it is | Where it lives | Who writes it |
@@ -313,6 +345,8 @@ The public org schema takes the branding block with a passthrough/loose object s
 
 ## Back-compat
 
+*Superseded 2026-09-29: the bundled tenant files hold no colours; the seeds are four-colour themes in `theme/seeds.ts`, and a stored theme in the older shape is read by `normalizeTheme` and rewritten by the migration script (revision at the top). The parity test now pins how bears, fightinghawks and test read. Kept as written, for the record.*
+
 **`THEME-19` — The compile-time tenant files become seeds, and the server wins.** `overboard-b2b-template/src/config/tenants/*.ts` stay exactly as they are. The fan app applies the **local seed synchronously at module scope** — the colors are already in the bundle, so this costs nothing and kills the cold-load flash the current provider-mount timing produces — then re-applies the server theme when `GET /b2b/org` returns and `branding.theme` is present. Server wins; the seed is the first paint and the offline fallback.
 
 `themeFromLegacyColors()` converts the eight-hex shape into a `ThemeSettings`: mode dark, primary/secondary/accent as given, neutrals from background/card/text/textMuted with the **explicit** `border` (this is what `THEME-06` exists for), defaults everywhere else. The `test` tenant, which configures no colors, resolves to the platform default theme and must render identically to today's `.dark` block.
@@ -331,11 +365,11 @@ This is the only visual change this wave sanctions to an existing tenant, it is 
 
 `/branding` — **Brand**, its own page since 2026-09-28 (it was the Brand tab of Sponsors & Branding; Sponsors is [`admin-sponsors.spec.md`](admin-sponsors.spec.md)) — per the fan-theming design contract. The [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) skeleton is copied wholesale — pick-tenant empty state, `key={qs}` remount on tenant switch, draft-and-publish with the draft held in the page only (no autosave; a "Leave without saving?" prompt when there are unpublished changes, since 2026-09-28), inline publish notes rather than toasts, read-only presentation for `org:member`, and the console's own `ui/` primitives throughout.
 
-**Groups, since 2026-09-28** (the minimal baseline, revision above): **Colours** (Main colour, Second colour, Accent colour, and the highlight readout) · **Light or dark** (Background) · **Images** (Logo; Progress marker, the image that moves along the board's prize progress bar, which a sponsor holding the slider slot at a game replaces there).
+**Groups, since 2026-09-29** (the four-colour model, revision above): **Colours** (Main, Accent, Text, Button text, and the highlight readout) · **Images** (Logo; Progress marker, the image that moves along the board's prize progress bar, which a sponsor holding the slider slot at a game replaces there).
 
 *Before 2026-09-28, kept for the record:* **Look** (Light/Dark) · **Colors** (Team color, Second color, Accent, Live tone, and an Advanced reveal for explicit neutrals) · **Type** (Headline font, Body font, Number font, ALL-CAPS headlines, Headline weight) · **Shape** (Corner roundness, Density) · **Finish** (Border strength, Texture, Glow) · **Signature** (Hero band, Bingo counter) · **Assets** (Logo, Progress marker).
 
-**Defaults when nothing is uploaded** (revised 2026-09-28): the fan app shows the tenant's initials as a monogram on the primary colour for **Logo**, and the Overboard mark for **Progress marker**. Outside this page, a contest with no banner shows the brand band in the tenant's colours (neutral when no colours are set), and a prize with no image shows none.
+**Defaults when nothing is uploaded** (revised 2026-09-29): the fan app shows the tenant's initials as a monogram, Button text on Accent, for **Logo**, and the Overboard mark for **Progress marker**. Outside this page, a contest with no banner shows the brand band in the tenant's colours (neutral when no colours are set), and a prize with no image shows none.
 
 **Sponsors live on their own tab, not in this editor.** The Brand tab is draft-and-publish with a live preview; sponsors are records saved one at a time with a schedule grid, and one scrolling page holding both save models would put a Publish bar above controls it does not publish (argued in [`admin-sponsors.spec.md`](admin-sponsors.spec.md)). `branding.assets.sponsorName`/`sponsorLogo` stay on the contract as legacy fallback for a tenant with no sponsor records; nothing edits them.
 

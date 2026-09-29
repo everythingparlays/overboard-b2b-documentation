@@ -95,7 +95,8 @@ interface AdminTenantDetail {
   setup: { fanAppOrigin: { origin: string; ready: boolean;
                            missingFrom: ("allowed-origins" | "sign-in-origins")[] };
            signInMethod: "email";
-           brandLook: { kind: "preset"; name: string } | { kind: "custom" } | { kind: "standard" } };
+           brandLook: { kind: "custom" } | { kind: "standard" };
+           teamColors?: { main: string; accent: string } };
 }
 ```
 
@@ -104,7 +105,8 @@ interface AdminTenantDetail {
 - **`usage`**: twelve weeks, Monday-start in UTC, oldest first, the current partial week last. `fansByWeek` counts memberships by `joinedAt`; `prizeSendsByWeek` counts redemptions by `fulfilledAt`. `fieldCount` and `optInCount` are the published sign-up fields and opt-ins; `sponsorCount` is the tenant's sponsor records.
 - **`setup.fanAppOrigin`**: see "The fan-app domain check".
 - **`setup.signInMethod`** is the constant `"email"`, not a read of `authVariant`: email is the only way a fan can sign in (`AUTH-03`), so it is the only true answer whatever a tenant was created with.
-- **`setup.brandLook`**: the tenant's stored theme compared with the shipped presets, the gallery and the tenant's own presets, ignoring team colours (`THEME-08` keeps them when a preset is applied). A match answers that preset's name; a stored theme that matches none answers `custom`; no stored theme answers `standard`. If the Brand redesign stores which preset was applied, this reads that instead.
+- **`setup.brandLook`** (revised 2026-09-29: presets are gone): `custom` when the tenant has saved a theme, else `standard`.
+- **`setup.teamColors`**: the Main and Accent fans see (the saved theme, else the onboarding colours, `effectiveTheme`), absent when the tenant has neither.
 
 ### `GET /admin/tenants/notes` and `POST /admin/tenants/notes`
 
@@ -185,7 +187,7 @@ The page is full width inside the console shell (the sidebar stays; this is not 
 
 - **"Fan-app domain"**: the address, and a status: "Ready" or "Not configured". "Not configured" names the missing list or lists ("Not accepted for sign-in", "Not in the allowed origins", or both) and links to the fan-origin runbook, "How to add a fan-app domain". This is a staff surface, so an internal link belongs here; it renders only when the runbook's URL is configured in the console (recorded gap: the runbook is not written yet). A muted line under the row reads "Checks that the backend accepts requests and sign-ins from this address."
 - **"Sign-in method"**: "Email". Read-only, no control.
-- **"Brand"**: the preset name ("Prime Time"), or "Custom look", or "Standard look", with the tenant's two team colours as swatches: the colours fans see, which are the saved theme's, else the tenant's onboarding colours (`effectiveTheme`, shared `theme/seeds.ts`). There are no swatches when the tenant has neither.
+- **"Brand"**: "Custom look" or "Standard look", with the tenant's Main and Accent as swatches: the colours fans see, which are the saved theme's, else the tenant's onboarding colours (`effectiveTheme`, shared `theme/seeds.ts`). There are no swatches when the tenant has neither.
 - **Links that open the tenant's own screens as the tenant**: "Team", "Fields & Opt-ins", "Brand". Each sets the acting-on selection to this tenant and navigates to `/team`, `/config` or `/branding`.
 
 **7. Danger zone.** A card titled "Danger zone", outlined in the status red, last on the page. Rules and endpoints are [`admin-tenant-lifecycle.spec.md`](admin-tenant-lifecycle.spec.md)'s, unchanged; only the presentation moves from inline drawer zones to centred dialogs (admin-surface, "Pages, drawers and dialogs").
@@ -263,7 +265,7 @@ Stays a drawer (three fields). Its fields are now **Name**, **Subdomain** (with 
 - **The fan-origin runbook is not written.** The Setup row's link renders only once its URL is configured in the console. The runbook's content: add `https://<slug>.overboardsports.com` to `FRONTEND_ORIGIN` and `FAN_AUTHORIZED_PARTIES` for each stack through CDK, and redeploy.
 - **Creating a tenant does not make its fan app work.** The origin has to be added by a deployment. The readiness row makes the gap visible to staff; closing it (origins read from the tenant directory rather than an environment list) is backend work with its own security review.
 - **DNS and hosting are not checked.** Whether the wildcard domain actually serves the tenant's host is outside the backend's knowledge.
-- **The brand look is inferred** by comparing the stored theme with presets, until the Brand redesign stores which preset was applied.
+- **The brand look** says only whether the tenant saved a theme; presets were removed on 2026-09-29.
 - **Notes cap at 500 per tenant.** A tenant that reaches it would move notes to a collection of their own, which is the shape change, not a larger cap.
 
 ## References
@@ -278,5 +280,5 @@ Stays a drawer (three fields). Its fields are now **Name**, **Subdomain** (with 
 - [`admin-contests.spec.md`](admin-contests.spec.md) — the contest page and Finalize
 - [`admin-prizes.spec.md`](admin-prizes.spec.md) — Prize deliveries, tenant and cross-tenant
 - [`admin-fans.spec.md`](admin-fans.spec.md) — the other drawer that became a page on 2026-09-24
-- [`admin-branding.spec.md`](admin-branding.spec.md) — presets and `THEME-08`, behind the Brand row
+- [`admin-branding.spec.md`](admin-branding.spec.md) — the four-colour model behind the Brand row
 - Current code replaced: `obs-b2b-admin-frontend/src/pages/Tenants.tsx` (`TenantDrawer`, the auth-variant control in `CreateTenantDrawer`)

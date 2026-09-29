@@ -154,7 +154,7 @@ Bulk selection on an endless list (Delivery queue) selects **loaded** rows; "Sel
 | Games & Contests | Games table inside each contest card | Lives inside the card being replaced; the contest page's Games tab (S1) uses `InfiniteTable`. |
 | Prizes | Contest switcher tabs | Prizes move into the contest page in the redesign. |
 | Sponsors & Branding | Schedule card (contest × game × slot grid) | Placements move to the contest page's Sponsors tab in the redesign. |
-| Sponsors & Branding | Brand preset gallery | Brand is being simplified in the redesign; own presets are capped at 20 by the model. |
+| Sponsors & Branding | Brand preset gallery | Removed 2026-09-29: presets and the gallery no longer exist. |
 | All tenants | Tenant drawer's contests | The staff tenant page replaces the drawer in the redesign. |
 | Fans | Fan drawer's consent history and prizes | One fan's records — tens at most — and fan detail becomes a page in the redesign. |
 | Overview | Upcoming games (8) | A glance, not a list: it links to the Schedule tab, which is the full list. |

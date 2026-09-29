@@ -334,7 +334,7 @@ Arthur's Wave 4 walkthrough ruling reverses the 2026-09-24 staff extras: **when 
 |---|---|---|
 | Shell | The paused banner's staff wording, "Fans can't play right now. Resume it from the tenant record." with the link | The tenant wording ("changes are turned off… contact Overboard") is untrue for staff, who can still write |
 | Fields & Opt-ins | **Edit Overboard's documents** on Overboard's own opt-in | Publishing the platform Terms and Privacy for every team has no other surface |
-| Brand | **Promote** on a saved preset | Publishing a preset to every tenant's gallery has no other surface |
+| Brand | ~~**Promote** on a saved preset~~ | Removed 2026-09-29 with presets and the gallery |
 | Fan page | **Delete fan** (`SEC-07`) and **Export this fan's activity** (`RPT-02`, one fan) | The fan-data-rights pair: OBS-only by design, and no OBS page acts on one fan |
 | Team | The staff view reads and writes through the staff endpoints | Staff aren't Clerk members of the workspace, so Clerk's client can't reach its organization |
 | Team | The "Overboard staff" label on a staff member's row | Tenant admins see the same label |

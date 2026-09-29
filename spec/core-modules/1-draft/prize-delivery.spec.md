@@ -167,7 +167,7 @@ Code: `node-server/src/prize-delivery/prize-sponsor.ts` (the pure resolution bot
 ### How it is built
 
 - **Table layout, inline styles, 600px fluid container**, one `<style>` block for the mobile breakpoint and dark-mode hints; renders in Gmail (web and apps), Apple Mail, Outlook (Windows, with VML button fallback), Outlook.com and Yahoo.
-- **Light card on a neutral ground.** The tenant's primary color is an accent (header rule, button, code border), never the page ground: email dark-mode inversion across clients is inconsistent enough that a dark-ground email is a gamble, and the accent survives inversion.
+- **Light card on a neutral ground.** The tenant's Accent (`branding.theme.colors.accent`, else its onboarding Accent; revised 2026-09-29) is the email's accent (header rule, button, code border), never the page ground: email dark-mode inversion across clients is inconsistent enough that a dark-ground email is a gamble, and the accent survives inversion.
 - **The brand color is measured, not trusted.** Text in the brand hue is walked darker (hue kept) until it reads at 4.5:1 on the card. The button keeps the brand's exact color whenever it is visible on the card at all (≥1.35:1 — a stadium yellow at ~1.4:1 stays the team's yellow); only near-whites are darkened. The label ink is the better of near-black and white (`onColor`), and a mid-tone brand where neither ink reaches 4.5:1 (a saturated red, a mid grey) is walked toward black until one does.
 - **A plain-text part** accompanies every HTML part, with the same content and the same omissions.
 - **A hidden preheader** ("{prize} from {tenant}") so inbox previews read as a sentence, not markup.

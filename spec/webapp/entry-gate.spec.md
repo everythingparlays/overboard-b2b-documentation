@@ -110,7 +110,7 @@ Do not navigate on success. The mutation invalidates the membership cache tag an
 
 **The team's name comes from the server.** The fan app used to take the tenant's display name from its bundled seed configs, so a tenant missing from the bundle (any tenant created in the console, e.g. Denver Nuggets) showed "Overboard" in the gate heading, the start screen, the side menu and the paused screen. The name now comes from `GET /b2b/org/:subdomain` (`organization.name`) and overrides the bundled value whenever the server answers, including for a paused tenant. The bundled name is only a fallback while the request is in flight or when it fails.
 
-**No light-mode flash.** On a cold load the app used to paint its light default for a moment before the tenant's theme applied. The document now starts in the last theme mode this browser saw for this tenant (a tiny inline script reads it before first paint, falling back to dark, the platform's default mode), and the theme is re-applied when the server's answer arrives.
+**No flash of the wrong colours** (revised 2026-09-29: there is no light or dark mode, admin-branding.spec.md). On a cold load the document starts in the colours this browser last saw for this tenant: a tiny inline script writes the cached theme variables (boot cache version 2) before first paint, ignores an entry from an older build, and otherwise leaves the stylesheet's neutral fallback. The theme is re-applied when the server's answer arrives.
 
 ## Opt-in documents (2026-09-27, Wave 4)
 

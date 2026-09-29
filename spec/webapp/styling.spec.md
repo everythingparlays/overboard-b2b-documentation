@@ -18,9 +18,11 @@ The one fact that governs everything else: this app does not have a brand palett
 
 Three layers: a tenant's theme (the one saved on the console's Brand page, else its onboarding colours, which live in `obs-b2b-shared/src/theme/seeds.ts`, not in `src/config/tenants/<slug>.ts`; `src/theme/seed.ts` reads them from there) → `src/theme/apply.ts` sets CSS custom properties on `:root` at runtime → `index.css`'s `@theme inline` block bridges those into the `--color-*` names Tailwind reads to generate utilities. Setting `--background` in JS is sufficient; you never touch `--color-*` directly.
 
-**Design rule: never hardcode a hex value in a component.** Always express color through the semantic tokens — `bg-background`, `text-foreground`, `bg-card`, `border-border`, `bg-primary`, `text-primary-foreground`, `bg-secondary`, `bg-accent`, `text-muted-foreground` — so the same component reskins correctly across every tenant. The one sanctioned exception is `--tenant-primary` / `--tenant-secondary` / `--tenant-border`, a deliberate escape hatch for Tailwind arbitrary-values (`from-[var(--tenant-primary)]`) and React inline `style` props, which can't resolve the Tailwind-owned `--color-*` names.
+**The four colours** (revised 2026-09-29, [`admin-branding.spec.md`](../core-modules/1-draft/admin-branding.spec.md)). A tenant sets Main (the background), Accent (buttons, hits, progress), Text (white or black) and Button text (auto, white or black). The shared resolver derives every other shade as a hue-preserving tone: cards, the raised surface, borders, the progress track, muted text, toasts and confetti.
 
-**Single dark theme, no light mode.** `:root` in `index.css` already carries dark-equivalent `oklch` values; the `.dark` class duplicates them almost exactly. No `ThemeProvider` wraps the app (the only `next-themes` usage is inside `sonner.tsx`, unwrapped — see §4), and nothing in the product toggles `.dark` on or off. Design for one dark surface, not a light/dark pair.
+**Design rule: never hardcode a hex value in a component.** Always express color through the semantic tokens — `bg-background`, `text-foreground`, `bg-card`, `bg-surface-raised`, `border-border`, `bg-primary`, `text-primary-foreground`, `bg-hit`, `bg-progress-track`, `text-muted-foreground` — so the same component reskins correctly across every tenant. `--primary` is Accent; shadcn's `--accent` is the quiet hover surface (the raised surface), not the tenant's Accent. The `--tenant-*` escape hatch and `--secondary` are gone; use `var(--primary)` and friends in inline styles.
+
+**No light or dark mode.** There is one fallback block in `index.css` (the resolver's neutral default) and no `.dark` class, `dark:` variant or `next-themes`. The browser's `color-scheme`, the photo blend and the "Powered by" wordmark follow Main by contrast. A pale Main is as valid as a dark one; never design for "the dark surface" alone.
 
 **Status colors are the one non-tenant palette.** `--success` / `--info` / `--warning` / `--destructive` are fixed in `index.css` and are *not* overridden per tenant — they're the platform's own semantic vocabulary (joinable / joined / live / closed), and they should stay tenant-independent: a "closed" badge should read as closed on every team's site, not shift hue with team colors.
 
@@ -111,7 +113,7 @@ Rule of thumb: **the bigger and more "tappable" the surface, the rounder its cor
 | **Card** | `ui/card.tsx` | Default: `bg-card rounded-xl border py-4 shadow-sm`, sub-parts padded `px-6`. In practice most real surfaces (`ContestCard`, `BingoCell`, matchup card, `PrizeModal`) skip the sub-components entirely and hand-roll a `div` with `bg-card border border-border rounded-{xl\|2xl\|3xl}` and custom padding — usually `px-4` or `px-3`, not the primitive's `px-6`. The primitive is present but lightly adopted; don't assume its padding is the house rule. |
 | **Avatar** | `ui/avatar.tsx` | Used for multi-select summaries (`ContestPage` sticky footer) with an overlapping stack (`-mr-2 last:mr-0`, `border-2 border-primary`). Reach for this pattern when a screen needs to show N-of-many selected identities compactly. |
 | **Progress** | `ui/progress.tsx` | Used both as-is (`BingoCell`'s per-cell fill) and hand-reimplemented in `BingoProgress.tsx` (a custom milestone-dot track) rather than composed from the primitive. Two implementations for two different jobs (single value vs. milestone track) — a legitimate split, not a bug. |
-| **Toast** | `ui/sonner.tsx` | Wired to `next-themes`, but no `ThemeProvider` exists anywhere in the app — it resolves via OS-level system preference on load rather than the app's own (permanently dark) theme. Harmless today only because the two happen to roughly agree; worth knowing if a light-looking toast on a dark page ever gets reported. |
+| **Toast** | `ui/sonner.tsx` | A pale Accent tint with dark Accent-hued text (`--toast`, `--toast-foreground`, `--toast-border` from the resolver), whatever the background (2026-09-29). |
 
 > **Flag — real bug, not a style-convention note:** `BingoProgress.tsx`'s fill bar and achieved-milestone dots use malformed Tailwind arbitrary-value syntax — `bg-(--tenant-primary)]` (stray trailing bracket, appears twice, lines 31 and 48) — which almost certainly fails to apply the intended tenant color at runtime. Worth a real fix; noted here because it surfaced during this pass.
 
@@ -142,8 +144,8 @@ There is none. Zero `sm:`/`md:`/`lg:`/`xl:` breakpoint classes exist anywhere in
 
 ## 8. Checklist for New Screens
 
-- [ ] Color via semantic tokens only (`bg-background`/`bg-card`/`bg-primary`/`text-foreground`/`text-muted-foreground`/`border-border`); `--tenant-*` only for gradients or inline styles that can't take a Tailwind utility.
-- [ ] One dark surface — don't design a light variant.
+- [ ] Color via semantic tokens only (`bg-background`/`bg-card`/`bg-primary`/`bg-hit`/`text-foreground`/`text-muted-foreground`/`border-border`); inline styles use the same variables (`var(--primary)`).
+- [ ] No light/dark variant: the four colours decide, and a pale Main must work as well as a dark one.
 - [ ] Status/consent states → `StatusBadge`'s token-based variant pattern, not a new hardcoded color.
 - [ ] Body copy `text-sm`, meta/caption `text-xs`, headers `text-2xl`–`text-4xl` `font-semibold`; reserve `font-black` + `uppercase` for one hero moment per screen.
 - [ ] Primary CTA: solid `bg-primary`, `h-12`, `rounded-xl` — **not** the gradient pattern (currently dead code — see §9.1).

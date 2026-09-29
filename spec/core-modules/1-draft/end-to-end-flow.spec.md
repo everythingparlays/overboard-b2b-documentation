@@ -370,20 +370,20 @@ It never uses array order.
   | To Win By | WIN BY |
 
   Markets with no short form render in full, wrapped, never cut.
-- **Hit states on any theme.** The theme resolver derives a **hit colour**:
-  1. the first of primary, secondary and accent that clears **3:1** against the card surface (WCAG non-text contrast,
-     using the shared `contrastRatio`);
-  2. otherwise the best of them, nudged along its own lightness until it clears (`ensureTextContrast(c, surface, 3)`).
+- **Hit states on any theme** (revised 2026-09-29, the four-colour model; admin-branding.spec.md). The hit colour is the
+  tenant's **Accent**. When Accent would not read, the resolver nudges only its OKLCH lightness (brighter on a dark board,
+  deeper on a pale one), keeping its hue, until it clears **3:1** against both the card and the progress track (WCAG
+  non-text contrast, the shared `contrastRatio`). It never falls back to another colour. An Accent that already clears is
+  used exactly: bears' orange `#e64100` reads on its navy cards as it is.
 
   It is emitted as:
   - `--hit`
-  - `--hit-foreground` (a measured ink)
+  - `--hit-foreground`: the tenant's Button text when set, else black or white by contrast on the hit shade
   - `--hit-soft` (a 16% tint)
-  - `--progress-track` (a neutral step off the card)
+  - `--progress-track` (a tonal step off Main, between the raised surface and a border)
 
-  The hit border, check badge, cell progress fill, top progress fill and achieved tier dots read `--hit`, not
-  `--primary`. On bears (navy on navy, 1.09:1), the hit colour becomes the brand orange lifted to clear 3:1. Themes that
-  already cleared keep their primary exactly.
+  The hit border, check badge, cell progress fill, top progress fill, the ring gauge and achieved tier dots read `--hit`.
+  Buttons read `--primary`, which is Accent exactly.
 - **Photos.** A player whose PES entity has `showPhotoUri: false` shows no photo anywhere: board cell, draft card or drafted
   avatar.
 - **Legal and opt-in documents open over the gate.** A link in an opt-in's text opens the document **in the same tab, over
