@@ -1,16 +1,23 @@
 # Webapp Spec: Fan App v2 — Shell, Navigation and Screens (Wave 5)
 
-**Implements:** Arthur's 2026-09-27 rulings "Fan app overhaul" (footer bar with Contests, Your boards, Profile; no home screen; Current/Past tabs; header and footer hide on scroll-down and return on scroll-up; the sidebar's items; desktop is the mobile column with decorative sides; Satoshi only; no "peeking" text) and the standing rule "function over mocks" (2026-09-28); the Wave 4 walkthrough rulings for the fan app (Terms and Privacy always in the side menu with the tenant's opt-in documents under them; contests, not games, with the contest's own name and description; mobile only; no pointless confirmations). Director's decisions W5-D01 to W5-D50, all binding (chiefly W5-D01 to W5-D07, W5-D24 to W5-D26, W5-D33, W5-D37, W5-D39, W5-D40, W5-D49, W5-D50, W5-D51; `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace), and the Phase A review rulings (`artifacts\wave-2026-09-27\briefs\w5-review-rulings.md`, workspace), and Arthur's walk #3 colour comments (`artifacts\review-2026-09-27\arthur-rulings-console-final-walk.md`, "Walk #3 rulings", workspace), reconciled with the Wave 5 palette (Text colour and the Start page adopted; Main-as-ground and no-mode open). PRD `OPT-01`–`OPT-05` (through the entry gate), `BRAND-02` (the sign-in sponsor on Start).
+**Implements:** Arthur's 2026-09-27 rulings "Fan app overhaul" (footer bar with Contests, Your boards, Profile; no home screen; Current/Past tabs; header and footer hide on scroll-down and return on scroll-up; the sidebar's items; desktop is the mobile column with decorative sides; Satoshi only; no "peeking" text) and the standing rule "function over mocks" (2026-09-28); the Wave 4 walkthrough rulings for the fan app (Terms and Privacy always in the side menu with the tenant's opt-in documents under them; contests, not games, with the contest's own name and description; mobile only; no pointless confirmations). Director's decisions W5-D01 to W5-D75, all binding (chiefly W5-D01 to W5-D07, W5-D25, W5-D26, W5-D33, W5-D37, W5-D39, W5-D40, W5-D49 to W5-D51, and the console-redesign rulings W5-D68, W5-D74, W5-D75; `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md` and `briefs\w5-phaseB-deltas.md`, workspace), the Phase A review rulings (`artifacts\wave-2026-09-27\briefs\w5-review-rulings.md`, workspace), and Arthur's walk #3 rulings (`artifacts\review-2026-09-27\arthur-rulings-console-final-walk.md`, workspace: the Start page, no Start matchup, display names). Facts: `artifacts\w5\redesign-delta.md` (workspace). PRD `OPT-01`–`OPT-05` (through the entry gate), `BRAND-02` (the Start page sponsors).
 
-**Depends on:** Wave 4's specs on docs branch `arthur-w4-console` (PR #29, not merged to main): [`fan-preview-mode.spec.md`](fan-preview-mode.spec.md), [`entry-gate.spec.md`](entry-gate.spec.md) (revision 2026-09-27: opt-in documents over the gate), `../core-modules/1-draft/admin-fields-and-optins.spec.md` (revision 2026-09-27: opt-ins linked to a sponsor or not, kept versions, `consentHistory`, documents), `admin-contests.spec.md` (states, description), `admin-prizes.spec.md`, `admin-sponsors.spec.md`. The Wave 4b fix pass (branches `arthur-w4b-*`, not built at the time of writing): the shared derived bingo function (W5-D40), the re-grounded prize model (W5-D41), per-contest banners, the current app's menu listing tenant documents. On main: [`../core-modules/1-draft/end-to-end-flow.spec.md`](../core-modules/1-draft/end-to-end-flow.spec.md) (Wave 3: derived game status, `featuredGame`, join refusal codes, server awards, the legal overlay). This branch is cut from the Wave 3 state of docs `main` and is rebased once Wave 4 and 4b merge; names above marked "to confirm at rebase" are checked then. Siblings on this branch: [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md), [`fan-app-v2-console-touchpoints.spec.md`](fan-app-v2-console-touchpoints.spec.md), [`../core-modules/1-draft/fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md), [`../core-modules/1-draft/admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md).
+**Depends on:** the console redesign, branch `arthur-console-redesign` (fan app `9c1af32`, shared `41b9c7d`, backend `96d40c9`, docs `79908f2`), which contains Wave 4 and the Wave 4b fix pass: [`fan-preview-mode.spec.md`](fan-preview-mode.spec.md), [`entry-gate.spec.md`](entry-gate.spec.md) (opt-in documents over the gate), `../core-modules/1-draft/admin-fields-and-optins.spec.md` (opt-ins linked to a sponsor or not, kept versions, `consentHistory`, documents), `admin-contests.spec.md` (states, description, banner), `admin-prizes.spec.md`, `admin-sponsors.spec.md`, `admin-branding.spec.md` ("Start page"); the shared bingo functions (W5-D75), the re-grounded prize model (W5-D41), per-contest banners, the side menu listing tenant documents (`organization.documents`), the Start page sponsors. On main: [`../core-modules/1-draft/end-to-end-flow.spec.md`](../core-modules/1-draft/end-to-end-flow.spec.md) (Wave 3: derived game status, `featuredGame`, join refusal codes, server awards, the legal overlay). The docs branch `arthur-fanapp-overhaul` is rebased onto the redesign (`79908f2`). Siblings on this branch: [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md), [`fan-app-v2-console-touchpoints.spec.md`](fan-app-v2-console-touchpoints.spec.md), [`../core-modules/1-draft/fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md), [`../core-modules/1-draft/admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md).
 
 **Supersedes:** S2's draft of this spec (docs branch `arthur-s2-fanapp-spec`, PR #23). For the Wave 5 branch only, [`styling.spec.md`](styling.spec.md) for the visual layer of every screen here.
 
-**Status:** Draft, 2026-09-28, Wave 5 Phase A. Built in Phase B on the long-lived `arthur-w5-fanapp` branches, which are never merged to main (W5-D29). Nothing here changes main's fan app.
+**Status:** Draft, 2026-09-28, Wave 5 Phase A; **revised 2026-09-29 for the console redesign** (W5-D68–D75). Built in Phase B on the long-lived `arthur-fanapp-overhaul` branches, which are never merged to main (W5-D29). Nothing here changes main's fan app.
+
+### Revised 2026-09-29: the shell and screens on the redesign
+
+- **Built on the redesign and consumed** (W5-D74): the side menu's Terms, Privacy and tenant documents (`organization.documents`, `/document/:optInId/:linkId`), the Start screen's logo and "Presented by" (the tenant's Start page sponsors), contest banners, display names. The overhaul restyles them on the kit; it doesn't re-implement them.
+- **No next game on Start:** walk #3 removed the Start matchup, and the overhaul follows.
+- **Your boards** shows bingos and points computed on read by the shared functions (W5-D75); nothing is persisted.
+- **The theme** is the redesign's four colours, read by the kit (W5-D68; [`fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md)).
 
 ## Overview
 
-Today's fan app (Wave 4, `.worktrees\template-w4-int`) is a start screen, the Clerk sign-in, sign-up and reset pages, the join gate, a Contests list with Upcoming and Past tabs, a player-draft page, the board, the Terms and Privacy pages, an unlinked `/dashboard`, and a side menu with Terms, Privacy and Log Out. It has no profile, no list of the fan's boards, no footer navigation and no way to edit a display name or withdraw a consent.
+Today's fan app (the redesign, `9c1af32`) is a Start screen (the tenant logo, "Presented by" the tenant's Start page sponsors, no matchup), the Clerk sign-in, sign-up and reset pages, the join gate, a Contests list with Upcoming and Past tabs and banner cards titled with the contest's name, a player-draft page, the board, the Terms, Privacy and tenant document pages, an unlinked `/dashboard`, and a side menu with Terms, Privacy, one row per tenant document and Log Out. It has no profile, no list of the fan's boards, no footer navigation and no way to edit a display name or withdraw a consent.
 
 **The whole change, in one line:** the fan app becomes three tabs (Contests, Your boards, Profile) in one mobile column dressed by the decor kit, every screen shows only what the platform stores and does, and each thing the server doesn't provide yet is written here as "Phase B: to build", never faked on screen.
 
@@ -67,7 +74,7 @@ Today's fan app (Wave 4, `.worktrees\template-w4-int`) is a start screen, the Cl
 | `/boards` | Your boards | Member | no | here |
 | `/profile` | Profile | Member | no | here |
 | `/terms`, `/privacy` | Overboard's Terms of Service and Privacy Policy | Anyone | yes (`LegalPage`) | here |
-| `/documents/:optInId/:linkId` | A tenant opt-in document | Anyone | no | here |
+| `/document/:optInId/:linkId` | A tenant opt-in document | Anyone | yes (redesign: `TenantDocumentPage`, `DOCUMENT_PATH` in `pages/legal/legalPaths.ts`) | here |
 | `/dashboard` | Redirects (`replace`) to `/boards` | — | yes (orphaned "My Boards") | here |
 | `/preview` | The console's preview frame | Anyone; no session, no API | yes (Wave 4) | [`fan-preview-mode.spec.md`](fan-preview-mode.spec.md) |
 | `/kit` | The decor kit gallery (Wave 5 branch only) | Anyone | Phase A | [`fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md) |
@@ -97,7 +104,7 @@ Today's fan app (Wave 4, `.worktrees\template-w4-int`) is a start screen, the Cl
 | `/board/:id` | Back | `/boards` |
 | `/board/:id/edit` | Back | `/board/:id` |
 | `/contest/:id/standings` | Back | `/contest/:id` |
-| `/terms`, `/privacy`, `/documents/…` | Back | `/contests` signed in, `/` signed out |
+| `/terms`, `/privacy`, `/document/…` | Back | `/contests` signed in, `/` signed out |
 
 **`FAN-07` — Sheets are history entries.** Opening the side menu or any bottom sheet pushes a history state; the browser's or phone's back closes it without leaving the screen.
 
@@ -158,11 +165,11 @@ A task flow's sticky CTA or action bar follows the same rules as the tab bar it 
 | Head | Tenant logo (if any) and "{Tenant} Bingo"; the fan's display name and email | — | `organization`; `membership.displayName`; the Clerk session's primary email |
 | Navigation | Contests · Your boards · Profile | `/contests`, `/boards`, `/profile` | — |
 | Documents | Terms of Service · Privacy Policy | `/terms`, `/privacy` | Always listed (walkthrough ruling), published or not |
-| Documents | One row per tenant opt-in document, titled with the document's `title` | `/documents/:optInId/:linkId` | **Phase B: to build** (below) |
+| Documents | One row per tenant opt-in document, titled with the document's `title` | `/document/:optInId/:linkId` (`documentPath(doc)`) | `tenant.documents` (`TenantContext`), from `organization.documents` on the org read: exists on the redesign |
 | Foot | Sign out ("Signing out…" while pending) | Signs out, lands on `/` | Clerk; today's "Log Out" is renamed |
 | Foot | "Powered by Overboard" | — | — |
 
-- **Where the tenant documents come from.** No fan read lists them today: `GET /b2b/membership` carries links only for *pending* opt-ins, and `GET /b2b/org/:subdomain` carries no opt-ins. The Wave 4b fix pass must add a source for the current app's menu (walkthrough ruling); the overhaul reads the same one. If 4b ships none, **Phase B: to build** `organization.documents: { optInId, linkId, title }[]` on the public org read (every current tenant opt-in's `links`, platform opt-in excluded, in opt-in order), cached with the org and cleared by a config publish. The read follows Wave 4b's work and is aligned at the Phase B rebase (decision sheet, 2026-09-28).
+- **Consumed, not rebuilt** (W5-D74). The redesign's `components/layout/SideMenu.tsx` already lists Terms (`/terms`) and Privacy (`/privacy`) always, then one row per `tenant.documents` entry (the tenant's own opt-in documents in opt-in order, platform Terms and Privacy excluded, `publicOptInDocumentSchema { optInId, linkId, title }`), then sign-out. The overhaul moves it onto the kit's sheet and adds the head, the navigation group and the foot above; the document rows, their source and their routes stay as built. No server work.
 - **No opt-in documents:** the documents group shows Terms and Privacy only.
 - The current route's item carries `aria-current="page"` and a 3px Main-ink bar at its left edge. The sheet traps focus and returns it to the menu button.
 
@@ -199,30 +206,31 @@ A task flow's sticky CTA or action bar follows the same rules as the tab bar it 
 
 **Layout, top to bottom** (the CTA is anchored to the bottom so late-arriving blocks never move it):
 1. `DecorField` full.
-2. The tenant logo (at most 96px tall), when set.
+2. The tenant logo (at most 96px tall), when set: the redesign's `components/brand/TenantLogo.tsx`, consumed.
 3. Double `HeroBand`: the tenant name, then "BINGO" fitted to the column (`.k-fit`).
 4. The tagline: Words `startTagline` (default "Pick your players. Win prizes.").
-5. The next game, when one exists and has not started: a `Scorebug` card with "Next game", "{Away} @ {Home}" with the team logos when present, and "Tip Sun 7:30 PM".
-6. "Presented by" and the tenant's start-page sponsors (Brand › Start page, `BRAND2-32`), in their order, each as its start-page logo (or tagline) linked to its website when set. Start-page sponsors are tenant-level; there is no contest sign-in slot any more (walk #3).
-7. The primary button: Words `startCta` (default "Continue with email") → `/sign-in` (forwarding `next`), as today.
-8. "Powered by Overboard".
+5. "Presented by" and the tenant's Start page sponsors (Brand › Start page), in their order: the redesign's `components/sponsor/PresentedBy.tsx` fed by `hooks/useStartPageSponsors.ts` (`startPageSponsors(data.startPage, data.sponsors)`; the legacy `branding.sponsorName`/`sponsorLogo` only when the tenant has no sponsor records at all), consumed (W5-D74). It renders by the redesign's rules: one sponsor spans the column up to 96px tall; several sit 2-up on 64px plates; a sponsor without a Start page logo shows as its name tile; each links to its website when set.
+6. The primary button: Words `startCta` (default "Continue with email") → `/sign-in` (forwarding `next`), as today.
+7. "Powered by Overboard".
 
-**Data:** `GET /b2b/org/:subdomain` (`organization.name`, `organization.branding.theme`, `.logo`, `.text` **Phase B: to build**, `suspended`); `GET /b2b/org/:subdomain/sponsors` (`nextGame` with `eventTime`, `homeTeam`, `awayTeam` and their `logoUrl`; `sponsors`; the start-page list, main's model at the rebase, else `startPage` **Phase B: to build**). The org read and the sponsor read exist.
+**No next game.** Walk #3 asked whether any spec calls for a matchup on Start; none does, so the redesign removed it and sends no `nextGame` to Start. The overhaul follows: no scorebug on Start.
+
+**Data:** `GET /b2b/org/:subdomain` (`organization.name`, `organization.branding.theme`, `.logo`, `.text` **Phase B: to build**, `suspended`); `GET /b2b/org/:subdomain/sponsors` (`sponsors`, `startPage`, `configured`). Both reads exist, with `startPage`.
 
 **States:**
 | State | What shows |
 |---|---|
-| Org loading | The ground only for up to 1.5s (the boot cache paints the tenant's last mode), then the Start skeleton |
+| Org loading | The ground only for up to 1.5s (the boot cache paints the tenant's last theme), then the Start skeleton |
 | Org failed | The `FAN-13` card, full screen, on the platform default theme |
 | Unknown tenant (org read answers no organization) | The `FAN-13` card with "We couldn't find this site." and no retry (nothing to retry) |
 | Paused | The Paused screen |
-| No next game, or it has started | No scorebug (the sponsor schedule carries no game status, so a started game is never shown as "next") |
-| No start-page sponsors | No "Presented by" |
-| Sponsor schedule loading | The "Presented by" block holds its space invisibly (today's rule) |
+| No Start page sponsors | No "Presented by" (or the legacy credit, when the tenant has no sponsor records at all) |
+| One Start page sponsor / several / one without a logo | Full-width up to 96px / 2-up on 64px plates / its name tile |
+| Sponsor schedule loading or failed | The "Presented by" block holds its space invisibly while loading; a failed read credits no one (today's rule) |
 | No logo | The band's text is the mark |
 | Offline | The offline banner; the CTA still navigates |
 
-**Copy:** tenant name (API), "BINGO", tagline (Words), "Next game", "Tip {when}", "Presented by", CTA (Words), "Powered by". Today's tagline appends "from {sponsorName}" for a legacy tenant with a stored `branding.sponsorName`; the overhaul drops that suffix (the sign-in sponsor block is the credit).
+**Copy:** tenant name (API), "BINGO", tagline (Words), "Presented by", CTA (Words), "Powered by". No "from {sponsorName}" suffix on the tagline: the "Presented by" block is the credit.
 
 ### Sign in, Sign up, Forgot password
 
@@ -243,7 +251,7 @@ The shared `EntryGateForm` ([`entry-gate.spec.md`](entry-gate.spec.md)) rendered
 
 - **Documents open over the gate in the same tab** (Wave 3 §4, Wave 4): linked words in an opt-in's text open `?doc=<optInId>.<linkId>` as a full-screen overlay reading `GET /b2b/org/:subdomain/consent-document/:optInId/:linkId?version=<displayed textVersion>`; Back (the overlay's or the browser's) closes it and everything typed is intact.
 - **Copy** is `resolveGateCopy` over the tenant's nine `gateCopy` overrides (below); the chips, errors and identity line are platform copy.
-- **`FAN-27` (revised) — The display-name placeholder** changes from "Shown on your board" to "Shown on standings and your board" in `obs-b2b-shared/src/entry-gate/copy.ts` **when standings ship** (Phase B, [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md) `FLOW-33`), because standings show display names. Until then it stays, because it would be untrue.
+- **`FAN-27` (revised) — The display-name placeholder** changes from "Shown on your board" to "Shown on standings and your board" **when standings ship** (s3, [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md) `FLOW-33`), because standings show display names: in `obs-b2b-shared/src/entry-gate/copy.ts:55` and in the seeded `DEFAULT_GATE_COPY` (`interfaces/b2b/tenant-defaults.ts:52`), through a shared-queue request. Until then it stays, because it would be untrue.
 
 **Data:** `GET /b2b/membership` (`member`, `pendingConsents` with `links`, `signupFields`, `pendingFields`, `gateCopy`), `POST /b2b/join`, `POST /b2b/consent`, `PATCH /b2b/membership` (`profileFields`). All exist.
 
@@ -303,7 +311,7 @@ The landing screen.
 
 | Part | Content | When | Source |
 |---|---|---|---|
-| Banner | The contest's banner image (Wave 4b's per-contest banner, else its brand-derived default), 4:1, above the text | When 4b's field is present | Wave 4b; field name to confirm at rebase |
+| Banner | The contest's banner (its own image, a sponsor's, or the brand band Main → Accent), above the text, drawn by the redesign's `components/contests/ContestBanner.tsx`, consumed | always (the list sends a `banner` for every contest) | `banner` (`ContestBannerView`), exists |
 | Corner | `Stripes` | always | — |
 | Chyrons | Status (`FAN-18`), then JOINED | always | `contestStatus`, `state`, `finalized`, games' `status`; my-boards |
 | Title | The contest's own name, `.k-d2`, up to three lines | always | `contestName` |
@@ -322,13 +330,13 @@ The landing screen.
 
 W5-D06. The fan's boards in this tenant.
 
-**Layout:** header "Your boards"; one row per board: a 46px mini-board, the contest name (`.k-d4`, two lines), the status chyron (`FAN-18`), "{n} bingos" ("1 bingo"), and the chevron; the row links to `/board/:boardId`. Points appear on the row only once the evaluator writes them (W5-D17, `FLOW-34`).
+**Layout:** header "Your boards"; one row per board: a 46px mini-board, the contest name (`.k-d4`, two lines), the status chyron (`FAN-18`), "{n} bingos" ("1 bingo") and "{p} pts" (`FLOW-34`), and the chevron; the row links to `/board/:boardId`.
 
 **Mini-board:** hit (Main-ink fill), miss (strike), pending (hairline), empty (dashed). No live square (W5-D23; [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md) "The mini-board").
 
 **Order:** Live first, then Open, then Not yet open, then Past (most recent first).
 
-**Data:** `GET /b2b/board/my-boards` gains a server row projection per board (**Phase B: to build**, review ruling 6): the contest's name, its fan status (the `FAN-18` inputs), the evaluator's persisted derived bingos and points (`FLOW-50`), and the nine cell states for the mini-board. The app renders the rows as served: no client-side join and no bingo computation in the browser. Today the endpoint returns every board of the fan in this tenant, newest first, with its contest and props populated but no status. It is not paged; a fan holds one board per contest.
+**Data:** `GET /b2b/board/my-boards` gains a server row projection per board (**Phase B: to build**, review ruling 6): the contest's name, its fan status (the `FAN-18` inputs), bingos from `withDerivedBingos` and points from the shared `boardPoints`, both computed on read (W5-D75, `FLOW-50`), and the nine cell states for the mini-board. The app renders the rows as served: no client-side join. Today the endpoint returns every board of the fan in this tenant, newest first, with its contest through the fan allowlist and props populated but no status. It is not paged; a fan holds one board per contest.
 
 **States:**
 | State | What shows |
@@ -352,7 +360,7 @@ W5-D06. The fan's boards in this tenant.
 5. **Sign out** (secondary, full width).
 
 **`FAN-41` (revised) — Consents, on the Wave 4 consent model.** Each card shows:
-- the opt-in's text as the fan agreed to it, with its linked documents opening at that version (`/documents/:optInId/:linkId?version=N` over the Profile, Back returns);
+- the opt-in's text as the fan agreed to it, with its linked documents opening at that version (`/document/:optInId/:linkId?version=N` over the Profile, Back returns);
 - "Required" or "Optional" (from `blocking`);
 - "Shared with {Sponsor}" when the opt-in is linked to a sponsor (a data-sharing agreement);
 - "Accepted on Sep 24, 2026 · version 3", or "Declined on …";
@@ -382,7 +390,7 @@ W5-D06. The fan's boards in this tenant.
 
 **`FAN-43` (revised) — No placeholder legal text, ever** (W5-D49). When a platform document isn't published (404), the page shows its heading ("Terms of Service" or "Privacy Policy") and one line: **"Overboard hasn't published this yet."** (Terms and Privacy are Overboard's documents, shared by every tenant.) A tenant opt-in document that isn't published shows its title and **"{Tenant} hasn't published this yet."**
 
-**`/documents/:optInId/:linkId`** renders a tenant opt-in document the same way (current version, or `?version=N`). It is reached from the side menu and from Profile. A 404 shows the `FAN-43` line for a tenant document.
+**`/document/:optInId/:linkId`** renders a tenant opt-in document the same way (current version, or `?version=N`): the redesign's `TenantDocumentPage`, restyled on the kit. It is reached from the side menu and from Profile. A 404 shows the `FAN-43` line for a tenant document.
 
 **Layout:** header with Back and the document's title; the title as `h1` (`.k-d2`); "Updated {date}" from `publishedAt`; the body at `.k-body` (headings, paragraphs, lists, bold; a URL is plain text; `parseConsentDocument`).
 
@@ -458,7 +466,7 @@ W5-D06. The fan's boards in this tenant.
 | ID | Was | Why |
 |---|---|---|
 | FAN-19 | Start's CTA goes to sign-up | Wave 4 flows kept: the CTA goes to sign-in, which links to sign-up |
-| FAN-20 | Start never shows a past game | Kept as a state of Start (no status on the schedule's next game, so a started game is omitted) |
+| FAN-20 | Start never shows a past game | Moot: Start shows no game at all (walk #3; the redesign removed the matchup) |
 | FAN-21 | Restore "Forgot password?" | Already present on today's sign-in page |
 | FAN-22 | Sign-up has no consent checkbox | Done in Wave 3/4 (the unbound checkbox was removed) |
 | FAN-24 | Resend unlocks after 30s | Clerk's own resend behaviour stays; no extra rule |
@@ -485,16 +493,16 @@ Kept, revised or new: `FAN-01`–`FAN-10`, `FAN-12`, `FAN-13`, `FAN-15`–`FAN-1
 
 | Screen | Data sources (endpoint / model / field) | Server calls on fan action | States covered |
 |---|---|---|---|
-| Start | `GET /b2b/org/:subdomain` (name, `branding.theme`, `.logo`, `.text`*, `suspended`); `GET /b2b/org/:subdomain/sponsors` (`nextGame`, `sponsors`, start-page list*) | none (navigation only) | org loading, failed, unknown tenant, paused, no next game, started game, no start-page sponsors, no logo, offline |
+| Start | `GET /b2b/org/:subdomain` (name, `branding.theme`, `.logo`, `.text`*, `suspended`); `GET /b2b/org/:subdomain/sponsors` (`sponsors`, `startPage`, `configured`) | none (navigation only) | org loading, failed, unknown tenant, paused, no Start page sponsors, one / several / name tile, legacy credit, no logo, offline |
 | Sign in / up / reset | Clerk; org read for theme | Clerk | Clerk loading, field and form errors, code errors, network |
 | Join gate | `GET /b2b/membership` (`pendingConsents` + `links`, `signupFields`, `pendingFields`, `gateCopy`); `GET /b2b/org/:subdomain/consent-document/:optInId/:linkId?version=` | `POST /b2b/join`, `POST /b2b/consent`, `PATCH /b2b/membership` | loading, failed (closed), join, returning, submitting, stale wording, no documents, document missing/failed, offline |
 | Contests | `GET /b2b/contest/list-contests` (no `status`; `contestName`, `description`, `contestStatus` + `opensAt`, `state`, `finalized`, `allowedBetEvents` with derived `status`, `prizeTiers`); `GET /b2b/board/my-boards` | none | loading, failed, Current empty, Past empty, not open yet, live, full (unknowable here), closed, finalized, joined, no prizes, no sponsors, trivia (never listed), paused, offline |
-| Contest card | as Contests; banner (4b)*; `playerCount`*; live `providedBy`* | none | as Contests |
-| Your boards | `GET /b2b/board/my-boards` row projection* (contest name, status, persisted bingos and points, cell states) | none | loading, failed, no boards, finalized, closed, props missing, paused, offline |
+| Contest card | as Contests; `banner` (exists); `playerCount`*; live `providedBy`* | none | as Contests |
+| Your boards | `GET /b2b/board/my-boards` row projection* (contest name, status, bingos and points computed on read, cell states) | none | loading, failed, no boards, finalized, closed, props missing, paused, offline |
 | Profile | `GET /b2b/membership` (`membership.displayName`, `.profileFields`, `.consents`, `.consentHistory`, `signupFields`; `optIns`*); consent document read with `?version=` | `PATCH /b2b/membership` `profileFields` (exists), `displayName`*; `POST /b2b/consent` (exists; accepts a re-decision) | loading, failed, save failed, no fields, platform opt-in only, re-worded opt-in (gate), paused, offline |
 | Terms / Privacy | `GET /b2b/org/:subdomain/consent-document/overboard-terms/{terms,privacy}` | none | loading, not published, failed, offline |
-| Tenant document | same read, tenant `optInId`/`linkId`; menu list* | none | loading, 404, failed, offline |
-| Side menu | org; membership; Clerk email; document list* | Clerk sign-out | no tenant documents, signing out |
+| Tenant document | same read, tenant `optInId`/`linkId`; `organization.documents` (exists) | none | loading, 404, failed, offline |
+| Side menu | org (`documents`, exists); membership; Clerk email | Clerk sign-out | no tenant documents, signing out |
 | Paused | org read (`suspended`, name, logo, theme, `text`*) | re-read org on focus, visibility, 60s | paused at load, mid-session, resumed, no logo |
 
 \* **Phase B: to build.**
@@ -521,7 +529,7 @@ Kept, revised or new: `FAN-01`–`FAN-10`, `FAN-12`, `FAN-13`, `FAN-15`–`FAN-1
 | Paused screen copy | Kept | Matches today's `SuspendedScreen`, now Words-editable (Phase B) |
 | Gate: "Already playing? Sign in" link; CTA → sign-up | Changed | Wave 4 flow: CTA → sign-in, which links to sign-up |
 | Gate "Presented by Hometown Grill" wordmark | Kept (as data) | The tenant's start-page sponsors' logos or taglines (Brand › Start page); absent when none |
-| Gate next-game scorebug "Tip Sun 7:30 PM" | Kept | `nextGame` exists; no LIVE (no status on it) |
+| Gate next-game scorebug "Tip Sun 7:30 PM" | Cut | Walk #3: no spec calls for a matchup on Start; the redesign removed it |
 | Gate "Chicago Bears" h1 + giant "Bingo" | Kept | Tenant name from the API; BINGO fitted (`DECOR-31`) |
 | Six code boxes (`sign-up.html`) | Changed | One six-digit input with OS fill (`FAN-23`) |
 | Join form fields (First name, Phone (optional), Birthday) | Kept (as data) | Rendered from the tenant's `signupFields` |
@@ -534,11 +542,23 @@ The roll-up below adds every other spec's mock deviations.
 
 | Spec | Screens / surfaces | New server work it needs (Phase B: to build) | Mock elements cut or changed (highlights; full lists in each spec) |
 |---|---|---|---|
-| This spec | Start, auth, gate, Contests, card, Your boards, Profile, documents, Paused, shell | `branding.text`; `organization.documents` (unless 4b ships a source); `optIns` and `displayName` on membership; `playerCount`; live sponsor credits on fan contest reads; the my-boards row projection | Home screen, menu-only nav, search and chips, player counts, initials, sample Terms text, Barlow/Plex |
-| [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md) | Contest detail, builder (pick players and Generate, which exists; pick lines yourself; edit), live board, prize popup, standings, results | Shared derived bingo function (4b), persisted by the evaluator; `props` on the contest read; `cells` on `POST /b2b/board/generate`; `PUT /b2b/board/:id/cells` (with `fill`); `GET /b2b/contest/:id/standings`; evaluator-written points; award `seenAt` and winner's `code`; generate pool filter; board-read contest projection | Card → builder, replace-confirm, "50-50" label, 68% spots bar, scores on scorebugs, yellow mini-board square, full-screen flash, value/shipping/pick-up, trivia card, SSE stream, Enter confirm |
-| [`fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md) | The kit, shell, gallery | `decor { intensity, angle }` and `bingoGrid` on the theme contract; the palette's move to shared | Barlow/Plex, hard-coded palettes, initials, CSS confetti, mock text ramp |
-| [`admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md) | Brand v2 page and its preview | `text` on `PUT/GET /admin/branding`; theme `decor`; `host: "brand"` and the sample document (4b); `POST /admin/branding/sample-colours` for logo sampling | Font section, Sponsors tab, Phone/Desktop, peek toggle and "Peeking at", Club Level's brass, ivory and serif, Live as the fourth required-looking swatch, S2 upload route |
-| [`fan-app-v2-console-touchpoints.spec.md`](fan-app-v2-console-touchpoints.spec.md) | Every console preview host and word tied to fan screens | `PreviewOverlay.branding` and `.membership`; console strings corrected | Desktop preview, S2 preview document sections, "and on Home" |
+| This spec | Start, auth, gate, Contests, card, Your boards, Profile, documents, Paused, shell | `branding.text`; `optIns` and `displayName` on membership; `playerCount`; live sponsor credits on fan contest reads; the my-boards row projection (bingos and points computed on read) | Home screen, menu-only nav, search and chips, player counts, initials, sample Terms text, the Start matchup, Barlow/Plex |
+| [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md) | Contest detail, builder (pick players and Generate, which exists; pick lines yourself; edit), live board, prize popup, standings, results | `props` on the contest read; `cells` on `POST /b2b/board/generate`; `PUT /b2b/board/:id/cells` (with `fill`); `GET /b2b/contest/:id/standings` computed on read; shared `scoring/points.ts`; award `seenAt` and winner's `code`; generate pool filter | Card → builder, replace-confirm, "50-50" label, 68% spots bar, scores on scorebugs, yellow mini-board square, full-screen flash, value/shipping/pick-up, trivia card, SSE stream, Enter confirm |
+| [`fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md) | The kit, shell, gallery | `ThemeSettings.decor { intensity, angle, texture }`; the kit first-aid (fan app only) | Barlow/Plex, hard-coded palettes, initials, CSS confetti, mock text ramp, mode, presets |
+| [`admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md) | Brand v2 (the redesign's page plus Words and Fine-tune) and its preview | `text` on `PUT/GET /admin/branding`; theme `decor`; the fixed sample board; `POST /admin/branding/sample-colours` | Font section, presets, Light or dark, Sponsors tab, Phone/Desktop, peek toggle, Second and Live swatches, S2 upload route |
+| [`fan-app-v2-console-touchpoints.spec.md`](fan-app-v2-console-touchpoints.spec.md) | Every console preview host and word tied to fan screens | `PreviewDocument.board?` and `.standings?`; seven console strings corrected | Desktop preview, S2 preview document sections, the Fields frame, the highlight ring |
+
+### 4. Cut or changed by the console-redesign delta (W5-D68–D75), this spec
+
+| Element (earlier draft of this spec) | Fate | Reason |
+|---|---|---|
+| `organization.documents` on the org read and the menu's document rows as Phase B work (s1 backend) | Changed | Built on the redesign (`getOrganization.ts`, `SideMenu.tsx`, `TenantDocumentPage`); consumed (W5-D74) |
+| Route `/documents/:optInId/:linkId` | Changed | The redesign's `/document/:optInId/:linkId` (`DOCUMENT_PATH`), kept so links don't break (W5-D74) |
+| Start page sponsors as Phase B work ("main's model at the rebase, else `startPage`") and the 40px Start box | Changed | Built on the redesign (`startPage` on the sponsor read, `useStartPageSponsors`, `PresentedBy`) and its render rules (W5-D74; W5-D34 withdrawn) |
+| Start's next-game scorebug | Cut | Walk #3 removed the Start matchup; the redesign sends none |
+| Contest card banner "field name to confirm at rebase" | Changed | The list's `banner` and the redesign's `ContestBanner` (W5-D74) |
+| Your boards reading "the evaluator's persisted derived bingos and points"; points "only once the evaluator writes them" | Changed | Bingos and points computed on read by the shared functions; shown from the start (W5-D75) |
+| Palette from "Team", mode and presets | Changed | The redesign's four colours through the kit (W5-D68–D71) |
 
 ---
 
@@ -564,15 +584,14 @@ The roll-up below adds every other spec's mock deviations.
 
 ## Open questions
 
-None. Decided since the first draft: required opt-ins cannot be withdrawn after agreeing (W5-D51, `FAN-41`); the menu's tenant-documents read follows Wave 4b and is aligned at the rebase (`FAN-10`).
+None. Decided since the first draft: required opt-ins cannot be withdrawn after agreeing (W5-D51, `FAN-41`); the menu's tenant documents are the redesign's `organization.documents` (W5-D74, `FAN-10`); no next game on Start (walk #3).
 
 ## Recorded gaps
 
 - **No player count on the fan wire.** "{n} playing" and the limit bar's count wait on `playerCount` (Phase B).
 - **No paging on the fan contest list.** One request per tab returns every non-draft contest.
-- **The next game on Start has no status**, so Start omits a game that has tipped off rather than show it live.
-- **Tenant documents in the menu** wait on a source (4b or Phase B).
-- **Profile's consent texts and display-name edit** wait on `optIns` and `displayName` (Phase B).
+- **Tenants already seeded with `DEFAULT_GATE_COPY`** keep "Shown on your board" as a stored override after `FAN-27` changes the default, until an admin edits it in Screen text.
+- **Profile's consent texts and display-name edit** wait on `optIns` and `displayName` on the membership read and PATCH, which the redesign doesn't have and no Wave 5 slice is scheduled to build (the reduced Step 0, W5-D68–D75): until then the name shows with no Edit control, and each consent card shows what `membership.consents` and `organization.documents` carry.
 - **Words** wait on `branding.text` (Phase B); until then every tenant sees the defaults.
 - **Mid-session pause** is noticed on the next org read or suspended refusal, not instantly.
 - **`showPhotoUri`** is already honoured by today's board and draft cards (Wave 3, `photoOf` in `src/lib/board.ts`); W5-D11's "the current app ignores it" is stale (W5-D49); the fallback rule stands.
@@ -584,9 +603,9 @@ Visual direction only (`mocks\fanapp-v2\`, workspace): `gate.html` (Start), `sig
 ## References
 
 - Rulings (workspace): `artifacts\review-2026-09-27\arthur-rulings-2026-09-27.md`, `arthur-rulings-wave4-walkthrough.md`; `artifacts\wave-2026-09-24\arthur-rulings-after-specs.md`.
-- Decisions: `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md` (W5-D01–D07, D24–D26, D33, D37, D39, D40, D49, D50).
+- Decisions: `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md` (W5-D01–D07, D25, D26, D33, D37, D39, D40, D49–D51); `briefs\w5-phaseB-deltas.md` (W5-D68, D74, D75). Facts: `artifacts\w5\redesign-delta.md` §1 (org read, sponsors), §4 (fan app), §6 rows 12, 13, 22.
 - Research: `artifacts\review-2026-09-27\e2e-pes-fanapp.md`, `prizes-optins-specs.md`.
-- Wave 4 specs (`arthur-w4-console`): [`fan-preview-mode.spec.md`](fan-preview-mode.spec.md), [`entry-gate.spec.md`](entry-gate.spec.md), `admin-fields-and-optins.spec.md`, `admin-contests.spec.md`, `admin-prizes.spec.md`, `admin-sponsors.spec.md`. Main: [`end-to-end-flow.spec.md`](../core-modules/1-draft/end-to-end-flow.spec.md).
-- Fan app (Wave 4 integration): `src/AppRoutes.tsx`, `src/components/auth/ProtectedRoute.tsx`, `src/components/layout/SideMenu.tsx`, `src/pages/contests/ContestsPage.tsx`, `src/pages/auth/{StartScreen,SignIn,SignUp,ForgotPassword,JoinTenant}.tsx`, `src/pages/legal/{LegalPage,legalPaths}.ts(x)`, `src/components/SuspendedScreen.tsx`, `src/context/TenantContext.tsx`, `src/store/api/{contestApi,sponsorApi,consentDocumentApi}.ts`, `src/lib/{board,contestView,storage}.ts`.
+- Redesign specs (`arthur-console-redesign`): [`fan-preview-mode.spec.md`](fan-preview-mode.spec.md), [`entry-gate.spec.md`](entry-gate.spec.md), `admin-fields-and-optins.spec.md`, `admin-contests.spec.md`, `admin-prizes.spec.md`, `admin-sponsors.spec.md`. Main: [`end-to-end-flow.spec.md`](../core-modules/1-draft/end-to-end-flow.spec.md).
+- Fan app (redesign, `arthur-fanapp-overhaul`): `src/AppRoutes.tsx`, `src/components/auth/ProtectedRoute.tsx`, `src/components/layout/SideMenu.tsx`, `src/pages/contests/ContestsPage.tsx`, `src/components/contests/{ContestCard,ContestBanner}.tsx`, `src/pages/auth/{StartScreen,SignIn,SignUp,ForgotPassword,JoinTenant}.tsx`, `src/components/brand/TenantLogo.tsx`, `src/components/sponsor/PresentedBy.tsx`, `src/hooks/useStartPageSponsors.ts`, `src/pages/legal/{LegalPage,legalPaths}.ts(x)`, `src/components/SuspendedScreen.tsx`, `src/context/TenantContext.tsx`, `src/store/api/{contestApi,sponsorApi,consentDocumentApi}.ts`, `src/lib/{board,contestView,storage}.ts`.
 - Shared: `api/b2b/{contest,board,membership,consent,join,org,sponsors,consent-document}.ts`, `interfaces/b2b/{B2BContest,B2BBoard,B2BFanMembership,B2BOrganization,contestTypes}.ts`, `interfaces/reference/{BetEvent,BettingProp,Entity}.ts`, `entry-gate/copy.ts`.
 - Backend: `node-server/src/handlers/contest/listB2BContests.ts`, `util/fan-contest-projection.ts`, `handlers/board/listB2BBoards.ts`.

@@ -1,18 +1,24 @@
 # Webapp Spec: Fan Contest Flow — detail, builder, live board, prize, standings (Wave 5)
 
-**Implements:** Arthur's 2026-09-27 rulings, "Fan app overhaul" (no player-limit bar without a limit; auto-fill must work; rearrange follows the finger with a subtle jiggle; real player photos behind squares, never initials; the ladder from PES's per-player prop levels and multipliers exactly as PES defines them, Likely / 50% Chance / Go crazy and points as live in B2C v5.9.143; no replace-confirm; the straight-line bingo indicator for now; confetti inside the phone area in tenant colours; standings show display names); `arthur-rulings-after-specs.md` (standings show points; the scorebug shows tip time, LIVE, FINAL and never scores; the builder refuses unwinnable tiers); the Wave 4 walkthrough (contests, not games: one card and one board per contest; the bingo counter reflects server-recorded bingos; per-contest banners); the standing rule "function over mocks". Director's decisions W5-D01 to W5-D50, all binding (chiefly W5-D08 to W5-D23, W5-D37 to W5-D41, W5-D44 and W5-D45, W5-D54; `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md`, workspace), and the Phase A review rulings (`artifacts\wave-2026-09-27\briefs\w5-review-rulings.md`, workspace), and Arthur's walk #3 colour comments (`artifacts\review-2026-09-27\arthur-rulings-console-final-walk.md`, "Walk #3 rulings", workspace), reconciled with the Wave 5 palette (Text colour and the Start page adopted; Main-as-ground and no-mode open). PRD §1 fan flow, `PRIZE-01` (the in-app half).
+**Implements:** Arthur's 2026-09-27 rulings, "Fan app overhaul" (no player-limit bar without a limit; auto-fill must work; rearrange follows the finger with a subtle jiggle; real player photos behind squares, never initials; the ladder from PES's per-player prop levels and multipliers exactly as PES defines them, Likely / 50% Chance / Go crazy and points as live in B2C v5.9.143; no replace-confirm; the straight-line bingo indicator for now; confetti inside the phone area in tenant colours; standings show display names); `arthur-rulings-after-specs.md` (standings show points; the scorebug shows tip time, LIVE, FINAL and never scores; the builder refuses unwinnable tiers); the Wave 4 walkthrough (contests, not games: one card and one board per contest; the bingo counter reflects server-recorded bingos; per-contest banners); the standing rule "function over mocks". Director's decisions W5-D01 to W5-D75, all binding (chiefly W5-D08 to W5-D23, W5-D37 to W5-D41, W5-D44, W5-D45, W5-D54, and the console-redesign rulings W5-D74 and W5-D75; `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md` and `briefs\w5-phaseB-deltas.md`, workspace), the Phase A review rulings (`artifacts\wave-2026-09-27\briefs\w5-review-rulings.md`, workspace), and Arthur's walk #3 rulings (`artifacts\review-2026-09-27\arthur-rulings-console-final-walk.md`, workspace). Facts: `artifacts\w5\redesign-delta.md` (workspace). PRD §1 fan flow, `PRIZE-01` (the in-app half).
 
-**Depends on:** On main: [`../core-modules/1-draft/end-to-end-flow.spec.md`](../core-modules/1-draft/end-to-end-flow.spec.md) (Wave 3: server awards §1.5, derived game status §2, `featuredGame` and board draw §3.3, join refusal codes §3.4, the board §4). Wave 4's specs on docs branch `arthur-w4-console` (PR #29, not merged): `admin-contests.spec.md` (states, description, player limit), `admin-prizes.spec.md` (the library, the award snapshot, the fan wire), `admin-sponsors.spec.md` (slots and sizes), [`fan-preview-mode.spec.md`](fan-preview-mode.spec.md) (shared `buildBoard`, `joinRefusal`). The Wave 4b fix pass (not built at the time of writing): **the shared derived bingo function** (W5-D40), the re-grounded prize model (W5-D41), per-contest banners. This branch is rebased once Wave 4 and 4b merge; names marked "to confirm at rebase" are checked then. Siblings on this branch: [`fan-app-v2.spec.md`](fan-app-v2.spec.md), [`../core-modules/1-draft/fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md), [`fan-app-v2-console-touchpoints.spec.md`](fan-app-v2-console-touchpoints.spec.md).
+**Depends on:** On main: [`../core-modules/1-draft/end-to-end-flow.spec.md`](../core-modules/1-draft/end-to-end-flow.spec.md) (Wave 3: server awards §1.5, derived game status §2, `featuredGame` and board draw §3.3, join refusal codes §3.4, the board §4). The console redesign, branch `arthur-console-redesign` (shared `41b9c7d`, backend `96d40c9`, fan app `9c1af32`), which contains Wave 4 and the Wave 4b fix pass: `admin-contests.spec.md` (states, description, player limit, banner, per-game markers), `admin-prizes.spec.md` (the library, the award snapshot, the fan wire), `admin-sponsors.spec.md` (slots), [`fan-preview-mode.spec.md`](fan-preview-mode.spec.md) (shared `buildBoard`, `joinRefusal`), **the shared bingo functions** (`scoring/bingo-lines.ts`: `boardBingos`, `completedLines`, `scoredCellsOf`; W5-D75), the claim-only reconciler (`node-server/src/scoring/reconcile.ts`: `reconcileOnTrigger`, `withDerivedBingos`), the re-grounded prize model (W5-D41), per-contest banners (`ContestBannerView`), the progress-marker chain (`interfaces/b2b/ProgressMarker.ts`). Siblings on this branch: [`fan-app-v2.spec.md`](fan-app-v2.spec.md), [`../core-modules/1-draft/fan-decor-system.spec.md`](../core-modules/1-draft/fan-decor-system.spec.md), [`fan-app-v2-console-touchpoints.spec.md`](fan-app-v2-console-touchpoints.spec.md).
 
 **Supersedes:** S2's draft of this spec (docs branch `arthur-s2-fanapp-spec`, PR #23): square-by-square building as the only path and the retirement of `POST /b2b/board/generate`; the replace-confirm; the "50-50" label; auto-fill gated on one pick; the Enter confirm sheet; the server-sent-events stream; the trivia card; score lines on scorebugs; the full-screen flash.
 
-**Status:** Draft, 2026-09-28, Wave 5 Phase A. Built in Phase B on the never-merged `arthur-w5-fanapp` branches (W5-D29).
+**Status:** Draft, 2026-09-28, Wave 5 Phase A; **revised 2026-09-29 for the console redesign** (W5-D68–D75). Built in Phase B on the never-merged `arthur-fanapp-overhaul` branches (W5-D29).
+
+### Revised 2026-09-29: the contest flow on the redesign
+
+- **Bingos, points and standings are derived, never persisted** (W5-D75). The client counts bingos and lines with the shared functions (`boardBingosOf`, `completedLines`); the server uses the same functions (`withDerivedBingos`) and computes points with a shared `scoring/points.ts` helper on every read; standings are computed on read with no index. The evaluator stays a claim-only reconciler. The earlier "evaluator persists bingos, lines and points" and "standings index" are withdrawn.
+- **Built on the redesign and consumed** (W5-D74): contest banners, the progress-marker chain ending on the triangle in Text, tier-spaced track notches, the board reads' fan allowlist (`FLOW-49`), display names.
+- **Points show from day one:** they are computed from the board's cells on read, so there is no "until points are written" state.
 
 ## Overview
 
-Today (Wave 4, `.worktrees\template-w4-int`) a fan taps a contest card and lands on "Draft Your Squad": up to 8 players across the contest's open games, per-game tabs when there are several, and "Generate Bingo Board", which calls `POST /b2b/board/generate` and lands on the board. The server fills the board with the shared `buildBoard`. The board polls every 30 seconds, counts bingos as `claimedLineIndices.length`, and opens `PrizeModal` for each server award once (remembered in `localStorage`). Nothing can be edited, there are no standings, and the card title is a game's matchup.
+Today (the redesign's fan app, `9c1af32`) a fan taps a contest card (`ContestCard`, titled with the contest's name, its banner above) and lands on "Draft Your Squad": up to 8 players across the contest's open games, per-game tabs when there are several, and "Generate Bingo Board", which calls `POST /b2b/board/generate` and lands on the board. The server fills the board with the shared `buildBoard` and reconciles it at once (`reconcileOnTrigger(id, "board-created")`), so a late join is awarded. The board polls every 30 seconds, counts bingos with the shared function (`boardBingosOf`, `src/lib/board.ts`), rides the progress marker along tier-spaced notches, and opens `PrizeModal` for each server award once (remembered in `localStorage`). Nothing can be edited and there are no standings.
 
-**The whole change, in one line:** a card opens the contest's own detail page; "Build my board" generates a board from the players the fan picks (today's flow, re-skinned), and the fan can then hand-pick or edit any square from each player's real PES line ladder until that square's game tips off; the live board, prize popup and standings show only what the server recorded.
+**The whole change, in one line:** a card opens the contest's own detail page; "Build my board" generates a board from the players the fan picks (today's flow, re-skinned), and the fan can then hand-pick or edit any square from each player's real PES line ladder until that square's game tips off; the live board, Your boards and standings derive bingos and points from the board's own cells with shared functions, and the prize popup opens only for what the server recorded.
 
 **In scope:** contest detail; the builder (player selection and generate, hand-pick, edit, the pick sheet and ladder, fill-empties, rearrange); server validation; the live board; the prize popup; standings and results; points; multi-game rules; the API table of every call the fan app makes.
 
@@ -28,7 +34,7 @@ Today (Wave 4, `.worktrees\template-w4-int`) a fan taps a contest card and lands
 | Auto-fill | Enabled after one pick | Generate from picked players, and fill-empties from any state (W5-D38) |
 | Rearrange | Long-press, drag swaps, x removes, locked tiles refuse | Same, plus a Rearrange button (W5-D14) |
 | Free changes until kickoff | Per tile at its game's start; server-enforced | Same (`FLOW-12`, `FLOW-21`) |
-| Points | Hit square = multiplier × 100; completed line adds `calculateParlayBonus` | Same formula (`FLOW-34`), written by the evaluator |
+| Points | Hit square = multiplier × 100; completed line adds `calculateParlayBonus` | Same formula (`FLOW-34`), computed on read by shared `scoring/points.ts` (W5-D75) |
 | Win condition | Rank at finalization | Bingo tiers paid when reached; standings rank by bingos, then points |
 
 ---
@@ -38,7 +44,7 @@ Today (Wave 4, `.worktrees\template-w4-int`) a fan taps a contest card and lands
 **`FLOW-43` — The detail page is what a card opens, always** (W5-D37). A card never deep-links into the builder; building is a decision the fan takes here.
 
 **Layout, top to bottom** (W5-D10):
-1. **Hero band:** the contest's banner image behind the band when present (Wave 4b's per-contest banner, else its brand-derived default; field to confirm at rebase), the contest's own name (`contestName`, `.k-d1`, up to three lines), the status chyron and JOINED ([`fan-app-v2.spec.md`](fan-app-v2.spec.md) `FAN-18`), and the timing line:
+1. **Hero band:** the contest's banner behind the band (the contest read's `banner`, a `ContestBannerView`: the contest's own image, a sponsor's, or the brand band Main → Accent; drawn with the redesign's `ContestBanner`, consumed, W5-D74), the contest's own name (`contestName`, `.k-d1`, up to three lines), the status chyron and JOINED ([`fan-app-v2.spec.md`](fan-app-v2.spec.md) `FAN-18`), and the timing line:
 
    | State | Timing line |
    |---|---|
@@ -53,7 +59,7 @@ Today (Wave 4, `.worktrees\template-w4-int`) a fan taps a contest card and lands
 3. **Description:** `description` in full, as plain paragraphs split on blank lines; omitted when empty.
 4. **Games:** one `Scorebug` per game, in tip-off order: "{Away} @ {Home}" with logos when present, and "Tip Sun 7:30 PM", "Live" or "Final" from the derived game status. **Never a score or clock** (`DECOR-18`).
 5. **Prizes:** the contest's tiers, lowest bingo count first, each: a chyron "Tier {n} · {m} bingos" ("1 bingo"), the prize name, its description in full, its image (96px) when set, and "Provided by {sponsor}" when the tier carries `providedBy`. No value, shipping, pick-up, expiry or type (W5-D41). Omitted when the contest has no winnable tiers (`FLOW-46`).
-6. **Sponsors:** the distinct sponsors placed on this contest (any slot, contest-wide or for one of its games), each as its sign-in logo (or name) linked to its website when set. From the public sponsor schedule (`placements` filtered to this `contestId`, joined to `sponsors`). Omitted when none.
+6. **Sponsors:** the distinct sponsors placed on this contest (any placement slot, contest-wide or for one of its games), each as its mark (the shared first-image rule: Start page logo, then prize logo; else its name) linked to its website when set. From the public sponsor schedule (`placements` filtered to this `contestId`, joined to `sponsors`). Omitted when none.
 7. **How to play**, three static lines: "Fill your 3×3 board with player lines." / "A line hits when the player reaches it." / "Three in a row is a bingo. Bingos win prizes."
 8. **"See standings"** once standings are visible (`FLOW-35`); "See results" once finalized.
 9. **The sticky CTA bar** (`FLOW-01`), replacing the tab bar (W5-D04).
@@ -224,7 +230,7 @@ Empty game: "No lines are up for this game yet. Check back closer to tip-off."
 
 ### Unwinnable tiers (`FLOW-46`, W5-D16)
 
-A 3×3 board completes 0–6 lines or all 8, never exactly 7 (leaving any one square unhit breaks at least two lines). The console refuses a tier at 7 bingos (Wave 4's tier editor; to confirm at rebase, else **Phase B: to build** in `PUT /admin/contests/:contestId/prize-tiers` validation). The fan app never shows a tier it cannot pay: a tier at 7, and a tier whose prize is incomplete, are left out of the Prizes section, the Track and every count. **Phase B: to build:** `GET /b2b/contest/:contestId` applies the same completeness filter (`fanPrizeTiers`) the list already applies; today it doesn't.
+A 3×3 board completes 0–6 lines or all 8, never exactly 7 (leaving any one square unhit breaks at least two lines). The console still accepts a tier at 7 bingos on the redesign (shared tier limits 1–8 with no 7 rule; a recorded gap, not in a Wave 5 slice). The fan app never shows a tier it cannot pay: a tier at 7, and a tier whose prize is incomplete, are left out of the Prizes section, the Track and every count. **Phase B: to build:** `GET /b2b/contest/:contestId` applies the same completeness filter (`fanPrizeTiers`) the list already applies; today it doesn't.
 
 ### Server validation (`FLOW-14`–`FLOW-26`, for the two Phase B writes)
 
@@ -234,21 +240,23 @@ A 3×3 board completes 0–6 lines or all 8, never exactly 7 (leaving any one sq
 - **FLOW-15** Membership, blocking consents and required fields complete (the generate route's gate, now with `code: "entry_outstanding"`), on create and update.
 - **FLOW-16** One board per fan per contest: `board_exists` with its id, before any contest check; the unique index turns a race into the same 409.
 - **FLOW-17** On create: the shared `joinRefusal` (`not_found`, `not_playable_here`, `not_open_yet`, `closed`, `full`), as generate does.
-- **FLOW-18** On update: the board is the caller's in this tenant (404 otherwise); the contest isn't finalized and its last game hasn't tipped off (`edit_closed`). Closing a contest stops joining, never play: a fan with a board on a closed contest may still edit until the last tip-off.
+- **FLOW-18** On update: the board is the caller's in this tenant (404 otherwise); the contest isn't finalized and its last game hasn't tipped off (`contest_closed`). Closing a contest stops joining, never play: a fan with a board on a closed contest may still edit until the last tip-off.
 - **FLOW-19** Exactly nine cells in board order (`BOARD_POSITIONS`), each a prop id or null.
 - **FLOW-20** Every prop new to the board is eligible (the ladder's rule) (`prop_unavailable`, `game_started`).
 - **FLOW-21** A stored prop that is locked stays in its square (`cell_locked`).
 - **FLOW-22** No prop twice (`duplicate_prop`).
 - **FLOW-23** One line per player and stat (`line_conflict`).
-- **FLOW-24** At least two lines (`too_few_lines`).
-- **FLOW-25** Two teams (`one_team`).
-- **FLOW-26** On update, `expectedUpdatedAt` matches (`stale_board`: "Your board changed on another device. We've loaded the latest version.").
+- **FLOW-24** At least two lines (`min_lines`).
+- **FLOW-25** Two teams (`two_team_rule`).
+- **FLOW-26** On update, `expectedUpdatedAt`, when sent, matches (`stale_board`: "Your board changed on another device. We've loaded the latest version.").
+
+The codes and their words are shared: `BOARD_CELL_REFUSAL_CODES` and `BOARD_CELL_REFUSAL_MESSAGES` in `api/b2b/board.ts`, with `ENTRY_OUTSTANDING_CODE` (s0, `0bce804`).
 
 **Why `FLOW-21` protects prizes:** a claimed line is three hit squares; a hit square's game has started, so it is locked and can never move. Editing can't disturb a claimed line or re-trigger a prize.
 
 Cell-level codes come back as `cellErrors: [{ position, code }]` so the grid marks the squares.
 
-**Error copy (`FLOW-13`):** the refusal table under `FLOW-01`, plus `edit_closed` "Board changes are closed for this contest."; `cell_locked` "{Player}'s game has started, so that square is locked."; `game_started` "{Player}'s game has started. Pick another line."; `prop_unavailable` "That line isn't available any more. Pick another."; `duplicate_prop` "That line is already on your board."; `line_conflict` "You already have a {stat} line for {player}."; `too_few_lines` "Add at least two lines"; `one_team` "Add a line from the other team"; network "We couldn't reach the server. Check your connection and try again."
+**Error copy (`FLOW-13`):** the refusal table under `FLOW-01`, plus `contest_closed` "Board changes are closed for this contest."; `cell_locked` "{Player}'s game has started, so that square is locked."; `game_started` "{Player}'s game has started. Pick another line."; `prop_unavailable` "That line isn't available any more. Pick another."; `duplicate_prop` "That line is already on your board."; `line_conflict` "You already have a {stat} line for {player}."; `min_lines` "Add at least two lines"; `two_team_rule` "Add a line from the other team"; network "We couldn't reach the server. Check your connection and try again."
 
 ---
 
@@ -257,8 +265,8 @@ Cell-level codes come back as `cellErrors: [{ position, code }]` so the grid mar
 **Layout, top to bottom:**
 1. **Header:** Back; the contest's own name (never a matchup); the connection dot (`FLOW-42`); menu.
 2. **Scorebug rail:** one per contest game, `InProgress` first, then by tip-off; horizontal scroll with several games. Never scores.
-3. **Counter:** the bingo count (`.k-d-hero` numeral) with "Bingos" and "of 8 lines"; points under it only once real (`FLOW-34`).
-4. **Track:** 0–8 with one stop per winnable tier of the contest (`FLOW-46`; no fixed cap, bounded by the contest's tiers) labelled with the prize name and "{m} bingos"; the marker is the game's `slider` sponsor's icon when one holds that slot (the per-game override), else the tenant's progress marker, else a Main puck (`DECOR` Track). This covers Arthur's per-game marker override (walk #3); the default is the tenant's own mark rather than a triangle.
+3. **Counter:** the bingo count (`.k-d-hero` numeral) with "Bingos" and "of 8 lines"; the board's points under it (`FLOW-34`).
+4. **Track:** 0–8 with one stop per winnable tier of the contest (`FLOW-46`; no fixed cap, bounded by the contest's tiers), spaced by tier as the redesign's `tierTrack` does (`lib/tierProgress.ts`, walk #3), labelled with the prize name and "{m} bingos". The marker is the redesign's `ProgressMarker`, consumed (W5-D74): `progressMarkerCandidates({ sponsor, gameImageUrl: gameMarkerUrlOf(contest, betEventId), brandImageUrl })` gives the game's `slider` sponsor icon, the game's own marker, then the Brand marker, falling through on a load error to the **downward triangle in Text** (`MARKER_TRIANGLE`). W5-D57/D63's "tenant mark as default" is superseded.
 5. **Sponsor board banner:** the `boardBanner` holder (contest-wide, or the board's game's own when the board draws from one game), between the counter block and the squares, at the Wave 4 box (4:1 at the 480px column, never cropped; W5-D34).
 6. **The grid** (`FLOW-27`).
 7. **Standings row:** "Standings: you're {12th} of {340}" ("tied {1st}" when shared) linking to standings, or "Standings appear at tip-off" before the first tip-off.
@@ -279,16 +287,16 @@ Each filled square is the kit's `Square` at `dim` ~0.55 with the player's photo 
 
 A `Miss` that isn't final is shown by game status (live or pending), never as missed. `locked` is layered on any state while editing (`FLOW-12`). A square that just turned `hit` gets `Brackets` `justHit` for 2 seconds.
 
-### Bingos, lines and progress (`FLOW-50`, W5-D40)
+### Bingos, lines and points (`FLOW-50`, W5-D40 as amended by W5-D75)
 
-- **Every bingo number and line comes from the shared derived bingo function (Wave 4b)**, computed from the same prop states that draw the squares: the counter, the Track, the BingoLine overlay, Your boards, the mini-boards and standings all read it. No screen counts lines another way, and there is no second source. The exact symbol is to be confirmed at rebase (4b had no commits at the time of writing); Wave 3's shared `completedLines(cells)` (`scoring/bingo-lines.ts`) is the geometry it builds on.
-- **The evaluator persists the function's output** (bingos, completed line indexes, points) on the board whenever it evaluates it, and the cell writes do the same on save: one server-written source, read by the board, Your boards and standings (review ruling 9). No other code path writes a count. **Phase B: to build.**
-- **Awards still come only from the server** (`awards[]` on the board read, Wave 3 §1.5): a line the derived function shows complete opens no popup until the server has recorded the award.
-- The Wave 4 walkthrough found the counter at 0 on a board with three completed lines; W5-D40's single source is what makes the counter, the lines on the grid and the Track agree.
+- **One set of shared functions, nothing persisted.** Every bingo number and line comes from shared `scoring/bingo-lines.ts` over the board's scored cells: `boardBingos(cells)` (the count), `completedLines(cells)` (line indexes 0–7), `scoredCellsOf(board, outcomeOf)`. On the client the live board uses `boardBingosOf(board)` (`src/lib/board.ts`, already on the redesign: `Math.min(8, boardBingos(cells))`) and `completedLines` over the cells it just read; this is the same shared function, not a separate client count. On the server, Your boards and standings use `withDerivedBingos` (`node-server/src/scoring/reconcile.ts`), which calls the same `boardBingos(scoredCellsOf(...))`. No screen counts lines another way.
+- **Points** come from a shared `scoring/points.ts` `boardPoints(cells)` (**Phase B: to build**, s0; `FLOW-34`), computed on read by the board read, the my-boards projection and standings.
+- **Nothing is written.** `B2BBoard` gains no `bingos`, `lines` or `points`; `claimedLineIndices` stays "the award ledger, never the count". The evaluator (`reconcileBoard`, the sweep, the dev watcher and the board-evaluator Lambda) stays a claim-only reconciler that claims lines and sends prize messages (W5-D75).
+- **Awards still come only from the server** (`awards[]` on the board read, Wave 3 §1.5): a line the shared function shows complete opens no popup until the server has recorded the award. The board read and board creation keep their reconcile calls (`owesAwards` → `reconcileOnTrigger(boardId, "board-read")`; `"board-created"`), so an owed award is claimed as soon as the fan looks.
 
 ### The bingo indicator (`FLOW-28`, W5-D18)
 
-Straight-line overlay pills (the kit's `BingoLine`) across each completed line in the derived function's output (never `claimedLineIndices`, which records claims, not the board's state), Main-ink, drawn in over 500ms the first time the page sees the line complete; lines already complete on load draw static. **Acceptable for now; improve later** (ruling). When a line completes while the page is open: the stroke draws, its three squares flash Accent once, the counter bumps (1.0 → 1.15 → 1.0 over 300ms) and the Track marker glides; nothing loops; under reduced motion the line appears static. Announcements, polite: "{Player} hit {line}." and "Bingo! {2} of 8".
+Straight-line overlay pills (the kit's `BingoLine`) across each line in `completedLines(cells)` (never `claimedLineIndices`, which records claims, not the board's state), Main-ink, drawn in over 500ms the first time the page sees the line complete; lines already complete on load draw static. **Acceptable for now; improve later** (ruling). When a line completes while the page is open: the stroke draws, its three squares flash Accent once, the counter bumps (1.0 → 1.15 → 1.0 over 300ms) and the Track marker glides; nothing loops; under reduced motion the line appears static. Announcements, polite: "{Player} hit {line}." and "Bingo! {2} of 8".
 
 ### Refresh (`FLOW-42`, W5-D19)
 
@@ -317,13 +325,13 @@ Straight-line overlay pills (the kit's `BingoLine`) across each completed line i
 
 ### Fan-wire hygiene (`FLOW-49`)
 
-**Phase B: to build.** `GET /b2b/board/:boardId` and `GET /b2b/board/my-boards` spread the fully populated contest, so the fan wire carries the contest's `internalNote`, `lockedAt`, `testMode` and each tier's `approximateValueCents` (research on `backend-w4-int`: `getB2BBoard.ts`, `listB2BBoards.ts`). The contest reads were built with an allowlist to prevent exactly this (Wave 4, `fan-contest-projection.ts`). Both board reads project their contest through the same allowlist. The allowlist itself still names the legacy `contestDescription` (the old console-only "Note"), which an unmigrated contest would send; it leaves the allowlist in the same change.
+**Built on the redesign, consumed** (W5-D74): both board reads project their contest through the fan allowlist (`fanBoardContest`, `util/fan-contest-projection.ts`; `getB2BBoard.ts:187`, `listB2BBoards.ts:39`), so no `internalNote`, `lockedAt`, `testMode` or tier value reaches the fan. **What remains (s3):** the allowlist still names the legacy `contestDescription` (the old console-only "Note", `fan-contest-projection.ts:34`), which an unmigrated contest would send; it leaves the allowlist.
 
 ---
 
 ## Prize popup (`FLOW-31`, W5-D20 as amended by W5-D41)
 
-**Opens only for a server award:** an entry in `awards[]` on the board read (`status` `pending`, `fulfilled` or `failed`; `skipped` rows never reach the fan), **once per award**. Until **Phase B: to build** `seenAt`, "once" is remembered in `localStorage` under today's key `prize-award-shown-{boardId}-{bingoCount}`. Several unseen awards open one after another, lowest bingo count first.
+**Opens only for a server award:** an entry in `awards[]` on the board read (`status` `pending`, `fulfilled` or `failed`; `skipped` rows never reach the fan), **once per award**. Until **Phase B: to build** `seenAt`, "once" is remembered in `localStorage` under today's key (`awardShownKey(boardId, bingoCount)`, `src/lib/board.ts`). Several unseen awards open one after another, lowest bingo count first (the redesign's `awardsToCelebrate` and `settlePrizeQueue`, reused).
 
 **Content** (Nick's prize model, W5-D41):
 
@@ -345,29 +353,32 @@ Straight-line overlay pills (the kit's `BingoLine`) across each completed line i
 
 **Celebration (W5-D21):** the kit's `Confetti` (≈80 pieces, 1.8s, gravity and drift, `--k-main-ink`, `--k-second-ink`, `--k-accent`) inside the shell column and clipped by it, so on desktop it never touches the decorative sides; the Burst plays once. **No full-screen flash.** Under reduced motion: the static Burst only.
 
-**Closing:** any button, Escape or the scrim closes it and shows the next unseen award. With `seenAt` (Phase B): closing calls `POST /b2b/board/:boardId/awards/:awardId/seen` (`awardId` is the redemption row's `_id`, which the award projection gains, Phase B) (idempotent; sets `seenAt` on the redemption row once); a failed call keeps the award closed for this session and retries on the next load. The backfill on that deploy marks every existing award seen, so no fan gets a second popup for an old win.
+**Closing:** any button, Escape or the scrim closes it and shows the next unseen award. With `seenAt` (Phase B): closing calls `POST /b2b/board/:boardId/awards/:awardId/seen` (`awardId` is the redemption row's `_id`, which the award projection gains, Phase B) (idempotent; sets `seenAt` on the redemption row once); a failed call keeps the award closed for this session and retries on the next load. `scripts/award-seen-backfill.mjs` (s3, dry-run by default; the integrator applies it once) marks every existing award seen, so no fan gets a second popup for an old win. `seenAt` is the one field Wave 5 persists on the fan side of an award; it records a fan action, not a derived count.
 
 ---
 
 ## Standings and results (`/contest/:contestId/standings`)
 
-**Phase B: to build** `GET /b2b/contest/:contestId/standings?cursor&limit` (`limit` default 50, max 100; `limit=0` returns only `me` and `page.total`):
+**Phase B: to build** `GET /b2b/contest/:contestId/standings?cursor&limit` (`limit` default 50, max 100; `limit=0` returns only `me` and `total`). The contract is served (s0, `0bce804`: `getContestStandingsResponseSchema`); the handler is s3's:
 
 ```ts
 {
-  state: "hidden" | "live" | "final";
-  rows: { rank: number; displayName: string; bingos: number; points?: number;
+  success: boolean;
+  state?: "hidden" | "live" | "final";
+  rows: { rank: number; displayName: string; bingos: number; points: number;
           cells: ("hit" | "miss" | "pending" | "empty")[]; isMe: boolean }[];
-  me: (same row shape) | null;
-  page: { nextCursor: string | null; total: number; limit: number };
+  me?: (same row shape) | null;
+  total: number;
+  computedAt: string;
+  nextCursor?: string | null;
 }
 ```
 
-Built from the contest's boards joined to each fan's membership `displayName` in this tenant; bingos, points and cells from the evaluator's persisted derived output (`FLOW-50`), sorted on those persisted fields; no prop details for other fans (a rival sees where you hit, not what you picked).
+**Computed on read** (W5-D75): the contest's boards (cells populated with `BOARD_CELL_FIELDS`), bingos by `withDerivedBingos`, points by `boardPoints`, each cell's state from its prop, joined to each fan's membership `displayName` in this tenant, ranked in memory, then paged. No index and no persisted field: at demo scale a contest's boards fit one read. No prop details for other fans (a rival sees where you hit, not what you picked).
 
-- **`FLOW-33` — Ranking** (W5-D22): bingos, most first; then points, most first (once points exist; until then bingos alone). Boards equal on both share a rank and the next rank skips (competition ranking, "1224", as B2C's `addRankToBoards`). Entry time orders a tied group on screen and never changes a rank. A shared rank reads "Tied {1st}" wherever the fan's own rank is written as words.
+- **`FLOW-33` — Ranking** (W5-D22): bingos, most first; then points, most first. Boards equal on both share a rank and the next rank skips (competition ranking, "1224", as B2C's `addRankToBoards`). Entry time orders a tied group on screen and never changes a rank. A shared rank reads "Tied {1st}" wherever the fan's own rank is written as words.
 - **`FLOW-35` — Visible from the first tip-off** (the earliest game's `eventTime` in the past). Before it `state` is `hidden` and the page shows "Standings appear at tip-off". `final` once finalized.
-- **`FLOW-36` — The page:** header chyron LIVE while a game is `InProgress`, FINAL once finalized; "{N} playing"; rows with rank (a `Medal` for 1–3, a numeral tile after; tied rows share it), the **display name** (never a real name), bingos as the big numeral, points small once real, and the mini-board; the fan's own row reads "You" with a Main-ink hairline and is pinned to the bottom when off screen (tapping it scrolls to it); endless scroll, 50 rows a page; refresh every 30 seconds while visible, never reordering rows under a touch.
+- **`FLOW-36` — The page:** header chyron LIVE while a game is `InProgress`, FINAL once finalized; "{N} playing"; rows with rank (a `Medal` for 1–3, a numeral tile after; tied rows share it), the **display name** (never a real name), bingos as the big numeral, points small, and the mini-board; the fan's own row reads "You" with a Main-ink hairline and is pinned to the bottom when off screen (tapping it scrolls to it); endless scroll, 50 rows a page; refresh every 30 seconds while visible, never reordering rows under a touch.
 - **`FLOW-37` — Final:** "Final standings", a podium for the top three (`Medal`s, `Burst` behind first; fewer boards show fewer places), and a "Your result" card: "{12th} of {340}" (or "Tied …"), the highest award's tier chyron and prize name, each award as a row (name, "Provided by {sponsor}", "Details emailed" only when `fulfilled`; tapping reopens the popup content without confetti), and "Back to Your boards". A fan with no board sees no card and no pinned row.
 
 ### The mini-board (`FLOW-48`, W5-D23)
@@ -379,8 +390,8 @@ Standings, results and Your boards draw each board as a 46px 3×3: **hit** (Main
 ### Points (`FLOW-34`, W5-D17)
 
 - The B2C formula (`APP/shared-deps/interfaces/score.ts`): each hit square scores `multiplier × 100`; each completed line adds `calculateParlayBonus(m1, m2, m3) = ((m1+1)(m2+1)(m3+1) − 1) × 100`, zero when any multiplier is 0 (B2C's quirk, kept). Empty squares score nothing.
-- **Written by the evaluator, never computed in the browser.** **Phase B: to build:** the evaluator persists `points` with the derived bingos and lines (`FLOW-50`) whenever it evaluates a board, and the cell writes do the same on save; `B2BBoard` and its schema gain those fields; standings sort on them through an index on `{ contestId, bingos: -1, points: -1, createdAt: 1 }`.
-- **Until points are written, no screen shows a board's points:** not the counter, not standings, not Your boards. The ladder's per-rung "+N pts" is PES data and shows now (`FLOW-04`).
+- **Computed on read by one shared helper** (W5-D75): `obs-b2b-shared/src/scoring/points.ts` `boardPoints(cells)` (**Phase B: to build**, s0), tested on B2C fixtures, called by the board read (`points` on the board), the my-boards projection and standings. Nothing is stored and there is no index. The browser shows the `points` the read returns; it does not add them up itself.
+- The counter, Your boards and standings show the same number for a board. The ladder's per-rung "+N pts" is PES data (`FLOW-04`), a different number.
 
 ---
 
@@ -400,25 +411,25 @@ Cut. A trivia contest exists only as a draft: the registry marks it unplayable (
 
 ## API
 
-Every call the fan app makes on the Wave 5 branch. "Exists" was traced in `overboard_sports_backend` on `arthur-w4-console` (`.worktrees\backend-w4-int`, `node-server/src/routes/**`); main differs only where noted. All `/b2b/*` fan routes take `?tenant=<slug>`; `requireMembership` routes also need a Clerk session.
+Every call the fan app makes on the Wave 5 branch. "Exists" was traced in `overboard_sports_backend` on `arthur-console-redesign` (`96d40c9`, `node-server/src/routes/**`, 2026-09-29). All `/b2b/*` fan routes take `?tenant=<slug>`; `requireMembership` routes also need a Clerk session.
 
 | Method | Path | Request | Response (as it exists, or as specified) | Status |
 |---|---|---|---|---|
-| GET | `/b2b/org/:subdomain` | — | `{ success, organization: { _id, subdomain, name, branding?: { theme?, logo?, sponsorName?, sponsorLogo?, sliderTipImageUrl?, text?* } } \| null, suspended? }`; `organization.documents?`* | Exists (public); `text`, `documents`: **Phase B: to build** |
-| GET | `/b2b/org/:subdomain/sponsors` | — | `{ success, configured, sponsors[], placements[], featured, nextGame }` | Exists (public) |
-| GET | `/b2b/org/:subdomain/consent-document/:optInId/:linkId` | `?version=` | `{ success, optInId, linkId, textVersion, title, body, publishedAt }`; 404 when none | Exists on Wave 4 (not on main) |
+| GET | `/b2b/org/:subdomain` | — | `{ success, organization: { _id, subdomain, name, branding?: { theme? (four colours, `normalizeTheme`; `decor`*), logo?, sponsorName?, sponsorLogo?, sliderTipImageUrl?, text?* }, documents?: { optInId, linkId, title }[] } \| null, suspended? }` | Exists (public), `documents` included; `text` and theme `decor`: **Phase B: to build** |
+| GET | `/b2b/org/:subdomain/sponsors` | — | `{ success, configured, sponsors[], placements[], startPage: string[], featured, nextGame }` | Exists (public), `startPage` included |
+| GET | `/b2b/org/:subdomain/consent-document/:optInId/:linkId` | `?version=` | `{ success, optInId, linkId, textVersion, title, body, publishedAt }`; 404 when none | Exists (redesign; not on main) |
 | GET | `/b2b/membership` | — | `{ success, member, membership \| null, pendingConsents[], signupFields[], pendingFields[], gateCopy? }`; `optIns[]`* | Exists (`requireTenant`); `optIns`: **Phase B: to build** |
 | POST | `/b2b/join` | `{ displayName, profileFields?, consents?, pushToken? }` | `{ success, membership }` | Exists |
 | POST | `/b2b/consent` | `[{ optInId, textVersion, decision }]` | `{ success, pendingConsents, pendingFields }`; 409 `stale_text_version` | Exists; accepts a re-decision on an answered opt-in |
 | PATCH | `/b2b/membership` | `{ profileFields }`; `displayName`* | `{ success, membership, pendingFields }` | Exists; `displayName`: **Phase B: to build** |
-| GET | `/b2b/contest/list-contests` | `?status=upcoming\|past` (optional; no paging) | `{ success, contests[] }` (fan projection: `_id`, `contestName`, `description`, `contestType`, `maxParticipants`, `state`, `finalized`, `closed`, `allowedBetEvents` with derived status, `prizeTiers` (completeness-filtered), `contestStatus`); `providedBy` on tiers*; `playerCount`*; banner (4b) | Exists; starred: **Phase B: to build** |
-| GET | `/b2b/contest/:contestId` | — | `{ success, contest: { _id, contestName, description?, contestType, maxParticipants, prizeTiers, state, contestStatus }, betEvents: [{ event, players[], openForEntry }] }`; `props`*, `playerCount`*, tier `providedBy`*, tier completeness filter* | Exists; starred: **Phase B: to build** |
-| POST | `/b2b/board/generate` | `{ contestId, playerIds?: string[] (1–100), cells?: (propId \| null)[9] }`; at least one of the two | Pinned `cells` are kept, the rest filled by `buildBoard`, the board created: `{ success, boardId }`; refusals `{ success: false, code, message, opensAt?, boardId?, cellErrors? }` | Exists with `playerIds`; `cells`, the pool filter and the `entry_outstanding` code: **Phase B: to build** |
-| PUT | `/b2b/board/:boardId/cells` | `{ cells, fill?, expectedUpdatedAt }`; `fill: true` fills the gaps through `buildBoard` | `{ success, board }` | **Phase B: to build** |
-| GET | `/b2b/board/my-boards` | — | `{ success, boards[] }` (newest first; contest and props populated); a row projection per board*: contest name, fan status, persisted bingos and points, nine cell states | Exists; the row projection and the contest allowlist (`FLOW-49`): **Phase B: to build** |
-| GET | `/b2b/board/:boardId` | — | `{ success, board: { nine populated cells, claimedLineIndices, parlaysHit, awards: [{ bingoCount, status, prize: { prizeName, prizeDescription?, prizeImageUrl?, prizeClaimInstructions?, prizeClaimButtonLinkUrl?, prizeClaimButtonText?, providedBy?, prizeId?, prizeType?, threeInARows }, awardedAt? }] } }`; persisted derived bingos, lines and points (`FLOW-50`)*, award `awardId`*, `code`* and `seenAt`* | Exists; starred: **Phase B: to build**; contest projection (`FLOW-49`) |
-| POST | `/b2b/board/:boardId/awards/:awardId/seen` | — | `{ seenAt }`; idempotent | **Phase B: to build** |
-| GET | `/b2b/contest/:contestId/standings` | `?cursor&limit` | as under Standings | **Phase B: to build** |
+| GET | `/b2b/contest/list-contests` | `?status=upcoming\|past` (optional; no paging) | `{ success, contests[] }` (fan projection: `_id`, `contestName`, `description`, `contestType`, `maxParticipants`, `state`, `finalized`, `closed`, `allowedBetEvents` with derived status, `prizeTiers` (completeness-filtered), `contestStatus`, `banner`, `gameMarkerImageUrls?`); `providedBy` on tiers*; `playerCount`* | Exists; starred: **Phase B: to build** (the live reads pass no sponsor credits today; only the preview does) |
+| GET | `/b2b/contest/:contestId` | — | `{ success, contest: { _id, contestName, description?, contestType, maxParticipants, prizeTiers, state, contestStatus, banner?, gameMarkerImageUrls? }, betEvents: [{ event, players[], openForEntry }] }`; `props`*, `playerCount`*, tier `providedBy`*, tier completeness filter* | Exists; starred: **Phase B: to build** |
+| POST | `/b2b/board/generate` | `{ contestId, playerIds?: string[] (1–100), cells?: (propId \| null)[9] }`; at least one of the two | Pinned `cells` are kept, the rest filled by `buildBoard`, the board created and reconciled (`reconcileOnTrigger(id, "board-created")`, kept): `{ success, boardId }`; refusals `{ success: false, code, message, opensAt?, boardId?, cellErrors? }` | Exists with `playerIds`; `cells`, the pool filter and the `entry_outstanding` code: **Phase B: to build** |
+| PUT | `/b2b/board/:boardId/cells` | `{ cells, fill?, expectedUpdatedAt? }`; `fill: true` fills the gaps through `buildBoard` | the board read | **Phase B: to build** (contract served, s0 `0bce804`) |
+| GET | `/b2b/board/my-boards` | — | `{ success, boards[] }` (newest first; contest through the fan allowlist, props populated); a row projection per board*: contest name, fan status, bingos (`withDerivedBingos`) and points (`boardPoints`), computed on read, nine cell states | Exists with the allowlist (`FLOW-49`); the row projection: **Phase B: to build** |
+| GET | `/b2b/board/:boardId` | — | `{ success, board: { nine populated cells, claimedLineIndices, parlaysHit, contestId (fan allowlist), awards: [{ bingoCount, status, prize: { prizeName, prizeDescription?, prizeImageUrl?, prizeClaimInstructions?, prizeClaimButtonLinkUrl?, prizeClaimButtonText?, providedBy?, prizeId?, threeInARows }, awardedAt? }] } }`; reconciles on read when awards are owed; `points` computed on read (`FLOW-34`)*, award `awardId`*, `code`* and `seenAt`* | Exists; starred: **Phase B: to build** |
+| POST | `/b2b/board/:boardId/awards/:awardId/seen` | — | 204; idempotent | **Phase B: to build** (contract served, s0 `0bce804`) |
+| GET | `/b2b/contest/:contestId/standings` | `?cursor&limit` | as under Standings, computed on read | **Phase B: to build** |
 
 Not used and not built: `GET /b2b/boards` (`my-boards` already lists a fan's boards, W5-D06), `GET /b2b/legal/:doc` (the consent-document read serves Terms and Privacy), a board stream (W5-D19).
 
@@ -436,7 +447,7 @@ Not used and not built: `GET /b2b/boards` (`my-boards` already lists a fan's boa
 
 ## Rules
 
-Kept or revised from S2: `FLOW-01`, `FLOW-03`, `FLOW-04`, `FLOW-06`–`FLOW-10`, `FLOW-12`–`FLOW-28`, `FLOW-31`, `FLOW-33`–`FLOW-40`. New: `FLOW-41` (direct replace with Undo), `FLOW-42` (polling and the connection dot), `FLOW-43` (detail first), `FLOW-44` (pick players and generate), `FLOW-45` (the limit line), `FLOW-46` (unwinnable and incomplete tiers hidden), `FLOW-47` (the hand-pick draft in `sessionStorage`), `FLOW-48` (the mini-board), `FLOW-49` (fan-wire hygiene on board reads), `FLOW-50` (one bingo source, persisted by the evaluator).
+Kept or revised from S2: `FLOW-01`, `FLOW-03`, `FLOW-04`, `FLOW-06`–`FLOW-10`, `FLOW-12`–`FLOW-28`, `FLOW-31`, `FLOW-33`–`FLOW-40`. New: `FLOW-41` (direct replace with Undo), `FLOW-42` (polling and the connection dot), `FLOW-43` (detail first), `FLOW-44` (pick players and generate), `FLOW-45` (the limit line), `FLOW-46` (unwinnable and incomplete tiers hidden), `FLOW-47` (the hand-pick draft in `sessionStorage`), `FLOW-48` (the mini-board), `FLOW-49` (fan-wire hygiene on board reads, built on the redesign), `FLOW-50` (one set of shared bingo and points functions, nothing persisted; W5-D75).
 
 ### Retired from S2
 
@@ -458,12 +469,12 @@ Kept or revised from S2: `FLOW-01`, `FLOW-03`, `FLOW-04`, `FLOW-06`–`FLOW-10`,
 
 | Screen | Data sources (endpoint / model / PES field) | Server calls on fan action | States covered |
 |---|---|---|---|
-| Contest detail | `GET /b2b/contest/:contestId` (`contestName`, `description`, `maxParticipants`, `prizeTiers`, `state`, `contestStatus`/`opensAt`, `betEvents[].event` derived status, `players`, `openForEntry`); `GET /b2b/board/my-boards`; `GET /b2b/org/:subdomain/sponsors` (placements, sponsors); banner (4b); `playerCount`* | none (navigation) | loading, 404, failed, offline, not open yet, open with live games, live, full, closed, finalized, no players, joined, no tiers, no sponsors, no description, no banner, paused |
+| Contest detail | `GET /b2b/contest/:contestId` (`contestName`, `description`, `maxParticipants`, `prizeTiers`, `state`, `contestStatus`/`opensAt`, `betEvents[].event` derived status, `players`, `openForEntry`); `GET /b2b/board/my-boards`; `GET /b2b/org/:subdomain/sponsors` (placements, sponsors); `banner` (exists); `playerCount`* | none (navigation) | loading, 404, failed, offline, not open yet, open with live games, live, full, closed, finalized, no players, joined, no tiers, no sponsors, no description, no banner, paused |
 | Pick your players | contest read (players with `photoUri`, `showPhotoUri`, `jerseyNumber`, `position`, `teamName`) | `POST /b2b/board/generate` (exists) | no open games, no players, cap reached, generating, each refusal, board exists (redirect) |
 | Pick lines yourself | contest read + `props`* (PES `value`, `alternateValue`, `multiplier`, `bettingBetType`, `bettingPeriodType`, `outcomeType`, `locked`, `entityInfo`) ; `sessionStorage` draft | `POST /b2b/board/generate` with `cells` (Enter; Fill empty squares)* | empty draft, restored draft, storage unavailable, pool exhausted, helper states, each refusal |
 | Edit your board | board read; contest read + `props`* | `PUT /b2b/board/:id/cells` (Save; `fill: true`)* | locked squares, square locking mid-edit, stale board, edit closed, unsaved leave |
 | Pick sheet / ladder | contest read `props`* | none | no games offered, empty game, player on board, rung is your pick, conflicting line (Undo), locked conflict |
-| Live board | `GET /b2b/board/:boardId` (cells: `consensusOutcome`, `isFinal`, `progressValue`, `value`, `outcomeType`, `entityInfo.photoUri`/`showPhotoUri`, `betEventId` derived status; `awards[]`); shared derived bingo function (4b)*; contest tiers; sponsor schedule (banner, slider); `points`* | `GET` every 15s visible | loading, 404, failed, before tip-off, live, final, finalized, no tiers, no banner, empty squares, offline, paused |
+| Live board | `GET /b2b/board/:boardId` (cells: `consensusOutcome`, `isFinal`, `progressValue`, `value`, `outcomeType`, `entityInfo.photoUri`/`showPhotoUri`, `betEventId` derived status; `awards[]`); shared `boardBingosOf` and `completedLines` (exist); contest tiers and `gameMarkerImageUrls`; sponsor schedule (banner, slider); org `sliderTipImageUrl`; `points` computed on read* | `GET` every 15s visible | loading, 404, failed, before tip-off, live, final, finalized, no tiers, no banner, empty squares, offline, paused |
 | Prize popup | `awards[]` (`bingoCount`, `status`, `prize.*`, `providedBy`); Clerk primary email; `localStorage` shown-key; `code`*, `seenAt`* | `POST …/awards/:awardId/seen`* | one award, several, pending/failed (no email line), fulfilled, no image, no link, reduced motion |
 | Standings / results | `GET /b2b/contest/:id/standings`* | none (30s refresh) | hidden before tip-off, live, final, ties, no board (no pinned row), empty page |
 
@@ -489,7 +500,7 @@ Kept or revised from S2: `FLOW-01`, `FLOW-03`, `FLOW-04`, `FLOW-06`–`FLOW-10`,
 | Auto-fill "one pick first" (S2) | Cut | Fill works from empty (W5-D13/D38) |
 | "Enter contest" confirm and "You're in" (S2 only; not in the mocks) | Cut | Pointless confirmation |
 | `board.html` scorebug "Bears 17 – 14 Packers", "Q3 · 8:12" | Cut | No scores (ruling) |
-| `board.html` "1,240 Pts" | Changed | Hidden until the evaluator writes points |
+| `board.html` "1,240 Pts" | Kept | Real: `boardPoints` computed on read (W5-D75) |
 | `board.html` "of 8 lines" and Track stops with prize names | Kept | Real: 8 lines; tiers from the contest |
 | `board.html` connection dot | Kept | Real: last successful poll (W5-D07) |
 | `board.html` "Standings: you're 12th of 340" | Kept | Needs the standings read (Phase B) |
@@ -499,10 +510,25 @@ Kept or revised from S2: `FLOW-01`, `FLOW-03`, `FLOW-04`, `FLOW-06`–`FLOW-10`,
 | `prize.html` "Tier 2 · 3 bingos", name, description, "Provided by", email line, "Claim my prize" + "Close" | Kept | Real award fields; email line only when fulfilled; button only with a link |
 | Claim instructions and claim button ("Claim my prize") | Kept (Arthur, 2026-09-28) | Nick's `B2BPrize` fields, used by the popup and the email (traced; W5-D54) |
 | `standings.html` mini-boards with yellow live squares | Changed | Live square dropped (W5-D23) |
-| `standings.html` display names "Jess K.", pts, medals, pinned "You" | Kept | Display names (ruling); points once real |
+| `standings.html` display names "Jess K.", pts, medals, pinned "You" | Kept | Display names (ruling); points computed on read |
 | `standings.html` tie shown as a repeated "8" only | Changed | Also "Tied 8th" in words for the fan's own rank |
 | `results.html` podium and "Your result" with "Details emailed" | Kept | Awards and ranks from the server |
 | `phone--wide` 640px standings column | Cut | One 480px column |
+
+### 3. Cut or changed by the console-redesign delta (W5-D68–D75)
+
+| Element (earlier draft of this spec) | Fate | Reason |
+|---|---|---|
+| "Expose 4b's derived bingo function (count, lines, progress)" | Changed | It exists: `boardBingos` (count), `completedLines` (lines), `scoredCellsOf`; no progress output; client `boardBingosOf`, server `withDerivedBingos` (W5-D75) |
+| The evaluator persisting `bingos`, `lines`, `points` on the board; the cell writes doing the same on save; `B2BBoard` gaining those fields | Cut | Nothing persisted; the evaluator stays a claim-only reconciler (W5-D75) |
+| Standings sorted on persisted fields through an index `{ contestId, bingos: -1, points: -1, createdAt: 1 }` | Cut | Standings computed on read, no index (W5-D75) |
+| Points "written by the evaluator", hidden "until points are written" | Changed | Computed on read by shared `scoring/points.ts`; shown from the start (W5-D75) |
+| "No client-side count" | Changed | The client's `boardBingosOf` is the shared function itself, not a second count (W5-D75) |
+| `scripts/board-derived-backfill.mjs` | Cut | Nothing derived is stored (W5-D75); only `award-seen-backfill.mjs` remains, for `seenAt` |
+| Board-read contest allowlist (`FLOW-49`) as Phase B work | Changed | Built on the redesign (`fanBoardContest`); only the legacy `contestDescription` entry remains (W5-D74) |
+| Track marker default "the tenant's own mark, else a Main puck" | Changed | The redesign's chain ending on the triangle in Text, consumed (W5-D74) |
+| Contest banner "field to confirm at rebase" | Changed | The read's `banner` (`ContestBannerView`) and the redesign's `ContestBanner` (W5-D74) |
+| Sponsors on detail "as its sign-in logo" | Changed | The sign-in slot is now the Start page; detail uses the shared sponsor mark |
 
 ---
 
@@ -517,10 +543,10 @@ Kept or revised from S2: `FLOW-01`, `FLOW-03`, `FLOW-04`, `FLOW-06`–`FLOW-10`,
 7. Fill empty squares on an empty grid creates a board with all nine squares filled and two teams when the pool allows; on Edit it fills only the empty squares and saves; it never changes a filled square.
 8. In rearrange, squares jiggle, a dragged square follows the pointer, a drop swaps, a release outside springs back, and a locked square can't move or be dropped onto.
 9. `POST /b2b/board/generate` with `cells` and `PUT /b2b/board/:id/cells` refuse every `FLOW-14`–`FLOW-26` case with its code; editing after the last tip-off is refused; `POST /b2b/contest/:id/autofill` and `POST /b2b/board` do not exist.
-10. The live board's counter, Track, lines, Your boards row and standings row all show the same bingo count for a board, from the shared derived function.
+10. The live board's counter, Track, lines, Your boards row and standings row all show the same bingo count for a board: the client's `boardBingosOf` equals the server's `withDerivedBingos` for the same cells.
 11. The board polls every 15 seconds while visible and not while hidden; the dot turns grey after 30 seconds without a successful read.
 12. The prize popup opens once per server award, never for a line without an award; it shows the email line only when the award is fulfilled; confetti never paints outside the column at 1280px; there is no full-screen flash.
-13. No screen shows points until the evaluator writes them; afterwards the ladder, counter, standings and Your boards all show them.
+13. The counter, Your boards and standings show the same points for a board, equal to `boardPoints` of its cells; no board document gains a `bingos`, `lines` or `points` field and no standings index exists.
 14. Standings before the first tip-off read "Standings appear at tip-off"; afterwards they rank by bingos then points with shared ranks, display names only, and no other fan's props.
 15. Mini-boards show no live square.
 16. No scorebug anywhere shows a score or a clock.
@@ -529,17 +555,19 @@ Kept or revised from S2: `FLOW-01`, `FLOW-03`, `FLOW-04`, `FLOW-06`–`FLOW-10`,
 
 ## Open questions
 
-None for Arthur. Decided since the first draft: hand-pick from an empty grid (W5-D44, `FLOW-44`), the prize code in the popup (W5-D45, `FLOW-31`).
+None for Arthur. Decided since the first draft: hand-pick from an empty grid (W5-D44, `FLOW-44`), the prize code in the popup (W5-D45, `FLOW-31`), derived bingos, points and standings with nothing persisted (W5-D75, `FLOW-50`), the builder's `generate` with `cells` and `PUT …/cells` with no `/autofill` and no `POST /b2b/board` (W5-D75's builder restatement).
 
-To confirm at the Phase B rebase (a check, not a question): the shared derived bingo function's symbol and output shape (Wave 4b). This spec needs, per board, the count, the completed line indexes and the per-square states.
+Confirmed at the rebase (W5-D75): the shared bingo functions are `boardBingos(cells)` (a count), `completedLines(cells)` (line indexes) and `scoredCellsOf(board, outcomeOf)` in `scoring/bingo-lines.ts`; per-square states come from the cells themselves. There is no "progress" output, and none is needed.
 
 ## Recorded gaps
 
 - **No real player count on the fan wire** until `playerCount`.
 - **No fan read returns props** until the contest read gains `props`; the ladder, hand-pick and fill-empties wait on it.
 - **The generate pool can place an Under or a locked prop** until its filter is fixed.
-- **Board reads leak console-only contest fields** until `FLOW-49`.
+- **The board reads' allowlist still names the legacy `contestDescription`** until s3 removes it (`FLOW-49`).
 - **The contest read doesn't completeness-filter tiers** (the list does).
+- **The console accepts a tier at 7 bingos** (shared limits 1–8); the fan app hides it (`FLOW-46`).
+- **Standings are computed in memory on every read** (W5-D75): right at demo scale, not at thousands of boards per contest.
 - **The consent refusal on generate has no `code`.**
 - **A prize resent by staff to a corrected address** still reads "emailed to {account email}"; the corrected address is never stored on the fan side.
 - **Unders never resolve in D2C** and **finalize-only hits don't reach production B2B** (Wave 3 §9); both are consumer-side.
@@ -553,9 +581,9 @@ Visual direction only (`mocks\fanapp-v2\`, workspace): `contest.html`, `build.ht
 ## References
 
 - Rulings (workspace): `artifacts\review-2026-09-27\arthur-rulings-2026-09-27.md`, `arthur-rulings-wave4-walkthrough.md`; `artifacts\wave-2026-09-24\arthur-rulings-after-specs.md`.
-- Decisions: `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md` (W5-D08–D23, D37–D41, D44, D45).
+- Decisions: `artifacts\wave-2026-09-27\briefs\w5-design-decisions.md` (W5-D08–D23, D37–D41, D44, D45); `briefs\w5-phaseB-deltas.md` (W5-D74, D75). Facts: `artifacts\w5\redesign-delta.md` §1 (derived bingos), §2 (fan reads, scoring), §4 (fan app), §6 rows 11, 14, 17, 21.
 - Research: `artifacts\review-2026-09-27\e2e-pes-fanapp.md` (§1.2 PES props and alternate lines, §3 join gates, §5 multi-game, §7 B2C parity, §8 photos).
-- Fan app (Wave 4 integration): `src/pages/contests/ContestPage.tsx` (`DRAFT_CAP`, generate, refusals), `src/pages/board/BoardPage.tsx` (polling, awards, counter, track), `src/components/board/{BingoCell,PrizeModal}.tsx`, `src/lib/{board,contestView}.ts`, `src/store/api/contestApi.ts`.
-- Backend (Wave 4 integration): `node-server/src/routes/{contests,boards,membership,orgs}/index.ts`, `handlers/contest/{listB2BContests,getB2BContestPlayers}.ts`, `handlers/board/{createBoard,getB2BBoard,listB2BBoards}.ts`, `util/{fan-contest-projection,fan-prize-tiers}.ts`, `middleware/tenant.ts`, `prize-worker/src/get-user-email.ts`, `prize-delivery/render-prize-email.ts`.
-- Shared: `api/b2b/{board,contest}.ts` (`JOIN_REFUSAL_CODES`), `interfaces/b2b/{B2BBoard,B2BContest,JoinRefusal,contestTypes,B2BPrize}.ts`, `interfaces/reference/{BettingProp,BetEvent,Entity}.ts`, `boards/buildBoard.ts`, `scoring/bingo-lines.ts`, `models/prize-redemption.ts`.
+- Fan app (redesign, `arthur-fanapp-overhaul`): `src/pages/contests/ContestPage.tsx` (`DRAFT_CAP`, generate, refusals), `src/pages/board/BoardPage.tsx` (polling, awards, counter, track; `effectiveBingos` at `:188`), `src/components/board/{BingoCell,PrizeModal,ProgressMarker}.tsx`, `src/components/contests/{ContestCard,ContestBanner}.tsx`, `src/lib/{board,contestView,tierProgress,defaultArt}.ts`, `src/store/api/contestApi.ts`.
+- Backend (redesign): `node-server/src/routes/{contests,boards,membership,orgs}/index.ts`, `handlers/contest/{listB2BContests,getB2BContestPlayers}.ts`, `handlers/board/{createBoard,getB2BBoard,listB2BBoards}.ts`, `scoring/{reconcile,sweep}.ts`, `util/{fan-contest-projection,fan-prize-tiers,contest-banner}.ts`, `middleware/tenant.ts`, `prize-worker/src/get-user-email.ts`, `prize-delivery/render-prize-email.ts`.
+- Shared (redesign): `api/b2b/{board,contest}.ts` (`JOIN_REFUSAL_CODES`), `interfaces/b2b/{B2BBoard,B2BContest,ContestBanner,ProgressMarker,JoinRefusal,contestTypes,B2BPrize}.ts`, `interfaces/reference/{BettingProp,BetEvent,Entity}.ts`, `boards/buildBoard.ts`, `scoring/{bingo-lines,evaluate}.ts`, `models/prize-redemption.ts`.
 - B2C (appv1 v5.9.143): `app/app/board/propselect/{index,BetTile}.tsx`, `shared-deps/interfaces/score.ts`, `screens/boards/{NewSingleBoard,DraggablePropTile}.tsx`.
