@@ -45,7 +45,7 @@ theme resolver also derives a contrast-guarded hit colour (§4 there).
   - **Main** is the fan app's background.
   - **Accent** is actions: buttons, bingo hits and their check badge, progress bars, chips, the selected player, focus rings, and the console's accent. It takes the description Main had.
   - **Text** is the text on Main: white or black, white by default.
-  - **Button text** is the text and icons on Accent-coloured things. Absent means **auto**: black or white, whichever reads better on Accent, recomputed when Accent changes. It can be set to white or black. "Auto" is never stored as a value.
+  - **Button text** is the text and icons on Accent-coloured things. Absent means **auto**: black or white, whichever reads better on Accent by perceptual contrast (APCA, the WCAG 3 draft method), recomputed when Accent changes. So a saturated team colour gets white, as its brand uses it (white on the Bears orange `#e64100` and the UND green `#009A44`), and a pale Accent gets black. Pass/fail thresholds elsewhere stay the WCAG 2 ratio. It can be set to white or black. "Auto" is never stored as a value.
 - **No second colour, no light or dark mode** anywhere: no setting, no label, no computed mode shown to anyone. The fan app has no `dark` class, no `dark:` variants and no next-themes; the stylesheet keeps one fallback block, which is the resolver's neutral default.
 - **Everything else is derived** by `resolveTheme` in `obs-b2b-shared/src/theme/resolve.ts` as hue-preserving OKLCH tones, never plain white or black:
   - Cards, the raised surface, the progress track and borders are Main stepped by contrast (1.15, 1.3, 1.45 and 1.6 to 1 against Main): lighter, or darker when Main is too pale for lighter to show, keeping Main's hue.
