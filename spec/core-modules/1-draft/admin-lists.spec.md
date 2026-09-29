@@ -131,7 +131,7 @@ The same engine for dropdown-like lists, which the ruling names explicitly (Game
 | Schedule / Season calendar | List view (admin-schedule.spec.md) | `GET /admin/schedule` | tip-off, soonest first, from the chosen day forward | team names | workspace, sport, "All games" |
 | Operations | Recent activity | `GET /admin/audit` (new; replaces the fixed 20 rows) | newest first | — | workspace, kind of change |
 | All tenants | Tenants table | `GET /admin/tenants/directory` | name A–Z (database order) | name or subdomain | status |
-| All contests | Contests table | `GET /admin/all-contests` | "This week": live, then soonest game (derived over the seven-day window); Active / Finished / All: newest first | contest or workspace name | This week / Active / Finished / All, workspace |
+| All contests | Contests table | `GET /admin/all-contests` | All (the default, listed first; revised 2026-09-28), Active, Finished: newest first; "This week": live, then soonest game (derived over the seven-day window) | contest or workspace name | All / This week / Active / Finished, workspace |
 | Platform health | Tenants table | `GET /admin/platform-health` | live first, then name (derived over the set of tenants) | name | — |
 | Delivery queue | Failed sends (bulk select) | `GET /admin/delivery-queue` | most recent failure first | prize, contest or workspace name | workspace, reason |
 | Fan actions | Tenant select → `Combobox` | `GET /admin/tenants?view=directory` | name A–Z | name | — |
