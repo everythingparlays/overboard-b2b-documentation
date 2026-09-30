@@ -141,7 +141,7 @@ Every write uses `refuseReadOnlyWrite(scope)` and `writeAdminAudit` (same patter
 | POST `/trivia/tags` | `{name}`; 409 on duplicate | trivia_tag_create |
 | DELETE `/trivia/tags/:id` | `409 TRIVIA.TAG_IN_USE` if questionCount > 0 | trivia_tag_delete |
 | POST/PATCH `/contests` (existing, `api/admin/games.ts`) | `{gameType:"trivia", trivia}`; validates tags exist, band prizes exist in tenant, and **each slot tag has ≥ runsPerFan distinct questions** (`409 TRIVIA.TAG_TOO_SMALL` with `{slotIndex, tag, have, need}`) | contest_create/update |
-| POST `/contests/:id/trivia/finalize` | `requireAdminReverified`; idempotent → `{finalizedAt, players, prizesSentCount}` | trivia_finalize |
+| POST `/contests/:id/trivia/finalize` | `requireAdminReverified`; OBS staff only (mirrors bingo finalize); idempotent → `{finalizedAt, players, prizesSentCount}` | trivia_finalize |
 | GET `/contests/:id/trivia/standings?page=` | full paged list (provisional or final) | |
 
 The admin tag drawer's Add/Remove are not wired yet; the UI has no Finalize button or standings table (only a static top-5 mock); `CreateContestDrawer` submits none of the trivia fields today.
