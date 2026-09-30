@@ -124,3 +124,13 @@ Follow-ups found during the merge:
 - `joinRefusal` still answers `not_playable_here` for trivia on the bingo join path (trivia has its own start-run path).
 - Console: the builder creates a trivia draft from Basics and PATCHes the full config from the Trivia and Prize-bands steps; Nick to click through signed in.
 - Bingo E2E harness not yet run on the integration set (needs `DEV_TOOLS=on` and the `test` tenant fixtures).
+
+## Status (2026-09-30, night)
+
+Later decisions, all on `integrate/trivia-overhaul`:
+- **One contest-type vocabulary.** `contestType` from the registry is the only field; `gameType` is gone from contracts, models, wires and code (prize rows keep their own `gameType`, a different concept). Lock kind for a type change is `contestType`.
+- **Presented by logo.** The sponsor's small mark is `assets.presentedByLogo` (+ `presentedByTagline`), used on the Start page, every trivia screen and prize credits. Trivia's one placement slot is `presentedBy`; bingo keeps board banner + slider (`PLACEMENT_SLOTS_BY_CONTEST_TYPE`). The free-text trivia sponsor is gone; the placement's sponsor is the contest's sponsor and the credit on its prizes.
+- **No normalizers.** Legacy names (`signInLogo`, `startPageLogo`, `gameType`, the `signIn` slot, `trivia.sponsor`) are not read anywhere. `node-server/scripts/one-name-migration.mjs` rewrites stored rows (dry-run default, `--apply`). **Release step: run it once per environment before deploying this branch.** Arthur's `migrate-start-page-sponsors.mjs` should run first where sign-in placements exist, since it moves them onto the Start page list rather than dropping them.
+- Console: Games & Contests opens as the list; cards are the remembered opt-in.
+
+Heads: shared 028b3ae · backend eb77d1c · console d41b34a · fan 099f022 · docs (this commit).
