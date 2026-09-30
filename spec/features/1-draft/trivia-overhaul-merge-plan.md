@@ -113,7 +113,7 @@ Branch `integrate/trivia-overhaul` in all five repos.
 | overboard_sports_backend | merged, trivia tests ported (26), fan projection carries trivia; 2,320+ jest green except pre-existing `test/asset-uploads.test.ts` | ba99367 |
 | overboard-b2b-template | merged, 272 tests green; smoke-tested against the merged backend (trivia list, standings, bingo cards) | 87f0ba7 |
 | overboardb2b-documentation | merged | c635d82 |
-| obs-b2b-admin-frontend | step 1 merged (files/pins); trivia UI port into ContestBuilder/ContestPage in progress | 367555e + |
+| obs-b2b-admin-frontend | merged; trivia in ContestBuilder (Trivia + Prize bands steps), ContestPage (settings card, bands tab, games tab), /question-bank route; 1,295 tests green, 3 pre-existing failures (hues, SupportReport) | fd350f0 |
 
 Decisions applied: D1 Arthur's resolver (override slots are a post-merge ticket), D2 Finalize on `requireAdmin` with the OBS-staff check in the handler, D3 no band value floor, D4 sponsor placeholder, D5 trivia's row structure with Arthur's names (`tierSnapshot` for every game type), D6 fan layout kept (hero band, matchup), `src/kit` dropped.
 
@@ -122,4 +122,5 @@ Follow-ups found during the merge:
 - Trivia prize rows carry no `providedBy` credit (the sponsor is a placeholder name); the email's achievement line covers the win.
 - The trivia players endpoint skips banners.
 - `joinRefusal` still answers `not_playable_here` for trivia on the bingo join path (trivia has its own start-run path).
+- Console: the builder creates a trivia draft from Basics and PATCHes the full config from the Trivia and Prize-bands steps; Nick to click through signed in.
 - Bingo E2E harness not yet run on the integration set (needs `DEV_TOOLS=on` and the `test` tenant fixtures).
