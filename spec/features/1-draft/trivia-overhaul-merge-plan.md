@@ -102,3 +102,24 @@ One conflict, `spec/features/1-draft/trivia-game-type.spec.md`: trivia wins; re-
 | Fan | infra takes, ContestsPage | StartScreen, BoardPage, cards | theme.mode fixes |
 
 Backend and admin are the long poles. Fan is the most judgment-heavy per file but smallest in count.
+
+## Status (2026-09-30, evening)
+
+Branch `integrate/trivia-overhaul` in all five repos.
+
+| Repo | State | Commit |
+|---|---|---|
+| obs-b2b-shared | merged + 3 follow-ups, 1,101 tests green, tag `shared-integrated-2026-09-30` | 629cfd4 |
+| overboard_sports_backend | merged, trivia tests ported (26), fan projection carries trivia; 2,320+ jest green except pre-existing `test/asset-uploads.test.ts` | ba99367 |
+| overboard-b2b-template | merged, 272 tests green; smoke-tested against the merged backend (trivia list, standings, bingo cards) | 87f0ba7 |
+| overboardb2b-documentation | merged | c635d82 |
+| obs-b2b-admin-frontend | step 1 merged (files/pins); trivia UI port into ContestBuilder/ContestPage in progress | 367555e + |
+
+Decisions applied: D1 Arthur's resolver (override slots are a post-merge ticket), D2 Finalize on `requireAdmin` with the OBS-staff check in the handler, D3 no band value floor, D4 sponsor placeholder, D5 trivia's row structure with Arthur's names (`tierSnapshot` for every game type), D6 fan layout kept (hero band, matchup), `src/kit` dropped.
+
+Follow-ups found during the merge:
+- PATCH `trivia` validates the merged config whole; the console sends the complete config per save.
+- Trivia prize rows carry no `providedBy` credit (the sponsor is a placeholder name); the email's achievement line covers the win.
+- The trivia players endpoint skips banners.
+- `joinRefusal` still answers `not_playable_here` for trivia on the bingo join path (trivia has its own start-run path).
+- Bingo E2E harness not yet run on the integration set (needs `DEV_TOOLS=on` and the `test` tenant fixtures).
