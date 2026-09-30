@@ -163,8 +163,12 @@ provisional.** The score is settled; the position is not, because other fans are
 
 **TRV-49 [V1] — A prize is authored once and usable by any game type.** What a prize is — name,
 description, image, claim instructions, fulfilment handler, value, redemption terms — has nothing to
-do with which game won it. A tenant sets up a prize once and can award it from a bingo contest and a
-trivia contest both, changing its terms in one place.
+do with which game won it. A tenant sets up a prize once, in a prize library, and can award it from a
+bingo contest and a trivia contest both, changing its terms in one place. A bingo tier and a trivia
+band only *name* a prize; neither holds prize details of its own (decided 2026-09-26). How a prize is
+delivered is part of the prize: the tenant picks one delivery method from a registry of handlers
+Overboard's developers build and maintain, and every contest awarding that prize delivers it that
+way (decided 2026-09-27).
 
 **TRV-50 [V1] — How a fan qualifies is defined per game type.** Bingo qualifies on lines completed;
 trivia on finishing position. A future game type adds a way to qualify and touches no prize.
@@ -175,8 +179,9 @@ trivia on finishing position. A future game type adds a way to qualify and touch
 many bands as it wants** (1–10, 11–30, 31–70, and beyond). Where a surface can only show a few, it
 shows the first three that carry a prize.
 
-**TRV-29 [V1] — A contest closes at the end of its game by default, and the close time is separately
-configurable.**
+**TRV-29 [V1] — A trivia contest has an open time and a close time, and a game is optional.** Tied
+to a game, it opens at tip-off and closes when the game ends unless either time is changed; on its
+own, the tenant sets both. Standings settle at close either way (decided 2026-09-26).
 
 **TRV-30 [V1] — Final standings are settled once at close and do not change afterwards.**
 

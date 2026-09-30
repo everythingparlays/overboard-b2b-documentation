@@ -91,18 +91,58 @@ redemption's unique key (`{userId, contestId, tierIndex, boardId}`) is bingo-sha
 |---|---|
 | `_id, userId, contestId, band` (e.g. `"1-10"`) | unique on `{userId, contestId, band}` |
 | `finalRank` | the settled position that resolved to this band |
-| `status, fulfilledAt?, failureReason?, resendCount?, dispatchedAttempt?, dispatchedAt?, handlerId?, recipientOverride?, tierSnapshot?` | same shape and same meaning as `IPrizeRedemption` (`obs-b2b-shared/src/models/prize-redemption.ts`) — copied, not inherited, so bingo's model stays untouched |
+| `prizeId, prizeSnapshot` | the library prize the band named, and a point-in-time copy of it — what `tierSnapshot` is for bingo |
+| `status, fulfilledAt?, failureReason?, resendCount?, dispatchedAttempt?, dispatchedAt?, handlerId?, recipientOverride?` | same shape and same meaning as `IPrizeRedemption` (`obs-b2b-shared/src/models/prize-redemption.ts`) — copied, not inherited, so bingo's model stays untouched |
 
-### Prize tiers: a band field beside `threeInARows`, not instead of it
+### The prize library: a prize is its own record, and tiers and bands only name one
 
-`B2BPrizeTier` gets one addition: `positionBand?: { from: number; to: number }` (a `PATCH` on
-`obs-b2b-shared/src/interfaces/b2b/B2BPrizeTiers.ts`), set for a trivia tier and absent for a bingo one.
-`threeInARows` stays required-for-bingo, unused-for-trivia — this is the "game-neutral field beside the
-existing one" option the admin-contests spec left open, taken here rather than a per-game tier model, because
-the tier's other fields (name, image, claim instructions, fulfilment handler, value, redemption terms) are
-already game-neutral (`TRV-49`) and don't need duplicating. `PUT /admin/contests/:contestId/prize-tiers`
-validates `positionBand` when `contestGameType(contest) === "trivia"` and `threeInARows` when it's bingo;
-bands must be distinct and non-overlapping, any count (`TRV-31`).
+Today a prize *is* a tier: `B2BPrizeTier` carries the name, description, image, claim copy, fulfilment
+handler, value and redemption terms alongside `threeInARows`, so the same jersey awarded from two contests is
+authored twice, and there is no way to award it from a game that has no bingo count. `TRV-49` says the
+opposite — a prize is written once and usable by any game type — and the decision (2026-09-26) is to take
+that literally rather than bolt a band field onto the tier:
+
+**`${prefix}prizes`** — tenant-owned, one per prize. Every field that is about *what the fan wins* moves here
+from the tier: `prizeName, prizeDescription, prizeImageUrl?, prizeClaimInstructions?, prizeClaimButtonLinkUrl?,
+prizeClaimButtonText?, handlerId, approximateValueCents?`, the redemption fields (`redemptionWindow?,
+redemptionMethod?, redemptionLocation?, staticRedemptionCode?`), and `createdAt, updatedAt`.
+
+What stays on the tier is what is the tier's: **`B2BPrizeTier` keeps `threeInARows` and gains `prizeId`.**
+A trivia contest's equivalent is its **bands** — `{ from, to, prizeId }[]` on the contest (`TRV-31`: distinct,
+non-overlapping, any count). Both are references; editing a prize's claim copy changes what every tier and
+band that names it pays, in one place, and a prize nothing references is *unused*, not deleted.
+
+**Delivery is the prize's** (decided 2026-09-27). `handlerId` lives on the library prize, never on a tier or
+band, and names one entry in the existing handler registry (`node-server/src/prize-delivery/handler-catalog.ts`,
+served by `GET /admin/prizes/handlers`): developers build a handler per kind of prize a tenant needs and
+register it there, scoped to the tenants it was built for; the prize drawer's **Delivery** select is that
+registry, and every contest that awards the prize delivers it that way. No per-contest override. The
+redemption's `prizeSnapshot` copies the resolved `handlerId` with the prize fields, so re-pointing a prize
+later never retargets wins already queued, and a prize whose handler no longer resolves reads "Won't
+deliver" in the library, as the ladder does today.
+
+**As built (2026-09-27, steps 1–2).** The tier keeps its content fields as a **copy of its prize**: the
+tiers `PUT` takes `{prizeTierId?, threeInARows, prizeId?}` — a stored tier sent by id without a prize is kept as it is — resolves each named prize within the tenant and writes
+the copy (`PRIZE_CONTENT_FIELDS`); a prize `PATCH` cascades the changed fields onto every tier naming it
+with one `updateMany`. That is why nothing downstream changed — the fan populate, the worker's `loadTiers`
+and award-time snapshot, the email renderer and the delivery-queue search all read the copy, which is
+always current. The lock joins the prize: re-pointing a locked contest's tier at a cheaper prize is refused
+as "value lowered", and lowering a prize's value is refused (`prize_value_locked`) while any tier naming it
+sits on a locked contest. `scripts/prize-library-migration.mjs` (dry-run by default) creates one prize per
+distinct `(prizeName, prizeDescription, handlerId)` from pre-library tiers and sets their `prizeId`; the seed
+script authors its fixture prizes in the library first.
+
+Migration is mechanical and one-way: every existing tier's prize fields become a `prizes` document (one per
+tier — duplicates are the tenant's to merge, and the console makes them visible as such), the tier keeps its
+`threeInARows` and points at it, and `PrizeRedemption.tierSnapshot` keeps meaning what it meant for rows
+already written. The prize pipeline changes at exactly one seam: fulfilment reads the prize through the
+reference (or the snapshot) instead of off the tier. `TRV-57` — no tenant re-enters prize data — is the
+migration's acceptance test.
+
+Endpoints: `GET/POST /admin/prize-library`, `PATCH/DELETE /admin/prize-library/:prizeId` (delete refused
+while any tier or band names it), all `refuseReadOnlyWrite`-gated on write. The tiers `PUT` keeps its shape
+and takes `prizeId` per tier instead of the prize fields; bands go on the trivia contest's own settings
+endpoint.
 
 ---
 
@@ -134,7 +174,12 @@ Reads have no such gate — an `org:member` sees the whole bank and its tags.
 labels from `GAME_TYPE_COPY`. Once a fan has joined, this is locked exactly as `ContestLock`'s `"gameType"`
 kind already provides for — the drawer renders it as a value, not a control, on a locked contest.
 
-Choosing Trivia expands a second section in the same drawer (mirrors the "Games" section's role for bingo):
+Choosing Trivia replaces the bingo "Games" picker with a **Runs** choice — *At a game* / *On its own* — and
+an **Opens** / **Closes** pair (`TRV-29`): at a game, the picker takes exactly one game and the two times
+default to its tip-off and its end, either editable; on its own, both times are required and the fan card
+shows the contest by name instead of a matchup. On the contest this is `betEventId?` plus `opensAt` and
+`closesAt` — the window is what the run endpoints check, the game is only where the times came from and what
+the card shows. Then the trivia section proper:
 
 - **Slots** — one row per question in a run, each a tag picker (`TRV-08`); "Add slot" while under the
   configured run length.
@@ -145,11 +190,22 @@ Choosing Trivia expands a second section in the same drawer (mirrors the "Games"
 - **Network credit** — defaulted to 5 seconds, and a substitute-question cap defaulted to 3 per run (`TRV-59`);
   both editable per contest, since the right values are still an open product decision (PRD §16) and different
   tenants' venues may need different defaults once measured.
-- **Prize bands** — same band editor described in §1, reachable from here exactly as the bingo drawer links to
-  Prizes today.
+- **Prizes** — set here, with the rest of the contest (decided 2026-09-26): a list of what the contest pays,
+  each row naming a library prize and *where* it's won — a bingo count for bingo, a finishing-position band
+  for trivia — with **Add prize tier** / **Add prize band** opening a small picker (the count or the
+  positions, and a prize from the library). The same field sits in the contest drawer afterwards. Nothing
+  about the prize itself is entered on a contest; that is the library's, on Prizes.
 
-The contest detail drawer's **Settings** section shows all of the above read-only for `org:member`, same
-pattern as every other tenant-config screen.
+The contest detail drawer shows the run's settings as values once a fan has joined — the game a fan played
+under is the game they're ranked on, so slots, run count, timing and scoring lock with the first run, the same
+lock the bingo drawer already applies to its own rules — and as values for `org:member` always.
+
+**As built (mock, 2026-09-26):** the game-type picker and the trivia section landed in `CreateContestDrawer`
+under a dev-only flag (`lib/triviaMock.ts`, `TRIVIA_MOCK_ENABLED`); the trivia contest's card and drawer are
+their own components (`components/contests/TriviaContestCard.tsx`) beside the bingo ones rather than branches
+inside them, because a trivia contest can't be typed as an `AdminContest` until `GAME_TYPES` widens. The
+settings fields are shared (`components/contests/triviaFields.tsx`) so the create drawer and the contest
+drawer can't drift, the pattern `fields.tsx` already sets for the bingo settings.
 
 ---
 
@@ -211,18 +267,20 @@ nothing is sent until a tenant admin clicks **Send prizes**, because standings s
 external event to hang automatic dispatch off (a fan finishing their run isn't when the contest is decided —
 close is), and because this is the natural place to hang `TRV-45`'s pre-fulfilment review.
 
-- **`POST /admin/contests/:contestId/trivia/send-prizes`** — `requireAdmin` (no console action re-authenticates, 2026-09-28), following the same
+- **`POST /admin/contests/:contestId/trivia/send-prizes`** — `requireAdminReverified`, following the same
   claim-and-dispatch shape as the existing delivery-queue resend endpoint: refuses if the contest isn't closed
   or standings aren't settled, refuses if already sent (idempotent — a second click is a no-op, not a
-  duplicate send), resolves `settledStandings` against the contest's `positionBand` tiers, writes one
+  duplicate send), resolves `settledStandings` against the contest's bands, writes one
   `trivia_prize_redemption` per fan who lands in a banded position, and enqueues fulfilment for each exactly as
   the bingo evaluator does today — same SQS queue, same `prize-worker`, same `standard-email` handler,
   reusing the pipeline from the dispatch stage on. Audited as `trivia_prizes_sent` (contest id, count) before
   the enqueue.
-- The contest detail drawer's **Prize tiers** section gains a **Send prizes** button once the contest is
-  closed, disabled with its reason before that ("Closes at 9:45pm" / "Standings aren't settled yet"), and
-  becomes a **Sent — 214 awarded** state after, matching the typed-confirmation and irreversibility treatment
-  `admin-surface.spec.md` already gives Finalize.
+- The trivia contest's drawer gets a **Send prizes** section of its own, below its bands: before close it
+  says when the action becomes available; once standings settle it offers **Send prizes…**, which asks once
+  (how many prizes, that it can't be undone) and then sends; after, it reads **Sent — 70 prizes in delivery**
+  with a line pointing at Prizes and the Delivery queue. It matches the reverification and irreversibility
+  treatment `admin-surface.spec.md` already gives Finalize. A view-only member sees each of those states as a
+  sentence, never a disabled button (the console's honesty-by-omission rule).
 - `TRV-45`'s "which bands are reviewed" stays the PRD's open decision (§16 there) — this endpoint sends every
   banded position in one action either way; a review step ahead of the click, if bands end up needing one, is
   console-side UI on top of this endpoint, not a change to it.
@@ -233,49 +291,100 @@ close is), and because this is the natural place to hang `TRV-45`'s pre-fulfilme
 
 ### Admin: Question bank (new)
 
-A new destination beside Games & Contests and Prizes (same "Games" hue family, per `admin-surface.spec.md`'s
-nav table). `pages/QuestionBank.tsx` + `components/trivia/{QuestionDrawer,TagManager,StarterBankPicker}.tsx`,
-following the exact `pages/<Feature>.tsx` / `components/<feature>/<Feature>Drawer.tsx` split every other
-screen uses.
+A new Workspace destination between Games & Contests and Prizes (`/question-bank`, "Games" hue family, per
+`admin-surface.spec.md`'s nav table — the nav route-table test moves with it). `pages/QuestionBank.tsx`, with
+its drawers in the same file for now, following the `pages/<Feature>.tsx` shape every other screen uses.
 
-- A table of the tenant's questions — text, tags, source (own / copied) — filterable by tag, with a **New
-  question** action and a **Copy from starter bank** action opening `StarterBankPicker` (checkbox list,
-  "Copy selected" / "Copy all").
-- Tag vocabulary managed from the same screen (`TagManager`: add, rename, delete-when-unused), since `TRV-54`
-  puts both under `org:admin`.
-- `useCanWrite()` gates every write affordance; an `org:member` sees the identical table and tag list with no
-  buttons, the same "view-only" presentation `Prizes`/`Games` already give that role.
+- The Games/Prizes two-column layout: the questions table on the left (text with its option count and answer,
+  tags as badges with `sponsor` in the accent hue, source "Written here" / "Copied"), filtered by a quiet
+  Segmented (All / Written here / Copied from starter) and a tag select; on the right, the **Tags** card
+  (name and how many questions carry it, **Manage tags**), the **Starter bank** card (**Copy questions…**),
+  and a **Repeats** card that states `TRV-11`'s consequence — bank size against run length — rather than
+  enforcing anything.
+- **New question** / **Edit** open the question drawer: the text, its options with a radio marking the right
+  one, tag checkboxes, and for an existing question its edit history line (`TRV-56`). A copied starter
+  question's drawer says it's the tenant's own now.
+- **Copy from starter bank** opens a checkbox list with select-all; the button counts what's picked.
+- **Manage tags**: add (lowercase, hyphenated), and remove — disabled with its reason while any question
+  carries the tag.
+- `useCanWrite()` gates every write affordance and the head shows the same "Only organization admins can
+  change questions" note the other screens use; an `org:member` sees the identical table and cards with no
+  buttons (`TRV-54`).
 
 ### Admin: Games & Contests
 
 - `CreateContestDrawer` and the contest detail drawer, extended per §3.
-- Contest table row gains a game-type badge (*Bingo* / *Trivia*) beside the status badge it already has.
+- Every contest card's header gains a game-type badge (*Bingo* / *Trivia*) beside the status badge it already
+  has — on the bingo cards too, since a list of two kinds has to say which is which. The page's lede changes
+  from "contests" to "bingo and trivia contests".
+- A trivia contest's card has no games table to toggle: it runs at one game and closes with it, so the card
+  says that in one line where the bingo card draws its rows.
+
+### Admin: Prizes
+
+The screen's job narrows to the prizes themselves: "the prizes this tenant awards and how they've been
+delivered". Which bingos or positions win one is the contest's business, set on the contest (§3), so the
+per-contest switcher and the bingo ladder leave this screen (decided 2026-09-26):
+
+- A **Prize library** card is the main column (`pages/prizes/PrizeLibrary.tsx`): every prize, with its
+  delivery method, value, and where it's awarded from as badges ("Trivia Night — Week 6 · Positions 1–10",
+  "Home Opener Bingo · 3 bingos"), or "Not awarded anywhere". **New prize** and each row's **Edit** open a
+  prize drawer holding the fields that moved off the tier drawer (name, description, delivery, value, claim
+  instructions) and an "Awarded from" list; delete is refused while anything names it.
+- The side column keeps the tenant-wide delivery totals and the prize email card, as today.
+- The "Add its prize tiers" link from Games & Contests, the card's "Add a tier on Prizes" warning and the
+  contest drawer's "Edit on Prizes" link all point at the contest's own settings instead; the tiers `PUT`
+  becomes the contest drawer's write (`pages/prizes/{BingoLadder,TierDrawer}.tsx` retire with the switcher).
+- **As built (mock):** the pickers live in `components/contests/prizePickers.tsx` — `ContestPrizesField`
+  (the list on the contest, tiers or bands by game type), `TierPickerDrawer`, `BandDrawer` — used by the
+  create drawer, the bingo contest drawer's tiers section (add only, in the mock) and the trivia contest
+  drawer (bands editable until prizes are sent). Prizes shows the library alone while the mock is on and the
+  old per-contest view otherwise, so nothing real is lost behind the flag.
 
 ### Fan: contest list
 
 `ContestsPage`/`contestApi` today assume bingo (its query shape is board-centric); this needs extending, not a
 bolt-on: the contest list query reports, per contest, `gameType` and the fan's own entry state for *that*
-type (an existing board id, or an existing run id) — `TRV-51`. `ContestCard` branches its "Play" action on
-`gameType`: bingo routes to `/board/:id` as today; trivia routes to `/trivia/:contestId`, which itself
-redirects to an in-progress run if one exists, the identical "don't re-offer join if you're already in" check
-`ContestPage.tsx` does for boards.
+type (an existing board id, or an existing run id) — `TRV-51`. A trivia contest's card
+(`components/contests/TriviaContestCard.tsx`) is drawn as the bingo card is — same rounded card, same status
+chip (Open / Entered / Closed), same matchup headline — with a "Trivia" eyebrow, a questions-and-seconds line
+where bingo shows tip-off, the top band's prize, and for an entered fan their best score and runs left. Its
+action is **Play Now** / **Play Again** while runs remain, **View Standings** otherwise: `/trivia/:contestId`
+and `/trivia/:contestId/standings`. Once the shared discriminator widens this folds into `ContestCard` as a
+branch on `gameType`; until then it is its own component for the same reason as the admin card.
 
 ### Fan: trivia play (new)
 
 `src/pages/trivia/TriviaPlayPage.tsx`, `src/store/api/triviaApi.ts` (`useStartRunMutation`,
-`useGetCurrentQuestionQuery`, `useSubmitAnswerMutation`) — same RTK Query shape as `contestApi.ts`. One
-question on screen at a time: prompt, shuffled options, a visible countdown seeded from the contest's
-per-question time. Submitting locks the options immediately (no second tap can matter even if the request is
-in flight) and shows correct/incorrect only if the contest's config says to reveal it per-question — otherwise
-a bare "next question" transition, since `TRV-33` means many tenants will want the answer never surfaced
-mid-contest at all. A finished run shows the fan's score and their current (labelled provisional) rank, with a
-link to the standings screen.
+`useGetCurrentQuestionQuery`, `useSubmitAnswerMutation`) — same RTK Query shape as `contestApi.ts`. Three
+states on one route:
+
+- **Before the run** — the contest's name and matchup, three stats (questions, seconds each, runs used of
+  allowed), the rules in four lines (speed scores, first tap is final, score is final / rank moves, best run
+  counts), the prize bands, and **Start run**.
+- **The run** — "Question N of M" and a countdown with a progress bar under it (it turns the destructive
+  colour in the last quarter); a "presented by" line on a sponsor question; the prompt; lettered options.
+  Tapping one locks every option that instant (no second tap can matter even while the request is in flight)
+  and shows the verdict and the points — this mock reveals per question; whether a tenant may turn that off is
+  the open reveal decision below — then **Next question** / **Finish run**. Time running out scores nothing
+  and says so.
+- **After** — the score, large, with "This won't change."; the provisional rank in a card with the warning
+  banner; a per-question list of ticks and points; **See standings**, and **Play again · best run counts**
+  while runs remain.
 
 ### Fan: trivia standings (new)
 
-`src/pages/trivia/TriviaStandingsPage.tsx` — a ranked list, the fan's own row pinned or highlighted, a
-persistent "Provisional — updates as more fans finish" banner until the contest closes, at which point the
-same screen reads the frozen `settledStandings` and drops the banner.
+`src/pages/trivia/TriviaStandingsPage.tsx` — a ranked list (rank, name, best score), the fan's own row
+tinted in the primary colour and named "You", each row in a band showing the prize it currently earns, a
+"Top N of M · ties go to whoever finished first" line, the bands below, and **Play now** / **Play again**
+while runs remain. A "Provisional — updates as more fans finish" banner until the contest closes, at which
+point the same screen reads the frozen `settledStandings`, the banner becomes "Final", and the play button
+goes.
+
+**As built (mock, 2026-09-26):** both fan screens and the card are on `src/lib/triviaMock.ts` behind
+`TRIVIA_MOCK_ENABLED` (dev builds only, never test or production); the countdown runs in the browser here
+where the real one is server-side. The routes are registered in `App.tsx` under `ProtectedRoute` like every
+contest route.
 
 ---
 
@@ -284,6 +393,8 @@ same screen reads the frozen `settledStandings` and drops the banner.
 1. **Trivia gets its own collections, endpoints and models wherever bingo's are shaped by bingo** (the board,
    the prize tier's `threeInARows`, the redemption's `boardId` key). Nothing here renames or repurposes a
    bingo collection.
+1. **A prize is one record in the library; a tier or a band only names it.** No prize field lives on a tier
+   or a band, and nothing that names a prize can delete it.
 2. **Every trivia-bank write goes through `refuseReadOnlyWrite`** — no new permission mechanism.
 3. **A question's correct answer is never sent to the fan client.** Scoring happens server-side only (`TRV-34`).
 4. **A question's clock starts when the server builds the response that carries it**, not on a client-reported
@@ -308,8 +419,12 @@ same screen reads the frozen `settledStandings` and drops the banner.
   own call rather than a hardcoded platform behaviour.
 - **`TRV-45`'s reviewed-bands list and `TRV-59`'s exact credit/substitution defaults are open PRD decisions**
   (PRD §16) — this spec implements both as configurable with the PRD's stated defaults, not as fixed values.
-- **No admin UI mock exists yet for the Question bank screen's exact layout** — described in prose in §7,
-  wireframed separately (see the accompanying mockups).
+- **The mocks are dev-build UI on hardcoded data**, in both frontends, gated by `TRIVIA_MOCK_ENABLED`. They
+  show the screens; they save nothing and call nothing. The gate comes out when the endpoints in §2, §4, §5
+  and §6 exist and the shared `GAME_TYPES` carries `"trivia"`.
+- **The prize library migration** (§1) touches the bingo tier drawer, the tiers `PUT`, and the fulfilment
+  worker's read of the prize — the one place this spec changes bingo, and the reason it's a migration with
+  `TRV-57` as its acceptance test rather than a new field.
 - **Abandoned-run cleanup** — an `in_progress` run with no activity is never expired or surfaced to the fan as
   stale. Left alone for V1; worth a "resume or abandon" prompt if it turns out to confuse fans in practice.
 
