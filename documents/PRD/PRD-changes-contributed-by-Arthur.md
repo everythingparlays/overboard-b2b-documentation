@@ -130,7 +130,8 @@ tenant-self-serve rulings — see the "Revised 2026-09" notes)".
 - **Why:** Arthur adopted Nick's prize library on 2026-09-27. The console mock had no tier limit; the
   cap was kept because the PRD specifies it.
 - **Date:** 2026-09-27.
-- **Status:** In effect. Spec: `admin-prizes.spec.md` (on `arthur-console-redesign`).
+- **Status:** In effect, except the 1–3 cap, superseded on 2026-09-30 by entry 34. Spec:
+  `admin-prizes.spec.md` (on `arthur-console-redesign`).
 
 ### 8. `GAME-02`: approximate value and the redemption fields are dropped
 
@@ -422,3 +423,17 @@ tenant-self-serve rulings — see the "Revised 2026-09" notes)".
   bears' navy background was hardcoded where no one could edit it.
 - **Date:** 2026-09-29 (on `arthur-console-redesign`).
 - **Status:** In effect.
+
+### 34. `GAME-02`: a bingo contest has no tier cap; the board is the only limit
+
+- **What:** `GAME-02` says "Each game supports 1–3 prize tiers", and entry 7 kept that cap for bingo.
+  It is removed. A bingo contest can have as many tiers as a board can pay: one per bingo count a
+  board can finish on. The counts are distinct, each from 1 to the board's lines (8 on the 3×3 board:
+  three rows, three columns, two diagonals), and no board finishes on exactly 7, so the most tiers is
+  seven. The number is derived in the shared contract from the board's definition, not written down
+  anywhere, and the console's Add tier and the fan app's prize bar follow it. Trivia's prize bands are
+  a separate system and are unchanged.
+- **Why:** Arthur: "There should be no limit on it; this was a spec error. If there's anything it
+  should be limited by, it's how many bingos are physically possible."
+- **Date:** 2026-09-30.
+- **Status:** In effect. Spec: `admin-prizes.spec.md` (`PZ-09`).

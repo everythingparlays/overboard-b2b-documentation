@@ -300,7 +300,7 @@ Route `/contests/:id/prizes` (staff: `?tenant=`). The builder's Prizes step rend
 
 **Lede.** "What fans can win in this contest. A tier pays once a fan's board reaches its number of bingos."
 
-**The ladder.** Up to three rows, ordered by bingos to win, lowest first. Each row:
+**The ladder.** One row per tier, ordered by bingos to win, lowest first. There is no product cap on tiers *(revised 2026-09-30, Arthur: the three-tier cap was a spec error)*: the only limit is the board's, one tier per bingo count a board can finish on — `PRIZE_TIERS_PER_CONTEST_MAX`, derived in the shared contract from the board's lines (8 on the 3×3 board) less the counts no board finishes on (7), so seven tiers at most. Each row:
 
 1. **Its number**, a round badge "1", "2", "3", in ladder order (not an icon, not a type).
 2. **Bingos to win**, segmented 1–8. A count another row uses is disabled with the tooltip "Tier 2 already uses 3 bingos". Locked: a stored tier's count is a read-only value with the lock glyph, tooltip "Locked since the first fan joined."
@@ -309,7 +309,7 @@ Route `/contests/:id/prizes` (staff: `?tenant=`). The builder's Prizes step rend
 5. **Sends** for this tier, when it has any: "35 sent" and, when above zero, "2 failed" in the status red, each linking to Deliveries filtered to this contest and tier.
 6. **Remove** (an icon button), unlocked contests only.
 
-**Add tier** (a secondary button with a plus) under the last row, with the hint "A contest can have up to 3 tiers." It disappears at three (`PZ-09`, PRD `GAME-02`).
+**Add tier** (a secondary button with a plus) under the last row, with the hint "A contest can have up to 7 tiers, one for each number of bingos a board can reach." (the number is `PRIZE_TIERS_PER_CONTEST_MAX`). It disappears when the ladder holds that many (`PZ-09`).
 
 **Saving.** The ladder is one draft, saved with the whole-list `PUT /admin/contests/:contestId/prize-tiers` and its `expectedUpdatedAt`, only when the admin presses **Save prizes** (a sticky bar with "Save prizes" and "Cancel" appears when the draft differs). Nothing is kept in the browser: the ladder always opens from the server. It reports its unsaved edits to the contest screen (`useUnsavedChanges("prizes", …)`), whose "Leave without saving?" prompt covers them. **New prize** from a row not yet saved carries that row in the address (`slot`, `bingos`) and it comes back as a new row holding the prize, so that trip alone never asks; any other unsaved edit does. Rows are re-sorted by bingos on save, and the numbers follow.
 
@@ -524,7 +524,7 @@ As fixed in [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §8.2: 409 `pri
 
 ### `PUT /admin/contests/:contestId/prize-tiers`
 
-The library's shape, unchanged: `{ expectedUpdatedAt, tiers: [{ prizeTierId?, threeInARows, prizeId? }] }`, 1–3 tiers (bingo), distinct counts 1–8. Added: 400 `prize_needs_details` when the contest is `open` or `closed` and a tier names a Needs-details prize. Existing refusals stay: `contest_finalized`, `contest_locked` (a stored count changed, or a tier removed), `tier_bingos_taken`, unknown prize ("That prize isn't in this workspace's library any more."). The response adds `completeness` per tier.
+The library's shape, unchanged: `{ expectedUpdatedAt, tiers: [{ prizeTierId?, threeInARows, prizeId? }] }`, at most `PRIZE_TIERS_PER_CONTEST_MAX` tiers (bingo; one per bingo count a board can finish on, 7 on the 3×3 board), distinct counts 1–8 (the board's lines), stored by count, fewest first. Added: 400 `prize_needs_details` when the contest is `open` or `closed` and a tier names a Needs-details prize. Existing refusals stay: `contest_finalized`, `contest_locked` (a stored count changed, or a tier removed), `tier_bingos_taken`, unknown prize ("That prize isn't in this workspace's library any more."). The response adds `completeness` per tier.
 
 ### `POST /admin/prize-deliveries/search`
 
@@ -582,7 +582,7 @@ None. Wave 4's prize-type migration (`scripts/prize-type-migration.mjs`) was nev
 
 **Honoured.**
 
-- **`GAME-02`**: display name, description, difficulty target (bingos to win, on the tier). **One to three tiers** per contest with distinct targets (`PZ-09`). **Approximate value, redemption window, method and location are removed** by Arthur's ruling of 2026-09-28, disregarding `GAME-02` on those points, pending the prize model owner (see "Questions").
+- **`GAME-02`**: display name, description, difficulty target (bingos to win, on the tier). Tiers per contest have distinct targets, and as many as the board can pay (`PZ-09`): `GAME-02`'s 1–3 cap is disregarded by Arthur's ruling of 2026-09-30 (PRD changes, entry 34). **Approximate value, redemption window, method and location are removed** by Arthur's ruling of 2026-09-28, disregarding `GAME-02` on those points, pending the prize model owner (see "Questions").
 - **`PRIZE-01`**: real-time delivery on the win is unchanged; the snapshot delivers exactly what the fan was shown.
 - **`PRIZE-03`**: finalization stays staff-only; a finalized contest's tiers refuse every write and are never refreshed by a prize edit.
 - **`PRIZE-07`**: failed sends are reviewable by the team whose fans they are and by Overboard across every tenant, with no cap, and resendable. The hard-bounce half arrives with the Bounced slice.
@@ -622,7 +622,7 @@ Until it ships, the word "Bounced" appears nowhere on screen.
 6. **`PZ-06` — The lock is contest-safety's, shown in place**: bingos to win and removal refuse; the console shows the glyph and the reason under the field. There is no value rule.
 7. **`PZ-07` — "As promised" only from the snapshot.** No snapshot, no promise, never the current prize in its place.
 8. **`PZ-08` — Credit comes from the prize.** `providedBySponsorId` is the only source of "Provided by" in the popup, the email and their previews; one prize, one credit.
-9. **`PZ-09` — One to three tiers per bingo contest, distinct bingos 1–8.** Add tier disappears at three.
+9. **`PZ-09` — Tiers are limited only by the board** (revised 2026-09-30; was one to three). Distinct bingo counts, each 1 to the board's lines (8), at most one tier per count a board can finish on (`PRIZE_TIERS_PER_CONTEST_MAX`, 7, derived from the board in the shared contract). Add tier disappears at that number.
 10. **`PZ-10` — Tenant Resend re-sends, never re-awards.** Own tenant's failed rows only, not address failures, at most three, conditional on the count, audited first, same snapshot, no corrected address.
 11. **`PZ-11` — Duplicating a sent prize is staff-only**: name-confirmed, reasoned, audited first.
 12. **`PZ-12` — Status words mean what they say.** "Sent" is "accepted by our mail provider"; "Bounced" exists only once bounce capture does.
