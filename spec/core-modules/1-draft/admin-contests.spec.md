@@ -733,10 +733,6 @@ As [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md), plus the one rule
 
 `GAME-F1`: the type lives on the contest, and the registry above is the one list of types. New wire fields stay type-neutral. Deliberately left for the trivia build: the `*_bingo_*` collection names; the board's nine named cells and the evaluator's eight lines; tiers keyed on `threeInARows` (the second game needs a type-neutral threshold or its own tier fields); "bingo" in existing wire fields and CSV columns; the fan app's bingo-shaped routes.
 
-## Dev fixtures
-
-**Revised 2026-09-28 (Arthur: a clean slate for `test`).** `reset-test-fixtures.mjs` replaces the accumulated fixtures with the minimum that makes every console screen walkable: "Test Tenant — Draft" (one upcoming game, one tier), "Test Tenant — This Week" (open, the current week's games, two tiers), "Test Tenant — Ready to finalize" (closed, two games that ended, boards, and sent, waiting and failed deliveries) and "Test Tenant — Finalized"; two library prizes; seven seed fans covering each consent state. "Test Tenant Bingo" and the archived early contests are gone. `seed-test-images.mjs` then shows the progress marker's cases on "Test Tenant — This Week", through the real upload path: the first upcoming game has its own marker, the next is on the default triangle (the script clears the Brand marker, so the tenant's default is the triangle), and a third, when there is one, carries Pinecrest's slider icon. It touches only the `test` organization under the `arthur_` prefix, is dry-run unless `--apply`, and converges on the same set when re-run. The E2E harness's contest, prize and sponsor are kept. `seed-test-tenant.mjs` still creates the tenant record and its configuration.
-
 ---
 
 ## Rules

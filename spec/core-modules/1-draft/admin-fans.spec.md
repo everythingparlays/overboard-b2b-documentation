@@ -205,7 +205,7 @@ Reads: every resolved admin scope — `ADM-01`'s shared-screen model; the roster
 
 ## Dev fixtures (2026-09-29)
 
-- **Seeded fans have display names.** `reset-test-fixtures.mjs` and `seed-test-tenant.mjs` give every seed fan a handle-style display name ("MalQ_BearDown", "AdaLovesHoops") separate from the first and last name fields, plus a last name and ZIP where the tenant asks them. One seed fan keeps no ZIP on purpose: it is the missing-required-field filter's subject. Re-running either script converges existing seed fans.
+- **Seeded fans have display names.** `seed-test-tenant.mjs` gives every seed fan a handle-style display name ("MalQ_BearDown", "AdaLovesHoops") separate from the first and last name fields, plus a last name and ZIP where the tenant asks them. One seed fan keeps no ZIP on purpose: it is the missing-required-field filter's subject. Re-running the script converges existing seed fans.
 - **Backfill.** `scripts/backfill-fan-display-names.mjs` (dry run by default, `test` by default, `--tenant <slug>`, `--apply` writes) names any membership whose display name is missing or blank: the fan's first name (or "Fan") plus a number from the membership id, never the hidden last name, never a name another member of the tenant already uses. Each write is conditional on the name still being blank. The plan is `scripts/lib/display-name-backfill-plan.cjs`, with its own tests.
 
 ---

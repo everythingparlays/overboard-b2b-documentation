@@ -385,19 +385,6 @@ source of truth.
   it. **Move to draft** is offered only while no fan has joined.
 - **PES:** every progress value put back (§6, step 5).
 - **Outbox:** delete old files from the outbox folder whenever you like.
-- **A clean slate for the `test` tenant:** from `node-server/`, dry-run
-  `AWS_PROFILE=obs-b2b-dev AWS_SDK_LOAD_CONFIG=1 node --env-file=.env scripts/reset-test-fixtures.mjs`,
-  read what it would do, then add `--apply`.
-  - It deletes the `test` tenant's contests (apart from the harness's), their boards, tiers and
-    deliveries, deliveries of contests that no longer exist, library prizes and sponsors other than the
-    harness's and the fictional data-sharing sponsor Lakeshore Soda Co. (an older fixture's "Coca-Cola" record is renamed in place, with a new agreement version), the export history, and seed fans beyond the seven it keeps.
-  - It reseeds the minimum that makes every console screen walkable: a Draft, an Open ("This Week"),
-    a Closed contest ready to finalize (with sent, waiting and failed deliveries) and a Finalized one;
-    two library prizes; and seven seed fans whose consents cover accepted, declined, not answered,
-    an earlier wording and a missing field.
-  - It touches only the `test` organization, only under the `arthur_` prefix, only in `obs-b2b-dev`.
-    Real fans' identities and memberships, Clerk, support reports and the rest of the audit log are
-    left alone. Re-running converges on the same set around the day it runs.
 
 ---
 
