@@ -79,7 +79,7 @@ Any console user, for their own workspace; Overboard staff through `?tenant=`. R
 - **Impressions** — not measured.
 - **Public share link** — not built; PDF is the channel.
 - **Sponsor logos** — built against the sponsor model (same wave): an edition takes its name from the linked `B2BSponsor` and its mark from `sponsorMarkUrl(assets)`; an opt-in with no linked sponsor, or a sponsor with no mark, shows the name alone.
-- **Presenting sponsor per game** — arrives with the sponsor model's per-game attachment.
+- ~~**Presenting sponsor per game**~~ — **settled 2026-09-30**: there are no per-game placements (Arthur's ruling), so a game's sponsors are its contest's placements and providers ([`admin-sponsors.spec.md`](admin-sponsors.spec.md) `SP-13`).
 
 ## As built (Wave 4)
 

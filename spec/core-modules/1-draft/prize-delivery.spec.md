@@ -179,7 +179,7 @@ A URL that is not `http:` or `https:` is treated as absent (a `javascript:` or `
 
 ### Presented by
 
-*Superseded by [`admin-prizes.spec.md`](admin-prizes.spec.md), "What the winner sees" (Wave 4): the credit reads "Provided by" and comes from the library prize's `providedBySponsorId` (copied to the tier and snapshotted at award as `providedBy`), not from the prize-popup placement holder; the preview renders it from the unsaved prize.*
+*Superseded by [`admin-prizes.spec.md`](admin-prizes.spec.md), "What the winner sees" (Wave 4): the credit reads "Provided by" and comes from the library prize's `providedBySponsorId` (copied to the tier and snapshotted at award as `providedBy`), not from the prize-popup placement holder; the preview renders it from the unsaved prize. Per-game placements were also removed (Arthur, 2026-09-30: a placement is for the whole contest), so the game-specific override and dormant placements below describe nothing current.*
 
 The email credits the sponsor presenting the prize: **the sponsor holding the `prizePopup` slot where the prize was won** — exactly the sponsor the fan's in-app prize popup credits for the same win ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)). It is decided by the same shared resolver, `resolveSponsorSlots` (`SP-07`), at (the contest, the board's game), so the popup and the email cannot name different sponsors:
 

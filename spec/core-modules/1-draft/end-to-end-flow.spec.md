@@ -207,7 +207,8 @@ Three B2B behaviours made it look like a filter, and all three change:
 | started, past that length | `Final` |
 
 Every server read that hands a game to a screen applies it: the fan contest list and detail, the board's populated games,
-the fan sponsor schedule's featured and next game, and the console's game rows, picker and sponsor slot editor. Every
+the fan sponsor schedule's featured and next game, and the console's game rows and picker (the sponsor slot editor lists
+no games since 2026-09-30: a placement is for the whole contest). Every
 console game-day phase ends a game by the same rule (`gamePhase`, [`admin-game-day.spec.md`](admin-game-day.spec.md),
 "Phases"; Walk #3, 2026-09-29). The stored feed value is never written.
 

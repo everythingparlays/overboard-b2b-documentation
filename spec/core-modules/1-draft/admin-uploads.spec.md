@@ -30,19 +30,18 @@ Every image the console asks for is a pasted URL today. The operator has to host
 
 ## The fields
 
-Nine fields take an image. There are no others in the console: tenant creation and tiers take no image (a tier picks a library prize). The contest banner joined in Wave 4b, and a game's progress marker in Walk #3.
+Eight fields take an image. There are no others in the console: tenant creation and tiers take no image (a tier picks a library prize). The contest banner joined in Wave 4b, and the progress marker in Walk #3 (per game then, per contest since 2026-09-30). The sponsor's slider icon (`sponsor.sliderIcon`) was removed on 2026-09-30 with the Slider slot ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)).
 
 | Screen | Field | Stored in | Accepted | Smallest raster size |
 |---|---|---|---|---|
 | Sponsor page, Start page | Logo ("Start page logo") | `B2BSponsor.assets.startPageLogo` (stored as `signInLogo` before 2026-09-29) | PNG, JPEG, WebP, SVG | 40 px tall |
 | Sponsor page, Board banner | Banner | `B2BSponsor.assets.boardBanner` | PNG, JPEG, WebP, SVG | 480 px wide |
-| Sponsor page, Slider | Icon | `B2BSponsor.assets.sliderIcon` | PNG, JPEG, WebP, SVG | 36 × 36 px |
 | Sponsor page, Prize logo | Logo | `B2BSponsor.assets.prizePopupLogo` | PNG, JPEG, WebP, SVG | 48 px tall |
 | Prize page (library) | Prize image | `B2BPrize.prizeImageUrl` | PNG, JPEG, WebP | 200 px on the shorter side |
 | Brand | Logo | `branding.assets.logo` | PNG, JPEG, WebP, SVG | 64 px on the shorter side |
 | Brand | Progress marker | `branding.assets.sliderTipImageUrl` | PNG, JPEG, WebP, SVG | 36 × 36 px |
 | Contest builder (Basics) and contest page (Overview) | Contest banner | `B2BContest.bannerImageUrl` | PNG, JPEG, WebP | 800 px wide |
-| Contest page (Games tab), each game | Progress marker | `B2BContest.gameMarkerImageUrls[betEventId]` | PNG, JPEG, WebP, SVG | 36 × 36 px |
+| Contest page (Overview, Basics), bingo | Progress marker | `B2BContest.progressMarkerImageUrl` | PNG, JPEG, WebP, SVG | 36 × 36 px |
 
 - **Every field:** at most **5 MB**, at most **4096 px** on either side. The smallest size is the fan app's own box at one pixel per CSS pixel ([`admin-sponsors.spec.md`](admin-sponsors.spec.md), the size table); an SVG has no raster size and is exempt from it.
 - **No GIF.** An animated image in a sponsor slot is a different product decision, and a still GIF has no reason to be one.
@@ -50,9 +49,9 @@ Nine fields take an image. There are no others in the console: tenant creation a
 - **The contest banner takes no SVG, and is wide.** It is a photo-like band of about 4:1 across the top of the contest's card and page, drawn cover-cropped; 800 px wide covers a phone card at 2×. The hint adds "A wide image, about 4 to 1, shown across the top of the contest's card and page." Its writers are the contest's writers (tenant `org:admin`, OBS staff: the same `refuseReadOnlyWrite` gate as every field). The contest takes the URL when its form is saved ([`admin-contests.spec.md`](admin-contests.spec.md), "Banner"); Remove clears it back to the banner's default.
 - **One list, one place.** The table is `UPLOAD_FIELDS` in `obs-b2b-shared/src/api/admin/uploads.ts` (`field` id, accepted types, minimum size), read by the console's field and by both endpoints, so the hint under the box and the server's refusal can never disagree.
 
-Field ids: `sponsor.startPageLogo` (was `sponsor.signInLogo` before 2026-09-29; objects uploaded under the old id keep their keys and URLs), `sponsor.boardBanner`, `sponsor.sliderIcon`, `sponsor.prizePopupLogo`, `prize.image`, `brand.logo`, `brand.progressMarker`, `contest.banner`, `contest.gameMarker`.
+Field ids: `sponsor.startPageLogo` (was `sponsor.signInLogo` before 2026-09-29; objects uploaded under the old id keep their keys and URLs), `sponsor.boardBanner`, `sponsor.prizePopupLogo`, `prize.image`, `brand.logo`, `brand.progressMarker`, `contest.banner`, `contest.progressMarker` (was `contest.gameMarker`, per game, before 2026-09-30). `sponsor.sliderIcon` is gone (2026-09-30).
 
-- **A game's progress marker takes the Brand marker's files and size** (`contest.gameMarker`): it is drawn where the Brand marker would be. Its write checks more than the https rule: the address must be one of the tenant's own uploads ([`admin-contests.spec.md`](admin-contests.spec.md), `PUT …/games/:betEventId/marker`).
+- **A contest's progress marker takes the Brand marker's files and size** (`contest.progressMarker`): it is drawn where the Brand marker would be. Its write checks more than the https rule: the address must be one of the tenant's own uploads ([`admin-contests.spec.md`](admin-contests.spec.md), `PATCH /admin/contests/:contestId`, `progressMarkerImageUrl`).
 
 ## What is stored: the URL, as before
 

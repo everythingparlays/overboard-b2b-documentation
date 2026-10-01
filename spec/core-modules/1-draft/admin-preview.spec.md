@@ -97,7 +97,7 @@ One row of controls above the frame, on the console background:
 
 **The console adds no label** to the frame, and the frame carries none (`PV-08`).
 
-There is no game selector: the admin picks a game inside the frame, on the Contest screen's own game tabs, exactly as a fan does. The sponsor page passes `view.gameId` when it needs a particular game's slots, and the Games tab's "See it on the board" opens the Board screen for one game (`?screen=board&game=<id>`), so the board carries that game's progress marker ([`admin-contests.spec.md`](admin-contests.spec.md), "Progress marker"). The marker comes from the contest read (`gameMarkerImageUrls`), so the preview shows what is saved.
+There is no game selector: the admin picks a game inside the frame, on the Contest screen's own game tabs, exactly as a fan does. Since 2026-09-30 a sponsor placement and the progress marker are the contest's, never one game's, so no host needs a particular game to show them: the board shows the contest's placements and its marker whichever game it is drawn from ([`admin-sponsors.spec.md`](admin-sponsors.spec.md), [`admin-contests.spec.md`](admin-contests.spec.md), "Progress marker"). The marker comes from the contest read (`progressMarkerImageUrl`), so the preview shows what is saved.
 
 **Accessibility.** The iframe's title is "Fan app preview". The tabs and segmented controls are radio groups. The compact dropdown a chooser falls back to is a labelled native select. When the screen changes, a polite live region says "Showing Board". Focus never moves into the frame on its own; Tab reaches it after the controls.
 
@@ -110,7 +110,7 @@ The render document is built from **`GET /admin/contests/:contestId/preview`** (
 | Contest Preview tab | None: every other tab of the contest page saves inline, so saved is current. |
 | Builder Review | Basics' unsaved name, description and player limit, applied to the contest wherever the fan wire carries them (the contest read and its entry in `contests`). |
 | Prize page | No contest read: the tenant sections come from `GET /admin/preview`, and `document.prize` is the prize as typed, in the award's prize shape with `providedBy` resolved from its sponsor. |
-| Sponsor page | The sponsor's unsaved artwork, applied to its entry in `schedule` for the slot and scope it holds (one holder per slot per scope, as the app renders it). Nothing is ringed: the frame draws nothing the live app doesn't. |
+| Sponsor page | The sponsor's unsaved artwork, applied to its entry in `schedule` for the slot it holds in the contest shown (one holder per slot per contest, as the app renders it). Nothing is ringed: the frame draws nothing the live app doesn't. |
 | Brand | No contest read: the tenant sections come from `GET /admin/preview`, the sample contest replaces `contests` and `contest`, and `overlay.branding` lays the unpublished theme and images on `org.organization.branding` exactly where the public org read carries them. A reset theme ("Reset to starting look" or "Reset to neutral look") is no theme, as it is once published, so the frame shows the onboarding colours or the neutral look. `overlay.startPage` (2026-09-29) lays the Start page card's list as it stands on `schedule.startPage` and `schedule.sponsors`, so the Start screen shows an add, removal or move at once; the card hands its list over through `lib/preview/startPageDraft.ts`, keyed by the tenant query, and only the Brand host reads it. |
 
 ### The preview follows what you point at
@@ -147,7 +147,7 @@ Revised 2026-09-29 (Arthur's Walk #3). **Wherever a form or list sits beside a p
 | | Prize tiers | Prize, tier 1's popup |
 | | Sponsors | Board |
 | Sponsor page | Start page block | Start |
-| | Board banner, Slider | Board |
+| | Board banner | Board |
 | | Prize logo | Prize, the popup of the tier this sponsor provides |
 | Prize page | The prize, Claim, Button, Provided by | The Prize popup pane |
 | | Delivery, the code | The Email pane |

@@ -6,9 +6,11 @@
 
 **Status:** Draft, 2026-09-28, Wave 5 Phase A (new); **revised 2026-09-29 for the console redesign** (W5-D68–D75). Built in Phase B on the console's, shared repo's and fan app's `arthur-fanapp-overhaul` branches; never merged (W5-D29).
 
+**Revised 2026-09-30 (Arthur's rulings):** sponsor placements are for the whole contest (no per-game placements, no game scope on the Sponsors tab or in "Where it appears"), the `slider` slot and the sponsor's slider icon are removed, and the progress marker is the contest's (`progressMarkerImageUrl`, Overview → Basics), not a game's. The board's marker chain is the contest's Progress marker → the Brand marker → the triangle. Edited in place below ([`admin-sponsors.spec.md`](../core-modules/1-draft/admin-sponsors.spec.md), [`admin-contests.spec.md`](../core-modules/1-draft/admin-contests.spec.md)).
+
 ### Revised 2026-09-29: touchpoints on the redesign
 
-- **Most of the console side is built.** The redesign already ships the four-tab contest hosts with their labels, phone only, the Brand host on a client-side sample, the Start page, per-game markers, hover-to-preview without a ring, staff "All prizes" and display names. Wave 5 **consumes** them (W5-D74).
+- **Most of the console side is built.** The redesign already ships the four-tab contest hosts with their labels, phone only, the Brand host on a client-side sample, the Start page, per-game markers (a contest marker since 2026-09-30), hover-to-preview without a ring, staff "All prizes" and display names. Wave 5 **consumes** them (W5-D74).
 - **`PreviewDocument` gains only `board?` and `standings?`** (W5-D72). `documents?`, `view.gateMode` and the `membership` overlay are dropped.
 - **Fields & Opt-ins keeps its own preview** (W5-D73): only its strings are a touchpoint.
 - **The string list is re-derived** against the redesign: seven corrections remain, three of them new (`TOUCH-15`).
@@ -75,7 +77,7 @@ The console shows fan-app screens in four framed places (contest page and builde
 **`TOUCH-07` — What the contest tabs show on the overhaul:**
 - **Contest list:** the Current (or Past) tab with the previewed contest's card: its console name as the title, its description in full, its banner, the featured game as a sub-line (W5-D39), the top prize with its description, the status chyron.
 - **Contest detail:** the detail page ([`fan-contest-flow.spec.md`](fan-contest-flow.spec.md) `FLOW-43`), including the limit line (`FLOW-45`) from the builder's unsaved player limit and the real count once `playerCount` ships on the contest read; until then no count shows, as on the live app (the preview read's `numberParticipants` board count is not used, so the preview never shows fans something they can't see).
-- **Board:** the preview board built by the shared `buildBoard` with no drafted players, with the overhaul's squares, Track, marker (the redesign's chain, `gameMarkerImageUrls` included) and lines; bingos from the shared `boardBingos` (W5-D75).
+- **Board:** the preview board built by the shared `buildBoard` with no drafted players, with the overhaul's squares, Track, marker (the redesign's chain, the contest's `progressMarkerImageUrl` included) and lines; bingos from the shared `boardBingos` (W5-D75).
 - **Prize:** the overhaul's popup for the chosen tier (`?tier=`), content per W5-D41.
 - **The "Tier N" tabs** (`FanAppPreview.tsx:410-414`, from `lib/preview/tiers.ts` `tiersInOrder`) offer only the tiers the overhaul shows: `tiersInOrder` skips a tier at 7 bingos or with an incomplete prize (`FLOW-46`). **Phase B: to build** (s4).
 
@@ -91,11 +93,10 @@ The console shows fan-app screens in four framed places (contest page and builde
 |---|---|---|---|
 | `startPage` (tenant level, Brand's Start page list; `startPageLogo`, `startPageTagline`) | `sponsor.startPageLogo`, ≥40px tall | **Start only**, as "Presented by": one sponsor spans the column up to 96px tall; several sit 2-up on 64px plates; a sponsor without a logo shows as its name tile (the redesign's render rules, `admin-branding.spec.md` "Start page") | `start` |
 | `boardBanner` | `sponsor.boardBanner`, ≥480px wide | the live board, between the counter block and the squares, 4:1 until loaded, then its own ratio, never cropped | `board` |
-| `slider` | `sponsor.sliderIcon`, ≥36×36 | the Track's marker at that game, first in the marker chain (sponsor → game marker → Brand marker → triangle) | `board` |
 | `prizePopup` (logo) | `sponsor.prizePopupLogo`, ≥48px tall | "Provided by" in the prize popup, for prizes this sponsor provides | `prize` |
 
-- The contest sign-in slot is gone on the redesign: `PLACEMENT_SLOTS = ["boardBanner", "slider"]`; stored `signIn` placements read as legacy (`LEGACY_PLACEMENT_SLOTS`). Nothing for Wave 5 to change.
-- `SCREEN_FOR` is `{ startPage: "start", boardBanner: "board", slider: "board", prizePopup: "prize" }` (`SponsorPage.tsx:698-703`); a prize logo jumps to the tier this sponsor provides. The overhaul honours the jumps (`TOUCH-17`); no ring.
+- The contest sign-in slot is gone on the redesign, and the `slider` slot since 2026-09-30: a bingo contest places only `boardBanner` (trivia places `presentedBy`), always for the whole contest. The Track's marker is the contest's Progress marker, else the Brand marker, else the triangle; no sponsor icon rides it.
+- `SCREEN_FOR` is `{ startPage: "start", boardBanner: "board", prizePopup: "prize" }` (`SponsorPage.tsx:698-703`; `slider` left on 2026-09-30); a prize logo jumps to the tier this sponsor provides. The overhaul honours the jumps (`TOUCH-17`); no ring.
 - The sponsor's in-context frame still needs a contest where the sponsor appears; a sponsor in no contest gets no frame (no sample contest on the sponsor page).
 
 ### Brand
@@ -147,7 +148,7 @@ Brand's Words card links to Fields & Opt-ins › Screen text rather than duplica
 | Opt-ins and documents | Documents over the gate, in the side menu (Terms, Rules, Privacy, each tenant document, as built; Rules added 2026-10-01) and on Profile with the agreed version; optional opt-ins can be withdrawn on Profile | None |
 | Display name (reserved field; meta "Short text · always asked — it's the name on the fan's board", `pages/FieldsOptins.tsx:552`) | Shown on standings, the side menu and Profile; the overhaul's board header shows the contest name | Meta becomes "Short text · always asked — it's the name other fans see on standings" |
 | Contest banner (`BannerField`, `ContestBanner`) | The card's image and the detail band's background | None (consumed) |
-| Per-game progress marker (Games tab marker column) | The Track marker's second step (W5-D74) | None (consumed) |
+| Contest progress marker (Overview → Basics; per game on the Games tab until 2026-09-30) | The Track marker's first step (W5-D74) | None (consumed) |
 | Sponsor page Start page block (`pages/SponsorPage.tsx:435-436`, "Under “Presented by” on the Start page, when Brand lists this sponsor there.") | Start's "Presented by" | None (built on the redesign) |
 | Brand Colors: Main's hint (`lib/brandTheme.ts:24`) and the card's lede (`pages/Branding.tsx:329`) | Main picks the scheme and paints the bands when it has colour; the ground is neutral (W5-D69, W5-D70) | Both reworded (`TOUCH-15`) |
 | Paused (`components/Layout.tsx:87-93` console banner; `pages/staff/TenantPage.tsx:1055`, "Fans see a paused screen within a minute…") | The Paused screen with the tenant's paused words | None: still true (the org read is cached a minute) |
@@ -182,7 +183,7 @@ No console string uses "game" where it means "contest" (checked by searching the
 | Contest Preview tab | `GET /admin/contests/:contestId/preview` (+ `standings`*) | none from the frame (`PV-02`) | before ready, ready, read failed, no ready in 8s, draft as published, closed, finalized, no tiers, unreachable tab, standings empty and filled* |
 | Builder Review | same + `contest` overlay | none | as above, with unsaved name, description, limit, banner |
 | Prize pane | `GET /admin/preview` + the prize as typed | none | new prize, no image, no sponsor, with button, code set (not shown) |
-| Sponsor frame | `GET /admin/contests/:contestId/preview` for the chosen contest; `sponsor` overlay | none | no contest (no frame), each slot's screen, name-tile Start sponsor, per-game holder |
+| Sponsor frame | `GET /admin/contests/:contestId/preview` for the chosen contest; `sponsor` overlay | none | no contest (no frame), each slot's screen, name-tile Start sponsor |
 | Brand frame | `GET /admin/preview`; `withSampleContest`; fixed `board`*; `branding` (+ `text`*) and `startPage` overlays | none (logo swatches: `POST /admin/branding/sample-colours`*, outside the frame) | see [`admin-brand-v2.spec.md`](../core-modules/1-draft/admin-brand-v2.spec.md) |
 | Hover-to-preview (every host) | the redesign's jump bus | none | jump to screen, to tier, to pane; no ring |
 | Console words | the strings in `TOUCH-15` | none | — |

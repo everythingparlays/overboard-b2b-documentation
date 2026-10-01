@@ -302,7 +302,7 @@ The frame is the viewport, as on a real device, and the app lays itself out for 
 
 ## Known gaps (recorded, not blocking)
 
-- **One sponsor per slot.** The current app renders one holder per slot (contest-wide, or the game's own when it has one), so the preview shows exactly that; `view.gameId` picks which game's holders a board shows.
+- **One sponsor per slot.** The current app renders one holder per slot, the contest's (there are no per-game placements since 2026-09-30, Arthur's ruling), so the preview shows exactly that, whichever game a board is drawn from.
 - **The contest name on the card.** The current card titles a contest by its featured game's matchup; the name appears only for a game without two teams. The preview shows that as it is.
 - **The popup over a board with no bingos.** On upcoming games the preview board has no hits, so the Prize screen shows a winning popup over a board whose counter reads 0. Both halves are true; they are just not from the same moment.
 - **The sign-in form is inert.** It shows the real form; submitting it moves the preview on without checking anything, because there is no account behind a preview.

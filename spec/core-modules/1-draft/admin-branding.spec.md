@@ -75,7 +75,7 @@ theme resolver also derives a contrast-guarded hit colour (§4 there).
 | Button text color (Auto / White / Black) | `theme.colors.buttonText` (absent: auto) | Fan app `--primary-foreground` and `--hit-foreground`; the monogram's initials |
 | Reset | `theme: null` | Fan app falls back to the onboarding seed or `DEFAULT_THEME`; the backend's `effectiveTheme` for the console accent |
 | Logo | `assets.logo` (upload field `brand.logo`) | Fan app Start and Join screens, the side menu, the paused screen, the tab icon |
-| Progress marker | `assets.sliderTipImageUrl` (upload field `brand.progressMarker`) | Fan app board progress-bar marker, unless a sponsor holds the slider slot at that game or the game has its own marker ([`admin-contests.spec.md`](admin-contests.spec.md), "Progress marker"); with none, a triangle in the Text colour |
+| Progress marker | `assets.sliderTipImageUrl` (upload field `brand.progressMarker`) | Fan app board progress-bar marker, unless the contest has its own Progress marker ([`admin-contests.spec.md`](admin-contests.spec.md), "Progress marker"); with none, a triangle in the Text colour. No sponsor icon takes its place (the sponsor Slider slot was removed on 2026-09-30) |
 
 *The 2026-09-28 function audit (Main/Second/Accent colour, Background Dark/Light) is superseded by the table above.*
 
@@ -159,7 +159,7 @@ A tenant's colors, type, shape, finish and signature moments become real server-
 
 **In scope:** the stored theme contract (v2) and its derivation rules; the shipped preset defaults, the OBS-curated gallery and a tenant's own saved presets, with the promote-to-gallery pipeline; storage on `B2BOrganization` and the gallery's own collection; `GET`/`PUT /admin/branding`, `PUT /admin/branding/presets`, `POST /admin/branding/promote`; the public fan wire; the `/branding` screen and its live preview; and back-compat with the compile-time tenant files, pinned by test.
 
-**Not in scope:** sponsor records and their per-game assets — [`admin-sponsors.spec.md`](admin-sponsors.spec.md), the Sponsors tab of the same screen; a full fan-board preview inside the console; per-cell live fractions for Under props and non-player props; anything that would make `--destructive` / `--success` / `--warning` tenant-settable.
+**Not in scope:** sponsor records and their assets — [`admin-sponsors.spec.md`](admin-sponsors.spec.md), the Sponsors tab of the same screen; a full fan-board preview inside the console; per-cell live fractions for Under props and non-player props; anything that would make `--destructive` / `--success` / `--warning` tenant-settable.
 
 ---
 
@@ -437,7 +437,7 @@ This is the only visual change this wave sanctions to an existing tenant, it is 
 
 `/branding` — **Brand**, its own page since 2026-09-28 (it was the Brand tab of Sponsors & Branding; Sponsors is [`admin-sponsors.spec.md`](admin-sponsors.spec.md)) — per the fan-theming design contract. The [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) skeleton is copied wholesale — pick-tenant empty state, `key={qs}` remount on tenant switch, draft-and-publish with the draft held in the page only (no autosave; a "Leave without saving?" prompt when there are unpublished changes, since 2026-09-28), inline publish notes rather than toasts, read-only presentation for `org:member`, and the console's own `ui/` primitives throughout.
 
-**Groups, since 2026-09-29** (the four-colour model, revision above): **Colours** (Main, Accent, Text, Button text, and the highlight readout) · **Images** (Logo; Progress marker, the image that moves along the board's prize progress bar, which a game's own marker, and ahead of it a sponsor holding the slider slot at a game, replace there). The marker row's hint: "Rides the prize progress bar on every board, unless a game has its own. Shown at up to 48 × 36 px."
+**Groups, since 2026-09-29** (the four-colour model, revision above): **Colours** (Main, Accent, Text, Button text, and the highlight readout) · **Images** (Logo; Progress marker, the image that moves along the board's prize progress bar, which a contest's own Progress marker replaces on that contest's boards; since 2026-09-30 no sponsor's slider icon does). The marker row's hint: "Rides the prize progress bar on every board, unless a contest has its own. Shown at up to 48 × 36 px."
 
 *Before 2026-09-28, kept for the record:* **Look** (Light/Dark) · **Colors** (Team color, Second color, Accent, Live tone, and an Advanced reveal for explicit neutrals) · **Type** (Headline font, Body font, Number font, ALL-CAPS headlines, Headline weight) · **Shape** (Corner roundness, Density) · **Finish** (Border strength, Texture, Glow) · **Signature** (Hero band, Bingo counter) · **Assets** (Logo, Progress marker).
 

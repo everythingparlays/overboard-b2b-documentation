@@ -67,7 +67,7 @@ The redesign's Brand page (`obs-b2b-admin-frontend/src/pages/Branding.tsx`, 648 
 
 ### 2. Images (the redesign's card, consumed)
 
-Logo (`brand.logo` → `branding.assets.logo`, jump → Start) and Progress marker (`brand.progressMarker` → `branding.assets.sliderTipImageUrl`, jump → Board, default preview the triangle `markerTriangle`), through `UploadField`, as built. On the overhaul the marker rides the Track through the redesign's chain (sponsor → the game's marker → this Brand marker → the triangle in Text, W5-D74). No Wave 5 change.
+Logo (`brand.logo` → `branding.assets.logo`, jump → Start) and Progress marker (`brand.progressMarker` → `branding.assets.sliderTipImageUrl`, jump → Board, default preview the triangle `markerTriangle`), through `UploadField`, as built. On the overhaul the marker rides the Track through the redesign's chain (W5-D74), since 2026-09-30: the contest's Progress marker → this Brand marker → the triangle in Text (no sponsor slider icon, no per-game marker). No Wave 5 change.
 
 ### 3. Start page (the redesign's card, consumed)
 
