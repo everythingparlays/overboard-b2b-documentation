@@ -437,3 +437,36 @@ tenant-self-serve rulings — see the "Revised 2026-09" notes)".
   should be limited by, it's how many bingos are physically possible."
 - **Date:** 2026-09-30.
 - **Status:** In effect. Spec: `admin-prizes.spec.md` (`PZ-09`).
+
+### 35. `ADM-03` and the trivia PRD (`TRV-*`): one state rule, bingo open and close times, and trivia's times, questions and lock
+
+- **What:** Several contest rules change together:
+  - **One state rule.** A contest's phase is Draft, Upcoming, Open or Closed, decided in one shared
+    place. The console's state pill, the fan app's Contests tabs, the server's fan list and the Start
+    screen all use it. Upcoming means published but entries aren't open yet. A contest is Closed once
+    entries are closed, its close time passes, or it is finalized. A bingo contest closes when its last
+    game ends, not at the last tip-off. The console's Status filter gains Upcoming.
+  - **Contest page.** The Overview's "Contest state" card is removed. Close entries, Reopen entries and
+    Move to draft sit in the page header.
+  - **Bingo open and close times.** A bingo contest can have its own open and close times. They only
+    narrow the window its games give. Once fans join, the open time locks; the close time can still
+    move either way, never into the past or before it opens.
+  - **Trivia times.** A blank trivia time never becomes "now". At a game, blank times follow the game's
+    tip-off and expected end. On its own, both times are required. One date and time picker replaces
+    every date and time field in the console.
+  - **Publishing trivia.** A game-day trivia contest can always be published. Its game having started,
+    or its close time having passed, never blocks Publish; Review says what publishing late will do.
+  - **Enough questions.** Each question tag must hold (slots drawing from it) × (runs per fan)
+    questions. Save and Publish check it. A trivia contest that can't run is hidden from fans. The
+    question bank refuses an edit that would leave an open or upcoming contest short.
+  - **Trivia lock.** Once a fan starts a run, the questions, timing, scoring, runs per fan, game,
+    schedule mode, open time and contest type lock. The close time stays free within its rule. Prize
+    bands can be added or widened, never removed, narrowed or downgraded. Name, description, banner,
+    Presented by sponsor and reveal mode stay free.
+  - **Trivia speaks trivia.** Trivia screens and emails speak places, not bingos. Prize emails gain a
+    `{rank}` placeholder.
+- **Why:** Arthur's rulings: the console, the fan app and the server disagreed about whether a contest
+  was upcoming, open or closed; typed trivia times were lost on save; and a trivia contest could go live
+  without enough questions for every run.
+- **Date:** 2026-10-01.
+- **Status:** In effect. Specs: `admin-contests.spec.md`, `contest-safety.spec.md`, `trivia-game-type.spec.md`.

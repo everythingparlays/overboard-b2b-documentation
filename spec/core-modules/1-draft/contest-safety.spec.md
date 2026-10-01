@@ -4,7 +4,7 @@
 
 **Depends on:** [`admin-contests.spec.md`](admin-contests.spec.md) (the settings PATCH), [`admin-games-and-prizes.spec.md`](admin-games-and-prizes.spec.md) (the games PUT, the tiers PUT, the `expectedUpdatedAt` precondition), [`prize-delivery.spec.md`](prize-delivery.spec.md) (the worker's claim and attempts).
 
-**Status:** Draft. Written 2026-09-24 (wave G2); revised 2026-09-27 — see "Revision 2026-09-27 — the prize library" note under "What stays editable, and what locks" and under "The prize snapshot".
+**Status:** Draft. Written 2026-09-24 (wave G2); revised 2026-09-27 — see "Revision 2026-09-27 — the prize library" note under "What stays editable, and what locks" and under "The prize snapshot". Revised 2026-10-01 (Arthur): a bingo contest's own open and close times join the table, trivia gets its own lock table ("Trivia: what locks"), and the close-time rule replaces "extend only".
 
 ## Overview
 
@@ -19,7 +19,7 @@ The ruling rejects versioning (the survey-style "mint a new version" model) in f
 
 ### When a contest locks
 
-**A contest locks when its first board is created.** Joining a contest *is* creating a board on it (`POST /b2b/board/generate`), so "the first fan joins" and "the first board exists" are the same moment.
+**A contest locks when its first board is created.** Joining a contest *is* creating a board on it (`POST /b2b/board/generate`), so "the first fan joins" and "the first board exists" are the same moment. A trivia contest has no board: it locks when its first run is started.
 
 - The board endpoint stamps `lockedAt` on the contest, once, right before it inserts the first board. The stamp is a conditional write (`lockedAt` absent) and does not advance the contest's `updatedAt`: a fan joining is not an operator edit, and it must not make an admin's unrelated pending edit (a rename) read as stale.
 - A contest is locked when it has `lockedAt` **or** any board. The second half covers contests whose boards predate the stamp; the migration below backfills their `lockedAt` from their earliest board.
@@ -33,6 +33,8 @@ The ruling rejects versioning (the survey-style "mint a new version" model) in f
 | The banner, and the contest's progress marker (cosmetic; per game before 2026-09-30) | Editable | **Editable** |
 | Games: adding one | Editable | **Editable** |
 | Games: removing one | Editable | **Locked** |
+| Its own open time (`opensAt`, 2026-10-01) | Editable | **Locked** |
+| Its own close time (`closesAt`, 2026-10-01) | Editable | **Editable** in either direction, never before the open time or in the past |
 | Contest type | Set at creation | **Locked** (not editable anywhere today; any future editor must honour this) |
 | Board rules (prop pool curation, when it exists) | Editable | **Locked** |
 | Prize tiers: adding one | Editable | **Editable** |
@@ -54,6 +56,23 @@ Why tier wording stays open: a correction ("Signed jesrey") cannot be told apart
 
 Why the delivery method stays open: it is *how* a prize reaches the fan, not *what* the prize is, and it is the operator's fix when a method stops working (see "Delivering from the snapshot").
 
+The table above is bingo's. A trivia contest has its own (below).
+
+### Trivia: what locks
+
+Arthur's table (2026-10-01), once a fan has started a run:
+
+| Setting | After the first run |
+|---|---|
+| Question slots (count and tags), seconds per question, base points, speed bonus, network allowance, runs per fan, the game and schedule mode, the open time, the contest type | **Locked** |
+| Close time | **Free** in either direction, never before the open time or in the past |
+| Prize bands | Add a band, widen one, or swap a band's prize for one worth at least as much. Never remove, narrow or downgrade a band, and never swap its prize for a different, unrelated prize. |
+| Name, description, banner, Presented by sponsor, reveal mode | **Free** |
+
+- **Bands are matched by the ranks they cover, not by their position in the list.**
+- **A band's prize swap needs both values.** Both prizes must state a value, and the new one must be worth at least as much. The console offers no prize value (Arthur's ruling, 2026-09-28), so in practice a locked band keeps its prize.
+- **The close time rule replaces "extend only".** Before 2026-10-01 a locked trivia contest's close time could only move later. It now moves either way, within the rule.
+
 ### Enforcement
 
 The lock is enforced by the server on every write that could break it, with a plain refusal:
@@ -71,14 +90,21 @@ The lock is enforced by the server on every write that could break it, with a pl
 | Changing bingos to win | "Fans have joined this contest, so the number of bingos a prize takes can't change." |
 | Lowering or clearing a stated value | "Fans have joined this contest, so a prize's value can't be lowered." |
 | Changing the contest type | "Fans have joined this contest, so its contest type can't change." |
+| Changing a bingo contest's open time (kind `opensAt`) | "Fans have joined this contest, so its open time can't change. You can still move the close time." |
+| A close time before the open time, or in the past (kind `closesAt`; bingo and trivia) | "The close time can't be before the contest opens, or in the past." |
+| Changing a locked trivia setting (kind `trivia_rules`) | "Fans have started playing, so the questions, timing, scoring, runs per fan, game and open time are locked. You can still move the close time, and add or widen prize bands." |
+| Removing or narrowing a prize band (kind `bandRemoved`) | "Fans have started playing, so a prize band can't be removed or narrowed. You can still widen a band or add one." |
+| Swapping a band's prize for a different or cheaper one (kind `bandPrize`) | "Fans have started playing, so a band's prize can't be swapped for a different one, only for a prize worth at least as much." |
 
-What is locked is decided by pure functions in shared (`interfaces/b2b/ContestLock.ts`: `contestIsLocked`, `tierLockViolations`, `gameLockViolations`), used by both the server and the console, so the two can never disagree about which change is allowed.
+What is locked is decided by pure functions in shared (`interfaces/b2b/ContestLock.ts`: `contestIsLocked`, `tierLockViolations`, `gameLockViolations`, and for times `closeTimeViolations`), used by both the server and the console, so the two can never disagree about which change is allowed.
 
 **Racing the first fan.** The pre-check reads the lock; the write then carries `lockedAt: { $exists: false }` in its filter whenever the change is one the lock would refuse. A fan whose join stamps the lock between the two makes the write match nothing, and the server re-reads and answers `contest_locked` rather than `stale_contest`. For the tiers PUT, the contest claim is the serialisation point: a claim that wins before the stamp is an edit made before the fan joined.
 
 ### The console
 
 The console shows a locked contest's locked controls **read-only, with one plain line** saying why, taken from `CONTEST_LOCK_COPY`. It never shows a disabled control that looks like it might wake up (D-059's principle): a locked game shows its "on" state as text with the explanation; a locked tier's bingo count reads as a value, and the tier's remove action is replaced by the explanation. Controls that stay editable look exactly as before.
+
+For trivia (2026-10-01): the Trivia tab shows the locked settings as values with the lock glyph and the `trivia_rules` sentence up front, not only when Save is refused; only Closes stays a field. The Prizes tab shows a locked band's prize as a value with the lock glyph and no Remove, and refuses narrowing a band before saving. The lock glyph's tooltip is one sentence for both types: "Locked since the first fan joined: what fans play and win under can't change. Open the contest to see what still can."
 
 The contest wire shapes carry the state: `locked: boolean` and `lockedAt?: string` on the Games & Contests contest and on the Prizes contest group. Both are optional on the wire so an older server's response still parses.
 
@@ -145,8 +171,8 @@ Every step is idempotent: a second run finds nothing to do and says so. The seed
 
 ## Rules
 
-1. **A contest locks at its first board and never unlocks.**
-2. **The lock list is the table above**, decided in shared, enforced by the server, mirrored read-only in the console.
+1. **A contest locks at its first board (trivia: its first run) and never unlocks.**
+2. **The lock list is the tables above** (bingo's, and trivia's), decided in shared, enforced by the server, mirrored read-only in the console.
 3. **Every paid redemption carries the tier it was promised**; delivery reads content only from it.
 4. **One board per fan per contest is a database guarantee**, not just a handler check.
 5. **Finalized contests refuse every edit**, prize tiers included.

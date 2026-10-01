@@ -8,7 +8,7 @@ the `/games` screen this extends. [`prize-delivery.spec.md`](../../core-modules/
 the redemption and fulfilment pipeline this reuses at the dispatch stage. [`admin-surface.spec.md`](../../core-modules/1-draft/admin-surface.spec.md) —
 scope resolution, `org:admin`/`org:member`, "No re-authentication".
 
-**Status:** Draft (`1-draft`). Written 2026-09-26.
+**Status:** Draft (`1-draft`). Written 2026-09-26. Revised 2026-10-01 (Arthur's rulings): the schedule's times round-trip and a blank one never becomes "now" (§3); a tag must hold enough questions for every run, checked on save, on publish and in the question bank (§2, §3); a game-day contest is always publishable (§3); Arthur's lock table (§3); prize emails gain `{rank}` (§6); trivia screens drop bingo's leftovers (§7).
 
 ## Overview
 
@@ -161,6 +161,14 @@ Reads have no such gate — an `org:member` sees the whole bank and its tags.
   non-blocking pattern as `contest_create`.
 - `GET /admin/trivia/tags` / `POST /admin/trivia/tags` / `DELETE /admin/trivia/tags/:id` — write-gated; delete
   refused (409) while any question still carries the tag.
+- **Open and upcoming contests keep their questions** (2026-10-01). An open or upcoming trivia contest is one
+  that is published, not closed or finalized, and whose close time is ahead. A write that would leave such a
+  contest short of questions for every run a fan can play (§3, "Enough questions") is refused with 409
+  `TRIVIA.CONTEST_NEEDS_QUESTIONS`, naming the contests:
+  - deleting a question, or taking a tag off a question: 'This would leave "Trivia Test" without enough "nfl"
+    questions for every run a fan can play. Add questions to that tag first, or change the contest.'
+  - deleting a tag such a contest draws from: '"Rookie Night" draws questions from this tag, so it can't be
+    deleted while that contest is open or upcoming.'
 - `GET /admin/trivia/starter-questions` — Overboard's bank, read-only, any tenant.
 - `POST /admin/trivia/starter-questions/copy` — body `{ questionIds: string[] }` (or `all: true`); inserts
   copies into the tenant's own bank, `source: "starter"`; audited as `trivia_starter_copy`.
@@ -171,15 +179,30 @@ Reads have no such gate — an `org:member` sees the whole bank and its tags.
 
 `CreateContestDrawer.tsx` gains the field it doesn't have today for any game type: a **Game type** picker
 (*Bingo* / *Trivia*, defaulting to Bingo so existing muscle memory doesn't change), reading its options and
-labels from `GAME_TYPE_COPY`. Once a fan has joined, this is locked exactly as `ContestLock`'s `"gameType"`
+labels from `GAME_TYPE_COPY`. Once a fan has joined, this is locked exactly as `ContestLock`'s `"contestType"`
 kind already provides for — the drawer renders it as a value, not a control, on a locked contest.
 
 Choosing Trivia replaces the bingo "Games" picker with a **Runs** choice — *At a game* / *On its own* — and
-an **Opens** / **Closes** pair (`TRV-29`): at a game, the picker takes exactly one game and the two times
-default to its tip-off and its end, either editable; on its own, both times are required and the fan card
-shows the contest by name instead of a matchup. On the contest this is `betEventId?` plus `opensAt` and
-`closesAt` — the window is what the run endpoints check, the game is only where the times came from and what
-the card shows. Then the trivia section proper:
+an **Opens** / **Closes** pair (`TRV-29`), each the console's date and time picker (`DateTimeField`;
+[`admin-contests.spec.md`](../../core-modules/1-draft/admin-contests.spec.md), "The date and time picker"), on
+the builder's Trivia step and the Trivia tab alike. On the contest this is `betEventId?` plus `opensAt` and
+`closesAt` (in `trivia`, never the contest's top-level times) — the window is what the run endpoints check,
+the game is only where the times came from and what the card shows.
+
+- **At a game** (game-day mode): the picker takes exactly one game. A blank Opens is the game's tip-off and
+  a blank Closes its expected end (tip-off plus the sport's usual length; `triviaGameWindow` in shared
+  `B2BTrivia.ts`); either can be set. The console computes them, and the server fills them when they're
+  absent. A game-day config whose stored times equal its game's window reads back as blank, so changing the
+  game moves the times with it.
+- **On its own** (standalone): both times are required, and the fan card shows the contest by name instead of
+  a matchup. A blank time blocks Continue and Save with "Set when it opens and closes." under the times, and
+  the server refuses with the same sentence. `triviaConfigInputSchema` takes `opensAt` and `closesAt` as
+  optional for game mode only.
+- **A blank time never becomes "now"** (fixed 2026-10-01). The native `datetime-local` input reported an
+  empty value until every part was filled, and a blank time was then saved as now and now plus one hour, so
+  typed times were lost. The date and time picker replaced it, and neither side turns a blank time into now.
+
+Then the trivia section proper:
 
 - **Slots** — one row per question in a run, each a tag picker (`TRV-08`); "Add slot" while under the
   configured run length.
@@ -196,9 +219,54 @@ the card shows. Then the trivia section proper:
   positions, and a prize from the library). The same field sits in the contest drawer afterwards. Nothing
   about the prize itself is entered on a contest; that is the library's, on Prizes.
 
-The contest detail drawer shows the run's settings as values once a fan has joined — the game a fan played
-under is the game they're ranked on, so slots, run count, timing and scoring lock with the first run, the same
-lock the bingo drawer already applies to its own rules — and as values for `org:member` always.
+**The lock** (Arthur's table, 2026-10-01; [`contest-safety.spec.md`](../../core-modules/1-draft/contest-safety.spec.md),
+"Trivia: what locks"). Once a fan has started a run, what they play under locks — the game a fan played under
+is the game they're ranked on:
+
+| | Once a fan has started a run |
+|---|---|
+| **Locked** | Question slots (count and tags), seconds per question, base points, speed bonus, network allowance, runs per fan, the game and schedule mode, the open time, the contest type |
+| **Close time** | Free in either direction, never before the open time or in the past (lock kind `closesAt`: "The close time can't be before the contest opens, or in the past."). This replaces the old "extend only" rule. |
+| **Prize bands** | Add a band, widen one, or swap a band's prize for one worth at least as much (both prizes must state a value; the console offers no value, so in practice a locked band keeps its prize). Never remove, narrow or downgrade a band, and never swap its prize for a different, unrelated prize (kinds `bandRemoved`, `bandPrize`; bands matched by the ranks they cover, not their position). |
+| **Free** | Name, description, banner, Presented by sponsor, reveal mode |
+
+The rule's sentence (kind `trivia_rules`): "Fans have started playing, so the questions, timing, scoring, runs per
+fan, game and open time are locked. You can still move the close time, and add or widen prize bands." The
+Trivia tab shows the locked settings as values with the lock glyph and this sentence up front, not on Save;
+only Closes stays a field. The Prizes tab shows a locked band's prize as a value with the lock glyph and no
+Remove, and refuses narrowing before saving. An `org:member` sees every setting as a value always.
+
+**Enough questions** (2026-10-01). A run draws a different question for each slot, and a fan never sees a
+question twice across runs (`TRV-42`), so each tag must hold (number of slots drawing from it) × (runs per fan)
+questions (`triviaShortfalls` in shared `B2BTrivia.ts`). The earlier save-time check compared each tag to the
+runs per fan alone, which was wrong for any tag more than one slot draws from.
+
+- **On save** the config is refused with `TRIVIA.TAG_TOO_SMALL`, which carries `slots` and names the first
+  slot: 'Question 1 uses the tag "nfl", which has 5 questions. 2 questions in a run draw from it and each fan
+  gets 3 runs, so it needs 6. Add 1 more question to that tag or lower the runs per fan.'
+- **On publish** the check `trivia_short_questions` blocks it: "Some question tags don't hold enough questions
+  for every run a fan can play. Add questions in the Question bank, or lower the runs per fan."
+- **The contest read** carries `questionShortfalls` (`{ tag, slotIndex, slots, have, need }[]`). A contest
+  that can't run shows a warning banner under the contest page header: "Fans can't play this contest. The
+  "nfl" tag has 4 questions and needs 6 (2 questions a run). It's hidden from fans until every run has enough
+  questions." with "Open Question bank" (on a draft: "This contest can't run yet. … Add questions before you
+  publish, or lower the runs per fan.").
+- **Fans** never see a trivia contest that can't run, on the Contests page or among the Start screen's sponsors
+  and next game, until it can.
+- **The question bank** refuses an edit that would make an open or upcoming contest short (§2).
+
+**Publishing** (2026-10-01). A trivia contest's publish checks are `trivia_incomplete`, `trivia_short_questions`
+and `no_prize_bands` ([`admin-contests.spec.md`](../../core-modules/1-draft/admin-contests.spec.md), "Publish
+checks"). Neither its game having started nor its own close time having passed blocks Publish: a draft's times
+don't matter until it is published, and `all_started` doesn't apply to trivia. If its open time has passed it
+is live at once; if its close time has passed it closes at once. Review says so beside Publish without
+blocking it (shared `contestPublishNotes`): "Its close time has passed, so it closes as soon as it's published.
+Change the close time first?" with "Change the close time", or, when only the open time has passed, "Its open
+time has passed, so fans can play as soon as it's published."
+
+**Closed by its time.** A trivia contest past `trivia.closesAt` reads Closed everywhere (the console's pill, the
+fan app's Past tab), though nobody pressed Close entries ([`admin-contests.spec.md`](../../core-modules/1-draft/admin-contests.spec.md),
+"State and status").
 
 **As built (mock, 2026-09-26):** the game-type picker and the trivia section landed in `CreateContestDrawer`
 under a dev-only flag (`lib/triviaMock.ts`, `TRIVIA_MOCK_ENABLED`); the trivia contest's card and drawer are
@@ -281,6 +349,12 @@ close is), and because this is the natural place to hang `TRV-45`'s pre-fulfilme
   with a line pointing at Prizes and the Delivery queue. It matches the reverification and irreversibility
   treatment `admin-surface.spec.md` already gives Finalize. A view-only member sees each of those states as a
   sentence, never a disabled button (the console's honesty-by-omission rule).
+- **A trivia win speaks places, not bingos** (2026-10-01). Deliveries read "Won at 3rd place", never "0 bingos".
+  The prize email gains the placeholder `{rank}` ("3rd place"). For a trivia winner `{bingos}` also fills with
+  the place, and for a bingo winner `{rank}` fills with the bingos, so no trivia winner reads "0 bingos". The
+  staff email-wording editor lists the placeholders per contest type, with a "Bingo wins | Trivia wins" switch:
+  bingo's list has `{bingos}`, trivia's has `{rank}` and not `{bingos}` (`PRIZE_EMAIL_WORDING_TOKENS`, shared
+  `PrizeEmail.ts`).
 - `TRV-45`'s "which bands are reviewed" stays the PRD's open decision (§16 there) — this endpoint sends every
   banded position in one action either way; a review step ahead of the click, if bands end up needing one, is
   console-side UI on top of this endpoint, not a change to it.
@@ -306,7 +380,8 @@ its drawers in the same file for now, following the `pages/<Feature>.tsx` shape 
   question's drawer says it's the tenant's own now.
 - **Copy from starter bank** opens a checkbox list with select-all; the button counts what's picked.
 - **Manage tags**: add (lowercase, hyphenated), and remove — disabled with its reason while any question
-  carries the tag.
+  carries the tag. Deleting a question, taking a tag off one, or deleting a tag that would leave an open or
+  upcoming contest short of questions is refused with the contest named (§2).
 - `useCanWrite()` gates every write affordance and the head shows the same "Only organization admins can
   change questions" note the other screens use; an `org:member` sees the identical table and cards with no
   buttons (`TRV-54`).
@@ -317,8 +392,16 @@ its drawers in the same file for now, following the `pages/<Feature>.tsx` shape 
 - Every contest card's header gains a game-type badge (*Bingo* / *Trivia*) beside the status badge it already
   has — on the bingo cards too, since a list of two kinds has to say which is which. The page's lede changes
   from "contests" to "bingo and trivia contests".
-- A trivia contest's card has no games table to toggle: it runs at one game and closes with it, so the card
-  says that in one line where the bingo card draws its rows.
+- A trivia contest's card has no games table to toggle. Its middle stat is its window (2026-10-01): "Opens"
+  while Upcoming, else "Runs", with the date and the matchup, or "On its own" with no game. Its "Prizes" stat
+  counts bands. In the list view its Next game cell says "Closes Thu · 9:00 PM" or "Closed Oct 1" when it
+  has no game ([`admin-contests.spec.md`](../../core-modules/1-draft/admin-contests.spec.md)).
+- **Trivia speaks trivia** (2026-10-01). The contest page's Overview shows "Finished a run" (fans with at least
+  one completed run, `kpis.finishedFans`, with "N% of players") in place of a "Finished" tile that always
+  read 0. Delete says what a trivia contest loses: "Deletes the contest, its fans' runs and its sponsor placements. Its prize bands go
+  with it; prizes already sent stay on record." (dialog: "N fans have played this contest. Their runs, its
+  prize bands and its sponsor placements are deleted. …"). The Sponsors tab has no "Provided by" prize-tier
+  card. Staff and overview counts of prize tiers count bands for a trivia contest.
 
 ### Admin: Prizes
 
@@ -352,6 +435,10 @@ where bingo shows tip-off, the top band's prize, and for an entered fan their be
 action is **Play Now** / **Play Again** while runs remain, **View Standings** otherwise: `/trivia/:contestId`
 and `/trivia/:contestId/standings`. Once the shared discriminator widens this folds into `ContestCard` as a
 branch on `gameType`; until then it is its own component for the same reason as the admin card.
+
+A trivia contest's tab follows the one state rule (2026-10-01; `contestPhase`, [`admin-contests.spec.md`](../../core-modules/1-draft/admin-contests.spec.md),
+"State and status"): Live & Upcoming while upcoming or open, Past once closed, including once its close time
+has passed. A contest that can't run (a tag too small, §3) is not listed at all until it can.
 
 ### Fan: trivia play (new)
 
@@ -406,8 +493,11 @@ contest route.
    after, even by a later data correction.
 8. **Nothing is sent to a fan until an admin clicks Send prizes**, and that action is confirmed and
    idempotent.
-9. **Game type is locked once a fan joins**, via the existing `ContestLock` `"gameType"` kind — no new lock
-   mechanism.
+9. **What fans play and win under locks once a fan starts a run**, by Arthur's table (§3, "The lock"), through
+   the existing `ContestLock` mechanism: the contest type (kind `contestType`), the trivia settings
+   (`trivia_rules`), the close-time rule (`closesAt`) and the bands (`bandRemoved`, `bandPrize`).
+10. **A trivia contest runs only when every tag holds (slots drawing from it) × (runs per fan) questions.**
+    Checked on save, on publish and on question bank edits; a contest that can't run is hidden from fans.
 
 ## Known gaps (recorded, not blocking a draft)
 
