@@ -1,5 +1,7 @@
 # Side Menu: Log Out, Terms of Service, Privacy Policy
 
+**Superseded (2026-10-01):** this ticket's menu (hamburger → Log Out, Terms, Privacy, wired into `DashboardPage` only) is the POC shape. The side menu actually built, and its redesign — header, a profile card opening Clerk's account modal, Play (Contests, How to play) and Legal (Terms of Service, Rules, Privacy Policy, then tenant documents), a footer with Sign out and "Powered by Overboard" — is specified in [`../../webapp/fan-app-v2.spec.md`](../../webapp/fan-app-v2.spec.md) ("Side menu"). Kept below for the record; don't build against it.
+
 **Status:** Implemented 2026-09, merged 2026-09-14 ([`overboard-b2b-template#2`](https://github.com/everythingparlays/overboard-b2b-template/pull/2))
 **Assignee:** @arthurwin
 **Type:** Feature (frontend, UI) · **Size:** S (good first ticket)

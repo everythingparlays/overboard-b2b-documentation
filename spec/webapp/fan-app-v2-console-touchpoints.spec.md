@@ -120,7 +120,7 @@ The console shows fan-app screens in four framed places (contest page and builde
 
 | Words | Keys | Edited in | Stored / served | Previewed in |
 |---|---|---|---|---|
-| Gate copy (exists) | `joinHeading`, `joinSubtitle`, `joinCta`, `returningHeading`, `returningSubtitle`, `consentsHeading`, `footerNote` (≤300), `displayNameLabel` (≤80), `displayNamePlaceholder` (≤120) | Fields & Opt-ins › Screen text (`lib/fieldsDraft.ts`, `pages/FieldsOptins.tsx`) | `organization.gateCopy`, on `GET /b2b/membership` | Fields' own `WalkableGate` (W5-D73); the Brand frame's Join tab shows the published copy |
+| Gate copy (exists) | `joinHeading`, `joinSubtitle`, `joinCta`, `returningHeading`, `returningSubtitle`, `consentsHeading`, `footerNote` (≤300, no platform default since 2026-10-01 — blank shows no line), `displayNameLabel` (≤80), `displayNamePlaceholder` (≤120) | Fields & Opt-ins › Screen text (`lib/fieldsDraft.ts`, `pages/FieldsOptins.tsx`) | `organization.gateCopy`, on `GET /b2b/membership` | Fields' own `WalkableGate` (W5-D73); the Brand frame's Join tab shows the published copy |
 | Words (**Phase B: to build**, W5-D33) | `startTagline` (60), `startCta` (24), `noContests` (90), `pausedHeading` (40), `pausedBody` (160); `{team}` only | Brand › Words | `branding.text`, on `GET /b2b/org/:subdomain` | The Brand frame (Start, Contest list); paused words have no preview screen |
 
 Brand's Words card links to Fields & Opt-ins › Screen text rather than duplicating gate copy. The sponsor's `startPageTagline` (≤80) remains the only other tenant-written fan text besides contest names, descriptions and prize content.
@@ -144,7 +144,7 @@ Brand's Words card links to Fields & Opt-ins › Screen text rather than duplica
 | Provided by (`PrizePage.tsx:896-933`) | "Provided by {sponsor}" in the popup and on the detail page's prizes | None |
 | Claim button text and link (`PrizePage.tsx:870-892`, "Fans tap it in the prize popup and the email.") | Kept (W5-D54): the popup and the email | None |
 | Prize code (`PrizePage.tsx:1022-1031`, "…It appears in the email as Your code, never in the popup.") | The winner's popup shows "Your code" with Copy (W5-D45), and the email | Help changes (`TOUCH-15`) |
-| Opt-ins and documents | Documents over the gate, in the side menu (Terms, Privacy, each tenant document, as built) and on Profile with the agreed version; optional opt-ins can be withdrawn on Profile | None |
+| Opt-ins and documents | Documents over the gate, in the side menu (Terms, Rules, Privacy, each tenant document, as built; Rules added 2026-10-01) and on Profile with the agreed version; optional opt-ins can be withdrawn on Profile | None |
 | Display name (reserved field; meta "Short text · always asked — it's the name on the fan's board", `pages/FieldsOptins.tsx:552`) | Shown on standings, the side menu and Profile; the overhaul's board header shows the contest name | Meta becomes "Short text · always asked — it's the name other fans see on standings" |
 | Contest banner (`BannerField`, `ContestBanner`) | The card's image and the detail band's background | None (consumed) |
 | Per-game progress marker (Games tab marker column) | The Track marker's second step (W5-D74) | None (consumed) |

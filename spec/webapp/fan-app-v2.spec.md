@@ -6,7 +6,7 @@
 
 **Supersedes:** S2's draft of this spec (docs branch `arthur-s2-fanapp-spec`, PR #23). For the Wave 5 branch only, [`styling.spec.md`](styling.spec.md) for the visual layer of every screen here.
 
-**Status:** Draft, 2026-09-28, Wave 5 Phase A; **revised 2026-09-29 for the console redesign** (W5-D68–D75). Built in Phase B on the long-lived `arthur-fanapp-overhaul` branches, which are never merged to main (W5-D29). Nothing here changes main's fan app.
+**Status:** Draft, 2026-09-28, Wave 5 Phase A; **revised 2026-09-29 for the console redesign** (W5-D68–D75); **revised 2026-10-01 (Nick)** for the side menu redesign — a profile card opening Clerk's account modal, a Play/Legal grouping, the new `/how-to-play` screen, and Rules joining Terms and Privacy as a third platform document with its own `/rules` route (sections "Side menu" and "Terms, Rules, Privacy and tenant documents"). Built in Phase B on the long-lived `arthur-fanapp-overhaul` branches, which are never merged to main (W5-D29). Nothing here changes main's fan app.
 
 ### Revised 2026-09-29: the shell and screens on the redesign
 
@@ -73,7 +73,8 @@ Today's fan app (the redesign, `9c1af32`) is a Start screen (the tenant logo, "P
 | `/contest/:contestId/standings` | Standings and results | Member | no | [`fan-contest-flow.spec.md`](fan-contest-flow.spec.md) |
 | `/boards` | Your boards | Member | no | here |
 | `/profile` | Profile | Member | no | here |
-| `/terms`, `/privacy` | Overboard's Terms of Service and Privacy Policy | Anyone | yes (`LegalPage`) | here |
+| `/how-to-play` | How to play — bingo and trivia explained in plain, non-betting language | Member | no (2026-10-01, side menu redesign) | here |
+| `/terms`, `/rules`, `/privacy` | Overboard's Terms of Service, Rules and Privacy Policy | Anyone | `/terms`, `/privacy` yes (`LegalPage`); `/rules` no (2026-10-01, third platform document) | here |
 | `/document/:optInId/:linkId` | A tenant opt-in document | Anyone | yes (redesign: `TenantDocumentPage`, `DOCUMENT_PATH` in `pages/legal/legalPaths.ts`) | here |
 | `/dashboard` | Redirects (`replace`) to `/boards` | — | yes (orphaned "My Boards") | here |
 | `/preview` | The console's preview frame | Anyone; no session, no API | yes (Wave 4) | [`fan-preview-mode.spec.md`](fan-preview-mode.spec.md) |
@@ -81,7 +82,7 @@ Today's fan app (the redesign, `9c1af32`) is a Start screen (the tenant logo, "P
 
 - **`FAN-02` (revised) — Signed-in fans land on `/contests`.** There is no home screen (W5-D01). This is today's behaviour: every auth page and `/` already redirect a signed-in fan to `/contests`.
 - **`FAN-03` (revised) — `/test-sign-in` and `SignInTest.tsx` are removed**; `/dashboard` redirects to `/boards`.
-- **`FAN-04` (revised) — Terms, Privacy and tenant documents sit outside the membership guard**; they render signed out, signed in, member or not. While a tenant is paused, the Paused screen replaces every route, these included (today's behaviour: `TenantProvider` renders `SuspendedScreen` in place of the app).
+- **`FAN-04` (revised) — Terms, Rules, Privacy and tenant documents sit outside the membership guard**; they render signed out, signed in, member or not. While a tenant is paused, the Paused screen replaces every route, these included (today's behaviour: `TenantProvider` renders `SuspendedScreen` in place of the app). `/how-to-play` is signed-in only, like Profile — it explains the games to a fan already playing, not a prospective one (2026-10-01).
 
 ### Deep links
 
@@ -104,7 +105,8 @@ Today's fan app (the redesign, `9c1af32`) is a Start screen (the tenant logo, "P
 | `/board/:id` | Back | `/boards` |
 | `/board/:id/edit` | Back | `/board/:id` |
 | `/contest/:id/standings` | Back | `/contest/:id` |
-| `/terms`, `/privacy`, `/document/…` | Back | `/contests` signed in, `/` signed out |
+| `/terms`, `/rules`, `/privacy`, `/document/…` | Back | `/contests` signed in, `/` signed out |
+| `/how-to-play` | Back | `/contests` |
 
 **`FAN-07` — Sheets are history entries.** Opening the side menu or any bottom sheet pushes a history state; the browser's or phone's back closes it without leaving the screen.
 
@@ -143,7 +145,8 @@ Every signed-in screen renders inside `KitShell` ([`fan-decor-system.spec.md`](.
 | Live board, Standings | yes (back) | Tab bar |
 | Contest detail | yes (back; transparent over the band) | Its own sticky CTA bar ([`fan-contest-flow.spec.md`](fan-contest-flow.spec.md) `FLOW-01`) |
 | Builder (pick your players, pick lines yourself, edit your board) | yes (back) | Its own sticky action bar (Generate; or Fill empty squares, Rearrange, Enter / Save) |
-| Terms, Privacy, tenant documents | yes (back) | none |
+| Terms, Rules, Privacy, tenant documents | yes (back) | none |
+| How to play | yes (back) | none |
 | Start, Sign in, Sign up, Forgot password, join gate, Paused | none | none |
 
 ### Hide on scroll
@@ -158,7 +161,27 @@ A task flow's sticky CTA or action bar follows the same rules as the tab bar it 
 
 ### Side menu
 
-**`FAN-10` (revised) — The side menu** (W5-D05): opened by the header's menu button; a right-hand sheet, 288px (at most 80vw), sliding in over 260ms with a scrim; instant under reduced motion.
+**Revised 2026-10-01 (Nick): the side menu's shape changes.** It gains a profile card that opens Clerk's own account modal, a "How to play" row, and Rules alongside Terms and Privacy; the groups are renamed Play and Legal. The table and bullets immediately below are current; the original `FAN-10` table and bullets (W5-D05) are kept underneath, struck through, for the record.
+
+**`FAN-10` (revised 2026-10-01) — The side menu:** opened by the header's menu button; a right-hand sheet, 288px (at most 80vw), sliding in over 260ms with a scrim; instant under reduced motion.
+
+| Group | Item | Goes to / does | Source |
+|---|---|---|---|
+| Header | Tenant logo (if any) and tenant name | — | `organization` |
+| Profile card | The signed-in fan's photo or initials, name and email; tapping it opens Clerk's account modal | Clerk's `<UserProfile>` modal | The Clerk session |
+| Play | Contests | `/contests` | — |
+| Play | How to play | `/how-to-play` | — |
+| Legal | Terms of Service · Rules · Privacy Policy | `/terms`, `/rules`, `/privacy` | Always listed, published or not |
+| Legal | One row per tenant opt-in document, titled with the document's `title` | `/document/:optInId/:linkId` (`documentPath(doc)`) | `tenant.documents` (`TenantContext`), from `organization.documents` on the org read: exists on the redesign |
+| Footer | Sign out ("Signing out…" while pending) | Signs out, lands on `/` | Clerk |
+| Footer | "Powered by Overboard" wordmark, light or dark picked by contrast | — | Same rule as the Start screen (`admin-branding.spec.md`) |
+
+- **Your boards and Profile move out of the menu's navigation group.** Your boards and Profile stay reachable from the tab bar (`FAN-65`); the signed-in fan's identity now lives in the profile card instead, which is why the menu's own Navigation group is retired in favor of Play (Contests, How to play). `/dashboard` stays a route (`FAN-03`) but is not in the menu, same as before.
+- **How to play (`/how-to-play`) is new** (2026-10-01): a signed-in page explaining bingo and trivia in plain, non-betting language. No server work; its copy is platform text, not tenant-editable.
+- **No opt-in documents:** the Legal group shows Terms, Rules and Privacy only.
+- The current route's item carries `aria-current="page"` and a 3px Main-ink bar at its left edge. The sheet traps focus and returns it to the menu button.
+
+~~**`FAN-10` (W5-D05, superseded 2026-10-01) — The side menu:**~~
 
 | Group | Item | Goes to | Source |
 |---|---|---|---|
@@ -384,11 +407,11 @@ W5-D06. The fan's boards in this tenant.
 | Paused | The Paused screen |
 | Offline | The offline banner; saves fail with the network string |
 
-### Terms, Privacy and tenant documents
+### Terms, Rules, Privacy and tenant documents
 
-**`FAN-42` (revised) — Terms and Privacy are always in the side menu** (walkthrough ruling). `/terms` and `/privacy` read the platform documents' current version (`GET /b2b/org/:subdomain/consent-document/overboard-terms/terms` and `/privacy`, exists) and render the shared `ConsentDocumentView`, the component the gate overlay uses.
+**`FAN-42` (revised) — Terms, Rules and Privacy are always in the side menu** (walkthrough ruling; Rules added 2026-10-01). `/terms`, `/rules` and `/privacy` read the platform documents' current version (`GET /b2b/org/:subdomain/consent-document/overboard-terms/{terms,rules,privacy}`, `/rules` new 2026-10-01) and render the shared `ConsentDocumentView`, the component the gate overlay uses.
 
-**`FAN-43` (revised) — No placeholder legal text, ever** (W5-D49). When a platform document isn't published (404), the page shows its heading ("Terms of Service" or "Privacy Policy") and one line: **"Overboard hasn't published this yet."** (Terms and Privacy are Overboard's documents, shared by every tenant.) A tenant opt-in document that isn't published shows its title and **"{Tenant} hasn't published this yet."**
+**`FAN-43` (revised) — No placeholder legal text, ever** (W5-D49). When a platform document isn't published (404), the page shows its heading ("Terms of Service", "Rules" or "Privacy Policy") and one line: **"Overboard hasn't published this yet."** (Terms, Rules and Privacy are Overboard's documents, shared by every tenant.) A tenant opt-in document that isn't published shows its title and **"{Tenant} hasn't published this yet."**
 
 **`/document/:optInId/:linkId`** renders a tenant opt-in document the same way (current version, or `?version=N`): the redesign's `TenantDocumentPage`, restyled on the kit. It is reached from the side menu and from Profile. A 404 shows the `FAN-43` line for a tenant document.
 
@@ -500,9 +523,10 @@ Kept, revised or new: `FAN-01`–`FAN-10`, `FAN-12`, `FAN-13`, `FAN-15`–`FAN-1
 | Contest card | as Contests; `banner` (exists); `playerCount`*; live `providedBy`* | none | as Contests |
 | Your boards | `GET /b2b/board/my-boards` row projection* (contest name, status, bingos and points computed on read, cell states) | none | loading, failed, no boards, finalized, closed, props missing, paused, offline |
 | Profile | `GET /b2b/membership` (`membership.displayName`, `.profileFields`, `.consents`, `.consentHistory`, `signupFields`; `optIns`*); consent document read with `?version=` | `PATCH /b2b/membership` `profileFields` (exists), `displayName`*; `POST /b2b/consent` (exists; accepts a re-decision) | loading, failed, save failed, no fields, platform opt-in only, re-worded opt-in (gate), paused, offline |
-| Terms / Privacy | `GET /b2b/org/:subdomain/consent-document/overboard-terms/{terms,privacy}` | none | loading, not published, failed, offline |
+| Terms / Rules / Privacy | `GET /b2b/org/:subdomain/consent-document/overboard-terms/{terms,rules,privacy}` (`rules` new 2026-10-01) | none | loading, not published, failed, offline |
 | Tenant document | same read, tenant `optInId`/`linkId`; `organization.documents` (exists) | none | loading, 404, failed, offline |
-| Side menu | org (`documents`, exists); membership; Clerk email | Clerk sign-out | no tenant documents, signing out |
+| How to play | none (platform copy) | none | — |
+| Side menu | org (`documents`, exists); membership; Clerk session (photo/initials, name, email) | Clerk sign-out; opens Clerk account modal | no tenant documents, signing out |
 | Paused | org read (`suspended`, name, logo, theme, `text`*) | re-read org on focus, visibility, 60s | paused at load, mid-session, resumed, no logo |
 
 \* **Phase B: to build.**
@@ -569,7 +593,7 @@ The roll-up below adds every other spec's mock deviations.
 3. `/dashboard` redirects to `/boards`; `/test-sign-in` does not exist.
 4. The tab bar shows Contests, Your boards and Profile with icons and labels on those three screens, the live board and standings, and nowhere else; the active tab has the Main-ink icon, label and top hairline.
 5. Scrolling down more than 12px beyond 64px hides the header and tab bar over 240ms; scrolling up 12px shows them; they never hide within 64px of the top; a route change, a sheet opening or keyboard focus in a bar shows them; content does not shift; with reduced motion the change is instant.
-6. The side menu lists Contests, Your boards, Profile, Terms of Service, Privacy Policy, one row per tenant document, Sign out and "Powered by Overboard"; with no tenant documents it lists Terms and Privacy only; Terms is listed while unpublished and opens "Overboard hasn't published this yet."
+6. The side menu shows the tenant header, a profile card that opens Clerk's account modal, Play (Contests, How to play), Legal (Terms of Service, Rules, Privacy Policy, then one row per tenant document), Sign out and "Powered by Overboard"; with no tenant documents the Legal group lists Terms, Rules and Privacy only; each is listed while unpublished and opens "Overboard hasn't published this yet." (2026-10-01, side menu redesign.)
 7. The Contests tabs read "Current" and "Past"; a contest whose games are all under way and none final, and whose state is open, shows under Current with LIVE; an admin-closed contest shows under Past.
 8. A contest card's title is the contest's console name; its description shows in full; its games are a sub-line with "+N more games"; tapping anywhere but "Open my board" opens `/contest/:id`, never the builder.
 9. No card shows a player count or "Provided by" until the server sends them.
