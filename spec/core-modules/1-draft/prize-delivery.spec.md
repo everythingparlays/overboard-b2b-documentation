@@ -25,13 +25,13 @@ When a fan completes a bingo line, the board-evaluator puts a message on the pri
 3. **Resend** — failed sends go back on the queue from the Delivery queue, singly or in bulk, optionally to a corrected address, audited, and structurally unable to double-send.
 4. **At-most-once delivery** in the worker — attempt claiming, interruption detection, bounded handler time.
 5. The Prizes screen's **per-contest view**, its **bingo ladder** (which bingo counts pay what, and which pay nothing), the tier drawer's delivery-method dropdown and live email preview, and the **Prize email** settings.
-6. A **local delivery loop** for development: a file queue and a file outbox, so the whole path runs on a laptop with no SQS and no SES.
+6. A **local delivery loop** for development: a file queue and a file outbox, so the whole path runs on a laptop with no SQS and no provider.
 
 **Not in scope:**
 
 - **Coupon-code batches** (`PRIZE-05`/`PRIZE-06`'s batch half) — deliberately deferred until the first real sponsor's shape is known. The seam is specified below ("Codes").
-- **Sending-domain authentication** (SPF, DKIM, DMARC, a verified `prizes@` identity). Nick-gated; switching to it is one config value. See "Deploy dependency".
-- **Bounce and complaint processing** (SES notifications feeding back into `PrizeRedemption`). Recorded gap — today a bounce after SES accepted the message is invisible to us.
+- **Sending-domain authentication** (DKIM for `everythingparlays.com` in Google Cloud DNS, Resend's domain verification). Nick-gated. See "Deploy dependency".
+- **Bounce and complaint processing** (provider events feeding back into `PrizeRedemption`). Recorded gap — today a bounce after the provider accepted the message is invisible to the worker; Resend's dashboard shows it to a human.
 - **Deferred end-of-game delivery** (`PRIZE-02`). Unchanged: finalization still dispatches nothing.
 - **Tenant-uploaded HTML templates.** `PRIZE-04` makes templates developer work; a tenant never uploads markup.
 
@@ -213,7 +213,9 @@ A tenant configures **how the email presents itself**, not where it comes from:
 - **Reply-To** — where a fan's reply goes (a team promotions inbox).
 - **Subject** — free text with one optional `{prize}` placeholder. Any other brace token is refused at the contract.
 
-The **sending address** is platform configuration (`PRIZE_FROM_ADDRESS`), identical for every tenant, because it must be on a domain Overboard has authenticated with SES. The From header is `"{sender name}" <{PRIZE_FROM_ADDRESS}>`. When `PRIZE_FROM_ADDRESS` is unset the worker **refuses to send** and records why; it no longer falls back to a staff member's personal address.
+The **sending address** is platform configuration (`PRIZE_FROM_ADDRESS`), identical for every tenant, because it must be on a domain Overboard has authenticated with the sending provider. It is `support@everythingparlays.com` (Nick, 2026-10-01): replies land in that Google Workspace mailbox. The From header is `"{sender name}" <{PRIZE_FROM_ADDRESS}>`. When `PRIZE_FROM_ADDRESS` is unset the worker **refuses to send** and records why; it no longer falls back to a staff member's personal address.
+
+The **provider** is platform configuration too (`PRIZE_MAIL_PROVIDER`): **Resend** by default, SES behind `ses`. Resend was chosen (2026-10-01) because it has no sandbox or approval step — the domain's DKIM records in DNS are the only gate — and its dashboard shows each message's fate, which SES only offers after a configuration set, SNS and a consumer are built. Resend needs `RESEND_API_KEY`, delivered to the worker from Secrets Manager (`resendSecretName` in `lib/config/environments.ts`), never in plain environment. Every Resend send carries an idempotency key of `{redemption}-{attempt}`, so a redelivered attempt is answered with the first result rather than a second email. Error translation is the same as SES's: only a 429 or 503 is retryable; everything else is final and readable. SES stays available as a one-value switch per stage; the worker's `ses:SendEmail` grant exists only on a stage that uses it.
 
 These settings live on the organization (`prizeEmail`), are edited on the Prizes screen by OBS staff and the tenant's own `org:admin` (same grant as tier editing), and are not audited — they are reversible configuration, like branding.
 
@@ -366,7 +368,7 @@ What exists now, and where the batch plugs in later:
 
 ## Local delivery loop
 
-Neither SQS nor SES is reachable from a laptop in a useful way — the dev stacks' evaluator Lambdas do not run (no `MONGODB_SECRET_ARN`) and SES in the dev account only delivers to verified addresses. So both ends of the queue and the mail transport have a file-backed development mode, **refused at startup when `NODE_ENV=production`**:
+Neither SQS nor a mail provider is wanted from a laptop — the dev stacks' evaluator Lambdas do not run (no `MONGODB_SECRET_ARN`), and a developer's test runs should not reach real inboxes. So both ends of the queue and the mail transport have a file-backed development mode, **refused at startup when `NODE_ENV=production`**:
 
 - `PRIZE_LOCAL_QUEUE_DIR` — the API writes resend messages there as JSON files instead of calling SQS; `prize-worker`'s local runner (`npm run local`) consumes that directory in place of the queue.
 - `PRIZE_EMAIL_OUTBOX_DIR` — the worker writes each email as `.html`, `.txt` and a headers `.json` instead of calling SES.
@@ -377,8 +379,9 @@ The local worker authenticates to Mongo with the developer's AWS SSO session thr
 
 ## Deploy dependency (Nick)
 
-- **`PRIZE_FROM_ADDRESS` must be an SES-verified identity** in the account that sends. It is configured per stage in `lib/config/environments.ts` (`prizeFromAddress`). The target is `prizes@overboardsports.com` on a domain with SPF, DKIM and DMARC: once Nick completes SES domain authentication and verifies that address, it is a one-value change in `environments.ts`, nothing else. The dev account has no verified SES identity (checked 2026-09-23), so sends from personal dev stacks are refused and recorded; the local outbox ("Local delivery loop" above) is how dev sees real emails. The worker never falls back to any address: an unset value sends nothing and records why.
-- **SES out of the sandbox** is needed before mail reaches unverified fan addresses; it goes with the domain work.
+- **`everythingparlays.com` verified in Resend**: add Resend's DKIM (and optional return-path) records to the domain's Google Cloud DNS zone. The domain's DMARC uses strict alignment, so DKIM on the exact domain is what makes mail pass. `PRIZE_FROM_ADDRESS` is `support@everythingparlays.com` on every stage (`lib/config/environments.ts`, `prizeFromAddress`); the worker never falls back to any address.
+- **A Resend API key in Secrets Manager** in each sending account, under the name in `environments.ts` (`resendSecretName`: `dev/OverBoardB2B/resend`, `prod/OverBoardB2B/resend`), with the key `RESEND_API_KEY`. Created by hand, like the Clerk secret. Without it the worker runs and records a readable failure for every prize; resend after the secret exists and the service has restarted.
+- **If a stage is ever switched to `ses`**: the sender must be an SES-verified identity in that account and the account out of the SES sandbox. Neither AWS account has any SES identity (checked 2026-10-01).
 - The API task receives `PRIZE_FULFILLMENT_QUEUE_URL` and `sqs:SendMessage` on the prize-fulfillment queue (CDK change in this slice; no manual step).
 
 ---
@@ -401,11 +404,11 @@ The local worker authenticates to Mongo with the developer's AWS SSO session thr
 ## Recorded gaps
 
 - **Coupon-code batches** — deferred by design; seam above.
-- **Bounces and complaints after acceptance** — SES accepts a message and later bounces it; nothing feeds that back, so such a send reads `fulfilled`. Needs an SES configuration set + SNS → worker path, after domain authentication.
-- **Sending-domain authentication and leaving the SES sandbox** — Nick-gated; see "Deploy dependency".
+- **Bounces and complaints after acceptance** — the provider accepts a message and later bounces it; nothing feeds that back, so such a send reads `fulfilled`. Resend: a webhook endpoint for `email.bounced` / `email.complained`. SES: a configuration set + SNS → worker path.
+- **Sending-domain authentication** — Nick-gated; see "Deploy dependency".
 - ~~**Sponsor logo in the email**~~ — **closed 2026-09-23**: the email carries a sponsor mark. Since Wave 4 it is the prize's "Provided by" sponsor, snapshotted at award, rather than the placement where the prize was won.
 - **Resend history per row** — the row keeps its count and last-resend time; the per-attempt history lives in the audit log. Wave 4 adds `PrizeRedemption.attempts[]`, written forward ([`admin-prizes.spec.md`](admin-prizes.spec.md)).
-- **Provider message id** — the SES message id is not stored on the redemption yet; bounce correlation (above) will need it, as an additive `PrizeRedemption` field requested through the shared repo at that time. Sends are tagged with tenant, redemption and attempt meanwhile.
+- **Provider message id** — the provider's message id is not stored on the redemption yet; bounce correlation (above) will need it, as an additive `PrizeRedemption` field requested through the shared repo at that time. Sends are tagged with tenant, redemption and attempt meanwhile.
 - **Seed fixtures name non-existent methods** (`concessions-demo`, `teamstore-demo`) — they now show "Won't deliver", which is true. The fixture refresh belongs to the Games & Contests work.
 - **DLQ depth** — messages that exhaust redrive still land in the SQS dead-letter queue, which nothing in-app reads; the Mongo row is the operator's view and is always written first.
 
