@@ -37,7 +37,7 @@ theme resolver also derives a contrast-guarded hit colour (§4 there).
 - **A highlight readout.** Under the colours, one line says which colour fans see on bingo highlights and progress bars: the resolver's `hit` (the first of main, second and accent that clears 3:1 against the progress track, else a lighter or darker shade of the closest). For bears it is the orange, because navy does not stand out on navy.
 - **Members** see each colour as a swatch and its hex, the mode as a word and the images as they are, with no picker, hex field, mode switch, reset or upload controls. The leave prompt ("Leave without saving?") only guards someone who can edit.
 - **The console accent follows.** After a successful publish the page calls `useTenantAccent().refresh()` (`lib/ThemeContext.tsx`), so the console's accent (the tenant's `hit`, `brandAccent(effectiveTheme(slug, stored))`) updates without a reload.
-- **The preview** is unchanged (host `brand`, the built-in sample contest, the draft theme and images laid over the org). Its Start screen shows no matchup (ruling item 6; `nextGame` leaves `sampleContest.ts`).
+- **The preview** is unchanged (host `brand`, the built-in sample contest, the draft theme and images laid over the org). Its Start screen shows no matchup (ruling item 6; `nextGame` leaves `sampleContest.ts`). *Since 2026-10-01 the sample game is the Start screen's next game again, shown or not by "Show next game on Start screen"; see "The fan Start screen" under Start page.*
 
 **Revised 2026-09-29 (Walk #3): the four-colour model** (Arthur's Walk #3 rulings, "The colour model, final for the current app"). This block wins over everything below it; the older text is kept for the record. It also supersedes the 2026-09-28 block's Colours, Light or dark and highlight bullets.
 
@@ -76,6 +76,9 @@ theme resolver also derives a contrast-guarded hit colour (§4 there).
 | Reset | `theme: null` | Fan app falls back to the onboarding seed or `DEFAULT_THEME`; the backend's `effectiveTheme` for the console accent |
 | Logo | `assets.logo` (upload field `brand.logo`) | Fan app Start and Join screens, the side menu, the paused screen, the tab icon |
 | Progress marker | `assets.sliderTipImageUrl` (upload field `brand.progressMarker`) | Fan app board progress-bar marker, unless the contest has its own Progress marker ([`admin-contests.spec.md`](admin-contests.spec.md), "Progress marker"); with none, a triangle in the Text colour. No sponsor icon takes its place (the sponsor Slider slot was removed on 2026-09-30) |
+| Show next game on Start screen (Next game card) | `showNextGame`, always sent; only `false` is stored (absent means on) | The fan Start screen's next game, read from `GET /b2b/org/:subdomain` (`showsNextGame`); the Brand preview |
+
+There is no hero band switch: the "Hero band" card and its `showHeroBand` field were removed on 2026-10-03 (see "The fan Start screen" under Start page).
 
 *The 2026-09-28 function audit (Main/Second/Accent colour, Background Dark/Light) is superseded by the table above.*
 
@@ -83,8 +86,9 @@ theme resolver also derives a contrast-guarded hit colour (§4 there).
 
 Ruling (Arthur, Walk #3): "Remove the 'Sign-in' slot from contest Sponsors, since it isn't a contest field. Brand gets a
 **Start page** section where the tenant adds and removes start-page sponsors." The Start page is the fan app's first
-screen (`/`, before a fan signs in): the tenant's logo, "{Team} Bingo", "Pick your players. Win prizes.", the sponsors
-under "Presented by", and "Continue with Email". It belongs to no contest, so its sponsors are the tenant's own.
+screen (`/`, before a fan signs in): the tenant's logo, the team's name, "Play along. Win prizes.", the sponsors under
+"Presented by", the next game, and the sign-in buttons (revised 2026-10-03; the full layout is "The fan Start screen"
+below). It belongs to no contest, so its sponsors are the tenant's own.
 
 **Storage.** `B2BOrganization.startPageSponsorIds?: ObjectId[]`, the tenant's Start page sponsors in the order fans see
 them. A top-level organization field, not part of `branding.theme` (the theme is the look; this is a list of sponsor
@@ -138,7 +142,9 @@ sponsors; no contest placement is carried.
 order. One sponsor takes the column: its logo on a white plate spanning it, as wide as the plate, its height following
 its shape up to 96 px; with no logo (or one that doesn't load), its name in a tile the same size. Several sit two to a
 row on plates 64 px tall; an odd last one takes the row. Each tagline sits under its mark; a mark with a website is the
-link. None: no block. A tenant with no sponsor records still gets its legacy name and logo (`SP-09`).
+link. None: no block. A tenant with no sponsor records still gets its legacy name and logo (`SP-09`). On the Start
+screen these heights follow the phone's height (revised 2026-10-03, "The fan Start screen" below): a lone logo is capped
+at 40 to 72 px and the plates are 40 to 52 px tall; anywhere else they keep the sizes above.
 
 **Deleting a sponsor** takes it off the list (`SP-14`).
 
@@ -150,6 +156,60 @@ link. None: no block. A tenant with no sponsor records still gets its legacy nam
 | Remove | `PUT /admin/start-page` (list − the row) | The same |
 | Drag / keyboard move | `PUT /admin/start-page` (the new order) | The same; the order is the fan's |
 | Name link | nothing | Opens the sponsor page |
+
+### The fan Start screen (revised 2026-10-03)
+
+Arthur's ruling, 2026-10-03: the Start screen has **no hero band**, and Brand has no switch for one. The band (the logo
+and name on a block of Accent with an angled cut) came back by accident in the 2026-09-30 merge, and on 2026-10-01 a Brand
+switch turned it on for every tenant. Both are gone: the "Hero band" card, `branding.showHeroBand` (contract, model,
+admin read and write, public org read, `showsHeroBand`, `changes.showHeroBandEdited`) and the theme's unused
+`motif.heroMotif` (`THEME_HERO_MOTIFS`). The backend's `node-server/scripts/unset-hero-band-migration.mjs` (a dry run
+unless given `--apply`, dev only) clears both stored fields; the next Brand publish drops them anyway.
+
+**What the screen shows** (`src/pages/auth/StartScreen.tsx`), top to bottom:
+
+1. **The brand block**, centred in the space the buttons leave, so a tenant with no sponsor and no game looks balanced
+   rather than stranded at the top:
+   - The tenant's logo, or its monogram when there is no logo or it won't load.
+   - The team's name alone, as the heading. It names no game, because the app holds bingo and trivia. Its casing is the
+     theme's. While the tenant loads, the heading keeps its space but shows nothing.
+   - The line **"Play along. Win prizes."** A tenant with no sponsor records but a legacy sponsor name gets
+     "Play along. Win prizes from {sponsor}." (`SP-09`; it is the only credit a legacy sponsor with no logo gets). The
+     line keeps its space but stays hidden until the sponsor read answers, so the credit never arrives late.
+   - "Presented by" and the tenant's Start page sponsors (above). None: no block.
+   - The next game, when the tenant hasn't turned it off ("Show next game on Start screen") and the server has one: both
+     teams with their logos, "vs", and the date and time. No such game: nothing, never a placeholder.
+2. **The buttons**, at the bottom: "Powered by" and the Overboard wordmark, then "Continue with Google", then "Continue
+   with Email" (to Sign in).
+
+**It never scrolls on a phone.** The screen fills the viewport (`min-h-svh`, no margin below it), and every size that
+takes height follows the viewport's height: the padding, the gaps, the logo, the heading, the matchup's logos and
+padding, the Powered by frame and the sponsor marks (`START_SIZES`, each a `fluid(min, max)`: the smaller value on a
+667px-tall phone such as 375×667, the larger on an 844px-tall one such as 390×844, in a straight line between, held at
+those values beyond them). On a screen 700px tall or less, "Powered by" and the wordmark sit on one line. A short phone
+gets a tighter version of the same screen, never less of it. Measured with no scroll at 390×844 and 375×667 with zero,
+one, two and three Start page sponsors, each with no next game, a short one and a long one, all with the Google button.
+
+**In the console** the Brand preview's phone is fitted to the window (as short as 560px) and the drawer previews are
+shorter still (as short as 480px), both shorter than a 667px phone, so the Start screen can scroll there. That is
+expected; whether it fits is judged at a phone's size, not in the fitted frame
+([`admin-preview.spec.md`](admin-preview.spec.md)).
+
+**Function audit (the fan Start screen).**
+
+| Element | Data source or action |
+|---|---|
+| Logo or monogram, team name | `GET /b2b/org/:subdomain` (`organization.name`, `branding.logo`), the bundled seed only while offline or on a failed read |
+| "Play along. Win prizes." | Fixed copy. The legacy "from {sponsor}": `GET /b2b/org/:subdomain` `branding.sponsorName` (else the bundled seed), read only when `GET /b2b/org/:subdomain/sponsors` says the tenant has no sponsor records |
+| Presented by | `GET /b2b/org/:subdomain/sponsors` (`startPage`, `sponsors`: Start page logo, tagline, website); legacy `branding.sponsorLogo` as above |
+| Next game | `GET /b2b/org/:subdomain/sponsors` `nextGame`, shown unless `GET /b2b/org/:subdomain` says `showNextGame: false` |
+| Powered by | Fixed platform credit |
+| Continue with Google | Clerk Google sign-in, back through `/sso-callback` to `/contests` |
+| Continue with Email | Opens `/sign-in` |
+
+Cut or changed: the **hero band and its Brand switch** are cut (added by accident in the 2026-09-30 merge; Arthur's
+ruling 2026-10-03). The line under the name changed from "Pick your players. Win prizes" to "Play along. Win prizes.",
+because the screen now serves bingo and trivia. The 48px bottom margin that made every Start screen scroll is gone.
 
 ## Overview
 
@@ -224,8 +284,7 @@ export interface ThemeSettings {
              density?: "regular" | "compact" };
   surface?:{ borderAlpha?: number;             // 0.04–0.30, default 0.10
              texture?: "none" | "dotgrid"; glowIntensity?: number };   // glow 0–1, default 0
-  motif?:  { heroMotif?: "none" | "angledBand";
-             boardCounter?: "numeral" | "ringGauge" };
+  motif?:  { boardCounter?: "numeral" | "ringGauge" };  // heroMotif removed 2026-10-03 (no hero band)
 }
 ```
 

@@ -110,7 +110,7 @@ The screens are the current app's routes and states. `ready.screens` lists them 
 
 | Screen | Where it is in the app | Reached by clicking | Session step it needs |
 |---|---|---|---|
-| `start` | `/`, signed out: the Start page: logo, "{Team} Bingo", "Pick your players. Win prizes.", "Presented by" and the tenant's Start page sponsors (2026-09-29; none: no block), "Continue with Email". No game card (2026-09-28) | Sign out | `signedOut` |
+| `start` | `/`, signed out: the Start page: logo, the team's name, "Play along. Win prizes.", "Presented by" and the tenant's Start page sponsors (2026-09-29; none: no block), the next game (the sample game on Brand) unless the tenant turned it off, "Powered by", "Continue with Google", "Continue with Email". No hero band (removed 2026-10-03). The layout is [`admin-branding.spec.md`](../core-modules/1-draft/admin-branding.spec.md), "The fan Start screen"; it never scrolls on a phone, but can in a fitted frame shorter than a 667px phone | Sign out | `signedOut` |
 | `signIn` | `/sign-in`: the email sign-in form | "Continue with Email" | `signedOut` |
 | `join` | `/contests` for a signed-in non-member: `EntryGateForm` with the tenant's fields, consents and gate copy; Terms, Privacy and opt-in documents open over it (Wave 3 §4) | Submitting Sign in | `signedIn` |
 | `contests` | `/contests`: the Upcoming and Past tabs and the contest cards | Submitting the gate; the back arrow on Contest | `member` or `playing` |
@@ -124,7 +124,7 @@ Going straight to a screen with `navigate` puts the session at the step the tabl
 
 **A draft previewed as if published.** The console's document places a Draft contest in `contests.upcoming` and gives it the fan status it would have if it were published now, so the admin sees the card and the flow fans will get. An Open or Closed contest appears exactly where fans find it now.
 
-**Screens not offered:** sign-up, forgot password, the paused screen, and the dashboard. None is part of the contest journey, and the console offers only screens it can put in a tab. A tap that would reach one (for example "Forgot password?") shows its press state and stays put.
+**Screens not offered:** sign-up, forgot password, the paused screen, and the dashboard. None is part of the contest journey, and the console offers only screens it can put in a tab. A tap that would reach one (for example "Forgot password?") shows its press state and stays put. Sign in's "Forgot password?" link is shown again since 2026-10-03 (the fan reset flow, [`multi-tenant-identity-auth.spec.md`](../core-modules/1-draft/multi-tenant-identity-auth.spec.md), "Password reset"), and stays inert here (`/forgot-password` is in `ROUTES_NOT_OFFERED`, `src/preview/links.ts`).
 
 ---
 
@@ -314,6 +314,13 @@ Where the shipped console differs in detail from the text above:
 
 - A consent document opened over the gate in the frame is read from the public document endpoint, as the live app reads it: the render document carries no document bodies.
 - Each tree makes its own store (`makeStore(baseQuery)`): the live app's base query talks to the network, the preview's answers from the render document. Sign-in goes through the app's own auth module, and a lint rule keeps screens from importing the auth library directly.
+
+## Function audit (Start and Sign in, 2026-10-03)
+
+| Screen | In the preview, read from | Cut or changed, and why |
+|---|---|---|
+| `start` | The render document's `org` (what `GET /b2b/org/:subdomain` carries: name, logo, `showNextGame`, with Brand's unsaved edits laid over it) and `schedule` (what `GET /b2b/org/:subdomain/sponsors` carries: the Start page sponsors and `nextGame`, the sample game on Brand) | The hero band and its Brand switch are cut: added by accident in the 2026-09-30 merge (Arthur's ruling, 2026-10-03). The line under the name is "Play along. Win prizes.". "Continue with Google" signs the preview fan straight in, with no redirect |
+| `signIn` | Nothing: the form is inert (Known gaps) | "Forgot password?" is shown again and stays put when tapped (Screens not offered) |
 
 ## References
 

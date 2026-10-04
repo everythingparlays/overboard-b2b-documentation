@@ -57,7 +57,7 @@ Three layers: a tenant's theme (the one saved on the console's Brand page, else 
 | `font-bold` | 16 | Stat numbers, CTA-adjacent emphasis |
 | `font-black` | 4 | Reserved for the single loudest element on a screen (`PageHeader` title, `BingoProgress` count) — treat as a "one hero moment per page" tool, not a heading weight |
 
-**Casing:** `uppercase` + `tracking-tight`/`tracking-wide` appears specifically on hero headlines (`StartScreen`'s "`{Team}` Bingo", legacy `HomePage`'s "BINGO") and short eyebrow labels ("Sponsored By", consent "Required"/"Optional" tags) — never on body copy, and only on one legacy button. Reserve uppercase for hero titles and short eyebrow/meta labels.
+**Casing:** `uppercase` + `tracking-tight`/`tracking-wide` appears specifically on hero headlines (legacy `HomePage`'s "BINGO"; `StartScreen`'s heading, the team's name alone, takes its casing from the theme's `--display-transform` and carries no `uppercase` utility) and short eyebrow labels ("Sponsored By", consent "Required"/"Optional" tags) — never on body copy, and only on one legacy button. Reserve uppercase for hero titles and short eyebrow/meta labels.
 
 > **Flag:** `PageHeader.tsx` and `BackButton.tsx` hardcode `text-gray-400` / `text-gray-500` / `text-white` instead of `text-muted-foreground` / `text-foreground`. Any page using either component gets Tailwind gray regardless of the active tenant's `textMuted`/`text` colors — a silent break in the theming system described in §1.
 
@@ -79,7 +79,7 @@ Treat 8px and 16px as the two workhorse spacing values. `gap-1`/`gap-3`/`gap-6` 
 **Page shell — two patterns coexist, scoped by page family:**
 
 1. **`PageContainer`** (`components/layout/PageContainer.tsx`): `min-h-screen bg-background` wrapping `max-w-lg mx-auto px-4 pt-5 space-y-7`. Used by `ContestsPage`, `ContestPage` (with `withInner={false}` and the same `max-w-lg px-4` applied manually). This is the post-auth app shell.
-2. **Ad hoc auth-page pattern** (`SignIn`, `SignUp`, `StartScreen`): `min-h-svh bg-background flex flex-col items-center` + `max-w-sm w-full`, with `pt-24` (SignIn/SignUp) or `px-6 py-12` (StartScreen). This is the narrower, single-column onboarding pattern.
+2. **Ad hoc auth-page pattern** (`SignIn`, `SignUp`, `StartScreen`): `min-h-svh bg-background flex flex-col items-center` + `max-w-sm w-full`, with `pt-24` (SignIn/SignUp) or `px-6 py-12` (StartScreen). This is the narrower, single-column onboarding pattern. *Since 2026-10-03:* Sign in, its code step and Reset password share `components/auth/AuthScreen.tsx` (`min-h-svh … pt-24 px-6 pb-10`, `max-w-sm`), and `StartScreen` is `min-h-svh … justify-between px-6` with its vertical padding, gaps and sizes following the viewport's height (`START_SIZES`) so it never scrolls on a phone ([`admin-branding.spec.md`](../core-modules/1-draft/admin-branding.spec.md), "The fan Start screen").
 
 **New auth/onboarding screens — including the join and re-consent flows — should follow the `max-w-sm` auth pattern, not `PageContainer`.**
 

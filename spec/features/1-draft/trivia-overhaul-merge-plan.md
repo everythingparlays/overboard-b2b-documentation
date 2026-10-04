@@ -25,6 +25,8 @@ Nick likes the Brand page and the accessibility guarantees but cannot use genera
 ### D6 clarification
 Start screen keeps the trivia-branch layout verbatim (matchup card, hero band, logo choice). Only the sponsor data path changes: `useStartPageSponsors` + array-based `PresentedBy` replace `useSponsorSlots`, rendered inside the existing layout. Arthur's matchup removal, hero-band changes, wordmark contrast logic and `TenantLogo` are dropped.
 
+*Later, 2026-10-03: the hero band this kept was removed (Arthur's ruling; it had come back by accident in this merge, and a Brand switch added on 2026-10-01 had turned it on for every tenant). The matchup stays, as the Start screen's next game. See [`admin-branding.spec.md`](../../core-modules/1-draft/admin-branding.spec.md), "The fan Start screen".*
+
 ## Phase 0: shared package (root; everything else pins it)
 
 Conflicts: 7 files. Order:
@@ -117,7 +119,7 @@ Branch `integrate/trivia-overhaul` in all five repos.
 | overboardb2b-documentation | merged | c635d82 |
 | obs-b2b-admin-frontend | merged; trivia in ContestBuilder (Trivia + Prize bands steps), ContestPage (settings card, bands tab, games tab), /question-bank route; 1,295 tests green, 3 pre-existing failures (hues, SupportReport) | fd350f0 |
 
-Decisions applied: D1 Arthur's resolver (override slots are a post-merge ticket), D2 Finalize on `requireAdmin` with the OBS-staff check in the handler, D3 no band value floor, D4 sponsor placeholder, D5 trivia's row structure with Arthur's names (`tierSnapshot` for every game type), D6 fan layout kept (hero band, matchup), `src/kit` dropped.
+Decisions applied: D1 Arthur's resolver (override slots are a post-merge ticket), D2 Finalize on `requireAdmin` with the OBS-staff check in the handler, D3 no band value floor, D4 sponsor placeholder, D5 trivia's row structure with Arthur's names (`tierSnapshot` for every game type), D6 fan layout kept (hero band, matchup), `src/kit` dropped. *(The hero band was removed on 2026-10-03; see the D6 clarification.)*
 
 Follow-ups found during the merge:
 - PATCH `trivia` validates the merged config whole; the console sends the complete config per save.

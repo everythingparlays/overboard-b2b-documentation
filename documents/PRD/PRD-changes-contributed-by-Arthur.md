@@ -355,7 +355,10 @@ tenant-self-serve rulings — see the "Revised 2026-09" notes)".
   sign-in screen.
 - **Why:** Arthur's final walk: keep it only if Nick wanted it, and he didn't spec it.
 - **Date:** 2026-09-28 (on `arthur-console-redesign`).
-- **Status:** In effect.
+- **Status:** Superseded (2026-10-03): the Start screen shows the tenant's next game again (the matchup,
+  kept by the trivia merge that became `main` on 2026-10-01, shown unless the tenant turns off "Show next game
+  on Start screen"; see `admin-branding.spec.md`, "The fan Start screen"). Entry 30 had already replaced its
+  last sentence.
 
 ### 30. `BRAND-02`: the Start page's sponsors are a tenant-level list on Brand, not a per-game slot
 
