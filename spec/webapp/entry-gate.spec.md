@@ -127,7 +127,7 @@ Do not navigate on success. The mutation invalidates the membership cache tag an
 - The overlay loads `GET /b2b/org/:subdomain/consent-document/:optInId/:linkId?version=<displayed textVersion>`: the document **as of the wording on screen**, the same frozen-version discipline the consent submission follows. While it loads it shows the title and a spinner; if it fails, the title, "This didn't load." and "Try again", with Back still working.
 - It renders the title and the body through the shared `ConsentDocumentView` (headings, paragraphs, lists, bold; a URL is plain text), themed like the rest of the app, scrollable, with Back at the top.
 
-**The side menu's Terms, Rules and Privacy** open the same component on the in-app routes `/terms`, `/rules` and `/privacy`, reading the platform documents' current version. They replace the bundled `src/config/legal.ts` placeholders. (2026-10-01: Rules and `/rules` join Terms and Privacy as the platform opt-in's third document; the redesigned side menu's "Legal" section is `fan-app-v2.spec.md`'s concern, below.)
+**The side menu's Terms, Rules and Privacy** open the same component on the in-app routes `/terms`, `/rules` and `/privacy`, reading the platform documents' current version. They replace the bundled `src/config/legal.ts` placeholders. (2026-10-01: Rules and `/rules` join Terms and Privacy as the platform opt-in's third document; the side menu's "Legal" section lists them, then the tenant's documents, below.)
 
 *Revision 2026-09-28 (Arthur: "They were always there, and must be again even while the documents aren't written yet. Opt-in documents added by a tenant are listed below them"):*
 

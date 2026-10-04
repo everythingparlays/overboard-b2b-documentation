@@ -3,6 +3,8 @@
 Sources: local tags `trivia-2026-09-30` and `arthur-overhaul-2026-09-30` in every repo (see `switch-set.sh`).
 Direction: **trivia merges into the overhaul**, one integration branch per repo (`integrate/trivia-overhaul`), shared first.
 
+**Note (2026-10-03):** the integration branch became `main` on 2026-10-01. What it kept from "the overhaul" is Arthur's infrastructure (auth, preview, storage, sponsors, prizes, the four-colour resolver). The overhaul's fan-app kit and the contracts written only for it were never shipped by any screen; they were stripped on 2026-10-03, together with their five specs (fan app v2, its console touchpoints, the fan contest flow, the decor system and Brand page v2). This plan is kept as the record of the merge.
+
 ## Decisions (Nick, 2026-09-30: D2–D6 accepted at default; D1 resolved as hybrid, see below)
 
 | # | Decision | Default if undecided | Where it bites |

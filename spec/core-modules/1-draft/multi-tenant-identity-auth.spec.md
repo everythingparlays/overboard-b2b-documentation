@@ -206,7 +206,7 @@ If any pending opt-in has `blocking: true`, the server **also rejects gameplay w
 
 ### Recording
 
-`POST /b2b/consent` — `requireMembership`. Body is a list of `{optInId, textVersion, decision}`. Server validates each `optInId` and `textVersion` against the tenant's current definitions (rejecting stale or unknown ones), stamps `agreedAt` server-side, and upserts into `membership.consents` keyed on `optInId`. Client-supplied timestamps are never trusted — `OPT-04` is an audit record.
+`POST /b2b/consent` — `requireMembership`. Body is a list of `{optInId, textVersion, decision}`. Server validates each `optInId` and `textVersion` against the tenant's current definitions (rejecting stale or unknown ones), stamps `agreedAt` server-side, and upserts into `membership.consents` keyed on `optInId`. Client-supplied timestamps are never trusted — `OPT-04` is an audit record. A submission that declines a blocking (required) opt-in is refused whole with 400 `required_opt_in_declined`, "This agreement is required to play, so it can't be declined or withdrawn." (D-085, 2026-10-03): a fan can't withdraw a required opt-in after agreeing, and declining a new wording of one is no more valid. Nothing is saved; join's own refusal of the same answer is unchanged.
 
 ---
 

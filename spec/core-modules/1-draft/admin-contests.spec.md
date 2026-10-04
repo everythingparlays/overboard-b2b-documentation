@@ -9,7 +9,7 @@
 - [`contest-safety.spec.md`](contest-safety.spec.md): the lock stamp `lockedAt`, the pure lock functions in `obs-b2b-shared`, the prize snapshot and the one-board-per-fan index.
 - [`admin-lists.spec.md`](admin-lists.spec.md): the cursor-paging convention, `InfiniteList`/`InfiniteTable`/`PickerList`, and the schedule picker's `GET /admin/games/candidates`.
 - [`admin-prizes.spec.md`](admin-prizes.spec.md): the prize library, the contest Prizes tab's ladder, and what makes a tier complete. [`admin-sponsors.spec.md`](admin-sponsors.spec.md): the Sponsors tab.
-- [`admin-preview.spec.md`](admin-preview.spec.md) and [`../../webapp/fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md): the Preview tab and the builder's Review preview.
+- [`admin-preview.spec.md`](admin-preview.spec.md) and [`../../webapp/fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md): the preview drawer and the builder's Review preview.
 - [`admin-uploads.spec.md`](admin-uploads.spec.md): the one upload field, wherever a contest screen takes an asset.
 
 **Supersedes:** the games half of [`admin-games-and-prizes.spec.md`](admin-games-and-prizes.spec.md): the `/games` screen (per-contest cards with games tables, the per-game drawer), `GET /admin/games` as that screen's read, the games PUT as its write, and "What the data model actually is" as a description of the console. Also this spec's own 2026-09-23 version: the create drawer, the contest detail drawer, the "Note" field and "no contest delete". The prizes half of admin-games-and-prizes goes to [`admin-prizes.spec.md`](admin-prizes.spec.md).
@@ -24,6 +24,8 @@ Revised again 2026-09-28 (Arthur's final walk, which wins): **Finalize is back o
 Revised 2026-09-30 (Arthur's rulings): **the progress marker is the contest's, and no sponsor rides it.** A contest's games share one board, so the marker is one per contest (`progressMarkerImageUrl`, set on Overview → Basics, upload field `contest.progressMarker`), not one per game: the Games tab's marker column and its write are gone. The sponsor Slider slot is removed, so the board's marker is the contest's Progress marker, else the Brand marker, else the default triangle, and the contest read has no `markerSponsors`. Sponsor placements are for the whole contest, never one game ([`admin-sponsors.spec.md`](admin-sponsors.spec.md), revision 2026-09-30). Edited in place below.
 
 Revised 2026-10-01 (Arthur's rulings): **one state rule.** The console's state pill shows the contest's phase (Draft, Upcoming, Open, Closed) from one shared function, and the fan app and the server's fan list use the same rule. A bingo contest can have its own open and close times. The Overview's "Contest state" card is gone: Close entries, Reopen entries and Move to draft sit in the contest page header. A game-day trivia contest is always publishable, and a trivia contest whose question tags are too small can't publish and isn't listed to fans. One date and time picker replaces every `datetime-local` field. Edited in place below.
+
+Revised 2026-10-03 (brought up to the code): **the trivia contest's own screens are specified here**: the builder's Trivia step and the Trivia tab, the trivia Prizes and Sponsors content, trivia's lock table (D-120) and trivia's Finalize. The lock table drops `tierValue` (prizes state no value since 2026-09-28). Preview is a drawer from the header, not a tab (D-113). A function audit closes the spec. Edited in place below.
 
 ## Overview
 
@@ -48,7 +50,7 @@ Until the redesign a contest lived on a card inside a long `/games` page, was cr
 - **The preview frame.** [`admin-preview.spec.md`](admin-preview.spec.md) (console) and [`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md) (fan app).
 - **Fan-side board building** (drafting players, generating the board). Wave 3 (§3.3) and the fan app own it. This spec references it only in the lock rules and the Preview.
 - **What Finalize does.** Unchanged: [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md) owns `POST /admin/contests/:contestId/finalize`. This spec moves where the button appears.
-- **Trivia itself.** The type exists as a selectable placeholder; its entry model, scoring and settings belong to the trivia build.
+- **The trivia game itself**: the question bank, runs, scoring, standings, what Finalize does and the fan screens are [`trivia-game-type.spec.md`](../../features/1-draft/trivia-game-type.spec.md). This spec covers the console's trivia contest screens: the builder's Trivia step, the Trivia tab, the trivia Prizes and Sponsors content, and where Finalize appears.
 
 ---
 
@@ -58,7 +60,7 @@ Screens use these words and no others. Code names are in the model section.
 
 | Term | Meaning | Never say |
 |---|---|---|
-| **Contest** | What a tenant creates and fans join. Spans one or more games, has a contest type, prize tiers and sponsor placements. | "activation", "event" |
+| **Contest** | What a tenant creates and fans join. Spans one or more games (trivia: one game or none), has a contest type, prize tiers (trivia: prize bands) and sponsor placements. | "activation", "event" |
 | **Game** | A scheduled real game from the shared schedule, selected into a contest. | "bet event", "matchup" as a noun for the record |
 | **Sport** | The game's league as the schedule names it (NFL, CFB, NBA, NHL, MLB…). | "category" |
 | **Contest type** | Bingo or Trivia. | "game type" |
@@ -69,7 +71,7 @@ Screens use these words and no others. Code names are in the model section.
 | **Publish** | Draft → Open. | "launch", "go live" |
 | **Close entries / Reopen entries** | Open → Closed and back. | "pause", "hide" |
 | **Move to draft** | Back to Draft, only before the first fan joins. | "unpublish" |
-| **Locked** | The contest has at least one fan board. Not a state. | "frozen", "live" |
+| **Locked** | The contest has at least one fan board (trivia: one run). Not a state. | "frozen", "live" |
 | **Finalized** | Staff only; ends a contest permanently. Shown as a badge, not a fourth state. | "settled" |
 
 ---
@@ -305,8 +307,18 @@ The ruling: no contest versioning; before the first fan joins everything is edit
 | **Open time** (bingo `opensAt`) | Editable | **Locked** (kind `opensAt`) |
 | Close time (bingo `closesAt`) | Editable | Editable in either direction, never before it opens or in the past (kind `closesAt`) |
 | **Contest type** | Editable while Draft | **Locked** |
-| Prize tiers | [`admin-prizes.spec.md`](admin-prizes.spec.md) | Its tier kinds (`tierRemoved`, `tierBingos`, `tierValue`) |
+| Prize tiers | [`admin-prizes.spec.md`](admin-prizes.spec.md) | A tier can't be removed or change its bingos to win (kinds `tierRemoved`, `tierBingos`); adding a tier and changing a tier's prize stay free |
 | **Delete** | Typed name | Typed name (the dialog says what goes with it; revised 2026-09-28, no reverification) |
+
+That table is bingo's (`ContestLock.ts`: `gameLockViolations`, `tierLockViolations`, `gameTypeLockViolations`, `scheduleLockViolations`). A trivia contest locks at its first run (the run start stamps `lockedAt`), by its own table (D-120; `TRIVIA_LOCKED_FIELDS`, `triviaRulesLockViolations`, `triviaBandLockViolations`, `closeTimeViolations`):
+
+| Setting (trivia) | After the first run |
+|---|---|
+| Name, description, internal note, banner, Presented by sponsor, reveal mode | Editable |
+| Question slots (count and tags), time per question, right-answer points, speed bonus, network allowance, runs per fan, the game and At a game / On its own, the open time | **Locked** (kind `trivia_rules`) |
+| Close time (`trivia.closesAt`) | Editable in either direction, never before it opens or in the past (kind `closesAt`) |
+| Prize bands | Add a band or widen one. A saved band can't be removed or narrowed (kind `bandRemoved`), and its prize can't be swapped (kind `bandPrize`; see Known gaps) |
+| Contest type, Move to draft, Delete, Close and Reopen entries | As bingo |
 
 **Why removing a game locks.** A fan's board holds props from the games the contest ran at when they built it. The evaluator scores a square by its prop, not by whether the contest still lists the prop's game, so squares from a removed game keep scoring and keep paying. Removing a game after fans joined therefore does not remove it from play; it only removes it from the console, which then misreports what fans are playing. Locking is the one option that keeps every promise. Adding a game stays open because it only gives fans more to pick from.
 
@@ -417,10 +429,10 @@ A full page, reached from a card or row, from Overview and Game day links, and f
 - Back link: "Games & Contests" to `/games`, or "All contests" / the tenant's name when the page was opened from those (carried in navigation state, falling back to "Games & Contests").
 - The contest's banner across the top of the header, a wide strip (88–150px tall) of the same view the card shows.
 - Eyebrow "Contest · Bingo" (the registry label); H1 the name; chips: the state pill (the phase), "Finalized", the lock glyph.
-- Right (2026-10-01): the state actions first, each only when allowed (see "Transitions and where they live"): **Close entries** (in the console's warning colour, Button variant `warning`), **Reopen entries**, **Move to draft** (only while unlocked). None on a finalized contest, and members see none. Then "Preview" (secondary; switches to the Preview tab); then the overflow ("More actions"): "Duplicate", "Delete contest".
+- Right (2026-10-01): the state actions first, each only when allowed (see "Transitions and where they live"): **Close entries** (in the console's warning colour, Button variant `warning`), **Reopen entries**, **Move to draft** (only while unlocked). None on a finalized contest, and members see none. Then "Preview" (secondary; opens the preview drawer over the current tab, on the screen that shows what that tab edits; D-113); then, for Overboard staff on a contest ready to finalize, **Finalize** with its "Staff" tag; then the overflow ("More actions"): "Duplicate", "Delete contest".
 - The state actions write at once (PATCH `state`) and confirm under the header: "Entries closed. Fans who joined keep playing.", "Entries open.", "Moved to draft. Fans can't see it now." A refusal shows its sentence there; a stale one (409 `stale_contest`) offers "Reload". Publish is not in the header: it stays the builder's Review step, reached from the draft banner's "Continue setup".
 
-**Tabs**: "Overview · Games · Prizes · Sponsors · Preview", with counts on Games and Prizes (the Prizes count is tiers for bingo, bands for trivia). The tab is in the URL: `/contests/:contestId` (Overview), then `/games`, `/prizes`, `/sponsors`, `/preview`. An unknown tab segment opens Overview. A prize opens as its own full page ([`admin-prizes.spec.md`](admin-prizes.spec.md)).
+**Tabs**: "Overview · Games · Prizes · Sponsors" for bingo and "Overview · Trivia · Prizes · Sponsors" for trivia (D-114: the page mirrors its builder), with counts on Games and Prizes (the Prizes count is tiers for bingo, bands for trivia). The tab is in the URL: `/contests/:contestId` (Overview), then `/games` or `/trivia`, `/prizes`, `/sponsors`. An address naming the other type's tab opens this contest's own; an unknown tab segment opens Overview; the old `/preview` address opens the preview drawer over Overview. A prize opens as its own full page ([`admin-prizes.spec.md`](admin-prizes.spec.md)). Code: `pages/contests/ContestPage.tsx`.
 
 **Page states.**
 
@@ -461,7 +473,7 @@ Two columns at ≥1100px (content, then a 320px right rail); one below, with the
 1. **Name.** Text, required, 80 characters.
 2. **Description.** Textarea with a counter ("112/300"); help "Fans see this on the contest card." When the description is empty and the internal note has text, the button "Use the internal note" copies the note into the field unsaved, so the operator reviews it and saves with Save. A note longer than 300 characters copies whole and Save answers "Keep it to 300 characters." until it's shortened.
 3. **Internal note.** Textarea, 500 characters; help "Only people in this console see the internal note."
-4. **Player limit.** Segmented "No limit | Limit to" with a number ("players"). Lowering below the current player count states the consequence before saving: "412 are already playing. Nobody is removed; new fans can't join."
+4. **Player limit** (bingo only: a trivia contest stores no limit). Segmented "No limit | Limit to" with a number ("players"). Lowering below the current player count states the consequence before saving: "412 are already playing. Nobody is removed; new fans can't join."
 5. **Contest type.** On an unlocked Draft, segmented from the registry ("Bingo | Trivia"). Otherwise the value, with the lock glyph once locked.
 6. **Banner.** The banner field (see "Banner"). A member sees the banner itself.
 7. **Progress marker** (bingo only; 2026-09-30). The marker field (see "Progress marker"). It lists no sponsor's slider icon. A member sees the marker itself.
@@ -473,9 +485,10 @@ Two columns at ≥1100px (content, then a 320px right rail); one below, with the
 
 **Right rail, "What's next"**, a short timeline:
 
-- **Next game**: `featuredGame`'s line with its readiness dot from game day, linking to Game day on that game; "No upcoming games" when none.
+- **Next game** (bingo): `featuredGame`'s line with its readiness dot from game day, linking to Game day on that game; "No upcoming games" when none.
+- **When it runs** (trivia, in place of Next game; `TriviaWindowStep` in `OverviewTab.tsx`): "Opens" with "Thu, Oct 1 · 7:00 PM. Closes Thu, Oct 1 · 9:00 PM." before it opens, "Open now" with "Closes …" while open, "Closed" with "Closed …" after; "Not set yet." before the Trivia step is saved.
 - **Lock**: "Not locked. Everything can change until the first fan joins." or "Locked since Sat Sep 27, 7:02 PM."
-- **Finalize**: a tenant admin or member reads "Overboard finalizes the contest after its last game." or "Finalized on Sep 28." Overboard staff (revised 2026-09-28, final walk) read "Every game has ended." with **Finalize** and its "Staff" tag once the contest is ready, and otherwise why it can't be finalized yet, in the one rule's order: "A draft can't be finalized. Publish it and play its games first.", "A contest with no games can't be finalized. Add a game first.", or "Finalize opens once every game has ended."
+- **Finalize**: a tenant admin or member reads "Overboard finalizes the contest after its last game." (trivia: "Overboard finalizes the contest after it closes.") or "Finalized on Sep 28." Overboard staff (revised 2026-09-28, final walk) read "Every game has ended." with **Finalize** and its "Staff" tag once the contest is ready, and otherwise why it can't be finalized yet, in the one rule's order: "A draft can't be finalized. Publish it and play its games first.", "A contest with no games can't be finalized. Add a game first.", or "Finalize opens once every game has ended." For trivia (`lib/finalize.ts`): ready reads "The contest has closed. Anyone still answering is stopped where they stand."; not ready reads "A draft can't be finalized. Publish it first." or "Finalize opens once the contest closes."
 
 **Copy.**
 
@@ -505,7 +518,7 @@ Nothing saves as it's clicked (see "Unsaved changes"): games to add and games to
 - **Empty**: "No games yet." with "Add games".
 
 **The game picker** (the Games tab and the builder's Games step): G1's `PickerList` with search ("Search teams"), the **sport filter**, a date range ("Any date", "Next 7 days", "Next 30 days", "Choose dates"), the count ("48 games") and checkbox rows grouped by day (time, matchup, sport). **Every game that hasn't started is offered, of any sport the feed names (or none)**; nothing but the reader's own search, sport and dates narrows the list (Arthur, 2026-09-28: the seam from the feed to the picker is exact). The sport filter is a select, "All sports" then **every sport the feed carries** (the whole feed's distinct sports, not only those with a game to come: college and baseball games reach the feed minutes to a day before they start), by readable name ("College football", "College basketball", "Soccer", "Golf", "Special events"; NFL, NBA, WNBA, MLB, NHL and MMA as they are; a code the console has no name for as the feed spells it), sorted by name. A sport with nothing to come says so: "No upcoming college football games yet." with "Clear search and filters".
-- **Trivia** has the same Games tab: trivia contests run at games too.
+- **A trivia contest has no Games tab.** Its one game, when it runs at one, is picked on its Trivia tab (below).
 
 No props appear here or anywhere in the console.
 
@@ -519,17 +532,59 @@ No props appear here or anywhere in the console.
 | Picker | "Search teams", "Sport", "All sports", "Any date", "Next 7 days", "Next 30 days", "Choose dates", "48 games", "No games match.", "No upcoming college football games yet.", "No upcoming games yet." |
 | Errors | "Denver @ Fighting Hawks has already started.", the `gameRemoved` lock sentence |
 
+#### Trivia tab
+
+A trivia contest's tab in place of Games (D-114): the builder's Trivia step on the contest page, at `/contests/:contestId/trivia`. Code: `pages/contests/TriviaTab.tsx`, `TriviaSettingsCard.tsx`, `triviaSettingsForm.ts`; the fields are shared with the builder (`components/contests/triviaFields.tsx`), so the two can't drift. What the settings mean for fans (the draw, scoring, the window) is [`trivia-game-type.spec.md`](../../features/1-draft/trivia-game-type.spec.md).
+
+Two cards, saved together from one save bar ("Save trivia settings"; see "Unsaved changes"):
+
+1. **When it runs**
+   - **Runs**: segmented "At a game | On its own". Help, at a game: "Opens at tip-off and closes when the game ends, unless you set either time below. Fans see the matchup on the contest card."; on its own: "No game. Fans see the contest by its name, and it opens and closes at the times you set."
+   - **Game** (at a game only): the game picker (`GamePicker`, `GET /admin/games/candidates?contest=<id>`), exactly one game. Help "Pick one game. Fans see its matchup, and its tip-off sets the default times."
+   - **Opens** and **Closes**: the date and time picker each. At a game, a blank time is the game's own (tip-off, and the expected end: tip-off plus the sport's usual length, `triviaGameWindow`), shown as the field's muted placeholder, and Closes' help names the length ("When the game is expected to end, 3½ hours after tip-off, unless you set a time."). A stored time equal to the game's own reads back as blank, so changing the game moves it. On its own, both are required. A blank time never becomes "now".
+2. **Questions and scoring**
+   - **Questions in a run**: a numbered list, one select per question ("Question 1 draws from"), listing the question bank's tags with their question counts ("nfl (24)"; `GET /admin/trivia/tags`). "Add a question" up to 20; × removes one, down to 1. Help "Every fan answers 5 questions, each drawn at random from its tag, so every run has the same shape." An empty bank shows "Your question bank is empty." with "Open Question bank".
+   - **Runs per fan**: segmented "1 | 2 | 3"; help "No retry." or "Only a fan's best run counts." (The contract takes 1 to 10; the console offers 1 to 3.)
+   - **Time per question** (seconds; "From 5 to 60 seconds."), **Right answer** (points; "Points for every right answer."), **Speed bonus, up to** (points; "Added for a fast answer, less the longer a fan takes."), **Network allowance** (seconds; "A slow connection doesn't cost a fan: their clock allows this much lag.").
+
+A new contest starts with one question slot and no tag, 1 run per fan, 15 seconds, 500 points, a 500-point speed bonus and a 5-second allowance (`TRIVIA_DEFAULTS`, shared `B2BTrivia.ts`).
+
+**Saving.** The form checks itself first: a question with no tag ("Pick a tag for question 2."), a game-day contest with no game ("Pick the game this trivia runs at."), a standalone contest missing a time ("Set when it opens and closes."), and a close not after the open ("It must close after it opens."); the bar then says "Some changes need another look.". Save sends one `PATCH /admin/contests/:contestId` with `trivia`, the **complete** config (schedule, slots, timing, scoring, the stored bands, `revealMode: "per_question"`, `speedBonus.curve: "linear"`), and `expectedUpdatedAt`. The server merges it onto the stored config, fills a game-day config's blank times from its game, and validates the result whole: every slot's tag exists (400 `TRIVIA.UNKNOWN_TAG`), every band's prize is in the library (400 `TRIVIA.UNKNOWN_PRIZE`), every tag holds (slots drawing from it) × (runs per fan) questions (409 `TRIVIA.TAG_TOO_SMALL`, naming the question: 'Question 1 uses the tag "nfl", which has 5 questions. …'), it closes after it opens, and its game exists. So a draft can't save a short config either; the publish check `trivia_short_questions` catches a bank that shrank after saving.
+
+**Not set up.** A draft saved before its Trivia step has no config. The tab shows one card, "Trivia settings": "Not set up yet. Fans can't play until it has questions and times.", with "Set up trivia" (writers, on a draft) opening the builder's Trivia step.
+
+**Read only.** A member, or anyone on a finalized contest, sees the same two cards as values: Runs, Game, Opens, Closes ("Standings settle when it closes."), Questions in a run (the count), Drawn from (the tags), Runs per fan ("1, no retry" or "3, best run counts"), Time per question, Scoring ("500 points, plus up to 500 for speed") and Network allowance.
+
+**Locked** (a fan has started a run; the trivia table under "The lock", D-120). The `trivia_rules` sentence sits above the cards as a lock note before anyone tries a change. Runs, Game and Opens read as values with the lock glyph, and every Questions and scoring setting reads as a value with the glyph. Only **Closes** stays a field: its earliest choice is the later of the open time and now, and a moved close time before it opens or in the past shows the `closesAt` sentence under it. The tags aren't read while locked. A 409 `contest_locked` on Save (the lock landed while editing) shows its first sentence as a lock note, says "Some changes need another look." in the bar, and re-reads the contest.
+
+**Can't run.** A contest whose tags hold too few questions shows the page's warning banner (see "Page states"), whichever tab is open.
+
+| Element | Copy |
+|---|---|
+| Cards | "When it runs", "Questions and scoring", "Trivia settings" |
+| Labels | "Runs", "At a game", "On its own", "Game", "Opens", "Closes", "Questions in a run", "Select a tag…", "Add a question", "Runs per fan", "Time per question", "seconds", "Right answer", "Speed bonus, up to", "points", "Network allowance", "Drawn from", "Scoring" |
+| Empty and not set up | "Your question bank is empty.", "Open Question bank", "Couldn't load the question bank's tags.", "Not set up yet. Fans can't play until it has questions and times.", "Set up trivia" |
+| Errors | "Pick a tag for question 2.", "Pick the game this trivia runs at.", "Set when it opens and closes.", "It must close after it opens.", the `closesAt` and `trivia_rules` lock sentences, the `TRIVIA.TAG_TOO_SMALL` sentence |
+| Save bar | "Save trivia settings", then as every tab |
+
 #### Prizes tab
 
-The contest's prize ladder, tiers shown by number ("Tier 1", "Tier 2"…), each naming its library prize. Everything about it (the ladder, adding a tier, the prize full page, completeness, the lock's tier kinds) is [`admin-prizes.spec.md`](admin-prizes.spec.md). Trivia: its prize bands ([`trivia-game-type.spec.md`](../../features/1-draft/trivia-game-type.spec.md)); once fans have played, a band's prize reads as a value with the lock glyph, with no Remove, and narrowing a band is refused before saving.
+The contest's prize ladder, tiers shown by number ("Tier 1", "Tier 2"…), each naming its library prize. Everything about it (the ladder, adding a tier, the prize full page, completeness, the lock's tier kinds) is [`admin-prizes.spec.md`](admin-prizes.spec.md). **A trivia contest's Prizes tab is its prize bands** (`pages/contests/TriviaPrizesTab.tsx`, the editor `components/contests/triviaBands.tsx`), drawn as the ladder is. Lede: "What fans can win in this contest. A band pays its prize to each fan who finishes in its positions."
+
+- **A band row**: its number ("Band 1"), **Finishing positions** as two numbers ("1" to "10"), the **Prize** picker over the prize library (`GET /admin/prize-library`), and under it the prize's "Provided by" sponsor, its completeness pill and "Open prize"; × removes the band. Once fans have played, a row says "12 fans in this band so far".
+- **Add band** (up to 50) starts the new band after the last position any band covers. Under the list: "Bands can't overlap. Ties go to whoever finished first, so each position is one fan."
+- **Which prizes**: on a draft any library prize; once published only a complete one (the picker greys out a prize that needs details). Publish counts only bands whose prize is complete (`no_prize_bands`).
+- **Saving**: the save bar ("Save prizes") checks each row first ("Enter the first and last finishing position.", "The last position can't come before the first.", "These positions overlap band 2.", "Choose a prize.") and sends `PATCH /admin/contests/:contestId` with `trivia` = the stored config with the bands in rank order. Bands live in the trivia config, so a contest with none shows "No prize bands yet." and "Prize bands are part of the trivia settings. Set those up first." with "Set up trivia" (writers, on a draft).
+- **Locked** (D-120): the line "Fans have started playing, so a saved band can't be removed, narrowed or given a different prize. You can widen a band or add one."; a saved band's prize reads as a value with the lock glyph and has no ×; narrowing or removing a saved band is refused before saving with the `bandRemoved` sentence.
+- **Read only**: a member reads "You can view prizes. Changing them is for admins."; a finalized contest "This contest is finalized, so its prizes can't change."; both see positions as "Positions 1–10".
 
 #### Sponsors tab
 
-The contest's sponsor placements: [`admin-sponsors.spec.md`](admin-sponsors.spec.md). A trivia contest's tab has no "Provided by" prize-tier card: that card is bingo's.
+The contest's sponsor placements: [`admin-sponsors.spec.md`](admin-sponsors.spec.md). Placements are for the whole contest (D-107): bingo places the Board banner, trivia **Presented by** (the sponsor's Presented by logo and name on every trivia screen, and the credit on its prizes). A trivia contest's tab has no "Provided by" prize-tier card: that card is bingo's.
 
-#### Preview tab
+#### Preview drawer
 
-The console's `FanAppPreview` host showing this contest on the current fan app, with its real games, players, photos and prize tiers: [`admin-preview.spec.md`](admin-preview.spec.md). The tab keeps its screen and device in the URL (`?screen=`, `?device=`).
+Not a tab (D-113): the header's Preview opens a right-side drawer (`components/preview/ContestPreviewDrawer.tsx`) over whichever tab is open, holding the console's `FanAppPreview` host on this contest (`GET /admin/contests/:contestId/preview`): [`admin-preview.spec.md`](admin-preview.spec.md). It opens on the screen that shows what the tab edits (Overview: the contest list; Games and Trivia: the contest's own screen, the Rules for trivia; Prizes: the prize popup or the standings; Sponsors: the board) and keeps it in the URL (`?preview=<screen>`). A trivia contest's tabs are Contest list, Rules, Questions, Results and Standings.
 
 ### The builder — `/contests/new`, `/contests/:contestId/setup/:step`
 
@@ -537,7 +592,7 @@ The console's `FanAppPreview` host showing this contest on the current fan app, 
 
 **Builder header**, under the top bar: the title ("New contest", then the name as typed), the "Draft" chip once the draft exists, the save indicator ("Saved · just now", "Saving…", "Unsaved changes", or "Not saved yet" before the first save), **"Save draft"** (secondary), and "Exit" (ghost).
 
-**The progress bar**, across the top of the content under the header: five steps in a row, **Basics · Games · Prizes · Sponsors · Review**, joined by a track that fills up to the current step. Each step is a button showing its number, its name and a one-line summary once it has one ("Bingo", "2 games", "2 tiers", "Optional", "Ready to publish"). Its mark is ✓ when done, "!" in the warning colour when it needs attention (a tier that needs details, or a publish reason pointing at it), the number otherwise; the current step is outlined. **Once the draft exists every step can be clicked at any time**, in any order; before it exists the other steps wait (disabled, "Save the draft first"). The bar scrolls sideways below 720px.
+**The progress bar**, across the top of the content under the header: five steps in a row, **Basics · Games · Prizes · Sponsors · Review** (a trivia contest's second step reads **Trivia**; its route stays `games`), joined by a track that fills up to the current step. Each step is a button showing its number, its name and a one-line summary once it has one ("Bingo", "2 games", "2 tiers", "Optional", "Ready to publish"; for trivia "2 bands", and on Sponsors the Presented by sponsor's name). Its mark is ✓ when done, "!" in the warning colour when it needs attention (a tier that needs details, or a publish reason pointing at it), the number otherwise; the current step is outlined. **Once the draft exists every step can be clicked at any time**, in any order; before it exists the other steps wait (disabled, "Save the draft first"). The bar scrolls sideways below 720px.
 
 **Footer bar**: "Back" and the primary, "Save and continue" while anything is unsaved (and on `/contests/new`) or "Continue" when nothing is; on Review, "Publish" replaces it.
 
@@ -558,11 +613,14 @@ Steps and their routes (`:step` = `basics`, `games`, `prizes`, `sponsors`, `revi
    - **Player limit**: "No limit | Limit to" with a number.
    - **Banner**: the banner field (see "Banner"), in its own card.
    - **Opens** and **Closes** (bingo only; 2026-10-01): the contest's own times, each the date and time picker (see "Opens and closes"). Optional.
+   - **Trivia hides** Player limit and Opens/Closes: a trivia contest stores no limit, and its times are on its Trivia step. Switching the type on an unsaved or unlocked draft starts the new type clean: on save the server drops the other type's games, tiers, player limit and progress marker (to trivia) or trivia config (to bingo), and the sponsor slots the new type doesn't have.
    - Done when: a valid name and a type.
 2. **Games.** The game picker on the left (every upcoming game of every sport, the sport filter). On the right, the picked games with their sport and tip-off and a remove control, headed "3 games · first Sat Oct 3" ("No games picked yet." when empty); a game not saved yet reads "· Not saved yet". Ticking and unticking change the list; Save draft or "Save and continue" writes it. Done when: at least one game.
-3. **Prizes.** The contest Prizes tab's ladder ([`admin-prizes.spec.md`](admin-prizes.spec.md)), the same component. A prize opens as its full page and returns here. Trivia: its prize bands. Done when: at least one complete tier and none that needs details.
-4. **Sponsors.** The contest Sponsors tab's content ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)), the same component; its step summary reads "Optional". Done once visited.
-5. **Review.** Left, the readiness checklist, each row linking to its step: "Name", "Contest type", "Games (3)", "Prize tiers (2 complete)", "Sponsors (4 placements)". A row that blocks publishing shows its reason under it, and the reasons are also listed in one card above the footer ("Publish is waiting on one thing" / "Publish is waiting on 2 things"). A bingo contest also lists an "Opens and closes" row. A note that publishing now would open or close the contest at once (see "Publish checks") shows beside Publish and never blocks it. Right, the preview frame on the builder's current state ([`admin-preview.spec.md`](admin-preview.spec.md)). **Publish** is disabled while any reason stands; it shows "Publishing…", then navigates to the contest page, which shows "Published. Fans can see it now." No toast.
+   **Trivia** (trivia contests, in this step's place): the Trivia tab's two cards, "When it runs" and "Questions and scoring", with the same fields, checks and save (see "Trivia tab"; `TriviaStep` in `ContestBuilder.tsx`). Its first save creates the trivia config. Marked "!" while `trivia_incomplete` stands, done once the draft exists otherwise.
+3. **Prizes.** The contest Prizes tab's ladder ([`admin-prizes.spec.md`](admin-prizes.spec.md)), the same component. A prize opens as its full page and returns here. Done when: at least one complete tier and none that needs details.
+   **Trivia**: the bands editor (see "Prizes tab"; `TriviaPrizesStep`), any library prize allowed. Until the Trivia step has been saved it shows "Set up the Trivia step first." / "Prize bands are part of the trivia settings, so they wait for its first save." with "Go to the Trivia step". Done when: at least one band.
+4. **Sponsors.** The contest Sponsors tab's content ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)), the same component; its step summary reads "Optional" (trivia: the Presented by sponsor's name, read from `GET /admin/contests/:contestId/placements`). Done once visited (trivia: or once Presented by is held).
+5. **Review.** Left, the readiness checklist, each row linking to its step: "Name", "Contest type", "Games (3)", "Prize tiers (2 complete)", "Sponsors (4 placements)". A row that blocks publishing shows its reason under it, and the reasons are also listed in one card above the footer ("Publish is waiting on one thing" / "Publish is waiting on 2 things"). Every contest lists an "Opens and closes" row (bingo: its own times or "With its games", linking to Basics; trivia: its trivia times, linking to the Trivia step). A trivia contest's rows are "Name", "Contest type", "Trivia" ("Set up" or "Not set up"), "Opens and closes", "Prize bands (2)" and "Presented by" (the sponsor, or "None"). A note that publishing now would open or close the contest at once (see "Publish checks") shows beside Publish and never blocks it. Right, the preview frame on the builder's current state ([`admin-preview.spec.md`](admin-preview.spec.md)). **Publish** is disabled while any reason stands; it shows "Publishing…", then navigates to the contest page, which shows "Published. Fans can see it now." No toast.
 
 **Exit** returns to `/games`, where the draft leads the list. With unsaved edits, or before the draft exists, it asks "Leave without saving?" first; it never saves on its own.
 
@@ -578,7 +636,8 @@ Steps and their routes (`:step` = `basics`, `games`, `prizes`, `sponsors`, `revi
 | Leave prompt | "Leave without saving?", "This contest hasn't been saved yet.", "Your unsaved changes to this contest will be lost.", "Leave", "Keep editing" |
 | Basics | "Name", "Rivalry Week", "Contest type", "Bingo", "Fans draft players and win on bingos.", "Trivia", "Fans answer timed questions and win by finishing place.", "Description", "Fans see this on the contest card.", "Internal note", "Sponsor, dates, anything your team should know", "Only people in this console see the internal note.", "Player limit", "No limit", "Limit to", "players", "Give the contest a name." |
 | Games | The picker's copy (Games tab), "3 games · first Sat Oct 3", "No games picked yet.", "Not saved yet" |
-| Review checklist | "Name", "Contest type", "Games (3)", "Prize tiers (2 complete)", "Opens and closes", "Sponsors (4 placements)", "Publish is waiting on one thing", "Publish is waiting on 2 things" |
+| Review checklist | "Name", "Contest type", "Games (3)", "Prize tiers (2 complete)", "Opens and closes", "Sponsors (4 placements)", for trivia "Trivia", "Set up", "Not set up", "Prize bands (2)", "Presented by", "None"; "Publish is waiting on one thing", "Publish is waiting on 2 things" |
+| Trivia step | As the Trivia tab; the Prizes step's "Set up the Trivia step first.", "Prize bands are part of the trivia settings, so they wait for its first save.", "Go to the Trivia step" |
 | Publish reasons | The sentences under "Publish checks" |
 | Publish notes | "Its close time has passed, so it closes as soon as it's published. Change the close time first?", "Change the close time", "Its open time has passed, so fans can play as soon as it's published." |
 | Opens and closes | "Opens", "Closes", the help lines under "Opens and closes", "It must close after it opens.", "The close time can't be before the contest opens, or in the past." |
@@ -610,14 +669,16 @@ The table stays ([`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md), p
 
 A contest is **ready to finalize** when it is **not finalized, not a draft, has at least one game, and every one of its games has ended** (derived status: the feed's Final, every prop resolved, or past the sport's usual length; a game the feed no longer has can't be known to be over and holds the contest back). "Its games" are the contest's own set (`allowedBetEvents`). One server function (`readyToFinalize`, `util/contest-console.ts`) decides it for every surface: the contest rows' and page's `readyToFinalize`, All contests' and the tenant record's rows (`readyToFinalize` on the All contests row), Operations' `ready-to-finalize` queue, and **the finalize endpoint, which refuses a contest that isn't ready with 409 `not_ready`** ("Only a published contest whose games have all ended can be finalized."). A contest with no games (the `test` tenant's "Test Tenant Bingo" and "Archived test contest (early)") is never ready, which is why neither offered Finalize.
 
+**A trivia contest** has no games to wait on: it is ready when it is **not finalized, not a draft, and its close time (`trivia.closesAt`) has passed** (same function). Its Finalize is its own endpoint, `POST /admin/contests/:contestId/trivia/finalize` ([`trivia-game-type.spec.md`](../../features/1-draft/trivia-game-type.spec.md), "Finalize and prizes"): it stops any run still in progress where it stands, settles the standings once, and sends a prize to every fan inside a band. Bingo's endpoint refuses a trivia contest.
+
 ### Finalize, wherever it appears
 
-Staff only, wherever it appears (revised 2026-09-28, Arthur's final walk): All contests rows, the tenant page's Contests rows, and — marked with an indigo "Staff" tag — the workspace's contest cards, list rows, contest page header and Overview rail. Every one opens the same centred dialog (`FinalizeContestDialog`); the tenant page no longer keeps its own copy. It is offered only when the server's `readyToFinalize` is true, and hidden rather than disabled otherwise, except on the Overview rail, which tells staff why. Tenant admins and members never see it; staff keep it in either point of view. The typed name is checked by the server; no re-authentication.
+Staff only, wherever it appears (revised 2026-09-28, Arthur's final walk): All contests rows, the tenant page's Contests rows, and — marked with an indigo "Staff" tag — the workspace's contest cards, list rows, contest page header and Overview rail. Every one opens the same centred dialog (`FinalizeContestDialog`); the tenant page no longer keeps its own copy. It is offered only when the server's `readyToFinalize` is true, and hidden rather than disabled otherwise, except on the Overview rail, which tells staff why. Tenant admins and members never see it; staff keep it in either point of view. The typed name is checked by the server for bingo; trivia's endpoint takes no body, so for trivia only the dialog checks it (see Known gaps). No re-authentication.
 
 | Element | Copy |
 |---|---|
 | Title | "Finalize Rivalry Week?" |
-| Body | "Finalizing is permanent and cannot be undone. It marks the contest finished for every fan." |
+| Body | "Finalizing is permanent and cannot be undone. It marks the contest finished for every fan." Trivia adds: "Fans still answering are stopped where they stand: what they answered counts, the rest scores nothing. The standings are frozen and the prizes go to every fan in a prize band." |
 | Input label | "Type “Rivalry Week” to confirm" |
 | Buttons | "Finalize permanently", "Finalizing…", "Cancel" |
 | Errors | "The contest name you typed doesn't match." |
@@ -663,6 +724,9 @@ All under `/admin`, `requireAdmin`. Targeting as everywhere: a tenant caller's t
 | POST | `/admin/contests/:contestId/games` | Tenant `org:admin`, OBS staff |
 | DELETE | `/admin/contests/:contestId/games/:betEventId` | Tenant `org:admin`, OBS staff (lock permitting) |
 | POST | `/admin/contests/:contestId/finalize` | OBS staff only (unchanged) |
+| POST | `/admin/contests/:contestId/trivia/finalize` | OBS staff only; trivia's Finalize ([`trivia-game-type.spec.md`](../../features/1-draft/trivia-game-type.spec.md)) |
+| GET | `/admin/trivia/tags` | Any resolved admin scope; the Trivia step's and tab's tag lists ([`trivia-game-type.spec.md`](../../features/1-draft/trivia-game-type.spec.md), "Admin: Question bank") |
+| GET | `/admin/contests/:contestId/placements` | Any resolved admin scope ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)); the trivia builder reads its Presented by holder from it |
 | PUT | `/admin/dev/contests/:contestId/test-mode` | Wave 3 §5 (dev only) |
 | PUT | `/admin/contests/:contestId/games` | Kept for the old screen until it retires; lock-checked |
 
@@ -716,7 +780,7 @@ Per-row aggregates (players, sparkline, tier count, banner) are computed for the
 
 ### `GET /admin/contests/:contestId`
 
-The contest page's read. The list row's fields plus `internalNote`, `bannerImageUrl` (or null), `defaultBanner` (what the banner shows without the contest's own image), `testMode` (only where the dev gate is open; no console screen shows it), `kpis: { boardsWithBingo, prizesAwarded, failedSends, finishedFans? }` (`finishedFans` on trivia: fans with at least one completed run), `entryWindow: { opensAt, closesAt }` (bingo; each null where it follows its games), `questionShortfalls` (trivia: the tags too small for every run, `{ tag, slotIndex, slots, have, need }[]`, empty when it can run), `prizeTiers: { total, complete, needsDetails }`, `placementCount`, `progressMarkerImageUrl` (or null) and `brandMarkerImageUrl` (the Brand marker the board shows without the contest's own, or null) (2026-09-30; there is no `markerSponsors`: no sponsor's icon shows ahead of the contest's marker), `transitions: Array<"publish" | "close" | "reopen" | "toDraft">` (what the header offers), and `publishChecks: Array<{ key, message }>` (empty when publishable; drives the Review checklist, the progress bar's marks and "Continue setup"'s first incomplete step). 404 for a wrong or foreign id.
+The contest page's read. The list row's fields plus `internalNote`, `bannerImageUrl` (or null), `defaultBanner` (what the banner shows without the contest's own image), `testMode` (only where the dev gate is open; no console screen shows it), `kpis: { boardsWithBingo, prizesAwarded, failedSends, finishedFans? }` (`finishedFans` on trivia: fans with at least one completed run), `entryWindow: { opensAt, closesAt }` (bingo; each null where it follows its games), `trivia` (trivia: the stored config as `AdminTriviaConfig`, settled standings named by membership), `questionShortfalls` (trivia: the tags too small for every run, `{ tag, slotIndex, slots, have, need }[]`, empty when it can run), `prizeTiers: { total, complete, needsDetails }`, `placementCount`, `progressMarkerImageUrl` (or null) and `brandMarkerImageUrl` (the Brand marker the board shows without the contest's own, or null) (2026-09-30; there is no `markerSponsors`: no sponsor's icon shows ahead of the contest's marker), `transitions: Array<"publish" | "close" | "reopen" | "toDraft">` (what the header offers), and `publishChecks: Array<{ key, message }>` (empty when publishable; drives the Review checklist, the progress bar's marks and "Continue setup"'s first incomplete step). 404 for a wrong or foreign id.
 
 ### `GET /admin/contests/:contestId/games`
 
@@ -728,7 +792,7 @@ Removed 2026-09-30 with the per-game marker. The contest's marker is written by 
 
 ### `POST /admin/contests`
 
-Creates a contest, a Draft by default. Body: `{ contestName, contestType?, description?, internalNote?, maxParticipants?, bannerImageUrl?, opensAt?, closesAt?, state?: "draft" | "open", betEventIds? }`. Defaults: bingo, no limit, no games, no own times, `state: "draft"`.
+Creates a contest, a Draft by default. Body: `{ contestName, contestType?, description?, internalNote?, maxParticipants?, bannerImageUrl?, opensAt?, closesAt?, state?: "draft" | "open", betEventIds?, trivia? }`. Defaults: bingo, no limit, no games, no own times, `state: "draft"`. A trivia contest stores no `maxParticipants`; its game is `trivia.betEventId`, never `betEventIds`. A trivia draft may be created without `trivia` (the console creates it from Basics); a `trivia` sent is validated as on PATCH.
 
 - Validation (400, `errors.<field>`): name 1–80 after trim; description ≤300; internal note ≤500; limit 0–1,000,000; type a registry key; banner an https URL ("Use a full address starting with https://"); `closesAt` after `opensAt` ("It must close after it opens."); `opensAt` or `closesAt` on a trivia contest ("A trivia contest's times are in its trivia settings.").
 - `state: "open"` runs the publish checks (409 `publish_blocked`). The console always creates a Draft.
@@ -744,6 +808,7 @@ Body: any of `{ contestName, description, internalNote, maxParticipants, contest
 - The precondition and the write are one filter; a stale edit → 409 `stale_contest`.
 - `state`: the transitions of Wave 3 §3.1. Draft → Open runs the publish checks (409 `publish_blocked` with `reasons`). To Draft on a locked contest → 409 `contest_locked` ("Fans have joined this contest, so it can't go back to draft."), with the not-locked condition in the write filter.
 - `contestType` on a non-draft → 409 `not_draft` ("The contest type can't change after publishing."); on a locked one → 409 `contest_locked` (kind `contestType`).
+- `trivia` (trivia only; 400 otherwise): merged onto the stored config and validated whole (see "Trivia tab", Saving); once locked, a changed locked field, a removed, narrowed or re-prized band, or a bad close time → 409 `contest_locked` with kinds `trivia_rules`, `bandRemoved`, `bandPrize`, `closesAt`. A published contest's close time can't move into the past (400, the `closesAt` sentence). The console always sends the complete config. The contest's `allowedBetEvents` follow the config's game.
 - `opensAt`, `closesAt` (bingo; see "Opens and closes"): on a trivia contest → 400 "A trivia contest's times are in its trivia settings."; close not after open → 400 "It must close after it opens."; on a published contest, a close time in the past or before it opens → refused with "The close time can't be before the contest opens, or in the past." (kind `closesAt`); a changed `opensAt` on a locked contest → 409 `contest_locked` (kind `opensAt`).
 - Name clash → 409 `name_taken`.
 - Audited `contest_update` with the changed field names and the new `state`, never free text. A Draft → Open change is audited as `contest_publish`.
@@ -808,13 +873,13 @@ As [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md), plus the one rule
 
 ## Contest types: groundwork for the second game
 
-`GAME-F1`: the type lives on the contest, and the registry above is the one list of types. New wire fields stay type-neutral. Deliberately left for the trivia build: the `*_bingo_*` collection names; the board's nine named cells and the evaluator's eight lines; tiers keyed on `threeInARows` (the second game needs a type-neutral threshold or its own tier fields); "bingo" in existing wire fields and CSV columns; the fan app's bingo-shaped routes.
+`GAME-F1`: the type lives on the contest, and the registry above is the one list of types. New wire fields stay type-neutral. Trivia was built beside bingo without touching these: its own collections (questions, tags, runs), its config and bands on the contest (`trivia`), and prize rows that carry `contestType` ([`trivia-game-type.spec.md`](../../features/1-draft/trivia-game-type.spec.md)). Left bingo-shaped on purpose: the `*_bingo_*` collection names; the board's nine named cells and the evaluator's eight lines; tiers keyed on `threeInARows` (the second game needs a type-neutral threshold or its own tier fields); "bingo" in existing wire fields and CSV columns; the fan app's bingo-shaped routes.
 
 ---
 
 ## Rules
 
-1. **`CT-01` — A control exists only if the fan side honours it.** No entries-per-fan, no two-teams, no board rules, no prop controls. The Trivia placeholder is the one sanctioned exception.
+1. **`CT-01` — A control exists only if the fan side honours it.** No entries-per-fan, no two-teams, no board rules, no prop controls, no player limit on a trivia contest.
 2. **`CT-02` — A contest's state is stored: Draft, Open or Closed** (Wave 3 §3.1). Finalized is a badge. The pill shows the phase (Draft, Upcoming, Open, Closed) from one shared rule, `contestPhase`, which the fan app and the server's fan list share. The console never shows a separate visibility or entries control.
 3. **`CT-03` — Publish is gated.** Bingo needs a game that hasn't started and a complete tier with none needing details. Trivia needs its settings, enough questions in every tag for every run, and a complete band; its times never block it. The server checks it on every move into Open from Draft.
 4. **`CT-04` — Each state action appears once, where it belongs,** and only when allowed: Publish on Review, the others in the contest page header and (Close and Reopen) the card and row overflow.
@@ -844,6 +909,8 @@ As [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md), plus the one rule
 - **Player-limit enforcement is count-then-insert.** Two fans at the last place in the same instant can both join.
 - **`numberParticipants` is dead data**, left in place and read by nothing.
 - **Audit coverage.** Games adds and removes and state changes are audited from this spec on; tier writes' audit is [`admin-prizes.spec.md`](admin-prizes.spec.md)'s.
+- **A locked band's prize swap (2026-10-03).** D-120 says a locked band's prize can't be swapped. The shared lock (`triviaBandLockViolations`) still allows a swap to a prize whose stated value (`approximateValueCents`) is at least the old one's when both state one, and the server reads those values (`toLockableBands`). The console never states a value and never offers the swap, so only a direct API call on legacy-valued prizes can reach it; the `bandPrize` sentence still mentions "a prize worth at least as much". Open: drop the value branch, or record it as intended.
+- **Trivia Finalize's typed name (2026-10-03).** The dialog asks for the typed name, but `POST /admin/contests/:contestId/trivia/finalize` takes no body, so the server doesn't check it as bingo's does.
 
 ## As built (Wave 4)
 
@@ -862,6 +929,32 @@ Where the shipped console differs in detail from the text above:
 - The Prizes step and tab keep the ladder's own **"Save prizes"** ([`admin-prizes.spec.md`](admin-prizes.spec.md)); the builder's Save draft covers the ladder once it reports its unsaved rows to the builder's unsaved-changes registry.
 - The sport filter is a **select** ("All sports" and every sport), not the segmented chips, because the feed carries eleven sports.
 - The fan-app preview's builder overlay does not yet carry an unsaved banner; it shows the saved one.
+
+## Function audit (2026-10-03)
+
+Every screen, where its data comes from and what it writes. Paths are in `obs-b2b-admin-frontend/src` and `overboard_sports_backend/node-server/src`.
+
+| Screen | Reads | Writes |
+|---|---|---|
+| Games & Contests (`pages/Games.tsx`) | `GET /admin/contests` (cursor pages, phase, banner, sparkline, `prizeCount`, `readyToFinalize`) | `PATCH` `state` (Close and Reopen entries), `POST …/duplicate`, `DELETE`, staff Finalize (`POST …/finalize` or `…/trivia/finalize`) |
+| Contest page header (`pages/contests/ContestPage.tsx`) | `GET /admin/contests/:contestId` (`transitions`, `questionShortfalls`, `locked`, `finalized`) | `PATCH` `state`, `POST …/duplicate`, `DELETE`, staff Finalize |
+| Overview (`OverviewTab.tsx`) | the contest read (`kpis`, `entryWindow`, `trivia` times, `games.featured`) | `PATCH` Basics fields changed |
+| Games (bingo; `GamesTab.tsx`) | `GET /admin/contests/:contestId/games`, `GET /admin/games/candidates` | `POST …/games`, `DELETE …/games/:betEventId` |
+| Trivia (trivia; `TriviaTab.tsx`) | the contest read (`trivia`, `games.featured`, `locked`), `GET /admin/trivia/tags`, `GET /admin/games/candidates` | `PATCH` `trivia` (complete config) |
+| Prizes (bingo: `PrizeLadder`; trivia: `TriviaPrizesTab.tsx`) | [`admin-prizes.spec.md`](admin-prizes.spec.md); trivia: `GET /admin/prize-library` | tiers: [`admin-prizes.spec.md`](admin-prizes.spec.md); bands: `PATCH` `trivia` |
+| Sponsors (`components/sponsors/SlotEditor.tsx`) | `GET /admin/contests/:contestId/placements`, `GET /admin/sponsors/list` | placements ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)) |
+| Preview drawer (`components/preview/ContestPreviewDrawer.tsx`) | `GET /admin/contests/:contestId/preview` | none |
+| Builder (`pages/contests/ContestBuilder.tsx`) | as the tabs, plus `GET …/placements` for trivia's Presented by summary | `POST /admin/contests` (first save), then as the tabs; Publish is `PATCH` `state: "open"` |
+
+**Cut or changed from earlier versions of this spec, and why:**
+
+- **The Trivia placeholder** is gone: trivia is playable, with its own step and tab (above).
+- **"Trivia has the same Games tab"** was never built that way: a trivia contest has at most one game, picked on its Trivia tab (D-114).
+- **The Preview tab** became a drawer from the header (D-113); its old address redirects.
+- **`tierValue`** left the lock table: prizes state no value since 2026-09-28, so there is nothing for a value lock to compare.
+- **A player limit on trivia** is not offered and not stored: nothing on the trivia fan path counts against one.
+- **A reveal-mode control** is not offered: the only mode is a reveal after every question, and the console sends `per_question`.
+- **The trivia "Send prizes" section** of the earlier trivia spec was not built: staff Finalize settles and sends in one action.
 
 ## References
 
