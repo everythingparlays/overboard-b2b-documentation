@@ -30,7 +30,7 @@ When a fan completes a bingo line, the board-evaluator puts a message on the pri
 **Not in scope:**
 
 - **Coupon-code batches** (`PRIZE-05`/`PRIZE-06`'s batch half) — deliberately deferred until the first real sponsor's shape is known. The seam is specified below ("Codes").
-- **Sending-domain authentication** (DKIM for `everythingparlays.com` in Google Cloud DNS, Resend's domain verification). Nick-gated. See "Deploy dependency".
+- **Sending-domain authentication** — done for `email.overboardsports.com` in Resend (2026-10-03). A DMARC record for `overboardsports.com` is still open. See "Deploy dependency".
 - **Bounce and complaint processing** (provider events feeding back into `PrizeRedemption`). Recorded gap — today a bounce after the provider accepted the message is invisible to the worker; Resend's dashboard shows it to a human.
 - **Deferred end-of-game delivery** (`PRIZE-02`). Unchanged: finalization still dispatches nothing.
 - **Tenant-uploaded HTML templates.** `PRIZE-04` makes templates developer work; a tenant never uploads markup.
@@ -213,7 +213,7 @@ A tenant configures **how the email presents itself**, not where it comes from:
 - **Reply-To** — where a fan's reply goes (a team promotions inbox).
 - **Subject** — free text with one optional `{prize}` placeholder. Any other brace token is refused at the contract.
 
-The **sending address** is platform configuration (`PRIZE_FROM_ADDRESS`), identical for every tenant, because it must be on a domain Overboard has authenticated with the sending provider. It is `support@everythingparlays.com` (Nick, 2026-10-01): replies land in that Google Workspace mailbox. The From header is `"{sender name}" <{PRIZE_FROM_ADDRESS}>`. When `PRIZE_FROM_ADDRESS` is unset the worker **refuses to send** and records why; it no longer falls back to a staff member's personal address.
+The **sending address** is platform configuration (`PRIZE_FROM_ADDRESS`), identical for every tenant, because it must be on a domain Overboard has authenticated with the sending provider. It is `support@email.overboardsports.com`, on the domain Resend has verified (Nick, 2026-10-03); tenants set their own Reply-To, and the platform's replies land in the `support@everythingparlays.com` Google Workspace mailbox. A Reply-To on another domain has no effect on authentication or filtering: SPF, DKIM and DMARC look at the From and return-path domains only. The From header is `"{sender name}" <{PRIZE_FROM_ADDRESS}>`. When `PRIZE_FROM_ADDRESS` is unset the worker **refuses to send** and records why; it no longer falls back to a staff member's personal address.
 
 The **provider** is platform configuration too (`PRIZE_MAIL_PROVIDER`): **Resend** by default, SES behind `ses`. Resend was chosen (2026-10-01) because it has no sandbox or approval step — the domain's DKIM records in DNS are the only gate — and its dashboard shows each message's fate, which SES only offers after a configuration set, SNS and a consumer are built. Resend needs `RESEND_API_KEY`, delivered to the worker from Secrets Manager (`resendSecretName` in `lib/config/environments.ts`), never in plain environment. Every Resend send carries an idempotency key of `{redemption}-{attempt}`, so a redelivered attempt is answered with the first result rather than a second email. Error translation is the same as SES's: only a 429 or 503 is retryable; everything else is final and readable. SES stays available as a one-value switch per stage; the worker's `ses:SendEmail` grant exists only on a stage that uses it.
 
@@ -379,7 +379,7 @@ The local worker authenticates to Mongo with the developer's AWS SSO session thr
 
 ## Deploy dependency (Nick)
 
-- **`everythingparlays.com` verified in Resend**: add Resend's DKIM (and optional return-path) records to the domain's Google Cloud DNS zone. The domain's DMARC uses strict alignment, so DKIM on the exact domain is what makes mail pass. `PRIZE_FROM_ADDRESS` is `support@everythingparlays.com` on every stage (`lib/config/environments.ts`, `prizeFromAddress`); the worker never falls back to any address.
+- **`email.overboardsports.com` verified in Resend** (done 2026-10-03; DKIM and return path in Route53, parlaybingo account). `PRIZE_FROM_ADDRESS` is `support@email.overboardsports.com` on every stage (`lib/config/environments.ts`, `prizeFromAddress`); the worker never falls back to any address.
 - **A Resend API key in Secrets Manager** in each sending account, under the name in `environments.ts` (`resendSecretName`: `dev/OverBoardB2B/resend`, `prod/OverBoardB2B/resend`), with the key `RESEND_API_KEY`. Created by hand, like the Clerk secret. Without it the worker runs and records a readable failure for every prize; resend after the secret exists and the service has restarted.
 - **If a stage is ever switched to `ses`**: the sender must be an SES-verified identity in that account and the account out of the SES sandbox. Neither AWS account has any SES identity (checked 2026-10-01).
 - The API task receives `PRIZE_FULFILLMENT_QUEUE_URL` and `sqs:SendMessage` on the prize-fulfillment queue (CDK change in this slice; no manual step).
