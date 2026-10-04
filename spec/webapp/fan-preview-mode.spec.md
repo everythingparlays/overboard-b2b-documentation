@@ -89,6 +89,7 @@ The admin's own name and email are never used: the session's user has none, and 
 | `POST /b2b/prizes/awards/:awardId/seen` | `{ success: true, seenAt }`, in memory only |
 | Sponsor schedule (`sponsorApi.getSponsorSchedule`) | `document.schedule` |
 | `POST /b2b/join`, `POST /b2b/consent`, `PATCH /b2b/membership` | Success, recorded in memory only |
+| `GET /b2b/reports/summary` (the side menu's dot; 2026-10-03) | An empty summary: `{ unread: 0, unresolved: 0, total: 0, blockedCode: null }` |
 | `POST /b2b/board/generate` | The preview board (below), or the same refusal the server would give (below) |
 | Anything else | A 404, and the frame posts `obs-preview:error` naming the path, so a missed read is found in development rather than guessed at |
 
@@ -138,6 +139,8 @@ The celebration (confetti, and the team-colour veil when the theme's celebration
 **A draft previewed as if published.** The console's document places a Draft contest in `contests.upcoming` and gives it the fan status it would have if it were published now, so the admin sees the card and the flow fans will get. An Open or Closed contest appears exactly where fans find it now.
 
 **Screens not offered:** sign-up, forgot password, the paused screen, and the dashboard. None is part of the contest journey, and the console offers only screens it can put in a tab. A tap that would reach one (for example "Forgot password?") shows its press state and stays put. Sign in's "Forgot password?" link is shown again since 2026-10-03 (the fan reset flow, [`multi-tenant-identity-auth.spec.md`](../core-modules/1-draft/multi-tenant-identity-auth.spec.md), "Password reset"), and stays inert here (`/forgot-password` is in `ROUTES_NOT_OFFERED`, `src/preview/links.ts`).
+
+**Revised 2026-10-03 (fan support):** the report screens are not offered either — Report a problem (`/report`), Your reports (`/reports`) and a report's page (`/reports/:reportId`) ([`../core-modules/1-draft/fan-support.spec.md`](../core-modules/1-draft/fan-support.spec.md)). The side menu's Help rows render as in the app and are inert: `ROUTES_NOT_OFFERED` (`src/preview/links.ts`) takes `/report` and `/reports`, and the new `ROUTE_PREFIXES_NOT_OFFERED` takes `/reports/`. The menu's summary call, `GET /b2b/reports/summary`, is answered empty (`unread: 0`, `unresolved: 0`, `total: 0`, `blockedCode: null`): the preview fan has sent nothing, so there is no unread dot. No screen id is added.
 
 ---
 
