@@ -4,7 +4,7 @@
 
 **Depends on:** [`admin-contests.spec.md`](../../core-modules/1-draft/admin-contests.spec.md) (the contest model, the contest-type registry, the builder's Trivia step, the Trivia tab, publish checks, the lock tables, where Finalize appears), [`contest-safety.spec.md`](../../core-modules/1-draft/contest-safety.spec.md) ("Trivia: what locks"), [`admin-prizes.spec.md`](../../core-modules/1-draft/admin-prizes.spec.md) (the prize library), [`admin-sponsors.spec.md`](../../core-modules/1-draft/admin-sponsors.spec.md) (Presented by), [`prize-delivery.spec.md`](../../core-modules/1-draft/prize-delivery.spec.md) (the prize worker), [`admin-surface.spec.md`](../../core-modules/1-draft/admin-surface.spec.md) (scope, `refuseReadOnlyWrite`).
 
-**Status:** Draft (`1-draft`). Written 2026-09-26 as a mock-era design. **Rewritten 2026-10-03 to describe the trivia that shipped** (Nick's trivia build, merged with the console redesign on `integrate/trivia-overhaul`, now `main`). Decisions: D-107 (Presented by), D-113 (preview), D-114 (Trivia tab), D-118 (phase), D-119 (publishing), D-120 (lock), D-123 (names), D-124/D-125 (prize rows and email), D-126 (duplicate protection), D-127 (plain errors), D-129 (unplayable contests). Where this spec and the code disagree, the code is changed to match the spec; the doubts found on 2026-10-03 are under "Known gaps". The field-level contract is [`trivia-data-api-design.md`](trivia-data-api-design.md).
+**Status:** Draft (`1-draft`). Written 2026-09-26 as a mock-era design. **Rewritten 2026-10-03 to describe the trivia that shipped** (Nick's trivia build, merged with the console redesign on `integrate/trivia-overhaul`, now `main`). Decisions: D-107 (Presented by), D-113 (preview), D-114 (Trivia tab), D-118 (phase), D-119 (publishing), D-120 (lock), D-123 (names), D-124/D-125 (prize rows and email), D-126 (duplicate protection), D-127 (plain errors), D-129 (unplayable contests). Where this spec and the code disagree, the code is changed to match the spec; the doubts found on 2026-10-03 are under "Known gaps". The field-level contract is [`trivia-data-api-design.md`](trivia-data-api-design.md). **Revised 2026-10-03 (Arthur's rulings, the prize sheet):** trivia shares bingo's one prize sheet ([`fan-prize-sheet.spec.md`](../../webapp/fan-prize-sheet.spec.md)), its won sheet opens from the fan's awards read after Finalize, and the card shows "Prize won" ("Fan: the prize sheet").
 
 Repos are named by their roots: shared `obs-b2b-shared/src`, backend `node-server/src` (in `overboard_sports_backend`), console `obs-b2b-admin-frontend/src`, fan app `overboard-b2b-template/src`.
 
@@ -149,28 +149,40 @@ Routes in the fan app's `AppRoutes.tsx`, all signed in: `/trivia/:contestId` (pl
 
 ### Fan: contest list
 
-A trivia contest is a card in the one Contests list (`TRV-51`; `components/contests/TriviaContestCard.tsx`), in Live & Upcoming or Past by the shared phase. Its title is the contest's name, its subtitle the matchup and tip-off (none on its own), then the description. The card reads the list row (`GET /b2b/contest/list-contests`) plus the contest and `me` reads. States, first match wins: **Prize sent** ("Claim your prize"), **Live** with "Question 3 of 5 · 1,240 pts so far" ("Resume run"), **Final** ("Finished #N", "See results"), **Closed · awaiting results**, entered with no runs left ("Closes {time}", "View Standings"), entered with runs left ("Play Again"), **Open** with "Top prize: {name}" ("Play Now"), **Upcoming** with "Opens {time}" ("View rules", which opens the Rules screen).
+A trivia contest is a card in the one Contests list (`TRV-51`; `components/contests/TriviaContestCard.tsx`), in Live & Upcoming or Past by the shared phase. Its title is the contest's name, its subtitle the matchup and tip-off (none on its own), then the description. The card reads the list row (`GET /b2b/contest/list-contests`) plus the contest and `me` reads, and the fan's awards (`GET /b2b/prizes/awards`, read once for the whole list). States, first match wins: **Prize won** (any delivery status, from the fan's awards read `GET /b2b/prizes/awards`: "You won {prize}", or "You won {n} prizes", with "See your prize", which opens the won prize sheet, and "See results"), **Live** with "Question 3 of 5 · 1,240 pts so far" ("Resume run"), **Final** ("Finished #N", "See results"), **Closed · awaiting results**, entered with no runs left ("Closes {time}", "View Standings"), entered with runs left ("Play Again"), **Open** with "Top prize: {name}" ("Play Now"), **Upcoming** with "Opens {time}" ("View rules", which opens the Rules screen).
 
 ### Fan: trivia play
 
 `pages/trivia/TriviaPlayPage.tsx`, driven by the server's run `phase`:
 
-- **Rules** (`screens/RulesScreen.tsx`): "Ready, {first name}? · {contest}", "Get it right. Get it fast.", the matchup, question count and fans playing, the Presented by sponsor, four rules ("500 points for a correct answer", "Up to 500 more for answering fast", "15 seconds per question", "Your first tap is final"), the prize bands (each opens the prize's detail sheet), and the button: "Start run", "Resume run", "Opens {time}" or, in the last minutes, "Opens in 4:59" (disabled), "No runs left" or "Contest closed". An open run resumes straight away.
+- **Rules** (`screens/RulesScreen.tsx`): "Ready, {first name}? · {contest}", "Get it right. Get it fast.", the matchup, question count and fans playing, the Presented by sponsor, four rules ("500 points for a correct answer", "Up to 500 more for answering fast", "15 seconds per question", "Your first tap is final"), the prize bands, each row the band's places and the prize's name (a tap opens the prize sheet's Info body for that band), and the button: "Start run", "Resume run", "Opens {time}" or, in the last minutes, "Opens in 4:59" (disabled), "No runs left" or "Contest closed". An open run resumes straight away.
 - **Question and reveal** (`screens/QuestionScreen.tsx`): the running score, the countdown and its bar (the server's `deadlineAt` corrected by a one-time clock-skew estimate; the bar turns the destructive colour in the last quarter), the Presented by sponsor, the question and its answers. The first tap locks every answer; the reveal says "Correct", "Not this time" or "Time's up" with the points and "Answered in 3.2 s" or "Scores nothing · no answer", then "Next question" or "Finish run". When the clock runs out the page waits out the network allowance and re-reads the run.
-- **Complete** (`screens/CompleteScreen.tsx`): "Nice run, {first name}." (D-123), the score, "Played {when}", the current rank of all players with the gap to the next band ("+120 to 1st–10th · Signed jersey") or the band held, "Rank moves as more fans finish. Final when the contest closes.", "Prizes presented by {sponsor}", each question with a tick or cross and its points, then "See standings" and "Play again" with "2 of 3" while runs remain and the contest is open.
+- **Complete** (`screens/CompleteScreen.tsx`): "Nice run, {first name}." (D-123), the score, "Played {when}", the current rank of all players with the gap to the next band ("+120 to 1st–10th · Signed jersey") or the band held, "Rank moves as more fans finish. Final once results are posted.", "Prizes presented by {sponsor}", each question with a tick or cross and its points, then "See standings" and "Play again" with "2 of 3" while runs remain and the contest is open.
 - **Ended**: once Finalize has begun, "This contest has ended. Your answers so far count toward the final standings." with "See standings". Other refusals are toasts with the shared copy; a start before the server opens it says "Not open yet".
 
 ### Fan: trivia standings
 
-`pages/trivia/TriviaStandingsPage.tsx` (contest, `me`, standings): the fan's best score and "Current rank" or "Final rank" of all players, the gap to the next band's prize, "Your runs" ("2 of 3 used"), a status line ("Not final yet. Ranks can move until the contest closes: {time}."; "Closed · awaiting final results."; "Final. The contest has closed and these standings won't change." or "Final. You finished #N and won {prize} — watch your email."), the prize tiers as a progress slider (tap one for its detail), "Top fans" and "Around you" with the fan's own row marked, and "Play now", "Play again" or "Resume run" while the contest is open and runs remain.
+`pages/trivia/TriviaStandingsPage.tsx` (contest, `me`, standings): the fan's best score and "Current rank" or "Final rank" of all players, the gap to the next band's prize, "Your runs" ("2 of 3 used"), a status line ("Not final yet. Ranks can move until the contest closes: {time}."; "Closed · awaiting final results."; "Final. The contest has closed and these standings won't change." or "Final. You finished #N and won {prize} — watch your email.", the prize's name a button that opens the won prize sheet), the prize tiers as a progress slider (a tap opens the prize sheet's Info body for that band), "Top fans" and "Around you" with the fan's own row marked, and "Play now", "Play again" or "Resume run" while the contest is open and runs remain.
 
 ### Fan: your runs and run review
 
 `pages/trivia/YourRunsPage.tsx` (contest, `me`, runs): every run newest first with its score, when it was played, what went wrong ("Q2, Q4 wrong · Q3 timed out" or "All correct") and "Best" on the run that counts, plus runs left. `pages/trivia/RunReviewPage.tsx` (`/runs/:runIndex`, 1-based) shows that run's summary on the Complete layout, labelled "Run 2", with "Back to your runs".
 
+### Fan: the prize sheet (revised 2026-10-03)
+
+Trivia shares bingo's one prize sheet ([`fan-prize-sheet.spec.md`](../../webapp/fan-prize-sheet.spec.md) `FLOW-31`, `FLOW-51`, `FLOW-52`; `components/prize/`), which replaced trivia's own `PrizeDetailSheet` on 2026-10-03:
+
+- **Info, from a tap:** a prize row on the Rules screen, or a band on Standings, opens the sheet for that band: the band's places as the chip ("11th–30th"), the prize's name, image, description, "Winners get this by email once results are final." (", with a code," when the prize has one), the prize's own "Provided by" sponsor (never the contest's Presented by sponsor), and, while results aren't final, "Your best: 3,120 · #212" with "+290 to reach 11th–30th" or "You're in". The value, redemption and shipping tiles are gone (D-086), and so is the Rules row's "$150 value · Shipped to you".
+- **Won, by itself:** a trivia win lands at Finalize, usually after the fan has left, so the fan's awards are read on the server (`GET /b2b/prizes/awards`) and the won sheet opens the next time the fan is in the app, on any device, until they close it (`seenAt`). It waits while a run's question screen is up.
+- **Standings, once final:** "Final. You finished #{rank} and won {prize} — watch your email." stays; the prize's name is a button that opens the won sheet.
+- **The card:** "Prize won" for any delivery status, "You won {prize}" and "See your prize", replacing "Prize sent" and its "Claim your prize" button, which showed only once the email had gone.
+- **After a run:** "Final when the contest closes." became "Final once results are posted.": standings are final at Finalize, not at close.
+
+The band prize card (`triviaPrizeCardSchema`, the shared fan prize plus `prizeId`, `prizeDescription` and `handlerId`) carries `hasCode` and `providedBy` and no longer the four dormant fields (approximate value, redemption method, location, window), and never the code itself.
+
 ### Preview
 
-The console's preview drawer runs these same screens on the contest's data (`GET /admin/contests/:contestId/preview`, its trivia section built by `node-server/src/handlers/admin/preview-trivia.ts`; fan app `src/preview/trivia.ts`), nothing reaching a server. Tabs: Contest list, Rules, Questions, Results, Standings (D-113; console `lib/preview/trivia.ts`).
+The console's preview drawer runs these same screens on the contest's data (`GET /admin/contests/:contestId/preview`, its trivia section built by `node-server/src/handlers/admin/preview-trivia.ts`; fan app `src/preview/trivia.ts`), nothing reaching a server. Tabs: Contest list, Rules, Questions, Results, Standings and Prize (D-113; console `lib/preview/trivia.ts`). Prize (2026-10-03) is one band's prize sheet over the standings, a Band control choosing the band and an Info / Won control its body ([`admin-preview.spec.md`](../../core-modules/1-draft/admin-preview.spec.md)).
 
 ---
 
@@ -196,7 +208,6 @@ Where the code differs from the PRD or a decision (found 2026-10-03; for Arthur 
 - **A locked band's prize swap.** D-120 says it can't be swapped. The shared lock still allows a swap to a prize whose stated value is at least the old one's when both state one, and the server reads the stored values; the console offers no swap. The `bandPrize` sentence still says "only for a prize worth at least as much".
 - **Trivia Finalize doesn't check the typed name on the server**: the console's dialog asks for it, but the endpoint takes no body (bingo's checks `confirmName`).
 - **The fan contest read sends `contestDescription`** (`buildTriviaContestPublic`), the field the console migration moved to `internalNote`; the fan app doesn't read it (cards use the list's `description`), but a contest the migration missed would expose its internal note there. It should send `description`.
-- **Fan prize cards still show a stated value** ("$50 value · …" on the Rules screen) when a legacy prize carries `approximateValueCents`, though prizes have stated no value since 2026-09-28.
 - **The dev mock data source remains** (`lib/triviaMock.ts`, `triviaMockSource.ts`, `TRIVIA_MOCK_ENABLED`: dev builds only, never test or production, chosen by `?trivia=` or the DEV panel and remembered in local storage). A developer left in a scenario sees mock contests instead of real ones.
 - **`GET /admin/contests/:contestId/trivia/standings`** exists and no console screen calls it.
 
@@ -207,9 +218,10 @@ Where the code differs from the PRD or a decision (found 2026-10-03; for Arthur 
 | Question bank (console) | `GET /admin/trivia/questions`, `GET /admin/trivia/tags` | `POST`/`PATCH`/`DELETE /admin/trivia/questions…`, `POST`/`PATCH`/`DELETE /admin/trivia/tags…` |
 | Trivia step and tab, trivia Prizes, Sponsors (console) | See [`admin-contests.spec.md`](../../core-modules/1-draft/admin-contests.spec.md), "Function audit" | `PATCH /admin/contests/:contestId` `trivia` |
 | Finalize dialog (console, staff) | the contest read's `readyToFinalize` | `POST /admin/contests/:contestId/trivia/finalize` |
-| Contest card (fan) | `GET /b2b/contest/list-contests`, `GET /b2b/trivia/contests/:id`, `…/me` | none |
+| Contest card (fan) | `GET /b2b/contest/list-contests`, `GET /b2b/trivia/contests/:id`, `…/me`; `GET /b2b/prizes/awards` for "Prize won" (2026-10-03) | none ("See your prize" opens the won sheet) |
 | Play (fan) | `GET /b2b/trivia/contests/:id`, `…/me`, the list row (matchup) | `POST …/contests/:id/runs`, `POST /b2b/trivia/runs/:runId/serve`, `…/answer`; `GET /b2b/trivia/runs/:runId`, `…/summary` |
-| Standings (fan) | `GET …/contests/:id`, `…/me`, `…/standings` | none |
+| Standings (fan) | `GET …/contests/:id`, `…/me`, `…/standings`; `GET /b2b/prizes/awards` for the won prize's button (2026-10-03) | none |
+| Prize sheet (fan, shared with bingo; 2026-10-03) | Info: the band's prize card from the contest or standings read, and `me` for the progress strip. Won: `GET /b2b/prizes/awards` (on load, on focus, every 30 seconds) | `POST /b2b/prizes/awards/:awardId/seen` per unseen award when the won sheet closes ([`fan-prize-sheet.spec.md`](../../webapp/fan-prize-sheet.spec.md)) |
 | Your runs, run review (fan) | `GET …/contests/:id`, `…/me`, `…/runs`, `GET /b2b/trivia/runs/:runId/summary` | none |
 
 **Cut from the 2026-09-26 mock-era design, and why:**
@@ -223,6 +235,7 @@ Where the code differs from the PRD or a decision (found 2026-10-03; for Arthur 
 - **The starter bank, the "Written here / Copied" filter, the Repeats card and the drawer's edit history line**: not built; the bank shows Edited dates, and history is in the audit log.
 - **A per-contest substitute cap**: not built (Known gaps).
 - **The mock screens' hardcoded data**: the screens read the API; only the dev scenario source remains.
+- **The prize detail sheet's four tiles** (approximate value, redemption, location, window), its "11th–30th win" chip and "Sponsored by" credit: replaced on 2026-10-03 by the shared prize sheet (D-086, D-124; [`fan-prize-sheet.spec.md`](../../webapp/fan-prize-sheet.spec.md), function audit).
 
 ## References
 

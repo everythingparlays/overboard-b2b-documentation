@@ -6,7 +6,7 @@
 
 **Supersedes:** the "visibility-only" posture of the Delivery queue (admin-obs-internal, Not in scope + Known gaps); the free-text `handlerId` field on the Prizes screen (admin-games-and-prizes, `/prizes`); and the per-handler hardcoded HTML templates in `prize-worker/src/email_templates/`.
 
-**Status:** Draft, written 2026-09-23 with the build (Slice 3 of the 2026-09-23 wave); revised 2026-09-27 — see "Revision 2026-09-27 — the prize library" and "Revision 2026-09-27 (Wave 4)", which win wherever they and an older section disagree. No open questions.
+**Status:** Draft, written 2026-09-23 with the build (Slice 3 of the 2026-09-23 wave); revised 2026-09-27 — see "Revision 2026-09-27 — the prize library" and "Revision 2026-09-27 (Wave 4)", which win wherever they and an older section disagree; revised 2026-10-03 — see "Revision 2026-10-03 — the fan's awards and the seen marker" (cumulative bingo tiers, the fan's awards read, the seen marker). No open questions.
 
 **Revised 2026-09-24** (ruling, Arthur): the console's prize screens and the email settings live in [`admin-prizes.spec.md`](admin-prizes.spec.md) (rebuilt on the prize library in its Wave 4 revision); this spec keeps the delivery engine, the method registry and the email template.
 
@@ -107,6 +107,81 @@ The engine (claim, attempts, registry, resend, local loop) is unchanged.
 
 Rule 10 below changes accordingly: **the email credits the prize's "Provided by" sponsor as snapshotted, or no
 sponsor at all.**
+
+---
+
+## Revision 2026-10-03 — the fan's awards and the seen marker
+
+Arthur's rulings on the prize sheet ([`fan-prize-sheet.spec.md`](../../webapp/fan-prize-sheet.spec.md) `FLOW-31`,
+`FLOW-51`). The engine (claim, attempts, registry, resend, snapshot, local loop) is unchanged; what the fan app reads
+about an award, and what it writes back, is new.
+
+### Every tier a board reaches pays
+
+Bingo tiers are cumulative (PRD changes, entry 37; [`admin-prizes.spec.md`](admin-prizes.spec.md) `PZ-23`). This is
+what the engine already did: the reconciler sends one message per newly completed line, numbered by the running count
+(`tierIndex = claimed + i`), so a board going from 0 to 3 lines sends counts 1, 2 and 3, and the worker pays the tier
+at exactly each count, or records `skipped` where none pays. Tiers at 1, 2 and 3 bingos give a 3-bingo board three
+prizes and three emails; tiers at 1 and 3 give it two. Each is sent when its count is reached (`PRIZE-01`), so a lower
+tier's prize is already out before a higher one is reached, and can't be taken back: paying only the highest tier is
+not possible. Trivia writes one award per banded fan at Finalize, so a trivia fan wins at most one prize per contest.
+
+### The fan's awards: `GET /b2b/prizes/awards`
+
+`requireMembership`, the tenant from `?tenant=`. Every award this fan holds in the tenant, both games, newest first:
+the `PrizeRedemption` rows for this user in this tenant whose status is not `skipped`, a deleted contest's included
+(`node-server/src/handlers/prizes/listMyAwards.ts`; every server-written operator wrapped in `op()`). Contract:
+`obs-b2b-shared/src/api/b2b/prizes.ts`.
+
+```ts
+{ success: true; awards: FanPrizeAward[] }
+
+FanPrizeAward = {
+  awardId: string;                       // the row's _id
+  contestId: string;
+  contestType: "bingo" | "trivia";       // "bingo" for rows that don't say
+  contestName?: string;                  // a deleted contest's: the name stamped on the row
+  status: "pending" | "fulfilled" | "failed";
+  bingoCount?: number;                   // bingo: tierIndex + 1
+  band?: { from: number; to: number };   // trivia, from the row's source (may be absent on a deleted contest's)
+  finalRank?: number;                    // trivia
+  prize: {
+    prizeId?, prizeName, prizeDescription?, prizeImageUrl?, prizeClaimInstructions?,
+    prizeClaimButtonText?, prizeClaimButtonLinkUrl?, hasCode?,
+    providedBy?: { sponsorId, name, logoUrl?, websiteUrl? },
+    code?: string;                       // the winner's own award only
+  };
+  awardedAt: string;                     // the row's createdAt
+  fulfilledAt?: string;
+  seenAt?: string;
+}
+```
+
+- **The prize is what was promised:** the row's snapshot (`tierSnapshot`), with `code` from the snapshot's
+  `staticRedemptionCode` and `providedBy` from the snapshot's credit. A bingo row the worker hasn't snapshotted yet
+  falls back to the contest's live tier at that bingo count, with its credit resolved, exactly as the board read's
+  awards do. A row whose prize can't be shown (no snapshot and no live tier at that count) is left out.
+- **Deleted contests.** An award outlives its contest: it is still listed, with the `contestName` stamped on the row;
+  a trivia award from a deleted contest may carry no `band`.
+- **The code** reaches the fan only here, on their own award, and only from the snapshot (PRD changes, entry 36): it is
+  the winner's fallback when the email fails. A bingo award read before the worker's snapshot, from the live tier,
+  carries `hasCode` but no code; the code appears on a later read, once the snapshot exists.
+
+### The seen marker: `POST /b2b/prizes/awards/:awardId/seen`
+
+`requireMembership`. Marks one of this fan's awards seen, once (`handlers/prizes/markAwardSeen.ts`):
+
+- The id is checked against the shared params schema (`markAwardSeenParamsSchema`, moved out of `api/b2b/board.ts`):
+  a malformed one answers 400 `{ success: false, message }` with the schema's message.
+- The row must be this fan's (`userId`), its contest this tenant's (through the contest's `organizationId`), and not
+  `skipped`; otherwise 404 `{ success: false, message: "That prize isn't one we know." }`.
+- Already seen: 200 `{ success: true, seenAt }` with the stored value. Otherwise one conditional write sets `seenAt`
+  where it doesn't exist yet, and the row is read again, so two racing calls both answer the first write's time.
+- `seenAt` on `PrizeRedemption` is the only thing the fan writes about an award. It records that the fan saw the won
+  sheet; it changes nothing about delivery, resend or the console.
+
+One route serves both games. The board-scoped `POST /b2b/board/:boardId/awards/:awardId/seen`, which was contracted
+and never served, is removed. Nothing about a prize is remembered in the browser.
 
 ---
 
@@ -347,6 +422,8 @@ Supersedes the `/prizes` section of admin-games-and-prizes.spec.md where they di
 | PUT | `/admin/prizes/email` | `requireAdmin` + obs staff or tenant `org:admin` | tier-editing grant |
 | POST | `/admin/prizes/email/preview` | `requireAdmin` | any resolved admin scope (renders; changes nothing) |
 | POST | `/admin/delivery-queue/resend` | `requireAdmin` | obs staff only |
+| GET | `/b2b/prizes/awards` | `requireMembership` | the signed-in fan, their own awards (2026-10-03) |
+| POST | `/b2b/prizes/awards/:awardId/seen` | `requireMembership` | the signed-in fan, their own award (2026-10-03) |
 
 **The preview's input, since the prize library.** `POST /admin/prizes/email/preview` takes a library prize plus the `threeInARows` count it is being previewed at (the bingo line the email states), rather than a full tier object — the prize is where the emailed content and the delivery method now live; the bingo count contributes only the "You hit N bingos" line. **The preview's contest** (retired, Wave 4). The credit now comes from the draft prize's `providedBySponsorId`, resolved within the target tenant; a `contestId` sent by an older console is accepted and ignored.
 
@@ -398,6 +475,25 @@ The local worker authenticates to Mongo with the developer's AWS SSO session thr
 8. **No fallback sender.** Without a configured sending address, nothing is sent and the reason is recorded.
 9. **Development transports are refused in production.**
 10. **The email credits the prize's "Provided by" sponsor, as snapshotted at award time**, or no sponsor at all (Wave 4; previously the prize popup's placement holder, through the one resolver). A failed sponsor lookup drops the mark, never the prize.
+11. **A fan reads only their own awards, and the code only from their own award's snapshot** (2026-10-03). The seen marker is the fan's one write on an award: idempotent, first write wins, and never a delivery state.
+12. **Every bingo tier a board reaches pays**, each when it is reached (2026-10-03; `PRIZE-01`).
+
+---
+
+## Function audit (the fan's award reads, 2026-10-03)
+
+This spec had no function audit before; this one covers the 2026-10-03 revision.
+
+| Surface | Data sources | Server calls | States covered |
+|---|---|---|---|
+| The fan app's won sheet and contest cards | `GET /b2b/prizes/awards`: `PrizeRedemption` (`status` ≠ `skipped`, `tierSnapshot` with `staticRedemptionCode`, `source`, `contestType`, `createdAt`, `fulfilledAt`, `seenAt`); the live tier and sponsor credit for an unsnapshotted bingo row | `POST /b2b/prizes/awards/:awardId/seen` when the fan closes the won sheet | no awards, bingo, trivia, several, pending, fulfilled, failed, snapshot with and without a code, unsnapshotted bingo row (`hasCode`, no code yet), row with no prize (left out), deleted contest (stamped name; trivia maybe no band), row with no `contestType` (bingo), seen, unseen |
+| The seen route | the row by `_id` and `userId`; the contest's `organizationId` | — | first call, repeat call, racing calls, another fan's award, another tenant's, `skipped`, malformed id |
+
+| Earlier-design element | Fate | Reason |
+|---|---|---|
+| "Shown once per award (remembered per board and bingo count)" in `localStorage` | Cut | The server's `seenAt`, across devices and for trivia's Finalize wins |
+| `POST /b2b/board/:boardId/awards/:awardId/seen` | Cut | One route for both games; a trivia award has no board |
+| `awardId`, `code` and `seenAt` on the board read's awards | Changed | Carried by the awards read instead; the board read's awards are unchanged |
 
 ---
 

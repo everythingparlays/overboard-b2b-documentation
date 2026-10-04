@@ -160,9 +160,13 @@ refused. A stored `testMode: true` on a contest is ignored wherever the gate is 
   0 on a board created after its props hit; that is the award ledger, not the count.)*
 - **The prize popup** opens only for a **prize award the server recorded**: a `PrizeRedemption` for this board whose status
   is not `skipped`. `GET /b2b/board/:id` returns `awards[]`: `{ bingoCount, status, prize }`, where `prize` is the
-  promised tier snapshot, or the live tier when the worker has not snapshotted it yet. It is shown once per award
-  (remembered per board and bingo count). A line the evaluator claimed before the worker recorded the award shows as a
-  bingo with no popup until the award exists.
+  promised tier snapshot, or the live tier when the worker has not snapshotted it yet. A line the evaluator claimed
+  before the worker recorded the award shows as a bingo with no popup until the award exists. *Revised 2026-10-03:* the
+  popup is now the prize sheet, shared with trivia. It opens by itself for an award until the fan has seen it, which
+  the server keeps as `seenAt` (read through `GET /b2b/prizes/awards`, set by `POST /b2b/prizes/awards/:awardId/seen`);
+  it was once per award remembered per board and bingo count in the browser, which is gone
+  ([`../../webapp/fan-prize-sheet.spec.md`](../../webapp/fan-prize-sheet.spec.md) `FLOW-31`, `FLOW-51`;
+  [`prize-delivery.spec.md`](prize-delivery.spec.md)).
 - The development-only "Test Bingo", "Prize Modal" and "Clear prize storage" buttons are **removed** (Arthur, 2026-09-27).
   They manufactured exactly the false wins this section forbids. Bingos and prizes are tested for real: by changing prop
   progress in PES on a game no D2C contest uses (the manual recipe), or by the read-only replay tool (the harness).

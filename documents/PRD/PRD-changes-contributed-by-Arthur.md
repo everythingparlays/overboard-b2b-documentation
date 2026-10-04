@@ -473,3 +473,29 @@ tenant-self-serve rulings — see the "Revised 2026-09" notes)".
   without enough questions for every run.
 - **Date:** 2026-10-01.
 - **Status:** In effect. Specs: `admin-contests.spec.md`, `contest-safety.spec.md`, `trivia-game-type.spec.md`.
+
+### 36. `PZ-05`: the winner also sees the prize's code in the app, on their own award
+
+- **What:** `PZ-05` kept a prize's static redemption code on the server except through the console's
+  Reveal, so a winner saw it only in the prize email. The code is now also shown to the winner in the
+  fan app, in the prize sheet for their own award ("Your code", with a Copy button). It is never in a
+  list, a preview or standings: the one read that carries it is the fan's own awards, and every other
+  fan read says only whether a prize comes with a code. The email still carries the code.
+- **Why:** The code in the app is the winner's fallback when the email fails.
+- **Date:** 2026-10-03.
+- **Status:** In effect. Specs: `admin-prizes.spec.md` (`PZ-05`), `fan-prize-sheet.spec.md` (`FLOW-31`).
+
+### 37. `GAME-02` and `GAME-03`: bingo prize tiers are cumulative; every tier a board reaches pays
+
+- **What:** A bingo contest's tiers add up. A board wins every tier it reaches, not only the highest:
+  with tiers at 1, 2 and 3 bingos, a board that reaches 3 bingos wins three prizes, and the fan gets
+  three emails. The fan app and the console say so in plain words. `GAME-03`'s tuning of "how many fans
+  win each tier" has to count this: every fan who wins a higher tier has also won every lower tier, so
+  a lower tier's winners include all of the higher tiers' winners, and the sponsor's budget for it has
+  to cover them.
+- **Why:** `PRIZE-01` delivers a prize the moment a board reaches its tier. A board's tier-1 prize is
+  emailed before it can reach tier 2, and an emailed prize can't be taken back, so paying only the
+  highest tier reached is not possible.
+- **Date:** 2026-10-03.
+- **Status:** In effect. Specs: `admin-prizes.spec.md` (`PZ-23`), `fan-prize-sheet.spec.md` (`FLOW-53`),
+  `prize-delivery.spec.md`.

@@ -4,6 +4,8 @@
 
 **Revision 2026-09-28 (Wave 4b):** the preview is **phone only** (Arthur: "No desktop preview anywhere. The fan app is mobile-only"). The console always sends `device: "phone"` and offers no desktop toggle; the field stays in the contract so older consoles and frames still speak it, and "Phone and desktop" below is superseded. The console's Brand page renders every screen from a built-in sample contest rather than a real one ([`admin-preview.spec.md`](../core-modules/1-draft/admin-preview.spec.md), "The sample contest"); the fan app renders it like any other render document. The live board's bingo count is now the shared derived count (`boardBingos`, [`end-to-end-flow.spec.md`](../core-modules/1-draft/end-to-end-flow.spec.md) §1.5), which the preview board's claims already equal.
 
+**Revision 2026-10-03 (the prize sheet):** the Prize screen shows the fan app's one prize sheet ([`fan-prize-sheet.spec.md`](fan-prize-sheet.spec.md) `FLOW-31`) in the body `view.prizeBody` names (`won` by default, or `info`), for a bingo tier over the board or a trivia band over the standings; a trivia contest gains the `standings` screen (the standings with no sheet); `view.prizeTierIndex` counts tiers (bingo) or bands (trivia); the data layer answers the fan's awards read and the seen write; nothing about a prize is stored. Edited in place: the storage line, the data layer, "Building the preview board", Screens and "The Prize screen", the navigation table, the render document, "Without a contest", the rules, the acceptance criteria, known gaps and a new function audit.
+
 **Depends on:** [`../core-modules/1-draft/admin-preview.spec.md`](../core-modules/1-draft/admin-preview.spec.md), the console side (the frame, the tabs, the device toggle, and the admin read that builds the render document). [`../core-modules/1-draft/end-to-end-flow.spec.md`](../core-modules/1-draft/end-to-end-flow.spec.md) (Wave 3): the fan reads' shapes, the join refusals, `featuredGame`, board awards from the server, and the legal-document overlay the gate opens. [`entry-gate.spec.md`](entry-gate.spec.md): `EntryGateForm`, which the Join screen renders. [`styling.spec.md`](styling.spec.md): how a theme becomes CSS vars.
 
 **Supersedes:** for the current fan app, the S1/S2 preview contract (`artifacts/wave-2026-09-24/s1-s2-preview-interface.md`, workspace) and S2's draft of this spec on the unmerged `arthur-s2-fanapp-spec` docs branch. Kept from them: the sessionless `/preview` route in its own chunk, the `obs-preview:` message family with `v`, the origin allowlist on both sides, `frame-ancestors` on `/preview` only, the "no API call from the frame" rule, full-replace renders, and the text-only rule. Dropped: the six overhaul screens, every fixture and sample name, the PREVIEW chyron, and "taps never navigate".
@@ -37,7 +39,7 @@ To make that possible without a second copy of any screen:
 - **`App.tsx` splits** into `AppRoutes` (the `<Routes>` table) and the `BrowserRouter` wrapper. The live app renders `<BrowserRouter><AppRoutes/></BrowserRouter>`; the preview renders `<MemoryRouter><AppRoutes/></MemoryRouter>`.
 - **Clerk is reached through one module.** Every page and component imports `useAuth`, `useUser`, `useSignIn`, `useSignUp`, `useClerk` from `src/auth/index.ts` instead of `@clerk/clerk-react`. The live build re-exports Clerk's hooks; the preview tree provides `PreviewSessionProvider`, whose hooks have the same signatures. An ESLint rule forbids importing `@clerk/clerk-react` anywhere else.
 - **The store is created per tree.** `src/store/index.ts` exports `makeStore(baseQuery)`; the live app calls it with the network base query, the preview with `previewBaseQuery(documentRef)`.
-- **Storage goes through one helper.** Every `localStorage` use (the award-shown marks, the theme boot cache, next-themes' key) goes through `src/lib/storage.ts`, which the preview points at an in-memory map, so the frame never reads or writes the fan's real storage.
+- **Storage goes through one helper.** Every `localStorage` use (the theme boot cache, next-themes' key; the award-shown marks are gone since 2026-10-03, when seen moved to the server) goes through `src/lib/storage.ts`, which the preview points at an in-memory map, so the frame never reads or writes the fan's real storage.
 
 **Own chunk.** The preview tree is lazily loaded. The live bundle carries no preview code, and the preview's import graph carries no Clerk.
 
@@ -83,6 +85,8 @@ The admin's own name and email are never used: the session's user has none, and 
 | `GET /b2b/contest/:contestId` | `document.contest` when the id matches; any other id answers what the live server answers for a contest it can't find (404) |
 | `GET /b2b/board/my-boards` | The preview board, once built; otherwise empty |
 | `GET /b2b/board/:boardId` | The preview board, with `awards` (below) |
+| `GET /b2b/prizes/awards` | On the Prize screen with `view.prizeBody` `won` (the default): one award built from the chosen tier or band (below, "The Prize screen"); otherwise no awards, so the won sheet never opens by itself |
+| `POST /b2b/prizes/awards/:awardId/seen` | `{ success: true, seenAt }`, in memory only |
 | Sponsor schedule (`sponsorApi.getSponsorSchedule`) | `document.schedule` |
 | `POST /b2b/join`, `POST /b2b/consent`, `PATCH /b2b/membership` | Success, recorded in memory only |
 | `POST /b2b/board/generate` | The preview board (below), or the same refusal the server would give (below) |
@@ -98,7 +102,7 @@ Generate builds a board with the **same function the server uses**: the board-fi
 - **A closed or finalized contest** (revised 2026-09-29, Arthur's Walk #3) has no game open for entry, so no fan can draft from it, but fans who joined hold boards on its games. For the Board and Prize screens the pool is then **every one of its games' props**, so the preview board is built from the contest's real games and real props, with their player photos. Generate is still refused as the server refuses it (`closed`). Nothing is read from, or written to, any fan's real board.
 - **Hits and progress** are the props' real current values (`consensusOutcome`, `progressValue`). A board on upcoming games shows no hits; a board on played games (a closed or finalized contest, or a test-mode contest) shows the hits, progress and bingos that really happened.
 - **The bingo count** is what the evaluator would claim: the shared `newlyCompletedLines(cells, [])` from `obs-b2b-shared/src/scoring/bingo-lines.ts` sets the board's `claimedLineIndices`. The browser never counts lines any other way (Wave 3 §1.5 holds).
-- **Awards** on the preview board are empty, so the popup never opens by itself: only the server records a prize, and the preview has no server. The Prize screen (below) is how an admin sees the popup.
+- **Awards** on the preview board, and the fan's awards read, are empty, so the won sheet never opens by itself: only the server records a prize, and the preview has no server. The Prize screen (below) is how an admin sees the sheet.
 
 The board and the drafted players live in memory for the frame's life. A new `render` keeps them while every drafted player and every board cell still exists in the new document; otherwise the board is dropped and the session goes back to `member`.
 
@@ -116,11 +120,20 @@ The screens are the current app's routes and states. `ready.screens` lists them 
 | `contests` | `/contests`: the Upcoming and Past tabs and the contest cards | Submitting the gate; the back arrow on Contest | `member` or `playing` |
 | `contest` | `/contest/:contestId`: "Draft Your Squad", the per-game tabs, the real players with their photos, the drafted-player stack, Generate Bingo Board | Clicking the contest's card | `member` |
 | `board` | `/board/:boardId`: "Your Board", the matchup line, the bingo counter, the prize track with tier labels, the sponsor banner, the nine cells with real player photos and lines | Generate Bingo Board; the card once joined | `playing` |
-| `prize` | The Board with `PrizeModal` open for one tier, as a winning fan sees it (`isTierHit`, claim copy and button, confetti) | — (only the server opens it; tab only) | `playing` |
+| `results` | Trivia only: a run's results, at the preview's own `/trivia/:contestId/results` | Finishing a run | `member` |
+| `standings` | Trivia only (2026-10-03): `/trivia/:contestId/standings`, the standings with their prize bands and no sheet open | See standings | `member` |
+| `prize` | The prize sheet ([`fan-prize-sheet.spec.md`](fan-prize-sheet.spec.md) `FLOW-31`) for one tier or band, in the body `view.prizeBody` names: over the Board (`/board/preview-board`) for bingo, over the standings (`/trivia/:contestId/standings`) for trivia | — (tab only; a tap on a tier or band inside the frame opens the info sheet as it does for a fan) | `playing` (bingo), `member` (trivia) |
+
+For a trivia contest the shared ids name its own pages: `contest` is the Rules screen and `board` a run's questions and reveals, both at `/trivia/:contestId`. `ready.screens` lists `results` and `standings` only when the document's contest is trivia; a bingo frame never offers them.
 
 Going straight to a screen with `navigate` puts the session at the step the table names and the router at that route, **in one commit** (revised 2026-09-28): the app never renders the old route with the new step, so its own redirects (Start and Sign in send a signed-in fan to the contest list; a protected route sends a signed-out fan to Start) never carry the frame elsewhere. Every screen is reachable straight from every other. `board` and `prize` build the preview board first if none exists, with no drafted players (the server's fill for an empty draft). `contest` for a contest that isn't Open to fans (Draft previewed as if published is Open; Closed is not) shows exactly what the live app shows for it.
 
-**The Prize screen.** With `document.prize` set (a prize page), the popup shows that prize, over the Board when there is a contest and on its own when there isn't. Otherwise it is the current Board with the real `PrizeModal` over it, for the tier `view.prizeTierIndex` names (default the first), built from that tier as the fan wire carries it (the library prize's content, snapshot shape; [`admin-prizes.spec.md`](../core-modules/1-draft/admin-prizes.spec.md)). The celebration (confetti, the team-colour flash) plays on arriving at `prize`, not on later renders that stay there, and never under reduced motion. **Choosing another tier** (a `navigate` to `prize` with a new `view.prizeTierIndex`) closes the previous tier's popup and opens the new one at once (revised 2026-09-28): the board holds only the chosen tier's award, and the board's popups follow the awards it holds, dropping one whose award is gone. On a fan's real board awards are never withdrawn, so this changes nothing there. "Close" or the claim button closes the popup and reports `board`. The claim button's link is not followed (below).
+**The Prize screen** (revised 2026-10-03). With `document.prize` set (a prize page), the sheet shows that prize on its own (below, "Without a contest"). Otherwise it is the real prize sheet for the tier (bingo) or band (trivia) `view.prizeTierIndex` names (0-based, default the first), built from it as the fan wire carries it (the library prize's content with `hasCode` and `providedBy`; [`admin-prizes.spec.md`](../core-modules/1-draft/admin-prizes.spec.md)), over the Board for bingo and over the standings for trivia:
+
+- **Won** (`view.prizeBody` `won`, the default): the awards read answers one award for that tier or band (`prizeAwardFor`, in the `FanPrizeAward` shape, with no `seenAt`), and the app's own sheet host opens it, as it opens a fan's unseen win. The award carries a code only if the document carries one, and the console never sends one (`PV-05`), so the preview's won sheet has no "Your code" box; it never invents a code, a status other than the one the award is built with, or an address.
+- **Info** (`info`): the awards read answers no awards, and the preview opens the info sheet for that tier or band once the screen has rendered, as a fan's tap would.
+
+The celebration (confetti, and the team-colour veil when the theme's celebration calls for it) plays when the won sheet opens over the unseen award, not on later renders that stay there, never for Info, and never under reduced motion. **Choosing another tier, band or body** (a `navigate` to `prize` with a new `view`) closes the open sheet and opens the new one at once (revised 2026-09-28). Closing the sheet by any route removes its `[data-prize-modal]` content, and the frame reports the screen under it. The claim button's link is not followed (below).
 
 **A draft previewed as if published.** The console's document places a Draft contest in `contests.upcoming` and gives it the fan status it would have if it were published now, so the admin sees the card and the flow fans will get. An Open or Closed contest appears exactly where fans find it now.
 
@@ -137,7 +150,7 @@ Clicks inside the frame navigate for real. Every time the frame's screen changes
 | A click changes the route or the session step | `navigated { screen, cause: "click" }` |
 | The console's `navigate` has been applied | `navigated { screen, cause: "console" }`, then `rendered` |
 | A `render` keeps the same screen | `rendered` only |
-| An overlay over a screen (a legal document over the gate, the tier info panel on the board) | Nothing: the screen is still `join` or `board` |
+| An overlay over a screen (a legal document over the gate) | Nothing: the screen is still `join` |
 
 A route that isn't one of the screens (none exists in the contest journey today) posts `navigated { screen: null }`, and the console shows no tab selected.
 
@@ -148,7 +161,7 @@ A route that isn't one of the screens (none exists in the contest journey today)
 Every message is a plain JSON object whose `type` starts with `obs-preview:` and that carries `v: 1`. This is version 1 of this contract; the S1/S2 contract was never built, so nothing depends on its version.
 
 ```ts
-type PreviewScreen = 'start' | 'signIn' | 'join' | 'contests' | 'contest' | 'board' | 'prize';
+type PreviewScreen = 'start' | 'signIn' | 'join' | 'contests' | 'contest' | 'board' | 'results' | 'standings' | 'prize';
 
 // ---- fan app -> console ----
 interface PreviewReady    { type: 'obs-preview:ready';     v: 1; screens: PreviewScreen[]; app: 'current' | 'overhaul' }
@@ -210,8 +223,10 @@ interface PreviewDocument {
 }
 
 interface PreviewView {
-  /** Prize: which of the contest's tiers the popup shows (0-based, in tier order). */
+  /** Prize: which tier (bingo) or band (trivia) the sheet shows (0-based, in tier or band order). */
   prizeTierIndex?: number;
+  /** Prize: the sheet's body, the fan's own award ('won', the default) or what a tap shows ('info'). */
+  prizeBody?: 'info' | 'won';
   /** Board and Prize: build the preview board from this game only (sponsor page). */
   gameId?: string;
   /** Deprecated (2026-09-29): accepted and ignored. The frame draws no ring. */
@@ -221,7 +236,7 @@ interface PreviewView {
 
 Types are the shared package's: `AwardPrize` (the board read's award prize, `api/b2b/board.ts`), `GetOrganizationResponse` (`api/b2b/org.ts`), `GetMembershipResponse` (`api/b2b/membership.ts`), `B2BContestResponse` (`interfaces/b2b/B2BContest.ts`), `GetPlayersResponse` and `BettingProp` (`api/b2b/contest.ts`, `interfaces/reference/BettingProp.ts`), `FanSponsorSchedule` (`api/b2b/sponsors.ts`), `SponsorSlot` (`interfaces/b2b/B2BSponsor.ts`). `PreviewDocument`, `PreviewView`, `PreviewScreen` and the message types live in `obs-b2b-shared/src/api/preview.ts`, imported by both apps.
 
-**Without a contest.** `contest` is absent only for the prize page, whose prize belongs to no contest yet. Then `ready.screens` still lists every screen, but the console offers only `prize`, and the frame shows the real `PrizeModal` for `document.prize` on its own, over the app's background in the tenant's theme, with its credit ("Provided by" and the sponsor, read from `prize.providedBy` exactly as the live popup reads it from an award). Asked for any other screen without a contest, the frame answers `error`.
+**Without a contest.** `contest` is absent only for the prize page, whose prize belongs to no contest yet. Then `ready.screens` still lists every screen, but the console offers only `prize`, and the frame shows the real prize sheet for `document.prize` on its own (`PrizeOnly`), over the app's background in the tenant's theme, in the body `view.prizeBody` names (Won by default), with its credit ("Provided by" and the sponsor, read from `prize.providedBy` exactly as the live sheet reads it from an award). With no contest there is no tier or band, so the info body has no chip and no progress strip, and its email line says only what is true of both games: "Winners get this by email." or "Winners get this by email, with a code." The won body keeps its "You won" chip. Closing it brings it back 900ms later, as the next win would. Asked for any other screen without a contest, the frame answers `error`.
 
 **Props carry only what the fan wire carries for a board cell:** id, game id, player (`entityInfo` with name, team, position, jersey, photo and `showPhotoUri`), market, line and alternate line, outcome type, `progressValue`, `consensusOutcome`. `showProp: false` props are never sent.
 
@@ -273,13 +288,14 @@ The frame is the viewport, as on a real device, and the app lays itself out for 
 - **PREV-04.** Every section of the render document is a fan wire shape, built by the server from the same functions as the live fan reads.
 - **PREV-05.** Clicks navigate as in the live app, and every screen change is reported with `navigated`, so the console's tabs stay in sync.
 - **PREV-06.** The preview board is built by the shared `buildBoard`, and its bingo count by the shared `newlyCompletedLines`, the server's own logic.
-- **PREV-07.** The prize popup opens only on the Prize screen, which the console reaches by tab.
+- **PREV-07.** The won sheet opens by itself only on the Prize screen, which the console reaches by tab; everywhere else the preview's awards read is empty. A tap on a tier or band in the frame opens the info sheet, as for a fan.
 - **PREV-08.** Refusals come from the shared `refuseJoin`, with the live app's messages.
 - **PREV-09.** Nothing is fabricated and nothing narrates: no fixtures, no chyron, no captions.
 - **PREV-10.** Inbound messages are accepted only from `VITE_PREVIEW_PARENT_ORIGINS`; outbound messages are never posted to `*`.
 - **PREV-11.** `frame-ancestors` is set on `/preview` only.
 - **PREV-12.** The route reads and writes no app storage and follows no link out of the app.
-- **PREV-13.** The celebration plays on arriving at `prize`, not on later renders there; reduced motion suppresses it.
+- **PREV-13.** The celebration plays when the Prize screen's won sheet opens, not on later renders there, never for Info; reduced motion suppresses it.
+- **PREV-16.** Nothing about a prize is stored: the seen write is answered in memory, and there are no shown marks (2026-10-03).
 - **PREV-14.** The preview never takes focus on its own.
 - **PREV-15.** Wave 5's overhaul implements this contract on its own branch; `ready.app` and `ready.screens` tell the console which app answered.
 
@@ -294,7 +310,10 @@ The frame is the viewport, as on a real device, and the app lays itself out for 
 - [ ] Generate with the same drafted players twice (with a reload between) gives the same board; a different draft gives a different board.
 - [ ] A test-mode contest on a played game shows the real hits, and the counter equals the lines `newlyCompletedLines` finds.
 - [ ] A contest with a game that has no props yet answers Generate with the real "Players for this game aren't available yet." message.
-- [ ] `navigate { screen: 'prize', view: { prizeTierIndex: 1 } }` shows the popup for the second tier with its real name, image, claim text and button; confetti plays once.
+- [ ] `navigate { screen: 'prize', view: { prizeTierIndex: 1 } }` shows the won sheet for the second tier with its real name, image, claim text and button, and no code box; confetti plays once.
+- [ ] `navigate { screen: 'prize', view: { prizeTierIndex: 1, prizeBody: 'info' } }` shows the info sheet for the second tier, with its email line, and no confetti.
+- [ ] For a trivia contest, `prize` shows the chosen band's sheet over the standings, `standings` shows the standings with no sheet, and `ready.screens` lists `results` and `standings`; a bingo frame lists neither.
+- [ ] Closing the sheet on the Prize screen reports the screen under it.
 - [ ] The claim button and any sponsor link don't leave the frame; Terms over the gate opens and Back returns with the typed values intact.
 - [ ] Nothing is written to `localStorage` or `sessionStorage` during a preview session.
 - [ ] A `render` from an origin not in the allowlist is ignored with no reply.
@@ -304,9 +323,26 @@ The frame is the viewport, as on a real device, and the app lays itself out for 
 
 - **One sponsor per slot.** The current app renders one holder per slot, the contest's (there are no per-game placements since 2026-09-30, Arthur's ruling), so the preview shows exactly that, whichever game a board is drawn from.
 - **The contest name on the card.** The current card titles a contest by its featured game's matchup; the name appears only for a game without two teams. The preview shows that as it is.
-- **The popup over a board with no bingos.** On upcoming games the preview board has no hits, so the Prize screen shows a winning popup over a board whose counter reads 0. Both halves are true; they are just not from the same moment.
+- **The won sheet over a board with no bingos.** On upcoming games the preview board has no hits, so the Prize screen shows a winning sheet over a board whose counter reads 0. Both halves are true; they are just not from the same moment.
 - **The sign-in form is inert.** It shows the real form; submitting it moves the preview on without checking anything, because there is no account behind a preview.
 - **Returning-fan and paused states** aren't offered as screens.
+
+## Function audit (the Prize screen, 2026-10-03)
+
+This spec had no function audit before the prize sheet; this one covers what the prize sheet changed.
+
+| Screen | Data sources | Calls | States covered |
+|---|---|---|---|
+| `prize`, bingo | `document.contest` tiers (`hasCode`, `providedBy`); `view.prizeTierIndex`, `view.prizeBody`; the preview board | none leave the frame; the seen write is answered in memory | Won (default), Info, each tier, tier changed while open, closed by every route, reduced motion |
+| `prize`, trivia | the document's trivia bands and their prize cards; `view.prizeTierIndex` as the band, `view.prizeBody` | none | Won, Info, each band, no bands (refused by the console) |
+| `standings` (trivia) | the document's trivia section | none | no sheet open |
+| `prize` without a contest | `document.prize`; `view.prizeBody` | none | Won ("You won"), Info (no chip, no strip, "Winners get this by email." with or without ", with a code"), closed and reopened after 900ms |
+
+| Earlier-design element | Fate | Reason |
+|---|---|---|
+| The board's `PrizeModal` opened by a board holding one award | Changed | The prize sheet, opened by the awards read (Won) or directly (Info) |
+| A trivia contest's `prize` id meaning its standings | Changed | `prize` is one band's sheet over the standings; `standings` is the standings alone |
+| The award-shown marks in storage | Cut | Seen is the server's; the preview answers the seen write in memory |
 
 ## As built (Wave 4)
 
