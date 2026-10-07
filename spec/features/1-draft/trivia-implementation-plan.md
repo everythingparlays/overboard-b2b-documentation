@@ -29,9 +29,9 @@ Spec deltas the mocks introduce (need PRD/spec update): resumable in_progress ru
 1a. Contract-first types: src/lib/trivia/types.ts mirrors spec endpoints (run, question, answer, standings, me,
     runs history). Build TriviaDataSource interface + MockTriviaDataSource with scenario fixtures.
     Dev switch: ?trivia=<scenario> + DEV floating panel (copy BoardPage pattern). Scenarios: open, in_progress,
-    runs_left, no_runs_left, closed_final, prize_sent, timeout, substitution.
+    runs_left, no_runs_left, closed_final, prize_sent, timeout, late (answer lost to the network: 0 pts, connection message), substitution.
 1b. Play flow rebuild to mocks: Rules → Question (ring timer, bonus counter, running score, sponsor) → Reveal →
-    Complete (recap list, provisional rank, points-to-next-band). Timer derives from server-provided servedAt+seconds.
+    Complete (recap list, provisional rank, points-to-next-band). Timer is anchored on the device at question receipt (clamped to seconds; resume derives remaining from deadlineAt once), and the answer sends clientElapsedMs (revised 2026-10-07; previously derived from servedAt).
 1c. Standings (provisional/final), tier-progress bar, around-me rows, Your runs, Run review, Prize detail sheet.
 1d. Cards: all 5 trivia states incl. Resume run + Prize sent; Contests tabs. Remove hardcoded card injection.
     Exit: lint clean, every scenario walkable; no real network calls yet.
