@@ -321,7 +321,7 @@ Arthur's Wave 4 walkthrough ruling reverses the 2026-09-24 staff extras: **when 
 |---|---|
 | Overview | The Overboard staff strip (status, subdomain, Team / Support / Open tenant record links) |
 | Games & Contests cards and list rows | Finalize (restored for staff only, final walk 2026-09-28) |
-| Contest page | Finalize in the header and the Overview tab's "What's next" rail (restored for staff only, final walk 2026-09-28). Tenant admins and members read "Overboard finalizes the contest after its last game." |
+| Contest page | Finalize in the header and the Overview tab's "What's next" rail (restored for staff only, final walk 2026-09-28). Tenant admins and members read "Overboard finalizes the contest once it's closed." (2026-10-07) |
 | Game day | The cross-workspace live strip, the prize worker's raw failure reason, and the Finalize contest link |
 | Readiness checklist (Overview, Game day) | Staff-only fix links: a paused workspace has no fix link for anyone, and failed sends link to Game day for everyone |
 | Fan page | The prize worker's raw failure reason; staff read the same plain words as the workspace |

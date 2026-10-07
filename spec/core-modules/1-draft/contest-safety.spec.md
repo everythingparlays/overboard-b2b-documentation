@@ -6,6 +6,8 @@
 
 **Status:** Draft. Written 2026-09-24 (wave G2); revised 2026-10-06: a locked trivia band's prize can't be changed at all (see "Trivia: what locks"), the stated-value exception is gone; revised 2026-09-27 — see "Revision 2026-09-27 — the prize library" note under "What stays editable, and what locks" and under "The prize snapshot". Revised 2026-10-01 (Arthur): a bingo contest's own open and close times join the table, trivia gets its own lock table ("Trivia: what locks"), and the close-time rule replaces "extend only".
 
+Revised 2026-10-07 (Arthur's ruling): **a close time in the past is allowed**, before and after the lock, for bingo and trivia; saving one closes the contest at once (unless an admin opens it by hand afterwards; [`admin-contests.spec.md`](admin-contests.spec.md), "Opens and closes"). The one close-time refusal left is a close at or before the open time, and its sentence is now "The closing time must be after the opening time." Edited in place below.
+
 ## Overview
 
 Before this spec, the only thing that froze a contest was finalization. Everything else stayed editable while fans played, and two edits changed what fans had already been promised:
@@ -34,7 +36,7 @@ The ruling rejects versioning (the survey-style "mint a new version" model) in f
 | Games: adding one | Editable | **Editable** |
 | Games: removing one | Editable | **Locked** |
 | Its own open time (`opensAt`, 2026-10-01) | Editable | **Locked** |
-| Its own close time (`closesAt`, 2026-10-01) | Editable | **Editable** in either direction, never before the open time or in the past |
+| Its own close time (`closesAt`, 2026-10-01) | Editable, past included | **Editable** in either direction, past included (2026-10-07), never at or before the open time |
 | Contest type | Set at creation | **Locked** (not editable anywhere today; any future editor must honour this) |
 | Board rules (prop pool curation, when it exists) | Editable | **Locked** |
 | Prize tiers: adding one | Editable | **Editable** |
@@ -65,13 +67,13 @@ Arthur's table (2026-10-01), once a fan has started a run:
 | Setting | After the first run |
 |---|---|
 | Question slots (count and tags), seconds per question, base points, speed bonus, network allowance, runs per fan, the game and schedule mode, the open time, the contest type | **Locked** |
-| Close time | **Free** in either direction, never before the open time or in the past |
+| Close time | **Free** in either direction, past included (2026-10-07), never at or before the open time |
 | Prize bands | Add a band or widen one. Never remove or narrow a band, and never change its prize to any other (revised 2026-10-06; until then a swap to a prize stated as worth at least as much was allowed). |
 | Name, description, banner, Presented by sponsor, reveal mode | **Free** |
 
 - **Bands are matched by the ranks they cover, not by their position in the list.**
 - **A locked band keeps its prize** (D-120; revised 2026-10-06). Any change of a locked band's prize is `bandPrize`. Until 2026-10-06 the shared lock allowed a swap to a prize whose stated value was at least the old one's when both stated one; prizes state no value since 2026-09-28 (Arthur's ruling), so `triviaBandLockViolations` dropped that branch and the server's `toLockableBands` reads no prize values.
-- **The close time rule replaces "extend only".** Before 2026-10-01 a locked trivia contest's close time could only move later. It now moves either way, within the rule.
+- **The close time rule replaces "extend only".** Before 2026-10-01 a locked trivia contest's close time could only move later. It now moves either way, within the rule, and since 2026-10-07 into the past too: a past close time closes the contest when saved, and a fan mid-run may still finish.
 
 ### Enforcement
 
@@ -91,7 +93,7 @@ The lock is enforced by the server on every write that could break it, with a pl
 | Lowering or clearing a stated value | "Fans have joined this contest, so a prize's value can't be lowered." |
 | Changing the contest type | "Fans have joined this contest, so its contest type can't change." |
 | Changing a bingo contest's open time (kind `opensAt`) | "Fans have joined this contest, so its open time can't change. You can still move the close time." |
-| A close time before the open time, or in the past (kind `closesAt`; bingo and trivia) | "The close time can't be before the contest opens, or in the past." |
+| A close time at or before the open time (kind `closesAt`; bingo and trivia; a past close time is allowed since 2026-10-07) | "The closing time must be after the opening time." |
 | Changing a locked trivia setting (kind `trivia_rules`) | "Fans have started playing, so the questions, timing, scoring, runs per fan, game and open time are locked. You can still move the close time, and add or widen prize bands." |
 | Removing or narrowing a prize band (kind `bandRemoved`) | "Fans have started playing, so a prize band can't be removed or narrowed. You can still widen a band or add one." |
 | Changing a band's prize (kind `bandPrize`) | "Fans have started playing, so a band's prize can't be swapped for a different one." (revised 2026-10-06; it ended ", only for a prize worth at least as much.") |
@@ -182,6 +184,16 @@ Every step is idempotent: a second run finds nothing to do and says so. The seed
 - **Line drift.** Boards reference D2C props live; a D2C edit to a line or multiplier still changes existing boards. Freezing lines needs prop snapshots on the board (research 2026-09-24, §5).
 - **Board rules** do not exist yet (prop pool curation is future work); they join the lock list the day they do.
 - **Pre-snapshot redemptions** keep resolving live; there is no honest way to reconstruct what they were promised.
+
+## Function audit (2026-10-07)
+
+| Where | Reads | Writes |
+|---|---|---|
+| Shared `closeTimeViolations` (`interfaces/b2b/ContestLock.ts`) | the proposed close and open times | none; returns `closesAt` only for a close at or before the open (no "now" check) |
+| Server PATCH `/admin/contests/:contestId` (bingo `closesAt`, trivia `trivia.closesAt`) | the stored contest | accepts a past close on any contest, locked or not; refuses close at or before open (bingo 400 "It must close after it opens.", trivia 400 on `trivia.closesAt` "Entries must close after they open.") |
+| Console Closes fields (bingo `EntryWindowFields.tsx`, trivia `triviaFields.tsx`) | the contest read's times | the PATCH above; the picker's `min` is the open time only, and a passed time shows "This time has passed, so the contest closes as soon as you save." |
+
+Cut or changed: **"never in the past"** is cut from both lock tables (an admin may need to close a contest now by its schedule, and the past-close help says what will happen). **"Never at or before the open"** is kept on purpose: it isn't about the past, such a close describes no window, and no admin scenario needs it.
 
 ## References
 

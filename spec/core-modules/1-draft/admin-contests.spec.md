@@ -29,6 +29,8 @@ Revised 2026-10-03 (brought up to the code): **the trivia contest's own screens 
 
 Revised 2026-10-06: a locked trivia band's prize can't be changed at all (D-120; the stated-value exception is gone); trivia's Finalize takes and checks `{ confirmName }`, and both Finalizes compare the name trimmed and ignoring case; fan reads never carry `contestDescription`. Two Known gaps are closed. Edited in place below.
 
+Revised 2026-10-07 (Arthur's rulings): **the last action wins, and Finalize waits for Closed.** An admin's Open or Close by hand is stamped (`stateChangedAt`) and beats the schedule: a manual close stays closed, and a manual open ignores the contest's own opening time and any closing time that had already passed, until someone closes it or a later closing time arrives. A schedule edit made after a manual open hands the contest back to its times. The state actions follow the phase, not the stored state, from one shared function (`contestTransitions`): an Upcoming contest offers **Open now**, and a contest its closing time already closed offers **Reopen entries**, never Close entries; the Games & Contests overflow reads the same list. A closing time in the past is now allowed on any contest, locked or not, and saving one closes the contest at once; only a close at or before the opening time is refused. Reopening past the closing time asks first, and the contest page then shows a warning banner until it is closed or given a new closing time. **Finalize is offered only once the contest is closed** (by hand, by its closing time, or a bingo contest whose games are over); never on an Open contest, and there is no "Close and finalize". Finalize also stores the contest Closed, and stops every bingo prize path. Edited in place below.
+
 ## Overview
 
 Until the redesign a contest lived on a card inside a long `/games` page, was created in a five-field drawer, and was edited in a second drawer that could show its prize tiers and sponsors but not change them. The card listed every game the contest ran at inline, so a season-long contest made a page tens of thousands of pixels tall. Prize tiers were edited on another screen, sponsor placements on a third, and the fan-facing result could not be seen anywhere. The one free-text field was labelled console-only while the fan wire sent it to every fan. Nothing stopped an operator from removing a game or re-counting a prize tier mid-game.
@@ -71,7 +73,8 @@ Screens use these words and no others. Code names are in the model section.
 | **Draft / Open / Closed** | The contest's state. Draft: fans can't see it. Open: fans see it and can join while a game's entries are open. Closed: fans see it under Past and keep playing their boards, and nobody new can join. | "hidden", "visible", "unpublished", "paused" |
 | **Upcoming** | Published, and entries aren't open yet. A phase the pill shows (see "State and status"), never a stored state. | "scheduled", "pending" |
 | **Publish** | Draft → Open. | "launch", "go live" |
-| **Close entries / Reopen entries** | Open → Closed and back. | "pause", "hide" |
+| **Open now** | Opens an Upcoming contest before its opening time (2026-10-07). | "start", "launch" |
+| **Close entries / Reopen entries** | Closes an Upcoming or Open contest by hand, and opens a Closed one again (closed by hand or by its closing time). The last action wins over the schedule (see "Opens and closes"). | "pause", "hide" |
 | **Move to draft** | Back to Draft, only before the first fan joins. | "unpublish" |
 | **Locked** | The contest has at least one fan board (trivia: one run). Not a state. | "frozen", "live" |
 | **Finalized** | Staff only; ends a contest permanently. Shown as a badge, not a fourth state. | "settled" |
@@ -98,10 +101,11 @@ Collection `{prefix}contests` (`obs-b2b-shared/src/models/b2b.ts`, interface `in
 | `allowedBetEvents` | ObjectId[] → `BetEvent` | — | Distinct; each must exist in the reference schedule | The games the contest runs at now. |
 | `ranAtBetEvents` | ObjectId[] | no | Only grows | Every game the contest has ever run at; read through `ranAtBetEventIds()`. |
 | `opensAt` (new, 2026-10-01) | Date | no | Bingo only; before `closesAt` when both are set | The contest's own open time. Absent: entries open with the first game's. Only narrows the games' window (see "Opens and closes"). Locks once fans join (lock kind `opensAt`). |
-| `closesAt` (new, 2026-10-01) | Date | no | Bingo only; after `opensAt`; a published contest's can't be moved into the past | The contest's own close time. Absent: it closes when the last game ends. Only narrows the games' window. A trivia contest's times are in `trivia.opensAt` / `trivia.closesAt`, never here. |
+| `closesAt` (new, 2026-10-01) | Date | no | Bingo only; after `opensAt`; may be in the past (2026-10-07), which closes the contest on save | The contest's own close time. Absent: it closes when the last game ends. Only narrows the games' window. A trivia contest's times are in `trivia.opensAt` / `trivia.closesAt`, never here. |
+| `stateChangedAt` (new, 2026-10-07) | Date | no | Written by the state PATCH only | When an admin last opened or closed the published contest by hand (Open now, Close entries, Reopen entries), stamped even when the stored state doesn't change. Publish and Move to draft clear it. Read by the phase rule: a stored Open with this stamp is a manual open (see "Opens and closes"). |
 | `maxParticipants` | integer | yes | 0–1,000,000 | 0 = no limit. Lowering below the board count removes nobody. |
 | `lockedAt` | Date | no | Written by the board endpoint only ([`contest-safety.spec.md`](contest-safety.spec.md)) | The first board's moment. The console never writes it. |
-| `finalized`, `finalizedAt` | boolean, Date | no | Written by Finalize only | Permanent. |
+| `finalized`, `finalizedAt` | boolean, Date | no | Written by Finalize only | Permanent. Finalize also writes `state: "closed"` (and the legacy `closed: true`, `showContest: true`) since 2026-10-07. |
 | `prizeTiers` | ObjectId[] → `B2BPrizeTier` | — | [`admin-prizes.spec.md`](admin-prizes.spec.md) | Each tier names a library prize. |
 | `testMode` | boolean | no | Wave 3 §5; set only through the dev route | Honoured only where the dev gate is open. |
 | `maxEntriesPerPerson` | number | yes | Fixed at 1 | No control. The unique board index makes one board per fan per contest a database fact. |
@@ -117,24 +121,26 @@ Removed by the migration: `contestDescription` (moved to `internalNote`), `gameT
 
 Two different things, and the console keeps them apart:
 
-- **State** (stored, Wave 3 §3.1) is what the operator sets: Draft, Open or Closed. Publish, Close entries, Reopen entries and Move to draft write it, and nothing else does.
-- **Phase** (derived; Arthur, 2026-10-01) is what the contest is right now, in one word every surface shares. One pure shared function decides it: `contestPhase(contest)` in `obs-b2b-shared/src/interfaces/b2b/ContestPhase.ts`. It is built on the entries gate (`getB2BContestStatus`), so the pill and the fan app's join button always agree.
+- **State** (stored, Wave 3 §3.1) is what the operator sets: Draft, Open or Closed. Publish, Open now, Close entries, Reopen entries and Move to draft write it, and Finalize writes Closed; nothing else does. A manual Open now, Close entries or Reopen entries also stamps `stateChangedAt` (2026-10-07), even when the stored state doesn't change: an Upcoming contest is stored Open, and so is a contest its closing time closed.
+- **Phase** (derived; Arthur, 2026-10-01) is what the contest is right now, in one word every surface shares. One pure shared function decides it: `contestPhase(contest)` in `obs-b2b-shared/src/interfaces/b2b/ContestPhase.ts`. It is built on the entries gate (`getB2BContestStatus`), so the pill and the fan app's join button always agree. Both read the stored state, the stamp and the times by the "last action wins" rule (see "Opens and closes").
 
 | Phase | Label | When |
 |---|---|---|
 | `draft` | Draft | Not published. |
-| `upcoming` | Upcoming | Published, and entries aren't open yet (`opensAt` says when). |
-| `open` | Open | Entries are open. For bingo, also while its games are still being played. |
-| `closed` | Closed | Close entries was pressed, its close time has passed, or it was finalized. |
+| `upcoming` | Upcoming | Published, and entries aren't open yet (`opensAt` says when), with no manual open since. |
+| `open` | Open | Entries are open, by the schedule or by a manual open. For bingo, also while its games are still being played. |
+| `closed` | Closed | Closed by hand (Close entries), its closing time has passed with no later manual open, a bingo contest's games are over, or it was finalized. |
 
-- **A close time closes it.** Nobody has to press Close entries: a trivia contest past `trivia.closesAt` reads Closed though its stored state is still Open, and so does a bingo contest past its close.
+- **A close time closes it.** Nobody has to press Close entries: a trivia contest past `trivia.closesAt` reads Closed though its stored state is still Open, and so does a bingo contest past its close, unless an admin reopened it after that time (see "Opens and closes").
 - **A bingo contest closes once its last game ends**, not at the last tip-off. A game ends at its tip-off plus the sport's usual length (`gameExpectedEnd`, shared `BetEvent.ts`). A bingo contest's own close time can close it sooner (see "Opens and closes"). Between the last tip-off and the last end it takes no new players but is still Open; the fan app calls this time "Live".
 
 **The console's state pill shows the phase, not the stored state:** the Games & Contests cards and list rows, the contest page header and the builder. Upcoming is drawn in the console's info blue (the `--info` token, Badge `info`). An Upcoming contest's list row says when it opens in its date column: "Opens Thu · 7:20 PM" within 6 days, else "Opens Oct 9 · 7:20 PM". Its card shows "Fans can join from Thu, Oct 1" in the sparkline's place until it has players.
 
 **Everything else uses the same rule.** The fan app's Contests tabs (Live & Upcoming holds `upcoming` and `open`; Past holds `closed`), the server's fan list (`GET /b2b/contest/list-contests?status=`) and the Start screen's next game all read the phase through `fanTabOfPhase`. The staff screens (All contests, the tenant page, Overview's upcoming games) still show the older four words (Upcoming, Open, Closed, Finished), read through `contestStatusOfPhase` so they say what the pill says.
 
-**Finalized** is a badge beside the state pill ("Finalized"), never a state. A finalized contest reads Closed whatever its stored state; the console reads it as read-only everywhere.
+**Finalized** is a badge beside the state pill ("Finalized"), never a state. A finalized contest reads Closed whatever its stored state (and since 2026-10-07 Finalize stores Closed too); the console reads it as read-only everywhere.
+
+**Open past its closing time** (2026-10-07). The phase's view (`ContestPhaseView`) carries `closeTimePassed: true` when the contest is open only because of a manual open made after its own closing time had passed. Its `closesAt` is then not that spent time: a trivia contest has none, a bingo contest's is its last game's end. The list row and the contest read carry `closeTimePassed` and `stateChangedAt`, and the contest page shows the "Open past its closing time." banner (see "The contest page").
 
 ### Opens and closes
 
@@ -149,11 +155,18 @@ A trivia contest's times stay in its trivia settings (`trivia.opensAt`, `trivia.
 
 | Rule | Detail |
 |---|---|
-| Order | The close time must be after the open time: "It must close after it opens." |
-| Published | A published contest's close time can't be moved into the past or before it opens: "The close time can't be before the contest opens, or in the past." A draft's times don't matter until it is published. |
-| Lock | Once fans join, the open time locks (lock kind `opensAt`): "Fans have joined this contest, so its open time can't change. You can still move the close time." The close time stays free in either direction, within the rule above. |
-| Close entries, then Reopen | Keeps the stored close time. The contest still closes then. |
+| Order | The close time must be after the open time: "It must close after it opens." This is the only close-time refusal (shared `closeTimeViolations`; its lock sentence is "The closing time must be after the opening time.", `CONTEST_LOCK_COPY.closesAt`). |
+| In the past | Allowed on any contest, draft or published, locked or not (2026-10-07). Saving a closing time that has passed closes the contest at once, unless an admin opens it by hand afterwards. A draft's times don't matter until it is published. |
+| Lock | Once fans join, the open time locks (lock kind `opensAt`): "Fans have joined this contest, so its open time can't change. You can still move the close time." The close time stays free in either direction, within the order rule. |
+| Manual moves | Open now, Close entries and Reopen entries never rewrite the times. Publish keeps the schedule. |
 | Duplicate | Doesn't copy them. |
+
+**The last action wins** (Arthur, 2026-10-07). An admin's Open or Close by hand and the schedule can disagree; whichever came last decides. The rule is shared (`getB2BContestStatus` and `contestPhase` read it, through `manualOpenAt`, `liveCloseTime` and `scheduleEditEndsManualOpen` in `ContestPhase.ts`), so the pill, the fan app and the server's gates agree:
+
+- **A manual close** (stored Closed) stays Closed whatever the schedule says, even if an opening time later passes.
+- **A manual open** (stored Open with a `stateChangedAt` stamp; `manualOpenAt`) ignores the contest's own opening time and, for bingo, the games' 48-hour window, and ignores any closing time that had already passed when it was made (`liveCloseTime`: a close at or before the stamp is spent). It stays open until someone closes it by hand or a closing time later than the manual open arrives.
+- **Bingo never lets anyone join a game that has started.** A manual open opens entries only while a game is still to start (the board draws only from games not started). Phase Open still covers a bingo contest's games in play, as before. Once every game has started, a manual open can admit nobody (shared `manualOpenCanAdmit` is false), so Open now and Reopen entries aren't offered.
+- **A schedule edit made after a manual open hands the contest back to its times** (`scheduleEditEndsManualOpen`): saving a closing time in the past closes it now; saving an opening time in the future makes it wait. Any other edit (a future closing time, say) leaves the manual open standing, and that future time closes it when it arrives.
 
 **Editing.** The builder's Basics step and the Overview's Basics card carry two fields, "Opens" and "Closes", each the console's date and time picker (`DateTimeField`, below). Blank means the games' own time:
 
@@ -162,9 +175,11 @@ A trivia contest's times stay in its trivia settings (`trivia.opensAt`, `trivia.
 | Opens | "When the first game's entries open, 48 hours before its tip-off. Set a time to open later." | "Fans can join from this time, once a game's entries are open. Clear it to open with the games." |
 | Closes | "When the last game ends. Set a time to close earlier." | "Entries close, and the contest closes, at this time or when the last game ends, if sooner." |
 
+Closes' picker is bounded below only by the opening time (`min`), never by now (2026-10-07). When the chosen closing time has passed, its help line reads "This time has passed, so the contest closes as soon as you save." (`CLOSES_IN_PAST_HELP`, `components/contests/EntryWindowFields.tsx`, which trivia's fields reuse). The form's own checks (`entryWindowErrors`, `scheduleErrors`) only check close after open. The Closes field has the anchor `#closing-time`: a link to it scrolls to and focuses the field.
+
 Once locked, Opens reads as a value with the lock glyph and the `opensAt` sentence under it. Review lists an "Opens and closes" row.
 
-**On the wire.** `POST` and `PATCH` take `opensAt` and `closesAt` (ISO; `null` clears back to the games' own). The contest read carries `entryWindow: { opensAt, closesAt }`, each nullable. List rows carry `phase`, `opensAt` (when Upcoming) and `closesAt` (the effective close).
+**On the wire.** `POST` and `PATCH` take `opensAt` and `closesAt` (ISO; `null` clears back to the games' own). The contest read carries `entryWindow: { opensAt, closesAt }`, each nullable. List rows carry `phase`, `opensAt` (when Upcoming), `closesAt` (the effective close; never a spent one, see "Open past its closing time"), `closeTimePassed`, `stateChangedAt` and `transitions`.
 
 ### The date and time picker
 
@@ -178,16 +193,27 @@ One console component, `DateTimeField` (`src/components/ui/dateTimeField.tsx`), 
 
 ### Transitions and where they live
 
-Transitions are Wave 3's (§3.1). The console offers exactly these, and only where the transition is allowed:
+Transitions are Wave 3's (§3.1). **The actions follow the phase, not the stored state** (2026-10-07): one shared function, `contestTransitions({ state, locked, finalized, phase, canOpen })` in `ContestPublish.ts`, lists what is offered, so a contest its closing time already closed offers Reopen entries, never Close entries. `canOpen` is `manualOpenCanAdmit` (false for a bingo contest whose games have all started, so no Open now or Reopen that couldn't let anyone in). The server sends the list as `transitions` on every contest row and on the contest read; the console reads it through `lib/contestActions.ts` (`stateActionsOf`), falling back to the stored state for an older server that sends no row `transitions`.
 
-| From | Action | To | Offered when |
+| Phase | Action (key) | Stored state written | Offered when |
 |---|---|---|---|
-| Draft | **Publish** | Open | Every publish check passes (below). Lives on the builder's Review step; the contest page's draft banner ("Continue setup") leads there. |
-| Open | **Close entries** | Closed | Not finalized |
-| Closed | **Reopen entries** | Open | Not finalized |
-| Open or Closed | **Move to draft** | Draft | Not locked, not finalized |
+| Draft | **Publish** (`publish`) | Open | Every publish check passes (below). Lives on the builder's Review step; the contest page's draft banner ("Continue setup") leads there. |
+| Upcoming | **Open now** (`openNow`) | Open, stamped | `canOpen` |
+| Upcoming, Open | **Close entries** (`close`) | Closed, stamped | Always |
+| Closed | **Reopen entries** (`reopen`) | Open, stamped | `canOpen` |
+| Upcoming, Open, Closed | **Move to draft** (`toDraft`) | Draft, stamp cleared | Not locked |
+| Finalized | none | — | — |
 
-An action that isn't allowed is absent, not disabled (D-059). Close entries, Reopen entries and Move to draft live in the contest page header (2026-10-01; see "The contest page"), and Close and Reopen also in the card and row overflow. Members see none of them.
+`TRANSITION_TARGET` maps `openNow` and `reopen` to `"open"` and `close` to `"closed"`; the console PATCHes that `state`. An action that isn't allowed is absent, not disabled (D-059). Open now, Close entries, Reopen entries and Move to draft live in the contest page header (2026-10-01; see "The contest page"); Open now, Close entries and Reopen entries also in the card and row overflow. Move to draft stays on the contest page only. Members see none of them.
+
+**Reopening past the closing time asks first** (Arthur, 2026-10-07). Reopen entries on a contest whose closing time has passed (`reopenPastCloseTime`: the row's or read's `closesAt` is at or before now) opens a confirmation dialog, `ReopenContestDialog`, from the header and the overflow alike; a reopen before the closing time goes straight through.
+
+| Element | Copy |
+|---|---|
+| Title | "Reopen entries?" |
+| Body (trivia) | "This contest's closing time has passed, so it will stay open until you close it or set a new closing time." "Fans can start runs again as soon as you reopen it." |
+| Body (bingo) | "This contest's closing time has passed, so it will stay open until you close it, set a new closing time, or its last game ends." "Fans can join again as soon as you reopen it, for games that haven't started." |
+| Buttons | "Cancel", "Reopen entries" |
 
 ### Publish checks
 
@@ -302,12 +328,12 @@ The ruling: no contest versioning; before the first fan joins everything is edit
 | Setting | Before the first board | After |
 |---|---|---|
 | Name, description, internal note, player limit, banner, progress marker | Editable | Editable |
-| Close entries, Reopen entries | Editable | Editable |
+| Open now, Close entries, Reopen entries | Editable | Editable |
 | **Move to draft** | Offered | **Absent** (fans can't have a contest they played hidden from them, Wave 3 §3.1) |
 | Adding games | Editable | Editable |
 | **Removing a game** | Editable | **Locked** |
 | **Open time** (bingo `opensAt`) | Editable | **Locked** (kind `opensAt`) |
-| Close time (bingo `closesAt`) | Editable | Editable in either direction, never before it opens or in the past (kind `closesAt`) |
+| Close time (bingo `closesAt`) | Editable, past included | Editable in either direction, past included (2026-10-07), never at or before it opens (kind `closesAt`) |
 | **Contest type** | Editable while Draft | **Locked** |
 | Prize tiers | [`admin-prizes.spec.md`](admin-prizes.spec.md) | A tier can't be removed or change its bingos to win (kinds `tierRemoved`, `tierBingos`); adding a tier and changing a tier's prize stay free |
 | **Delete** | Typed name | Typed name (the dialog says what goes with it; revised 2026-09-28, no reverification) |
@@ -318,9 +344,9 @@ That table is bingo's (`ContestLock.ts`: `gameLockViolations`, `tierLockViolatio
 |---|---|
 | Name, description, internal note, banner, Presented by sponsor, reveal mode | Editable |
 | Question slots (count and tags), time per question, right-answer points, speed bonus, network allowance, runs per fan, the game and At a game / On its own, the open time | **Locked** (kind `trivia_rules`) |
-| Close time (`trivia.closesAt`) | Editable in either direction, never before it opens or in the past (kind `closesAt`) |
+| Close time (`trivia.closesAt`) | Editable in either direction, past included (2026-10-07), never at or before it opens (kind `closesAt`) |
 | Prize bands | Add a band or widen one. A saved band can't be removed or narrowed (kind `bandRemoved`), and its prize can't be changed to any other (kind `bandPrize`: "Fans have started playing, so a band's prize can't be swapped for a different one."; the value-based exception was removed on 2026-10-06) |
-| Contest type, Move to draft, Delete, Close and Reopen entries | As bingo |
+| Contest type, Move to draft, Delete, Open now, Close and Reopen entries | As bingo |
 
 **Why removing a game locks.** A fan's board holds props from the games the contest ran at when they built it. The evaluator scores a square by its prop, not by whether the contest still lists the prop's game, so squares from a removed game keep scoring and keep paying. Removing a game after fans joined therefore does not remove it from play; it only removes it from the console, which then misreports what fans are playing. Locking is the one option that keeps every promise. Adding a game stays open because it only gives fans more to pick from.
 
@@ -355,7 +381,7 @@ Both views are endless lists over the same `GET /admin/contests` query: `Infinit
 1. **Band**, 4:1: the contest's banner (above): its own image, else its Board banner sponsor's artwork, else the tenant's brand band in the tenant's own colours, logo and name. Never a placeholder image and never a colour made up from the slug. Over the band, top left: the state pill (the phase: "Draft", "Upcoming", "Open", "Closed"), the "Finalized" badge when finalized, and the lock glyph when locked.
 2. **Body.** Type chip (from the registry); the name; the description, two lines, muted, omitted when empty. On the right, the sparkline: new players per day over the last 14 days, 96×28 in the tenant colour, captioned "+18 this week" or "None new this week", omitted until the first player. An Upcoming contest shows "Fans can join from Thu, Oct 1" in the sparkline's place until it has players.
 3. **Stats row**: **Players** ("412", or "412/500" with a limit); the middle stat, by type; **Prizes** (the count, with "tiers" for bingo or "bands" for trivia under it; no maximum shown). The middle stat for bingo is **Games** (the count, with the featured game under it, picked by Wave 3's `featuredGame`: "Live: Denver @ Fighting Hawks", "Next: Denver @ Fighting Hawks · Sat 7:00 PM", or "Final: Montana State @ Fighting Hawks · Sep 19"). For trivia it is its window: **Opens** while Upcoming, else **Runs**, with the date (as the list's date cell says it) and under it the matchup, or "On its own" for a contest with no game.
-4. **Footer**: a Draft shows "Continue setup" (opens the builder at the first step that isn't done). For Overboard staff, a contest the server calls ready to finalize shows **Finalize** with its "Staff" tag (revised 2026-09-28). A finalized contest shows "Finalized Sep 15". At the right, the **overflow menu** ("More actions"): "Close entries" (Open) or "Reopen entries" (Closed), "Duplicate", and "Delete" (not finalized). Members get no overflow.
+4. **Footer**: a Draft shows "Continue setup" (opens the builder at the first step that isn't done). For Overboard staff, a contest the server calls ready to finalize shows **Finalize** with its "Staff" tag (revised 2026-09-28). A finalized contest shows "Finalized Sep 15". At the right, the **overflow menu** ("More actions"): the row's state actions from its `transitions` (2026-10-07; see "Transitions and where they live"): "Open now" and "Close entries" (Upcoming), "Close entries" (Open) or "Reopen entries" (Closed, whether by hand or by its closing time), then "Duplicate", and "Delete" (not finalized). Move to draft is not in this menu: it stays on the contest page. Members get no overflow.
 
 **The list view.** A dense table, one row per contest, same order and filters:
 
@@ -364,7 +390,7 @@ Both views are endless lists over the same `GET /admin/contests` query: `Infinit
 | Name | The name, with the lock glyph when locked |
 | Type | Registry label |
 | State | The state pill (the phase), and the Finalized badge when finalized |
-| Next game | Two lines. On top, when the contest next does something: "Opens Thu · 7:20 PM" for an Upcoming contest, else `featuredGame`'s date ("Thu · 7:20 PM", "Live now", "Final Sep 19"), else for a trivia contest with no game "Closes Thu · 9:00 PM" or "Closed Oct 1"; "—" when there is nothing. Under it, muted, the matchup, cut with an ellipsis. |
+| Next game | Two lines. On top, when the contest next does something: "Opens Thu · 7:20 PM" for an Upcoming contest, else `featuredGame`'s date ("Thu · 7:20 PM", "Live now", "Final Sep 19"), else for a trivia contest with no game, by its phase (2026-10-07): "Open until closed" when reopened past its closing time, "Closed Oct 1" when closed (the day it was closed by hand, else its closing time), else "Closes Thu · 9:00 PM"; "—" when there is nothing. Under it, muted, the matchup, cut with an ellipsis. |
 | Games | Count |
 | Players | Count, "/500" when limited |
 | Prizes | Count: tiers for bingo, bands for trivia (row field `prizeCount`) |
@@ -378,7 +404,7 @@ The row opens the contest page. The overflow is its own focus stop and doesn't o
 **Interactions.**
 
 - A card or row opens `/contests/:contestId` (Overview). "Continue setup" and the overflow stop the click from reaching the card.
-- **Close entries / Reopen entries** from the overflow write at once (PATCH `state`) and confirm on the card's footer (the row's Next game cell in the list): "Entries closed. Fans who joined keep playing." or "Entries open." A failure shows its sentence in the same place.
+- **Open now / Close entries / Reopen entries** from the overflow write at once (PATCH `state`) and confirm on the card's footer (the row's Next game cell in the list): "Open now. Fans can play.", "Entries closed. Fans who joined keep playing." or "Entries open." A Reopen past the closing time first asks in `ReopenContestDialog`, as on the contest page. A failure shows its sentence in the same place.
 - **Delete** opens the Delete dialog (below). On success the card or row is removed from the list and the count drops by one.
 
 **States.**
@@ -411,11 +437,12 @@ The row opens the contest page. The overflow is its own focus stop and doesn't o
 | Stat labels | "Players", "Games" (bingo), "Opens" or "Runs" (trivia), "Prizes" with "tiers" or "bands" |
 | Game lines | "Next: Denver @ Fighting Hawks · Sat 7:00 PM", "Live: Denver @ Fighting Hawks", "Final: Montana State @ Fighting Hawks · Sep 19", "No games yet", "On its own" (trivia with no game) |
 | Opening line | "Fans can join from Thu, Oct 1" |
-| Date cell | "Opens Thu · 7:20 PM", "Opens Oct 9 · 7:20 PM", "Live now", "Final Sep 19", "Closes Thu · 9:00 PM", "Closed Oct 1" |
+| Date cell | "Opens Thu · 7:20 PM", "Opens Oct 9 · 7:20 PM", "Live now", "Final Sep 19", "Closes Thu · 9:00 PM", "Closed Oct 1", "Open until closed" |
 | Sparkline caption | "+18 this week", "None new this week" |
 | List columns | "Name", "Type", "State", "Next game", "Games", "Players", "Prizes", "Created" |
-| Overflow | "More actions", "Close entries", "Reopen entries", "Duplicate", "Delete" |
-| Confirmations | "Entries closed. Fans who joined keep playing.", "Entries open." |
+| Overflow | "More actions", "Open now", "Close entries", "Reopen entries", "Duplicate", "Delete" |
+| Confirmations | "Open now. Fans can play.", "Entries closed. Fans who joined keep playing.", "Entries open." |
+| Reopen dialog | As under "Transitions and where they live" |
 | Draft footer | "Continue setup" |
 | Finalized footer | "Finalized Sep 15" |
 | Empty / no matches | "No contests yet.", "No contests match.", "Clear search and filters" |
@@ -431,8 +458,8 @@ A full page, reached from a card or row, from Overview and Game day links, and f
 - Back link: "Games & Contests" to `/games`, or "All contests" / the tenant's name when the page was opened from those (carried in navigation state, falling back to "Games & Contests").
 - The contest's banner across the top of the header, a wide strip (88–150px tall) of the same view the card shows.
 - Eyebrow "Contest · Bingo" (the registry label); H1 the name; chips: the state pill (the phase), "Finalized", the lock glyph.
-- Right (2026-10-01): the state actions first, each only when allowed (see "Transitions and where they live"): **Close entries** (in the console's warning colour, Button variant `warning`), **Reopen entries**, **Move to draft** (only while unlocked). None on a finalized contest, and members see none. Then "Preview" (secondary; opens the preview drawer over the current tab, on the screen that shows what that tab edits; D-113); then, for Overboard staff on a contest ready to finalize, **Finalize** with its "Staff" tag; then the overflow ("More actions"): "Duplicate", "Delete contest".
-- The state actions write at once (PATCH `state`) and confirm under the header: "Entries closed. Fans who joined keep playing.", "Entries open.", "Moved to draft. Fans can't see it now." A refusal shows its sentence there; a stale one (409 `stale_contest`) offers "Reload". Publish is not in the header: it stays the builder's Review step, reached from the draft banner's "Continue setup".
+- Right (2026-10-01; revised 2026-10-07): the state actions first, those the read's `transitions` lists (by the phase; see "Transitions and where they live"): **Open now** (Upcoming), **Close entries** (Upcoming or Open; in the console's warning colour, Button variant `warning`), **Reopen entries** (Closed, by hand or by its closing time), **Move to draft** (only while unlocked). None on a finalized contest, and members see none. Reopen entries past the closing time asks first (`ReopenContestDialog`). Then "Preview" (secondary; opens the preview drawer over the current tab, on the screen that shows what that tab edits; D-113); then, for Overboard staff on a contest ready to finalize, **Finalize** with its "Staff" tag; then the overflow ("More actions"): "Duplicate", "Delete contest".
+- The state actions write at once (PATCH `state`) and confirm under the header: "Open now. Fans can play.", "Entries closed. Fans who joined keep playing.", "Entries open.", "Moved to draft. Fans can't see it now." A refusal shows its sentence there; a stale one (409 `stale_contest`) offers "Reload". Publish is not in the header: it stays the builder's Review step, reached from the draft banner's "Continue setup".
 
 **Tabs**: "Overview · Games · Prizes · Sponsors" for bingo and "Overview · Trivia · Prizes · Sponsors" for trivia (D-114: the page mirrors its builder), with counts on Games and Prizes (the Prizes count is tiers for bingo, bands for trivia). The tab is in the URL: `/contests/:contestId` (Overview), then `/games` or `/trivia`, `/prizes`, `/sponsors`. An address naming the other type's tab opens this contest's own; an unknown tab segment opens Overview; the old `/preview` address opens the preview drawer over Overview. A prize opens as its own full page ([`admin-prizes.spec.md`](admin-prizes.spec.md)). Code: `pages/contests/ContestPage.tsx`.
 
@@ -445,6 +472,7 @@ A full page, reached from a card or row, from Overview and Game day links, and f
 | Load failed | `ReportableLoadError`. |
 | Draft | A banner under the header: "This is a draft. Fans can't see it until you publish." with "Continue setup". |
 | Just published | "Published. Fans can see it now." under the header, for this visit only. |
+| Open past its closing time (`closeTimePassed`; 2026-10-07) | A warning banner under the header for as long as it holds: "Open past its closing time." then the reopen sentence (trivia: "This contest's closing time has passed, so it will stay open until you close it or set a new closing time."; bingo: "… until you close it, set a new closing time, or its last game ends."), with "Set a new closing time" (a link to the Overview tab for bingo, the Trivia tab for trivia, at `#closing-time`, which scrolls to and focuses Closes) and "Close entries" (a warning button, PATCH `state: "closed"`). |
 | Trivia that can't run (a question tag is short, `questionShortfalls`) | A warning banner under the header: "Fans can't play this contest. The "nfl" tag has 4 questions and needs 6 (2 questions a run). It's hidden from fans until every run has enough questions." with "Open Question bank". On a draft: "This contest can't run yet. … Add questions before you publish, or lower the runs per fan." |
 | Locked | Glyph in the header; locked controls read as values on every tab. |
 | Finalized | "Finalized" badge; every tab read-only; the overflow offers only "Duplicate"; the header line "Finalized on Sep 28. Nothing about this contest can change." |
@@ -488,16 +516,17 @@ Two columns at ≥1100px (content, then a 320px right rail); one below, with the
 **Right rail, "What's next"**, a short timeline:
 
 - **Next game** (bingo): `featuredGame`'s line with its readiness dot from game day, linking to Game day on that game; "No upcoming games" when none.
-- **When it runs** (trivia, in place of Next game; `TriviaWindowStep` in `OverviewTab.tsx`): "Opens" with "Thu, Oct 1 · 7:00 PM. Closes Thu, Oct 1 · 9:00 PM." before it opens, "Open now" with "Closes …" while open, "Closed" with "Closed …" after; "Not set yet." before the Trivia step is saved.
+- **When it runs** (trivia, in place of Next game; `TriviaWindowStep` in `OverviewTab.tsx`): "Opens" with "Thu, Oct 1 · 7:00 PM. Closes Thu, Oct 1 · 9:00 PM." before it opens, "Open now" with "Closes …" while open, "Closed" with "Closed …" after; "Not set yet." before the Trivia step is saved. Which of these it shows is the contest's phase (2026-10-07), never the times alone: reopened past its closing time it reads "Open now" with "Open until you close it or set a new closing time."; closed by hand it reads "Closed" with the moment it was closed (`stateChangedAt`). A draft reads its times.
 - **Lock**: "Not locked. Everything can change until the first fan joins." or "Locked since Sat Sep 27, 7:02 PM."
-- **Finalize**: a tenant admin or member reads "Overboard finalizes the contest after its last game." (trivia: "Overboard finalizes the contest after it closes.") or "Finalized on Sep 28." Overboard staff (revised 2026-09-28, final walk) read "Every game has ended." with **Finalize** and its "Staff" tag once the contest is ready, and otherwise why it can't be finalized yet, in the one rule's order: "A draft can't be finalized. Publish it and play its games first.", "A contest with no games can't be finalized. Add a game first.", or "Finalize opens once every game has ended." For trivia (`lib/finalize.ts`): ready reads "The contest has closed. Anyone still answering is stopped where they stand."; not ready reads "A draft can't be finalized. Publish it first." or "Finalize opens once the contest closes."
+- **Finalize** (revised 2026-10-07; `lib/finalize.ts`): a tenant admin or member reads "Overboard finalizes the contest once it's closed." or "Finalized on Sep 28." Overboard staff (revised 2026-09-28, final walk) see **Finalize** and its "Staff" tag once the contest is ready, under the ready line: bingo "The contest is closed. Finalizing stops all prizes, even for games still being played."; trivia "The contest is closed. Anyone still answering is stopped where they stand." Otherwise they read why it can't be finalized yet, in the one rule's order: "A draft can't be finalized. Publish it first.", for bingo "A contest with no games can't be finalized. Add a game first.", or "Finalize opens as soon as the contest is closed. Close entries to finalize it now."
 
 **Copy.**
 
 | Element | Copy |
 |---|---|
 | Tiles | "Players", "of 500", "Boards with a bingo", "Finished a run", "N% of players", "Prizes awarded", "Failed sends" |
-| Header actions | "Close entries", "Reopen entries", "Move to draft", "Entries closed. Fans who joined keep playing.", "Entries open.", "Moved to draft. Fans can't see it now.", "Reload" |
+| Header actions | "Open now", "Close entries", "Reopen entries", "Move to draft", "Open now. Fans can play.", "Entries closed. Fans who joined keep playing.", "Entries open.", "Moved to draft. Fans can't see it now.", "Reload" |
+| Past-close banner | "Open past its closing time.", the reopen sentence, "Set a new closing time", "Close entries" |
 | Field labels | "Name", "Description", "Internal note", "Player limit", "Contest type", "Opens", "Closes" |
 | Help | "Fans see this on the contest card.", "Only people in this console see the internal note." |
 | Nudge | "Use the internal note" |
@@ -506,7 +535,7 @@ Two columns at ≥1100px (content, then a 320px right rail); one below, with the
 | Banner | "Banner", "Showing your brand colors. Upload an image to use your own.", "Showing Northside's board banner. Upload an image to use your own.", "Your image. Remove it to go back to your brand colors.", "A wide image, about 4 to 1, shown across the top of the contest's card and page." |
 | Field errors | "Give the contest a name.", "Keep it to 80 characters.", "Keep it to 300 characters.", "Keep it to 500 characters.", "Enter a number from 1 to 1,000,000.", "Another contest in this workspace already has this name." |
 | Danger zone | "Delete contest", "Deletes the contest, its fans' boards, its prize tiers and its sponsor placements. Prizes already sent stay on record.", for trivia "Deletes the contest, its fans' runs and its sponsor placements. Its prize bands go with it; prizes already sent stay on record." |
-| Rail | "What's next", "Next game", "No upcoming games", "Lock", "Not locked. Everything can change until the first fan joins.", "Locked since Sat Sep 27, 7:02 PM.", "Finalize", "Overboard finalizes the contest after its last game.", "Finalized on Sep 28." |
+| Rail | "What's next", "Next game", "No upcoming games", "Lock", "Not locked. Everything can change until the first fan joins.", "Locked since Sat Sep 27, 7:02 PM.", "Finalize", "Overboard finalizes the contest once it's closed.", "Finalized on Sep 28.", and the staff lines under "Finalize" above |
 
 #### Games tab
 
@@ -557,7 +586,7 @@ A new contest starts with one question slot and no tag, 1 run per fan, 15 second
 
 **Read only.** A member, or anyone on a finalized contest, sees the same two cards as values: Runs, Game, Opens, Closes ("Standings settle when it closes."), Questions in a run (the count), Drawn from (the tags), Runs per fan ("1, no retry" or "3, best run counts"), Time per question, Scoring ("500 points, plus up to 500 for speed") and Network allowance.
 
-**Locked** (a fan has started a run; the trivia table under "The lock", D-120). The `trivia_rules` sentence sits above the cards as a lock note before anyone tries a change. Runs, Game and Opens read as values with the lock glyph, and every Questions and scoring setting reads as a value with the glyph. Only **Closes** stays a field: its earliest choice is the later of the open time and now, and a moved close time before it opens or in the past shows the `closesAt` sentence under it. The tags aren't read while locked. A 409 `contest_locked` on Save (the lock landed while editing) shows its first sentence as a lock note, says "Some changes need another look." in the bar, and re-reads the contest.
+**Locked** (a fan has started a run; the trivia table under "The lock", D-120). The `trivia_rules` sentence sits above the cards as a lock note before anyone tries a change. Runs, Game and Opens read as values with the lock glyph, and every Questions and scoring setting reads as a value with the glyph. Only **Closes** stays a field: its earliest choice is the open time (no longer "now", 2026-10-07), and a close time at or before the open time shows the `closesAt` sentence ("The closing time must be after the opening time.") under it. A closing time that has passed is allowed, with the help line "This time has passed, so the contest closes as soon as you save." (`CLOSES_IN_PAST_HELP`), locked or not. The field carries the `#closing-time` anchor the past-close banner links to. The tags aren't read while locked. A 409 `contest_locked` on Save (the lock landed while editing) shows its first sentence as a lock note, says "Some changes need another look." in the bar, and re-reads the contest.
 
 **Can't run.** A contest whose tags hold too few questions shows the page's warning banner (see "Page states"), whichever tab is open.
 
@@ -566,6 +595,7 @@ A new contest starts with one question slot and no tag, 1 run per fan, 15 second
 | Cards | "When it runs", "Questions and scoring", "Trivia settings" |
 | Labels | "Runs", "At a game", "On its own", "Game", "Opens", "Closes", "Questions in a run", "Select a tag…", "Add a question", "Runs per fan", "Time per question", "seconds", "Right answer", "Speed bonus, up to", "points", "Network allowance", "Drawn from", "Scoring" |
 | Empty and not set up | "Your question bank is empty.", "Open Question bank", "Couldn't load the question bank's tags.", "Not set up yet. Fans can't play until it has questions and times.", "Set up trivia" |
+| Help (Closes, past) | "This time has passed, so the contest closes as soon as you save." |
 | Errors | "Pick a tag for question 2.", "Pick the game this trivia runs at.", "Set when it opens and closes.", "It must close after it opens.", the `closesAt` and `trivia_rules` lock sentences, the `TRIVIA.TAG_TOO_SMALL` sentence |
 | Save bar | "Save trivia settings", then as every tab |
 
@@ -642,7 +672,7 @@ Steps and their routes (`:step` = `basics`, `games`, `prizes`, `sponsors`, `revi
 | Trivia step | As the Trivia tab; the Prizes step's "Set up the Trivia step first.", "Prize bands are part of the trivia settings, so they wait for its first save.", "Go to the Trivia step" |
 | Publish reasons | The sentences under "Publish checks" |
 | Publish notes | "Its close time has passed, so it closes as soon as it's published. Change the close time first?", "Change the close time", "Its open time has passed, so fans can play as soon as it's published." |
-| Opens and closes | "Opens", "Closes", the help lines under "Opens and closes", "It must close after it opens.", "The close time can't be before the contest opens, or in the past." |
+| Opens and closes | "Opens", "Closes", the help lines under "Opens and closes", "This time has passed, so the contest closes as soon as you save.", "It must close after it opens.", "The closing time must be after the opening time." |
 | Result | "Published. Fans can see it now." |
 
 ### Delete, wherever it appears
@@ -669,18 +699,23 @@ The table stays ([`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md), p
 
 ### Finalize: the one rule
 
-A contest is **ready to finalize** when it is **not finalized, not a draft, has at least one game, and every one of its games has ended** (derived status: the feed's Final, every prop resolved, or past the sport's usual length; a game the feed no longer has can't be known to be over and holds the contest back). "Its games" are the contest's own set (`allowedBetEvents`). One server function (`readyToFinalize`, `util/contest-console.ts`) decides it for every surface: the contest rows' and page's `readyToFinalize`, All contests' and the tenant record's rows (`readyToFinalize` on the All contests row), Operations' `ready-to-finalize` queue, and **the finalize endpoint, which refuses a contest that isn't ready with 409 `not_ready`** ("Only a published contest whose games have all ended can be finalized."). A contest with no games (the `test` tenant's "Test Tenant Bingo" and "Archived test contest (early)") is never ready, which is why neither offered Finalize.
+Revised 2026-10-07 (Arthur's correction): **Finalize is possible only once the contest is closed**, never on an Open contest, and there is no "Close and finalize". A contest is **ready to finalize** when it is **not finalized, not a draft, and its phase is Closed**: closed by hand, closed by its closing time, or a bingo contest whose games are over, whatever its times or games say. The old gates (every game ended, the trivia close time passed) are gone: an admin who closes entries can have it finalized at once, with games still being played. A bingo contest with no games is still never ready (there is nothing to settle; Delete fits it), which is why the `test` tenant's "Test Tenant Bingo" and "Archived test contest (early)" offer no Finalize. One server function (`readyToFinalize`, `util/contest-console.ts`) decides it for every surface: the contest rows' and page's `readyToFinalize`, All contests' and the tenant record's rows (`readyToFinalize` on the All contests row), Operations' `ready-to-finalize` queue, and **both finalize endpoints, which refuse a contest that isn't ready with 409 `not_ready`** ("Close this contest before you finalize it.").
 
-**A trivia contest** has no games to wait on: it is ready when it is **not finalized, not a draft, and its close time (`trivia.closesAt`) has passed** (same function). Its Finalize is its own endpoint, `POST /admin/contests/:contestId/trivia/finalize` ([`trivia-game-type.spec.md`](../../features/1-draft/trivia-game-type.spec.md), "Finalize and prizes"): it stops any run still in progress where it stands, settles the standings once, and sends a prize to every fan inside a band. Bingo's endpoint refuses a trivia contest.
+**What Finalize does to the state.** Both Finalizes (bingo's, and trivia's complete step) also write `state: "closed"` with the legacy `closed: true`, `showContest: true`, so a finalized contest is stored Closed. It is never reversible: no transition is offered on a finalized contest.
+
+**What it stops (bingo).** Closing a bingo contest stops new entries only: boards keep scoring and paying while its games are played. Finalize is the hard stop for every award path. The shared reconciler `reconcileBoard` (`scoring/evaluate.ts`) returns the outcome `finalized` and sends nothing when the board's contest is finalized (or no longer exists); `ScoringBoard.contestFinalized` is required, and `mongoScoringStore().loadBoard` reads the contest's `finalized`. That covers the board evaluator Lambda (an SQS prop hit), the prop-update Lambda, the dev prop watcher and replay, board creation's and a board read's reconcile, and the sweep (which already skipped finalized contests). A prize message queued before Finalize is still delivered by the worker: that bingo was made before it.
+
+**A trivia contest** has no games to wait on: it is ready by the same rule (not finalized, not a draft, phase Closed, by hand or by `trivia.closesAt`). Closing stops new runs; a fan mid-run may finish until Finalize. Its Finalize is its own endpoint, `POST /admin/contests/:contestId/trivia/finalize` ([`trivia-game-type.spec.md`](../../features/1-draft/trivia-game-type.spec.md), "Finalize and prizes"): it stops any run still in progress where it stands, settles the standings once, and sends a prize to every fan inside a band. Bingo's endpoint refuses a trivia contest.
 
 ### Finalize, wherever it appears
 
-Staff only, wherever it appears (revised 2026-09-28, Arthur's final walk): All contests rows, the tenant page's Contests rows, and — marked with an indigo "Staff" tag — the workspace's contest cards, list rows, contest page header and Overview rail. Every one opens the same centred dialog (`FinalizeContestDialog`); the tenant page no longer keeps its own copy. It is offered only when the server's `readyToFinalize` is true, and hidden rather than disabled otherwise, except on the Overview rail, which tells staff why. Tenant admins and members never see it; staff keep it in either point of view. The server checks the typed name for both types (trivia's since 2026-10-06, body `{ confirmName }`), trimmed and ignoring case (`sameContestName`), as the dialog and contest delete compare it; bingo's used to be exact. A mismatch is 400, "The contest name you typed doesn't match." (trivia: code `confirm_name_mismatch`). No re-authentication.
+Staff only, wherever it appears (revised 2026-09-28, Arthur's final walk): All contests rows, the tenant page's Contests rows, and — marked with an indigo "Staff" tag — the workspace's contest cards, list rows, contest page header and Overview rail. Every one opens the same centred dialog (`FinalizeContestDialog`); the tenant page no longer keeps its own copy. It is offered only when the server's `readyToFinalize` is true (so never on a Draft, Upcoming or Open contest), and hidden rather than disabled otherwise, except on the Overview rail, which tells staff why and points to Close entries. Tenant admins and members never see it; staff keep it in either point of view. The server checks the typed name for both types (trivia's since 2026-10-06, body `{ confirmName }`), trimmed and ignoring case (`sameContestName`), as the dialog and contest delete compare it; bingo's used to be exact. A mismatch is 400, "The contest name you typed doesn't match." (trivia: code `confirm_name_mismatch`). No re-authentication.
 
 | Element | Copy |
 |---|---|
 | Title | "Finalize Rivalry Week?" |
 | Body | "Finalizing is permanent and cannot be undone. It marks the contest finished for every fan." Trivia adds: "Fans still answering are stopped where they stand: what they answered counts, the rest scores nothing. The standings are frozen and the prizes go to every fan in a prize band." |
+| Games still to play (bingo; 2026-10-07) | The dialog reads `GET /admin/contests/:contestId/games` when it opens and lists the games that aren't Final: "This game is still to be played:" or "These games are still to be played:", each "Denver @ Fighting Hawks · being played now" or "Denver @ Fighting Hawks · Sat Oct 3 · 7:00 PM", then "Bingos made in them after you finalize won't win prizes." Nothing is listed when every game is Final. |
 | Input label | "Type “Rivalry Week” to confirm" |
 | Buttons | "Finalize permanently", "Finalizing…", "Cancel" |
 | Errors | "The contest name you typed doesn't match." |
@@ -695,7 +730,7 @@ Staff only, wherever it appears (revised 2026-09-28, Arthur's final walk): All c
 | See the list, the contest page, every tab, Preview | Yes | Yes (view-only presentation) | Yes, any tenant |
 | New contest, the builder | Yes | No | Yes |
 | Edit basics, contest type (unlocked draft) | Yes | No | Yes |
-| Publish, Close and Reopen entries, Move to draft | Yes | No | Yes |
+| Publish, Open now, Close and Reopen entries, Move to draft | Yes | No | Yes |
 | Add and remove games (lock permitting) | Yes | No | Yes |
 | Prize tiers, sponsor placements | Yes (their specs) | No | Yes |
 | Duplicate | Yes | No | Yes |
@@ -738,7 +773,7 @@ Neither the tier endpoints nor the placement endpoints are here: [`admin-prizes.
 
 The home's list for both views, cursor-paged by [`admin-lists.spec.md`](admin-lists.spec.md).
 
-Query: `cursor`, `limit` (default 20), `q` (contest name), `state` (a phase since 2026-10-01: `draft|upcoming|open|closed`; `closed` includes finalized contests and contests past their close time), `type` (a registry key), `sort` (`next|newest|players`, default `next`).
+Query: `cursor`, `limit` (default 20), `q` (contest name), `state` (a phase since 2026-10-01: `draft|upcoming|open|closed`; `closed` includes finalized contests and contests past their close time with no later manual open), `type` (a registry key), `sort` (`next|newest|players`, default `next`).
 
 Order: **drafts lead every order** (the tenant's unfinished work), newest first. Then the rest: `newest` by `_id` descending; `next` by a game in play first, then the soonest upcoming tip-off, then contests with nothing upcoming by `_id` descending; `players` by board count descending. `next` and `players` are derived orders computed over one tenant's contests (G1's bounded-candidate rule), never the client. Every order ends in `_id`.
 
@@ -768,7 +803,10 @@ Response:
     contestBanner?: ContestBannerView;  // what the card's band shows (see "Banner")
     newPlayersByDay: number[] | null;  // 14 daily counts ending today; null before the first player
     newPlayersThisWeek: number;
-    readyToFinalize: boolean;        // the one rule: not finalized, not a draft, ≥1 game, every game ended
+    readyToFinalize: boolean;        // the one rule: not finalized, not a draft, phase closed (bingo: ≥1 game)
+    transitions?: Array<"publish" | "openNow" | "close" | "reopen" | "toDraft">;  // `contestTransitions`, by the phase (2026-10-07)
+    closeTimePassed?: boolean;       // open only by a manual open made after its closing time had passed
+    stateChangedAt?: string;         // the last manual open or close
     createdAt: string;
     updatedAt: string;
   }>;
@@ -782,7 +820,7 @@ Per-row aggregates (players, sparkline, tier count, banner) are computed for the
 
 ### `GET /admin/contests/:contestId`
 
-The contest page's read. The list row's fields plus `internalNote`, `bannerImageUrl` (or null), `defaultBanner` (what the banner shows without the contest's own image), `testMode` (only where the dev gate is open; no console screen shows it), `kpis: { boardsWithBingo, prizesAwarded, failedSends, finishedFans? }` (`finishedFans` on trivia: fans with at least one completed run), `entryWindow: { opensAt, closesAt }` (bingo; each null where it follows its games), `trivia` (trivia: the stored config as `AdminTriviaConfig`, settled standings named by membership), `questionShortfalls` (trivia: the tags too small for every run, `{ tag, slotIndex, slots, have, need }[]`, empty when it can run), `prizeTiers: { total, complete, needsDetails }`, `placementCount`, `progressMarkerImageUrl` (or null) and `brandMarkerImageUrl` (the Brand marker the board shows without the contest's own, or null) (2026-09-30; there is no `markerSponsors`: no sponsor's icon shows ahead of the contest's marker), `transitions: Array<"publish" | "close" | "reopen" | "toDraft">` (what the header offers), and `publishChecks: Array<{ key, message }>` (empty when publishable; drives the Review checklist, the progress bar's marks and "Continue setup"'s first incomplete step). 404 for a wrong or foreign id.
+The contest page's read. The list row's fields plus `internalNote`, `bannerImageUrl` (or null), `defaultBanner` (what the banner shows without the contest's own image), `testMode` (only where the dev gate is open; no console screen shows it), `kpis: { boardsWithBingo, prizesAwarded, failedSends, finishedFans? }` (`finishedFans` on trivia: fans with at least one completed run), `entryWindow: { opensAt, closesAt }` (bingo; each null where it follows its games), `trivia` (trivia: the stored config as `AdminTriviaConfig`, settled standings named by membership), `questionShortfalls` (trivia: the tags too small for every run, `{ tag, slotIndex, slots, have, need }[]`, empty when it can run), `prizeTiers: { total, complete, needsDetails }`, `placementCount`, `progressMarkerImageUrl` (or null) and `brandMarkerImageUrl` (the Brand marker the board shows without the contest's own, or null) (2026-09-30; there is no `markerSponsors`: no sponsor's icon shows ahead of the contest's marker), `transitions: Array<"publish" | "openNow" | "close" | "reopen" | "toDraft">` (what the header offers, by the phase; 2026-10-07), and `publishChecks: Array<{ key, message }>` (empty when publishable; drives the Review checklist, the progress bar's marks and "Continue setup"'s first incomplete step). 404 for a wrong or foreign id.
 
 ### `GET /admin/contests/:contestId/games`
 
@@ -808,12 +846,12 @@ Body: any of `{ contestName, description, internalNote, maxParticipants, contest
 
 - `finalized` → 409 `contest_finalized` ("This contest is finalized, so its settings can't change."). "Not finalized" is part of the write filter.
 - The precondition and the write are one filter; a stale edit → 409 `stale_contest`.
-- `state`: the transitions of Wave 3 §3.1. Draft → Open runs the publish checks (409 `publish_blocked` with `reasons`). To Draft on a locked contest → 409 `contest_locked` ("Fans have joined this contest, so it can't go back to draft."), with the not-locked condition in the write filter.
+- `state`: the transitions of Wave 3 §3.1. Draft → Open runs the publish checks (409 `publish_blocked` with `reasons`). To Draft on a locked contest → 409 `contest_locked` ("Fans have joined this contest, so it can't go back to draft."), with the not-locked condition in the write filter. On a published contest, `state: "open"` or `"closed"` is a manual action (2026-10-07): it stamps `stateChangedAt` even when the stored state doesn't change (an Upcoming contest, or one its closing time closed, is stored Open), and never rewrites the times. Publish (Draft → Open) and Move to draft clear the stamp; Publish keeps the schedule.
 - `contestType` on a non-draft → 409 `not_draft` ("The contest type can't change after publishing."); on a locked one → 409 `contest_locked` (kind `contestType`).
-- `trivia` (trivia only; 400 otherwise): merged onto the stored config and validated whole (see "Trivia tab", Saving); once locked, a changed locked field, a removed, narrowed or re-prized band, or a bad close time → 409 `contest_locked` with kinds `trivia_rules`, `bandRemoved`, `bandPrize`, `closesAt`. A published contest's close time can't move into the past (400, the `closesAt` sentence). The console always sends the complete config. The contest's `allowedBetEvents` follow the config's game.
-- `opensAt`, `closesAt` (bingo; see "Opens and closes"): on a trivia contest → 400 "A trivia contest's times are in its trivia settings."; close not after open → 400 "It must close after it opens."; on a published contest, a close time in the past or before it opens → refused with "The close time can't be before the contest opens, or in the past." (kind `closesAt`); a changed `opensAt` on a locked contest → 409 `contest_locked` (kind `opensAt`).
+- `trivia` (trivia only; 400 otherwise): merged onto the stored config and validated whole (see "Trivia tab", Saving); once locked, a changed locked field, a removed, narrowed or re-prized band, or a close at or before the open → 409 `contest_locked` with kinds `trivia_rules`, `bandRemoved`, `bandPrize`, `closesAt`. A `trivia.closesAt` in the past is accepted on any contest, locked or not (2026-10-07), and closes the contest now unless an admin opens it by hand afterwards; a close not after the open is 400 on field `trivia.closesAt`, "Entries must close after they open.". The console always sends the complete config. The contest's `allowedBetEvents` follow the config's game.
+- `opensAt`, `closesAt` (bingo; see "Opens and closes"): on a trivia contest → 400 "A trivia contest's times are in its trivia settings."; close not after open → 400 "It must close after it opens."; a `closesAt` in the past is accepted on any contest, locked or not (2026-10-07), and closes it now unless an admin opens it by hand afterwards; a changed `opensAt` on a locked contest → 409 `contest_locked` (kind `opensAt`). A schedule edit after a manual open hands the contest back to its times when it is a past close or a future open (see "Opens and closes").
 - Name clash → 409 `name_taken`.
-- Audited `contest_update` with the changed field names and the new `state`, never free text. A Draft → Open change is audited as `contest_publish`.
+- Audited `contest_update` with the changed field names and the new `state`, never free text. A Draft → Open change is audited as `contest_publish`. A manual move carries `transition` in the audit detail (`openNow`, `reopen` or `close`), and `changes.fields` includes `state` for it even when the stored state is unchanged.
 - Responds with the contest and `changes.fields`.
 
 ### `POST /admin/contests/:contestId/duplicate`
@@ -834,7 +872,7 @@ Query `expectedUpdatedAt`. Removes the game from `allowedBetEvents` (never from 
 
 ### `POST /admin/contests/:contestId/finalize`
 
-As [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md), plus the one rule: a contest that isn't ready to finalize (above) is **409 `not_ready`**, "Only a published contest whose games have all ended can be finalized.", checked after "already finalized" and before the typed name. Its callers are the OBS pages: All contests rows and the tenant record's rows.
+As [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md), plus the one rule: a contest that isn't ready to finalize (above) is **409 `not_ready`**, "Close this contest before you finalize it.", checked after "already finalized" and before the typed name. Trivia's `POST …/trivia/finalize` refuses the same way. Since 2026-10-07 it also stores `state: "closed"`. Its callers are the OBS pages: All contests rows and the tenant record's rows.
 
 ### Error codes and what the console shows
 
@@ -847,6 +885,7 @@ As [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md), plus the one rule
 | `contest_locked` | 409 | The refusal's own sentence where the change was attempted, and a re-read. |
 | `not_draft` | 409 | "The contest type can't change after publishing." |
 | `publish_blocked` | 409 | The reasons, as sentences, on Review. |
+| `not_ready` | 409 | "Close this contest before you finalize it." in the Finalize dialog (the console offers Finalize only when ready, so this shows only when the contest reopened meanwhile). |
 | (delete refusals) | 400 / 409 | The Delete dialog's error lines. |
 | (write gate, member) | 403 | "Only organization admins can change contests." |
 | (write gate, paused) | 403 | "This workspace is paused. Changes are turned off until Overboard resumes it." |
@@ -884,7 +923,7 @@ As [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md), plus the one rule
 1. **`CT-01` — A control exists only if the fan side honours it.** No entries-per-fan, no two-teams, no board rules, no prop controls, no player limit on a trivia contest.
 2. **`CT-02` — A contest's state is stored: Draft, Open or Closed** (Wave 3 §3.1). Finalized is a badge. The pill shows the phase (Draft, Upcoming, Open, Closed) from one shared rule, `contestPhase`, which the fan app and the server's fan list share. The console never shows a separate visibility or entries control.
 3. **`CT-03` — Publish is gated.** Bingo needs a game that hasn't started and a complete tier with none needing details. Trivia needs its settings, enough questions in every tag for every run, and a complete band; its times never block it. The server checks it on every move into Open from Draft.
-4. **`CT-04` — Each state action appears once, where it belongs,** and only when allowed: Publish on Review, the others in the contest page header and (Close and Reopen) the card and row overflow.
+4. **`CT-04` — Each state action appears once, where it belongs,** and only when allowed by the phase (one shared `contestTransitions`, sent by the server): Publish on Review, the others in the contest page header and (Open now, Close and Reopen) the card and row overflow. Revised 2026-10-07: the last manual action wins over the schedule, and a past closing time is allowed.
 5. **`CT-05` — The description is for fans; the internal note never leaves the console.** Fan reads use an allowlisted projection, and the current fan app shows the description on the contest card.
 6. **`CT-06` — Contest types come from one registry.** Filters, pickers and validation read it; nothing hardcodes a type.
 7. **`CT-07` — A contest locks at its first board and never unlocks.** The lock table above, decided in shared, enforced by the server, shown read-only in the console.
@@ -894,7 +933,7 @@ As [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md), plus the one rule
 11. **`CT-11` — Any non-finalized contest can be deleted,** with a typed name, whether or not fans have joined (revised 2026-09-28: no reverification).
 12. **`CT-12` — The builder keeps the console around it.** Steps are a clickable progress bar, every step is reachable once the draft exists, and Save draft works from every step.
 13. **`CT-13` — Every growing list pages on the server with a cursor.** The contest list (both views), the Games tab and the game picker.
-14. **`CT-14` — Finalize is staff only, by one rule** (not finalized, not a draft, at least one game, every game ended), hidden rather than disabled otherwise; the server refuses a contest that isn't ready. Revised 2026-09-28: it appears on the OBS pages and, marked as a staff action, on the workspace's contest cards, list rows and contest page, where the Overview rail tells staff why a contest isn't ready.
+14. **`CT-14` — Finalize is staff only, by one rule** (not finalized, not a draft, phase Closed; a bingo contest needs at least one game; revised 2026-10-07), hidden rather than disabled otherwise; never on an Open contest; the server refuses a contest that isn't ready. Revised 2026-09-28: it appears on the OBS pages and, marked as a staff action, on the workspace's contest cards, list rows and contest page, where the Overview rail tells staff why a contest isn't ready.
 15. **`CT-15` — Participation is the board count.** `numberParticipants` is never read.
 16. **`CT-16` — Contest names are unique within a tenant, ignoring case.**
 17. **`CT-17` — `ranAtBetEvents` only grows.**
@@ -938,7 +977,7 @@ Every screen, where its data comes from and what it writes. Paths are in `obs-b2
 
 | Screen | Reads | Writes |
 |---|---|---|
-| Games & Contests (`pages/Games.tsx`) | `GET /admin/contests` (cursor pages, phase, banner, sparkline, `prizeCount`, `readyToFinalize`) | `PATCH` `state` (Close and Reopen entries), `POST …/duplicate`, `DELETE`, staff Finalize (`POST …/finalize` or `…/trivia/finalize`) |
+| Games & Contests (`pages/Games.tsx`) | `GET /admin/contests` (cursor pages, phase, banner, sparkline, `prizeCount`, `readyToFinalize`, `transitions`) | `PATCH` `state` (Open now, Close and Reopen entries), `POST …/duplicate`, `DELETE`, staff Finalize (`POST …/finalize` or `…/trivia/finalize`) |
 | Contest page header (`pages/contests/ContestPage.tsx`) | `GET /admin/contests/:contestId` (`transitions`, `questionShortfalls`, `locked`, `finalized`) | `PATCH` `state`, `POST …/duplicate`, `DELETE`, staff Finalize |
 | Overview (`OverviewTab.tsx`) | the contest read (`kpis`, `entryWindow`, `trivia` times, `games.featured`) | `PATCH` Basics fields changed |
 | Games (bingo; `GamesTab.tsx`) | `GET /admin/contests/:contestId/games`, `GET /admin/games/candidates` | `POST …/games`, `DELETE …/games/:betEventId` |
@@ -959,6 +998,29 @@ Every screen, where its data comes from and what it writes. Paths are in `obs-b2
 - **The trivia "Send prizes" section** of the earlier trivia spec was not built: staff Finalize settles and sends in one action.
 - **A locked band's prize swap for one "worth at least as much"** (2026-10-06): cut. D-120 says a locked band's prize can't be swapped, and prizes state no value.
 - **Trivia Finalize without a body** (2026-10-06): changed. It takes `{ confirmName }`, checked on the server as bingo's is; both compare it trimmed and ignoring case.
+
+### Function audit additions (2026-10-07, contest controls)
+
+| Screen | Reads | Writes |
+|---|---|---|
+| Contest page header (`pages/contests/ContestPage.tsx`, `lib/contestActions.ts`) | `GET /admin/contests/:contestId`: `transitions` (by the phase), `phase`, `closeTimePassed`, `closesAt` | `PATCH` `state` (`TRANSITION_TARGET`: Open now and Reopen → `"open"`, Close → `"closed"`, Move to draft → `"draft"`) |
+| Reopen dialog (`ReopenContestDialog`) | nothing; opened when `reopenPastCloseTime` (the row's or read's `closesAt` at or before now) | `PATCH` `state: "open"` |
+| Past-close banner (contest page) | the read's `closeTimePassed`, `contestType` | none of its own: "Set a new closing time" links to the Overview tab (bingo) or Trivia tab (trivia) at `#closing-time`; "Close entries" is `PATCH` `state: "closed"` |
+| Games & Contests card and row overflow (`pages/Games.tsx`) | each row's `transitions` (falls back to the stored state for an older server), `closesAt` | `PATCH` `state`; Reopen past close via the same dialog |
+| Finalize dialog (`FinalizeContestDialog`) | bingo: `GET /admin/contests/:contestId/games` on open, for the games not Final | `POST …/finalize` (bingo) or `…/trivia/finalize` (trivia), both refusing 409 `not_ready` unless Closed |
+| Overview rail, Finalize (`OverviewTab.tsx`, `lib/finalize.ts`) | the read's `readyToFinalize`, phase, contest type and game count, to pick the line | none (Finalize as above) |
+| Bingo Opens / Closes (`components/contests/EntryWindowFields.tsx`) and trivia Closes (`components/contests/triviaFields.tsx`) | the read's `entryWindow` / `trivia` times | `PATCH` `opensAt`, `closesAt` / `trivia`; checks only close after open; past-close help `CLOSES_IN_PAST_HELP` |
+
+Server: `readyToFinalize` (`util/contest-console.ts`) reads the phase; the list projection and `PLATFORM_CONTEST_FIELDS` (which also gained `opensAt`, `closesAt`, `trivia.opensAt`, `testMode`), the trivia finalize loader and `util/admin-trivia.ts` project `stateChangedAt`. The bingo awards stop at Finalize in `reconcileBoard` (`scoring/evaluate.ts`; see "Finalize: the one rule").
+
+**Cut or changed, and why (2026-10-07):**
+
+- **"Close and finalize"** was briefed, then dropped by Arthur's correction: Finalize happens only once the contest is closed, so staff close entries first (the rail says so).
+- **Finalize after every game ends / after the trivia close time** is gone: closing (by hand or by time) is the one gate, so an admin can end a contest early.
+- **"A published contest's close time can't be in the past"** is gone: an admin who wants a contest closed now sets a past closing time or presses Close entries, and both are honest about what happens.
+- **The close-after-open check is kept** on purpose: it isn't about the past, a close at or before the open describes no window at all, and no admin scenario needs it.
+- **Move to draft in the card menu** was not added: it stays on the contest page header, where the lock and the consequence are in view.
+- **Close entries on a contest its closing time closed** is no longer offered (it showed before because the menu read the stored state): the actions follow the phase.
 
 ## References
 
