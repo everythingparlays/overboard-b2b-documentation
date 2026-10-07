@@ -111,7 +111,7 @@ The three required variables come pre-filled and work as-is against the shared d
 | Variable | Notes |
 |---|---|
 | `VITE_CLERK_PUBLISHABLE_KEY` | Non-production Clerk instance (`natural-macaw-97.clerk.accounts.dev`). Publishable keys are public by design — they ship in the browser bundle — so committing this is safe. The matching **secret** key is not, and lives in Secrets Manager. |
-| `VITE_API_BASE_URL` | A dev-stack ALB. **Check it's still current** — personal dev stacks get torn down and redeployed at new addresses. Use `http://localhost:3000` to point at a backend you're running yourself. |
+| `VITE_API_BASE_URL` | A dev stack's hostname, `https://<name>.b2b-dev.overboardsports.com` (see "Your stack's hostname" under step 4). Use `http://localhost:3001` (or whatever port) to point at a backend you're running yourself. |
 | `VITE_TENANT_SLUG` | Which tenant to render. Must match both a `slug` in `src/config/tenants/` and an organization in the dev database. Valid: `test`, `fightinghawks`, `bears`, `bbgs`, `warriors`; defaults to `test` if unset. |
 
 All three are required — miss one and the app renders a missing-environment-variables error screen instead of the UI.
@@ -270,6 +270,29 @@ Use your own name as the stage (e.g. `-c stage=nick`) — this gives you an isol
 - A dev-scoped MongoDB secret in `obs-b2b-dev`. Without it, the async pipeline (board-evaluator / prop-update-evaluator Lambdas) will throw at runtime — they require `MONGODB_SECRET_ARN`, with no IAM fallback. (The main API / node-server doesn't need this — it uses Atlas IAM auth via its task role instead.)
 
 (The non-production Clerk instance, previously also missing, exists and its secret is in Secrets Manager as `dev/OverBoardB2B/clerkAuth` — auth works out of the box.) The Mongo-secret gap is tracked in [`known-issues.md`](documents/POC-baseline/known-issues.md); until it's resolved, board/prop evaluation won't run on a personal stack — check there before assuming something you did wrong.
+
+#### Your stack's hostname (one-time, after the first deploy)
+
+Every stack serves HTTPS only, from `<yourname>.b2b-dev.overboardsports.com`, using one certificate
+in the dev account that lists each developer's name (Arthur and Nick today; a new name means adding
+it to that certificate in ACM first, in the dev account, us-east-2). DNS for `overboardsports.com`
+lives in the organization's **management account**, not the dev account, so the record is made by
+hand once per stack:
+
+1. The deploy prints `ApiLoadBalancerDnsName` (something like
+   `Overbo-MainA-xxxx-12345678.us-east-2.elb.amazonaws.com`). Copy it.
+2. In the **management account**, Route 53, hosted zone `overboardsports.com`, create a record:
+   name `<yourname>.b2b-dev`, type **CNAME**, Alias **off**, value the DNS name from step 1, TTL 60.
+   Don't use an alias with the load-balancer dropdown: from the management account it can only list
+   that account's load balancers, so it offers the wrong one.
+3. Check: `curl -I https://<yourname>.b2b-dev.overboardsports.com/health` returns 200, and the
+   `http://` form returns a 301.
+
+The ALB's DNS name survives redeploys of the same stack; it changes only if the stack is destroyed
+and recreated, in which case update the record. Point `VITE_API_BASE_URL` at this hostname (in your
+local `.env` when you run the apps on your laptop against the deployed stack, and in the Vercel
+project's environment variables for deployed builds). Plain-http origins other than localhost are
+refused by the API, so the ALB address itself is no longer something to paste into a frontend.
 
 See the backend repo's own `README.md` for full CDK deploy options (`mongodbSecretArn`, `dlqAlertPhoneNumber` context flags, etc.) — this workspace guide only covers getting things running locally.
 
