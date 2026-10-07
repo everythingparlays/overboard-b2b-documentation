@@ -9,6 +9,7 @@
 **Status:** Draft. Written 2026-09-24 for the console redesign.
 Revised 2026-09-28 (Wave 4b, Arthur's walkthrough rulings and his answers of 2026-09-28): **no prize type**. A prize is one flat form of what the prize popup and the prize email use (name, description, image, claim instructions, an optional button, an optional code, Provided by); the stated value, the redemption method, place and window, the shipping time, normalisation on save, the value lock and `reply_to_in_use` are gone; completeness is a description and a delivery method; the email renders by presence; the prize page's sections fold, its preview is the fan app's phone at 1:1, and nothing is autosaved; the email settings move to their own **Email** tab. Where this revision and older text below disagree, this revision wins; the sections below are rewritten to it.
 Revised 2026-10-03 (Arthur's rulings, the prize sheet): the fan app shows a prize in **one prize sheet** for bingo and trivia, with an info body (a tier or band) and a won body (the fan's own award), which replaces the centred `PrizeModal` ([`fan-prize-sheet.spec.md`](../../webapp/fan-prize-sheet.spec.md) `FLOW-31`); **the winner also sees the prize's code in the app**, on their own award (`PZ-05` revised; PRD changes, entry 36); **bingo tiers are cumulative**, and the ladder says so (`PZ-23`; entry 37); the prize image is one 2:1 box with a 600 × 300 minimum; the preview rail's pane is "Prize" with an Info / Won choice. Edited in place: the field table, "The code stays secret", "What the winner sees", the prize page's help ("the app" for "the prize popup"; the Image and Code help rewritten), the preview rail, the ladder's lede, "Trivia readiness", the fan wire, the rules, known gaps and a new function audit.
+Revised 2026-10-06 (Arthur's ruling): **no custom delivery methods.** Every prize goes out as the standard prize email; the catalog is the same for every tenant ([`prize-delivery.spec.md`](prize-delivery.spec.md), "Revision 2026-10-06"; PRD changes, entry 39). The Delivery section shows only to repair a prize whose stored method no longer resolves, and the view-only presentation lists no delivery method. Edited in place: the field table, completeness, "5. Delivery", `ADM-04`, the function audit and question 1.
 Revised 2026-09-27 (Wave 4, Arthur's rulings of that day): rebuilt on the prize library. A prize is authored once per tenant and a contest's tiers point at it; the prize type and "Provided by" move onto the library prize; each prize opens as its own page; Prizes has two tabs, Library and Deliveries, and the email settings live on Deliveries (there is no Emails page); the contest Prizes tab is a numbered ladder of bingo count plus library prize, capped at three.
 
 ## Overview
@@ -74,7 +75,7 @@ The prize library's structures are the model. Everything below extends them; not
 | `prizeClaimButtonLinkUrl` | https URL ≤2000 | **Button** → **Button link** | The won sheet's button opens it; the email's button | Optional on every prize. |
 | `prizeClaimButtonText` | string ≤200, console ≤40 | **Button** → **Button text** | The button's label, prize sheet and email | Optional; with a link and no text both read "Claim your prize". Stored only with a link. |
 | `providedBySponsorId` | ObjectId → `B2BSponsor` | **Provided by** | The credit in the prize sheet (info and won) and the email | Same tenant only. One prize, one credit, everywhere it is awarded. |
-| `handlerId` | string ≤100 | **Delivery**, only when there is a choice (below) | Which method sends | `standard-email` for every new prize. |
+| `handlerId` | string ≤100 | **Delivery**, only to repair a method that no longer resolves (below) | Which method sends | `standard-email` for every new prize. |
 | `createdAt` / `updatedAt` | Date | none | — | `updatedAt` is the precondition token (`expectedUpdatedAt`, refused as `stale_prize`). |
 
 **Dormant fields.** `prizeType`, `shipsWithinDays`, `approximateValueCents`, `redemptionMethod`, `redemptionLocation` and `redemptionWindow` stay on the model so stored values still validate. The write contracts don't carry them (a client that still sends one has it dropped, not refused), the reads don't return them, the prize sheet and the email don't show them, and completeness doesn't read them. Whether a prize should ever have a type, a value or redemption terms again is the prize model owner's call (see "Questions for the prize model owner").
@@ -90,7 +91,7 @@ The prize library's structures are the model. Everything below extends them; not
 
 ### Complete / Needs details
 
-Completeness is **derived, never stored**, by one pure function in `obs-b2b-shared` (`interfaces/b2b/PrizeCompleteness.ts`: `prizeCompleteness(content, { methodResolves })` → `{ complete, missing: PrizeField[] }`). It asks only what delivery truly needs: **a description** and **a delivery method that resolves** in the tenant's catalog. Everything else is optional, and the popup and the email leave out what isn't set. The server, the worker and the console all call it, so a prize the console calls Complete is never skipped by the worker.
+Completeness is **derived, never stored**, by one pure function in `obs-b2b-shared` (`interfaces/b2b/PrizeCompleteness.ts`: `prizeCompleteness(content, { methodResolves })` → `{ complete, missing: PrizeField[] }`). It asks only what delivery truly needs: **a description** and **a delivery method that resolves** in the catalog (the same for every tenant since 2026-10-06). Everything else is optional, and the popup and the email leave out what isn't set. The server, the worker and the console all call it, so a prize the console calls Complete is never skipped by the worker.
 
 Name is required to save at all. A switched-on optional part with nothing in it ("Add a button" with no link, "A sponsor provides this prize" with no sponsor) is a field error on save, not a completeness state: switched off is how a tenant says "none".
 
@@ -260,9 +261,9 @@ Workspace sidebar: one item, **Prizes** (`/prizes`, hue: prizes). There is no Em
 
 **A sponsor provides this prize** (Off/On). Reveals **Sponsor**: a Combobox of the tenant's sponsors (search, endless scroll, each with its prize-popup logo at 20px and name). Help: "Shown as Provided by in the app and the email." A sponsor with no prize logo is still choosable; the help then reads "The app and the email show the name. Add a prize logo to show the logo instead." with "Add one" linking to `/sponsors/:id`. No sponsors in the tenant: "No sponsors yet. Add one on the Sponsors page."
 
-#### 5. Delivery (only when there is a choice)
+#### 5. Delivery (only to repair a retired method)
 
-Hidden while the tenant's catalog offers one method and the stored one resolves. Otherwise a section with **Delivery**: the tenant's methods by label and one-line description, from `GET /admin/prizes/handlers` ("Choose how this prize is delivered." when the stored one doesn't resolve).
+Every prize goes out as the prize email, so this section is hidden (revised 2026-10-06). It shows only on a prize whose stored `handlerId` no longer resolves (a retired id): summary "Choose how it's delivered", a **Delivery** select starting on "Choose…" with the catalog's methods by label, from `GET /admin/prizes/handlers` (the standard "Prize email" alone), and the help "Choose how this prize is delivered." The view-only presentation has no Delivery row. *(Before 2026-10-06 it also showed whenever the tenant's catalog offered more than one method, which only a custom method could cause.)*
 
 #### 6. Awarded from (a saved prize)
 
@@ -592,7 +593,7 @@ None. Wave 4's prize-type migration (`scripts/prize-type-migration.mjs`) was nev
 - **`PRIZE-03`**: finalization stays staff-only; a finalized contest's tiers refuse every write and are never refreshed by a prize edit.
 - **`PRIZE-07`**: failed sends are reviewable by the team whose fans they are and by Overboard across every tenant, with no cap, and resendable. The hard-bounce half arrives with the Bounced slice.
 - **`ADM-03`**: a tenant `org:admin` writes its own library, ladders and email settings; `org:member` views.
-- **`ADM-04`**: the delivery method stays selectable (the Delivery section) whenever there is a choice.
+- **`ADM-04`**: the delivery-method half is met by one method for every prize (2026-10-06; PRD changes, entry 39); the Delivery section appears only to repair a prize whose stored method no longer resolves.
 - **`TRV-49` / `TRV-50`**: a prize is authored once and carries no game-specific qualifier.
 
 **Deviations, argued.**
@@ -640,6 +641,7 @@ This spec had no function audit before the prize sheet; this one covers what the
 | "prize popup" in the Name, Description, Image, Claim, Button and Provided by help | Changed | "the app": the prize shows in the prize sheet, from a tier or band tap and on a win |
 | "Add a prize popup logo to show it in the popup too." | Changed | The fan app now credits a sponsor without a prize logo by name, as the email does |
 | The ladder's lede without the cumulative clause | Changed | Tiers add up (`PZ-23`; PRD changes, entry 37) |
+| The Delivery section whenever the catalog offered a choice, and the view-only Delivery row (2026-10-06) | Cut | The custom delivery-method slot was removed (never used; a white-label leak risk): every prize is the standard email, so Delivery shows only to repair a retired method (PRD changes, entry 39) |
 
 ---
 
@@ -698,7 +700,7 @@ Where the shipped console differs in detail from the text above:
 
 Arthur answered the rest on 2026-09-28 (no type; one generic, data-driven email template; email is the only channel; the name is the title; no value; no redemption method, place or window; the optional code stays). Still open:
 
-1. **`handlerId` going forward.** Per-sponsor handlers, coupon batches (`PRIZE-05`/`PRIZE-06`), or one standard email? The console hides the choice while there is one method.
+1. ~~**`handlerId` going forward.** Per-sponsor handlers, coupon batches (`PRIZE-05`/`PRIZE-06`), or one standard email? The console hides the choice while there is one method.~~ **Answered 2026-10-06** (Arthur): one standard email; no per-sponsor handlers (PRD changes, entry 39). Coupon batches stay deferred.
 2. **Where the sponsor credit comes from.** One sponsor per prize (`providedBySponsorId`), or per contest or tier placement?
 3. **Sender name, reply-to and subject.** Should tenants keep these settings?
 4. **The dormant fields.** May the stored `prizeType`, `shipsWithinDays`, `approximateValueCents`, `redemptionMethod`, `redemptionLocation` and `redemptionWindow` be dropped from the model?

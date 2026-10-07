@@ -539,3 +539,21 @@ tenant-self-serve rulings — see the "Revised 2026-09" notes)".
   no email in this version: the fan sees a dot in the app's menu, the team a count in the console.
 - **Date:** 2026-10-03 (on `arthur-fan-support`).
 - **Status:** Proposed — awaiting Nick. Spec: `fan-support.spec.md`.
+
+### 39. `PRIZE-05`: no per-sponsor custom delivery methods; every prize goes out as the standard prize email
+
+- **What:** `PRIZE-05` says fulfillment logic "is written case-by-case as custom code per sponsor/prize",
+  and `TEN-C1` makes "per-sponsor prize fulfillment logic (PRIZE-05)" one of the two places per-tenant
+  code is acceptable. `ADM-04` and the §15 table have the admin surface select which developer-built
+  fulfillment handler applies to a tier. The platform no longer keeps a slot for developer-built,
+  per-sponsor delivery: there are no custom methods offered to one tenant, and every tenant's prizes are
+  delivered by the standard prize email, which already carries each prize's own content, code, claim
+  button and "Provided by" credit. The console shows a delivery choice only to repair a prize whose
+  stored method no longer exists. `PRIZE-05`'s other half, sponsor coupon batches, stays deferred
+  (entry 11).
+- **Why:** Arthur's ruling (2026-10-06). The slot was never used. It carried a white-label leak risk (a
+  custom method's name could identify another team's sponsor) and code paths nobody exercised. A
+  sponsor's need can be met by the prize's own content.
+- **Date:** 2026-10-06.
+- **Status:** In effect. Specs: `prize-delivery.spec.md` ("Revision 2026-10-06"), `admin-prizes.spec.md`,
+  `admin-game-day.spec.md`, `admin-games-and-prizes.spec.md`.

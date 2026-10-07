@@ -1,12 +1,12 @@
 # Core Module Spec: Prize Delivery
 
-**Implements:** PRD `PRIZE-01`, `PRIZE-04`, `PRIZE-05`, `PRIZE-06` (the assignment half — see "Codes"), `PRIZE-07`, `ADM-04` (the handler selection half), `AUTH-03` (email as the delivery channel), `GAME-02` (the tier fields a winner is told about). Ruling D-066: **OBS owns the notification and the assignment guarantee; sponsors own the value and its redemption.**
+**Implements:** PRD `PRIZE-01`, `PRIZE-04`, `PRIZE-05` (its coupon-batch half deferred — see "Codes"; its custom-fulfillment half withdrawn on 2026-10-06, PRD changes, entry 39), `PRIZE-06` (the assignment half — see "Codes"), `PRIZE-07`, `ADM-04` (the handler selection half), `AUTH-03` (email as the delivery channel), `GAME-02` (the tier fields a winner is told about). Ruling D-066: **OBS owns the notification and the assignment guarantee; sponsors own the value and its redemption.**
 
 **Depends on:** [`admin-games-and-prizes.spec.md`](admin-games-and-prizes.spec.md) — the Prizes screen, tier storage and the tier write. [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md) — the Delivery queue screen. [`admin-surface.spec.md`](admin-surface.spec.md) — scope resolution, "No re-authentication", and the **Honesty by omission** and **Fan's-eye view** principles, both of which this spec leans on hard. [`../../infra/environments.spec.md`](../../infra/environments.spec.md) — where the sending address is configured per stage.
 
 **Supersedes:** the "visibility-only" posture of the Delivery queue (admin-obs-internal, Not in scope + Known gaps); the free-text `handlerId` field on the Prizes screen (admin-games-and-prizes, `/prizes`); and the per-handler hardcoded HTML templates in `prize-worker/src/email_templates/`.
 
-**Status:** Draft, written 2026-09-23 with the build (Slice 3 of the 2026-09-23 wave); revised 2026-09-27 — see "Revision 2026-09-27 — the prize library" and "Revision 2026-09-27 (Wave 4)", which win wherever they and an older section disagree; revised 2026-10-03 — see "Revision 2026-10-03 — the fan's awards and the seen marker" (cumulative bingo tiers, the fan's awards read, the seen marker). No open questions.
+**Status:** Draft, written 2026-09-23 with the build (Slice 3 of the 2026-09-23 wave); revised 2026-09-27 — see "Revision 2026-09-27 — the prize library" and "Revision 2026-09-27 (Wave 4)", which win wherever they and an older section disagree; revised 2026-10-03 — see "Revision 2026-10-03 — the fan's awards and the seen marker" (cumulative bingo tiers, the fan's awards read, the seen marker); revised 2026-10-06 — see "Revision 2026-10-06 — no custom delivery methods". No open questions.
 
 **Revised 2026-09-24** (ruling, Arthur): the console's prize screens and the email settings live in [`admin-prizes.spec.md`](admin-prizes.spec.md) (rebuilt on the prize library in its Wave 4 revision); this spec keeps the delivery engine, the method registry and the email template.
 
@@ -21,7 +21,7 @@ When a fan completes a bingo line, the board-evaluator puts a message on the pri
 **In scope:**
 
 1. The **standard prize email** — one templated email, rendered per tier from the tier's own fields and the tenant's branding, with a tenant-configured sender name, reply-to and subject, and the presenting sponsor's mark when a sponsor holds the prize popup.
-2. The **delivery-method registry** (`handlerId`) — a catalog of methods the Prizes screen offers as a dropdown, scoped per tenant; the standard email for everyone, developer-built custom methods for the tenants they were built for (`PRIZE-05`).
+2. The **delivery-method registry** (`handlerId`) — the one catalog of methods the API validates a prize against and the worker runs: the standard prize email, the same for every tenant. *(Until 2026-10-06 it was scoped per tenant, with developer-built custom methods for the tenants they were built for (`PRIZE-05`); removed, see "Revision 2026-10-06 — no custom delivery methods".)*
 3. **Resend** — failed sends go back on the queue from the Delivery queue, singly or in bulk, optionally to a corrected address, audited, and structurally unable to double-send.
 4. **At-most-once delivery** in the worker — attempt claiming, interruption detection, bounded handler time.
 5. The Prizes screen's **per-contest view**, its **bingo ladder** (which bingo counts pay what, and which pay nothing), the tier drawer's delivery-method dropdown and live email preview, and the **Prize email** settings.
@@ -185,11 +185,25 @@ and never served, is removed. Nothing about a prize is remembered in the browser
 
 ---
 
+## Revision 2026-10-06 — no custom delivery methods
+
+Arthur's ruling (PRD changes, entry 39): the platform keeps no slot for developer-built, per-sponsor delivery methods. Every tenant's prizes go out as the standard prize email, which already carries each prize's own content, code, claim button and Provided by credit. The slot was never used, carried a white-label leak risk (a custom method's name could identify another team's sponsor) and kept code paths nobody exercised.
+
+- `PRIZE_HANDLER_KINDS` (shared) is `["standard"]`. `node-server/src/prize-delivery/handler-catalog.ts` has no `custom` kind, no `tenants` list and no `handlersForTenant`; `resolveHandler(handlerId, catalog?)` and the worker's `getHandler(handlerId, catalog?)` take no tenant.
+- `GET /admin/prizes/handlers` returns the whole catalog (the standard "Prize email" alone) for every tenant.
+- The standard path is unchanged: `handler_001` and `handler_002` still resolve to `standard-email`; the removed stubs still don't, and a prize naming one still fails until an operator chooses a method.
+- The console's prize page shows its Delivery section only to repair a prize whose stored method no longer resolves ([`admin-prizes.spec.md`](admin-prizes.spec.md)).
+- Coupon-code batches (`PRIZE-05`/`PRIZE-06`'s batch half) stay deferred, unchanged ("Codes").
+
+Edited in place: Implements, "In scope", "Where `PRIZE-04` and D-066 meet", "The delivery-method registry", Rule 3 and the function audit.
+
+---
+
 ## Where `PRIZE-04` and D-066 meet
 
 `PRIZE-04` says "one HTML template per prize … template creation and upload is performed by developers". Read literally, every new prize would need an engineer — which contradicts `GAME-04` ("which prizes attach to a game must never require a code change") and `TEN-03` (≤1–2 engineering hours per tenant). D-066 settled the product question: OBS's job is to notify and to guarantee assignment; the sponsor's value lives in the tier's own fields.
 
-So the resolution is: **one developer-built template, parameterised by the tier.** The standard email *is* the developer-made template `PRIZE-04` asks for; what varies per prize is data the admin surface already collects. A sponsor whose mechanics genuinely need their own markup or logic gets a **custom method** — developer code, registered in the catalog, offered only to their tenant — which is exactly the `PRIZE-05` exception, kept intact as the escape hatch.
+So the resolution is: **one developer-built template, parameterised by the tier.** The standard email *is* the developer-made template `PRIZE-04` asks for; what varies per prize is data the admin surface already collects. *(Until 2026-10-06 a sponsor whose mechanics needed their own markup or logic could get a **custom method** — developer code, registered in the catalog, offered only to their tenant — as `PRIZE-05`'s escape hatch. It was never used and is removed (PRD changes, entry 39): a sponsor's need is met by the prize's own content — description, claim instructions, button, code and Provided by.)*
 
 ---
 
@@ -304,7 +318,7 @@ These settings live on the organization (`prizeEmail`), are edited on the Prizes
 
 ### Shape
 
-The catalog lives in `node-server/src/prize-delivery/handler-catalog.ts` and is bundled into the worker, so the list the dropdown offers and the list the worker can execute are the same object. Each entry has an id, a label and one-sentence description in product language, a kind (`standard` | `custom`), any legacy aliases, whether it can be previewed, and — for custom methods — the tenant subdomains it is offered to.
+The catalog lives in `node-server/src/prize-delivery/handler-catalog.ts` and is bundled into the worker, so the list the dropdown offers and the list the worker can execute are the same object. Each entry has an id, a label and one-sentence description in product language, a kind (`standard`, the only one since 2026-10-06), any legacy aliases, and whether it can be previewed. `resolveHandler(handlerId, catalog?)` maps a stored id or alias to its entry; the worker's `getHandler(handlerId, catalog?)` does the same for the implementation. Neither takes a tenant.
 
 | id | label | kind | offered to |
 |---|---|---|---|
@@ -312,13 +326,13 @@ The catalog lives in `node-server/src/prize-delivery/handler-catalog.ts` and is 
 
 `handler_001` and `handler_002` (the retired Nike templates) are **aliases of `standard-email`**. Tiers stored with them keep delivering, now with their own real content instead of the Nike copy, and show as "Prize email" on screen; the console writes `standard-email` the next time that tier is saved (the API accepts either, since both resolve to the same method). `email`, `email-test`, `webhook` and `barcode` (the removed stubs) are **not** aliases: they never sent anything, so there is no behavior to preserve, and a tier naming one keeps failing loudly until an operator chooses a real method.
 
-**Custom methods are tenant-scoped.** `GET /admin/prizes/handlers?tenant=` returns the standard methods plus the custom methods registered for that tenant only. A custom method's name can identify another team's sponsor; on a white-label platform that is a leak.
+**One catalog for every tenant** (2026-10-06). `GET /admin/prizes/handlers` returns the whole catalog, the standard "Prize email" alone, whoever asks. There are no custom methods: no `custom` kind, no per-tenant `tenants` list, no `handlersForTenant` (PRD changes, entry 39). A new method would be platform code offered to every tenant, and a change to this spec.
 
-**Adding a custom method** (`PRIZE-05`) is developer work: add a catalog entry with `kind: 'custom'` and `tenants: ['<subdomain>']`, and a `deliver` implementation in `prize-worker/src/handlers/`. A custom method may reuse the standard renderer with extra blocks, render its own developer-authored template, or do something other than email entirely — the worker only requires that `deliver` throws when nothing was delivered.
+*Until 2026-10-06:* custom methods were tenant-scoped — `GET /admin/prizes/handlers?tenant=` returned the standard methods plus the custom methods registered for that tenant only, since a custom method's name could identify another team's sponsor — and adding one (`PRIZE-05`) meant a catalog entry with `kind: 'custom'` and `tenants: ['<subdomain>']` plus a `deliver` implementation in `prize-worker/src/handlers/`. None was ever registered. Arthur removed the slot: it carried that white-label leak risk and code paths nobody exercised.
 
 ### Enforcement
 
-- `PUT /admin/contests/:contestId/prize-tiers` refuses a tier whose `handlerId` is **new or changed** and is not in the tenant's catalog (400, "Choose how this prize is delivered"). A stored, unchanged id is accepted so that editing one tier never blocks on a sibling's legacy value.
+- `PUT /admin/contests/:contestId/prize-tiers` refuses a tier whose `handlerId` is **new or changed** and is not in the catalog (400, "Choose how this prize is delivered"). A stored, unchanged id is accepted so that editing one tier never blocks on a sibling's legacy value.
 - The screen marks any tier whose method does not resolve — **"Won't deliver"** — and the drawer requires a choice before it saves. This is live configuration state an operator must act on, the same class as the Games screen's "Incomplete" badge — not gap narration.
 - The worker resolves aliases, and a tier whose id resolves to nothing fails the send with a reason naming what to do.
 
@@ -405,7 +419,7 @@ Supersedes the `/prizes` section of admin-games-and-prizes.spec.md where they di
   - **A link can name the contest.** `/prizes?contest=<id>` opens on that contest — Games & Contests' tier links and Operations' "has games but no prizes" item send it. It outranks the remembered choice (it is the newer one: the operator just chose that contest elsewhere) and becomes the remembered choice. Picking another contest in the switcher drops the parameter from the address, so a reload does not contradict the switcher. An id that is not one of this tenant's contests is ignored and the usual order applies: this visit's pick, the remembered contest, the default.
 - **The bingo ladder.** The contest's tiers as rungs ordered by bingo count, from 1 up to the highest tier. A count with no tier renders as a quiet "No prize" rung — the configuration truthfully drawn, so a gap between two tiers is visible as a gap rather than discovered from a fan complaint. Each rung shows the prize, its method (or **Won't deliver**), and what it has delivered.
 - **Unawarded wins.** Where fans actually reached a bingo count with no tier (`skipped` redemptions), the rung carries the count ("Reached 14 times"). Counts above the top tier are shown on one line beneath the ladder. These are real numbers from `PrizeRedemption` — counted per win (per board), not per distinct fan — and nothing is estimated.
-- **The tier drawer** gains the delivery-method dropdown (defaulting to the standard email), the claim button fields (previously uneditable), the GAME-02 fields and the static code when the shared model carries them, URL validation, and a **Preview email** view rendering the unsaved draft through `POST /admin/prizes/email/preview`. The preview names the tier's contest, so it carries that contest's presenting sponsor (below, "Endpoints").
+- **The tier drawer** gains the delivery-method dropdown (defaulting to the standard email; since 2026-10-06 the prize page shows it only to repair a method that no longer resolves, [`admin-prizes.spec.md`](admin-prizes.spec.md)), the claim button fields (previously uneditable), the GAME-02 fields and the static code when the shared model carries them, URL validation, and a **Preview email** view rendering the unsaved draft through `POST /admin/prizes/email/preview`. The preview names the tier's contest, so it carries that contest's presenting sponsor (below, "Endpoints").
 - **Prize email card** (side column): sender name, reply-to and subject, each showing the real fallback as its placeholder, with the sending address shown read-only when the server knows it. Its preview sends the selected contest, as the tier drawer's does. A tenant `org:member` sees the values read-only (the D-059 presentation).
 - **Delivery card** unchanged in meaning; "Skipped" is relabelled **"No prize at that count"** so the number explains itself.
 
@@ -467,7 +481,7 @@ The local worker authenticates to Mongo with the developer's AWS SSO session thr
 
 1. **The prize email merges only configured data.** An unconfigured field omits its block entirely — no placeholder text, no empty section, no explanation (D-068).
 2. **One renderer.** The worker's send and the admin preview call the same function; neither has a private template.
-3. **`handlerId` is chosen, not typed.** New or changed values must resolve in the tenant's catalog; custom methods are offered only to their tenants.
+3. **`handlerId` is chosen, not typed.** New or changed values must resolve in the catalog, which is the same for every tenant; there are no custom methods (2026-10-06).
 4. **A send is claimed before it is attempted**, conditionally, per attempt. No code path sends without holding the claim.
 5. **Only a `failed` row can be resent, and only at the resend count the operator saw.** Everything else is refused unchanged.
 6. **Every resend request is audited before any row changes**, and the audit never contains an address.
@@ -494,6 +508,7 @@ This spec had no function audit before; this one covers the 2026-10-03 revision.
 | "Shown once per award (remembered per board and bingo count)" in `localStorage` | Cut | The server's `seenAt`, across devices and for trivia's Finalize wins |
 | `POST /b2b/board/:boardId/awards/:awardId/seen` | Cut | One route for both games; a trivia award has no board |
 | `awardId`, `code` and `seenAt` on the board read's awards | Changed | Carried by the awards read instead; the board read's awards are unchanged |
+| Custom delivery methods (`kind: 'custom'`, offered per tenant) | Cut (2026-10-06) | Never used; a white-label leak risk and untested code paths. Every prize goes out as the standard email (PRD changes, entry 39) |
 
 ---
 
