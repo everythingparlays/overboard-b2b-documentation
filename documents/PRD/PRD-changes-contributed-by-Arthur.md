@@ -14,6 +14,7 @@ its status:
 - **In effect**: this is how the platform works now.
 - **Superseded**: a later ruling replaced it. The replacing entry is named.
 - **Reverted**: we undid it.
+- **Proposed**: a new requirement we suggest for the PRD. Nick decides whether it goes in.
 
 Where a spec is linked, the spec has the detail. Specs marked "on `arthur-console-redesign`" are on
 that open branch (docs PR #31) and are not on `main` yet.
@@ -355,7 +356,10 @@ tenant-self-serve rulings — see the "Revised 2026-09" notes)".
   sign-in screen.
 - **Why:** Arthur's final walk: keep it only if Nick wanted it, and he didn't spec it.
 - **Date:** 2026-09-28 (on `arthur-console-redesign`).
-- **Status:** In effect.
+- **Status:** Superseded (2026-10-03): the Start screen shows the tenant's next game again (the matchup,
+  kept by the trivia merge that became `main` on 2026-10-01, shown unless the tenant turns off "Show next game
+  on Start screen"; see `admin-branding.spec.md`, "The fan Start screen"). Entry 30 had already replaced its
+  last sentence.
 
 ### 30. `BRAND-02`: the Start page's sponsors are a tenant-level list on Brand, not a per-game slot
 
@@ -470,3 +474,86 @@ tenant-self-serve rulings — see the "Revised 2026-09" notes)".
   without enough questions for every run.
 - **Date:** 2026-10-01.
 - **Status:** In effect. Specs: `admin-contests.spec.md`, `contest-safety.spec.md`, `trivia-game-type.spec.md`.
+
+### 36. `PZ-05`: the winner also sees the prize's code in the app, on their own award
+
+- **What:** `PZ-05` kept a prize's static redemption code on the server except through the console's
+  Reveal, so a winner saw it only in the prize email. The code is now also shown to the winner in the
+  fan app, in the prize sheet for their own award ("Your code", with a Copy button). It is never in a
+  list, a preview or standings: the one read that carries it is the fan's own awards, and every other
+  fan read says only whether a prize comes with a code. The email still carries the code.
+- **Why:** The code in the app is the winner's fallback when the email fails.
+- **Date:** 2026-10-03.
+- **Status:** In effect. Specs: `admin-prizes.spec.md` (`PZ-05`), `fan-prize-sheet.spec.md` (`FLOW-31`).
+
+### 37. `GAME-02` and `GAME-03`: bingo prize tiers are cumulative; every tier a board reaches pays
+
+- **What:** A bingo contest's tiers add up. A board wins every tier it reaches, not only the highest:
+  with tiers at 1, 2 and 3 bingos, a board that reaches 3 bingos wins three prizes, and the fan gets
+  three emails. The fan app and the console say so in plain words. `GAME-03`'s tuning of "how many fans
+  win each tier" has to count this: every fan who wins a higher tier has also won every lower tier, so
+  a lower tier's winners include all of the higher tiers' winners, and the sponsor's budget for it has
+  to cover them.
+- **Why:** `PRIZE-01` delivers a prize the moment a board reaches its tier. A board's tier-1 prize is
+  emailed before it can reach tier 2, and an emailed prize can't be taken back, so paying only the
+  highest tier reached is not possible.
+- **Date:** 2026-10-03.
+- **Status:** In effect. Specs: `admin-prizes.spec.md` (`PZ-23`), `fan-prize-sheet.spec.md` (`FLOW-53`),
+  `prize-delivery.spec.md`.
+
+### 38. New requirement `SUP-01`: fans report a problem to their team
+
+- **What:** No PRD requirement lets a fan tell their team something went wrong. We propose one, to go
+  in a new subsection of §15 Administrative Surface, "15.5 Fan support", after 15.4:
+  > **`SUP-01` [V1] — Fans report a problem to their team.**
+  > A signed-in fan reports a problem from the fan-facing app, and it reaches their own team in the
+  > admin surface. The team and the fan talk it through on a conversation the fan reads in the app,
+  > and the team resolves it. A fan's report is fan data: it is kept apart from any channel that
+  > promises to carry no fan PII, it is handled under `SEC-03` and `SEC-07`, and it is limited
+  > against spam under `SEC-09`.
+
+  Proposed acceptance criteria, for §15.4 or the new subsection:
+  - [ ] A signed-in member can send a report from the app's menu with a category, a message of 10 to
+    2,000 characters and, optionally, one of their team's contests. The page, app version and
+    browser are attached and shown to the fan before sending. Nothing else is attached. Signed-out
+    visitors can't report.
+  - [ ] A report appears only in its own team's admin surface. Every user of that team can read it.
+    The team's admins and OBS staff can reply, resolve it with a reason and reopen it, also while
+    the team is paused. A read-only team member can't (`ADM-02`, `ADM-03`).
+  - [ ] The fan reads the team's replies in the app and can reply. The fan never sees the name or
+    user id of the person who answered, or the reason it was resolved. A fan's reply reopens a
+    resolved report, except one resolved as spam.
+  - [ ] Per team, a fan has at most 3 reports open at once and sends at most 5 in any 24 hours, and
+    writes at most 50 messages on one report (`SEC-09`).
+  - [ ] The text of a report or reply never appears in logs, error monitoring, analytics or audit
+    entries (`SEC-03`). Replies, resolves and reopens by the team are audited with ids, the reason
+    and the category.
+  - [ ] Deleting a fan deletes their reports to that team, and deleting a tenant deletes all of its
+    fans' reports (`SEC-07`).
+  - [ ] OBS staff can read every team's fan reports, read-only, and act on one only from inside that
+    team's workspace, as the team (`ADM-09`).
+  - [ ] The admin surface shows the team how many reports are waiting on its reply.
+- **Why:** Arthur's brief (2026-10-03). A fan with a problem has nowhere to take it inside the app,
+  and the support channel to Overboard ("Tell Overboard") can't carry it, because it promises to hold
+  no fan PII and a fan's own words will. The team is the right support desk for its own fans. There is
+  no email in this version: the fan sees a dot in the app's menu, the team a count in the console.
+- **Date:** 2026-10-03 (on `arthur-fan-support`).
+- **Status:** Proposed — awaiting Nick. Spec: `fan-support.spec.md`.
+
+### 39. `PRIZE-05`: no per-sponsor custom delivery methods; every prize goes out as the standard prize email
+
+- **What:** `PRIZE-05` says fulfillment logic "is written case-by-case as custom code per sponsor/prize",
+  and `TEN-C1` makes "per-sponsor prize fulfillment logic (PRIZE-05)" one of the two places per-tenant
+  code is acceptable. `ADM-04` and the §15 table have the admin surface select which developer-built
+  fulfillment handler applies to a tier. The platform no longer keeps a slot for developer-built,
+  per-sponsor delivery: there are no custom methods offered to one tenant, and every tenant's prizes are
+  delivered by the standard prize email, which already carries each prize's own content, code, claim
+  button and "Provided by" credit. The console shows a delivery choice only to repair a prize whose
+  stored method no longer exists. `PRIZE-05`'s other half, sponsor coupon batches, stays deferred
+  (entry 11).
+- **Why:** Arthur's ruling (2026-10-06). The slot was never used. It carried a white-label leak risk (a
+  custom method's name could identify another team's sponsor) and code paths nobody exercised. A
+  sponsor's need can be met by the prize's own content.
+- **Date:** 2026-10-06.
+- **Status:** In effect. Specs: `prize-delivery.spec.md` ("Revision 2026-10-06"), `admin-prizes.spec.md`,
+  `admin-game-day.spec.md`, `admin-games-and-prizes.spec.md`.

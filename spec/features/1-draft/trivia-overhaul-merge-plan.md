@@ -3,6 +3,8 @@
 Sources: local tags `trivia-2026-09-30` and `arthur-overhaul-2026-09-30` in every repo (see `switch-set.sh`).
 Direction: **trivia merges into the overhaul**, one integration branch per repo (`integrate/trivia-overhaul`), shared first.
 
+**Note (2026-10-03):** the integration branch became `main` on 2026-10-01. What it kept from "the overhaul" is Arthur's infrastructure (auth, preview, storage, sponsors, prizes, the four-colour resolver). The overhaul's fan-app kit and the contracts written only for it were never shipped by any screen; they were stripped on 2026-10-03, together with their five specs (fan app v2, its console touchpoints, the fan contest flow, the decor system and Brand page v2). This plan is kept as the record of the merge.
+
 ## Decisions (Nick, 2026-09-30: D2–D6 accepted at default; D1 resolved as hybrid, see below)
 
 | # | Decision | Default if undecided | Where it bites |
@@ -22,6 +24,8 @@ Nick likes the Brand page and the accessibility guarantees but cannot use genera
 
 ### D6 clarification
 Start screen keeps the trivia-branch layout verbatim (matchup card, hero band, logo choice). Only the sponsor data path changes: `useStartPageSponsors` + array-based `PresentedBy` replace `useSponsorSlots`, rendered inside the existing layout. Arthur's matchup removal, hero-band changes, wordmark contrast logic and `TenantLogo` are dropped.
+
+*Later, 2026-10-03: the hero band this kept was removed (Arthur's ruling; it had come back by accident in this merge, and a Brand switch added on 2026-10-01 had turned it on for every tenant). The matchup stays, as the Start screen's next game. See [`admin-branding.spec.md`](../../core-modules/1-draft/admin-branding.spec.md), "The fan Start screen".*
 
 ## Phase 0: shared package (root; everything else pins it)
 
@@ -115,7 +119,7 @@ Branch `integrate/trivia-overhaul` in all five repos.
 | overboardb2b-documentation | merged | c635d82 |
 | obs-b2b-admin-frontend | merged; trivia in ContestBuilder (Trivia + Prize bands steps), ContestPage (settings card, bands tab, games tab), /question-bank route; 1,295 tests green, 3 pre-existing failures (hues, SupportReport) | fd350f0 |
 
-Decisions applied: D1 Arthur's resolver (override slots are a post-merge ticket), D2 Finalize on `requireAdmin` with the OBS-staff check in the handler, D3 no band value floor, D4 sponsor placeholder, D5 trivia's row structure with Arthur's names (`tierSnapshot` for every game type), D6 fan layout kept (hero band, matchup), `src/kit` dropped.
+Decisions applied: D1 Arthur's resolver (override slots are a post-merge ticket), D2 Finalize on `requireAdmin` with the OBS-staff check in the handler, D3 no band value floor, D4 sponsor placeholder, D5 trivia's row structure with Arthur's names (`tierSnapshot` for every game type), D6 fan layout kept (hero band, matchup), `src/kit` dropped. *(The hero band was removed on 2026-10-03; see the D6 clarification.)*
 
 Follow-ups found during the merge:
 - PATCH `trivia` validates the merged config whole; the console sends the complete config per save.

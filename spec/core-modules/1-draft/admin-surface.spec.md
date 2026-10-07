@@ -226,7 +226,7 @@ One nav structure, three sections. Same screens for both actor classes (`ADM-01`
 | | Prizes | `/prizes` (tab Library), `/prizes/deliveries` (tab Deliveries), `/prizes/email` (tab Email: the prize email settings; revised 2026-09-28) | `PRIZE-01`, `PRIZE-07` — the tenant's prize library and every send, failure and resend; [`admin-prizes.spec.md`](admin-prizes.spec.md) (revised 2026-09-27: replaces the 2026-09-24 "Prize deliveries" item and the Emails item) |
 | | Fans | `/fans` | `RPT-02` view, scoped — not the export itself |
 | | Exports | `/exports` | `ADM-07`, `RPT-01`–`RPT-06` |
-| | Support | `/support`, `/support/:reportId` | The workspace's reports and their threads — [`admin-support.spec.md`](admin-support.spec.md) |
+| | Support | `/support` (tab From fans, the default), `/support/overboard` (tab To Overboard), `/support/fans/:reportId`, `/support/:reportId` | The workspace's fans' reports and its reports to Overboard, with their threads — [`fan-support.spec.md`](fan-support.spec.md), [`admin-support.spec.md`](admin-support.spec.md). Badge: the workspace's fan reports waiting on a reply (2026-10-03) |
 | Configuration | Fields & Opt-ins | `/config` | `ADM-05`, `AUTH-02`, `OPT-01`–`OPT-05`, including each opt-in's linked document — [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md) |
 | | Sponsors | `/sponsors` | `BRAND-02`–`BRAND-04`, `TEN-04` — its own item and hue, separate from Brand; [`admin-sponsors.spec.md`](admin-sponsors.spec.md) |
 | | Brand | `/branding` | `BRAND-01`, `TEN-C1` — [`admin-branding.spec.md`](admin-branding.spec.md). Unchanged in Wave 4 apart from upload fields and Wave 3's font removal; Brand page v2 is built on the Wave 5 branch |
@@ -238,7 +238,7 @@ One nav structure, three sections. Same screens for both actor classes (`ADM-01`
 | | Platform health | `/platform-health` | `OBS-01`–`OBS-05` |
 | | Prize deliveries (all workspaces) | `/obs/prize-deliveries` | `PRIZE-06`/`PRIZE-07` — every workspace's sends, with a Tenant column and filter; [`admin-prizes.spec.md`](admin-prizes.spec.md) |
 | | Fan actions | `/fan-actions` | `RPT-02`, `org:fan_data:export` |
-| | Support inbox | `/inbox` | [`admin-support.spec.md`](admin-support.spec.md) — every workspace's reports; rows open `/support/:reportId` |
+| | Support inbox | `/inbox` (tab From workspaces), `/inbox/fans` (tab From fans, read-only), `/inbox/:reportId` | [`admin-support.spec.md`](admin-support.spec.md) — every workspace's reports to Overboard; rows open `/inbox/:reportId`. From fans: every workspace's fans' reports, each opened in its workspace ([`fan-support.spec.md`](fan-support.spec.md)). Badge: unresolved Tell Overboard reports only |
 
 There is **no Emails item** (2026-09-27): the tenant's prize email settings (sender name, reply-to, subject) are Prizes' **Email** tab (revised 2026-09-28: their own tab, not inside Deliveries).
 
@@ -307,7 +307,7 @@ The staff-only **Console look** control (Floodlight / Prime Time) is removed; Pr
 
 - **Admin view:** the tenant's screens exactly as its admin sees them. Staff keep write, and a paused tenant stays writable for them (the pause is for the tenant's own admins).
 - **Member view:** the tenant's screens exactly as a member sees them. Every write control follows the one client-side write check, so it is off everywhere, with the member's read-only notes and messages; Team shows the roster only, with no invite, role change, removal or invitations, and "What this organization can do" speaks to a member.
-- **In both views**, the staff operator tools Arthur keeps on tenant screens stay with staff: Finalize on the contest card and page, editing Overboard's own documents on Fields & Opt-ins, the paused banner's resume link, and the Fan page's fan-data-rights actions. Support triage and delete stay in the OBS inbox.
+- **In both views**, the staff operator tools Arthur keeps on tenant screens stay with staff: Finalize on the contest card and page, editing Overboard's own documents on Fields & Opt-ins, the paused banner's resume link, and the Fan page's fan-data-rights actions. Support triage and delete stay in the OBS inbox. (Fans' reports are the workspace's own desk: in the Admin view staff reply, resolve and reopen them as the workspace, also while it is paused; in the Member view those controls are off — [`fan-support.spec.md`](fan-support.spec.md), 2026-10-03.)
 
 It is a view, not a permission: the server still answers staff as staff, and every tenant user's own role is unaffected.
 
@@ -321,11 +321,11 @@ Arthur's Wave 4 walkthrough ruling reverses the 2026-09-24 staff extras: **when 
 |---|---|
 | Overview | The Overboard staff strip (status, subdomain, Team / Support / Open tenant record links) |
 | Games & Contests cards and list rows | Finalize (restored for staff only, final walk 2026-09-28) |
-| Contest page | Finalize in the header and the Overview tab's "What's next" rail (restored for staff only, final walk 2026-09-28). Tenant admins and members read "Overboard finalizes the contest after its last game." |
+| Contest page | Finalize in the header and the Overview tab's "What's next" rail (restored for staff only, final walk 2026-09-28). Tenant admins and members read "Overboard finalizes the contest once it's closed." (2026-10-07) |
 | Game day | The cross-workspace live strip, the prize worker's raw failure reason, and the Finalize contest link |
 | Readiness checklist (Overview, Game day) | Staff-only fix links: a paused workspace has no fix link for anyone, and failed sends link to Game day for everyone |
 | Fan page | The prize worker's raw failure reason; staff read the same plain words as the workspace |
-| Support (`/support`, `/support/:reportId`) | Internal notes and the Internal badge, assign, acknowledge / resolve / reopen-as-staff triage, the jump to where it happened. Tenants and staff alike read, reply and reopen |
+| Support's To Overboard tab (`/support/overboard` since 2026-10-03, `/support/:reportId`) | Internal notes and the Internal badge, assign, acknowledge / resolve / reopen-as-staff triage, the jump to where it happened. Tenants and staff alike read, reply and reopen |
 | Exports | The "Fan actions for this workspace" button |
 | Team | The first-admin card with its staff badge, Resend, the Everyone / Admins / Members filter and the organization-name eyebrow; the staff view has the tenant screen's heading, banner and columns ([`admin-team.spec.md`](admin-team.spec.md)) |
 
@@ -381,7 +381,7 @@ The console wears **the acting tenant's accent**: the colour its fans see on bin
 
 - **Screens load on demand.** Each screen is its own chunk, fetched on first visit and, once the console has drawn, in the background while the browser is idle. The shell stays mounted while a screen arrives; the wait is a quiet in-content state, never the full-screen one. Charts, drag-and-drop, Clerk and React are separate long-lived chunks.
 - **Reads are cached for 30 seconds**, keyed by the session token's user, session and active organization plus the exact path (`?tenant=` included), so one tenant's, organization's or user's answer is never served to another. Simultaneous asks share one request, and after 5 seconds a cached answer is re-read in the background. Any write drops the session's cache, a read in flight during a write is not kept, and sign-out and organization switches clear it. Live state that is polled (Game day, the support badge) always reads fresh.
-- **The support badge** re-reads every 60 seconds while the tab is visible, pauses while it is hidden, and catches up when it is shown again.
+- **The support badges** re-read every 60 seconds while the tab is visible, pause while it is hidden, and catch up when it is shown again: the staff Support inbox badge (unresolved Tell Overboard reports) and, since 2026-10-03, the Support badge (the workspace in view's fan reports waiting on a reply, [`fan-support.spec.md`](fan-support.spec.md)), which also re-reads after a fan report is opened or changed.
 
 ## Focus ring (revised 2026-09-28)
 

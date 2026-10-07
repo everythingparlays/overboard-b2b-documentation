@@ -6,6 +6,10 @@
 
 **Amended 2026-09-21 for entry-gate editor v2:** `FieldDefinition` gains a type and per-field copy, `fieldId` stops being a platform enum, `B2BOrganization` gains `gateCopy`, and `authVariant` gains `"both"`. Rule 7 is rewritten to match. Existing documents are unaffected — the new properties are optional and resolve from well-known defaults at read, so there is no migration and no backfill. The model and the argument live in [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md).
 
+**Revised 2026-10-03:** fans can reset a forgotten password from Sign in (section "Password reset (fan, 2026-10-03)"; PRD `AUTH-01`, email sign-up). Fan app only; no server or shared change.
+
+**Revised 2026-10-06:** the reset tells a fan with no password yet (one who joined with Google) that it creates their first one ("An account with no password"), and Sign up's line is game-neutral ("Sign up's line"). Fan app only.
+
 ## Overview
 
 Split identity from membership, move tenant scope to the server, and turn consent from a signup form field into a gate evaluated on every entry.
@@ -206,7 +210,7 @@ If any pending opt-in has `blocking: true`, the server **also rejects gameplay w
 
 ### Recording
 
-`POST /b2b/consent` — `requireMembership`. Body is a list of `{optInId, textVersion, decision}`. Server validates each `optInId` and `textVersion` against the tenant's current definitions (rejecting stale or unknown ones), stamps `agreedAt` server-side, and upserts into `membership.consents` keyed on `optInId`. Client-supplied timestamps are never trusted — `OPT-04` is an audit record.
+`POST /b2b/consent` — `requireMembership`. Body is a list of `{optInId, textVersion, decision}`. Server validates each `optInId` and `textVersion` against the tenant's current definitions (rejecting stale or unknown ones), stamps `agreedAt` server-side, and upserts into `membership.consents` keyed on `optInId`. Client-supplied timestamps are never trusted — `OPT-04` is an audit record. A submission that declines a blocking (required) opt-in is refused whole with 400 `required_opt_in_declined`, "This agreement is required to play, so it can't be declined or withdrawn." (D-085, 2026-10-03): a fan can't withdraw a required opt-in after agreeing, and declining a new wording of one is no more valid. Nothing is saved; join's own refusal of the same answer is unchanged.
 
 ---
 
@@ -247,6 +251,67 @@ The second row is the one that does not exist today and is why a Bears fan silen
 Do not resolve the slug inside `query()` as a way to avoid touching call sites. That sends the tenant correctly but keeps it out of the query args, reproducing the cache-key problem the query parameter exists to avoid.
 
 **`TenantContext`** stops merging `organizationId` — nothing client-side needs it now. The org fetch becomes branding-and-opt-in-definitions only, and its failure should surface an error rather than silently falling back.
+
+## Password reset (fan, 2026-10-03)
+
+A fan who signed up with email and a password can set a new one from Sign in. It is the fan app's own screen on the fan Clerk instance (`src/pages/auth/ForgotPassword.tsx`, route `/forgot-password`), built on the same pieces as Sign in (`src/components/auth/`: `AuthScreen`, `CodeStep`, `EmailSecondFactorStep`, `PasswordInput`). No Overboard server call is involved. A signed-in fan who opens `/forgot-password` lands on `/contests`.
+
+**Entry.** Sign in shows **"Forgot password?"** under the password field. It had been hidden since 2026-03-05 with no reason given, and is shown again since 2026-10-03. It passes the email typed so far, so the reset starts filled in, and the reset's "Sign in" links pass the email back the same way. The fan never types it twice.
+
+**Steps.**
+
+1. **"Reset password"**: "Enter your email and we'll send you a reset code." An Email field, then **"Send Reset Code"** ("Sending..." while it works). Footer: "Remember your password? Sign in". One call, `signIn.create({ strategy: "reset_password_email_code", identifier })`, starts the reset and emails a 6-digit code.
+2. **"Check your email"**: "We sent a 6-digit code to {email}". A **"Reset Code"** field ("6-digit code"). It asks a phone for the number pad and lets it offer the code from the email (`inputMode="numeric"`, `autoComplete="one-time-code"`; Sign in's and Sign up's code fields do the same). **"Verify Code"** ("Verifying..."). `attemptFirstFactor({ strategy: "reset_password_email_code", code })` moves the attempt to a new password; any other answer says "We couldn't check that code. Please try again." Footer: "Didn't get it? Resend code · Go back". "Go back" returns to step 1 with the email kept.
+   - **Resend** waits **30 seconds** after each code goes out. Meanwhile the link reads "Resend code in {n}s" and is disabled. It resends with `prepareFirstFactor` for the reset factor Clerk offers for that email, clears the field and confirms with a "Code sent" toast ("We sent a new code to {email}."). If Clerk offers no such factor, it sends nothing and says "We can't send a new code to this email. Go back and enter your email again."
+3. **"Set new password"**: "Choose a strong password for your account." A **"New Password"** field with Show/Hide (`autoComplete="new-password"`), then **"Update Password"** ("Updating..."). Footer: "Wrong email? Start over" (back to step 1). `resetPassword({ password, signOutOfOtherSessions: true })`: a reset also **signs the fan out on every other device**, so it locks out a lost phone. Then:
+   - **Done:** a "Password updated" toast ("You're now signed in.") and the fan lands on `/contests`, signed in.
+   - **The account asks for a second step** (`needs_second_factor`): Clerk emails a code (`prepareSecondFactor({ strategy: "email_code" })`) and the fan gets Sign in's own email-code step. It reads "Check your email", "Your password is updated. To finish signing in, enter the 6-digit code we sent to {email}", with a "Verification Code" field, "Verify", and "Back to sign in". Then the fan lands on `/contests`.
+   - **Anything else** (a finished reset with no session, or a second-step code that can't be sent): the password has changed but this device isn't signed in. A "Password updated" toast ("Sign in with your new password.") sends the fan to Sign in with the email filled in.
+
+**An account with no password** (2026-10-06). Clerk offers the reset to an account that has no password too, for example a fan who joined with Google, and the same code and steps then create the account's first password (seen live on the dev instance, 2026-10-06). The app reads what the account can sign in with from the factors Clerk lists for the email when the reset starts (`supportedFirstFactors`: a `password` factor, an `oauth_google` factor; when Clerk lists none, the usual words stay) and words the steps for it:
+
+- **"Check your email"** reads "This email doesn't have a password yet, so you'll create one. We sent a 6-digit code to {email}".
+- **The password step** is titled **"Create a password"**, with "Add a password to sign in with your email too. Continue with Google still works." when the account has Google, else "Add a password to sign in with your email. If you joined with Google, that still works too."
+- **The toasts** read "Password created" ("You're now signed in." or "Sign in with your new password."), and the second-step screen "Your password is set. To finish signing in, …".
+
+Nothing else changes: the same calls, buttons and errors.
+
+**Errors** show above the button and clear as soon as the fan edits the field. Clerk's codes are worded in `src/lib/errorHandler.ts`:
+
+| Clerk code | The fan reads |
+|---|---|
+| `form_identifier_not_found` | "No account found with that email." (Sign in already says this, so the reset reveals nothing new) |
+| `form_code_incorrect` | "That code is incorrect. Please try again." |
+| `form_password_reset_code_invalid` | "That code is incorrect or has expired. Please try again." |
+| `form_password_reset_code_expired`, `verification_expired` | "That code has expired. Please request a new one." |
+| `verification_failed` | "Too many wrong codes. Please request a new one." |
+| `form_password_pwned` | "This password has appeared in a data breach. Please use a different password." |
+| `form_password_not_strong_enough` | "That password is too easy to guess. Please choose a stronger one." |
+| `form_new_password_matches_current` | "That's your current password. Please choose a new one." |
+| `too_many_requests` | "Too many attempts. Please wait a moment and try again." |
+| any other | Clerk's own message, else the app's general line |
+
+**Look.** Theme tokens only (`bg-background`, `text-foreground`, `text-muted-foreground`, `text-destructive`, the Accent button), like Sign in.
+
+**In the console preview** Sign in shows "Forgot password?", and a tap stays put. `/forgot-password` is a screen the preview doesn't offer (`ROUTES_NOT_OFFERED` in `src/preview/links.ts`; [`../../webapp/fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md), "Screens not offered").
+
+**The admin console** has no sign-in form of its own. It mounts Clerk's prebuilt `<SignIn routing="hash" />` (`App.tsx`) on the admin Clerk instance, so Clerk's own "Forgot password?" applies there whenever password reset is enabled on that instance. Clerk still asks for the staff member's second factor afterwards. There is no console code for it.
+
+**Function audit (password reset).**
+
+| Screen or control | Calls | Cut or changed, and why |
+|---|---|---|
+| Sign in, "Forgot password?" | Opens `/forgot-password` with the typed email | Shown again (it had been commented out since 2026-03-05, with no reason given) |
+| Reset password, "Send Reset Code" | Clerk `signIn.create({ strategy: "reset_password_email_code", identifier })` | Was `create({ identifier })` then `prepareFirstFactor` with an `emailAddressId ?? ""` fallback, which gave an unreadable Clerk error when the factor was missing |
+| Check your email, "Verify Code" | Clerk `signIn.attemptFirstFactor({ strategy: "reset_password_email_code", code })` | Number pad and one-time-code autofill added |
+| "Resend code" | Clerk `signIn.prepareFirstFactor` with the offered reset factor | 30-second cooldown added; refuses in plain words when no factor is offered |
+| Set new password, "Update Password" | Clerk `signIn.resetPassword({ password, signOutOfOtherSessions: true })`, then `setActive` | Signs other devices out. A second step now goes to Sign in's email-code step instead of failing with "Could not update password" |
+| Second step, "Verify" | Clerk `signIn.attemptSecondFactor({ strategy: "email_code", code })`, then `setActive` | Shared with Sign in |
+| The words for an account with no password (2026-10-06) | The factors from `signIn.create`'s answer (`supportedFirstFactors`) | New: "Set new password" and "Password updated" were wrong for a Google-only fan creating a first password |
+
+## Sign up's line (fan, 2026-10-06)
+
+Sign up (`src/pages/auth/SignUp.tsx`) reads "Create an Account" over the line **"Join the game. Play along. Win prizes."**, which is true of bingo and trivia alike. It was "Join the game. Pick your squad. Hit bingo.", which spoke only of bingo.
 
 ---
 

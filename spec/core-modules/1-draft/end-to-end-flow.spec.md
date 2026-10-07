@@ -25,6 +25,13 @@ board showed three completed lines and "0 Bingos". Scoring-on-create was rejecte
 - **The contest, not a game.** Cards, the contest page and the board lead with the contest's own name; games are a
   small detail (§3.3). The card names the top prize by its name.
 
+Revised 2026-10-07 (Arthur's rulings): **the last action wins, closing stops entries only, and Finalize stops every
+award.** An admin's Open now, Close entries or Reopen entries is stamped (`stateChangedAt`) and beats the schedule until a
+later schedule edit or closing time (§3.1; the full rule is [`admin-contests.spec.md`](admin-contests.spec.md), "Opens and
+closes"). Closing a bingo contest stops new boards; boards already in play keep scoring and paying. Finalize, offered only
+once the contest is closed, stores it Closed and is the hard stop: the reconciler sends nothing for a finalized contest's
+boards on any trigger (§1.2). Edited in place below.
+
 ## Why this exists
 
 The real flow — a real game with props from the Prop Entry System (PES) → a contest in the console → fans join and build
@@ -68,6 +75,12 @@ prop", "which lines are complete", "how many bingos a board has" and "award a li
 - **The reconciler** (`evaluate.ts`, `reconcileBoard`; `evaluateBoard` stays as its older name): derive the completed
   lines, compare them with the awarded ones (`claimedLineIndices`), send one prize message per missing line, then claim.
   Idempotent: a board awarded everything it shows is read and left alone, and two runs racing award nothing twice.
+- **Finalize stops it** (2026-10-07). When the board's contest is finalized, or no longer exists, `reconcileBoard`
+  returns the outcome `finalized` and sends nothing. `ScoringBoard.contestFinalized` is required, and
+  `mongoScoringStore().loadBoard` reads the contest's `finalized`, so every trigger below (and the board-evaluator and
+  prop-update Lambdas, the dev watcher and replay) stops at Finalize; the sweep already skipped finalized contests. A
+  prize message queued before Finalize is still delivered by the worker: that bingo was made before it. Closing the
+  contest (by hand or by its times) does not stop it: boards keep scoring and paying until Finalize.
 - **The triggers**, all calling `reconcileBoard`:
 
   | Trigger | Where | Notes |
@@ -160,9 +173,13 @@ refused. A stored `testMode: true` on a contest is ignored wherever the gate is 
   0 on a board created after its props hit; that is the award ledger, not the count.)*
 - **The prize popup** opens only for a **prize award the server recorded**: a `PrizeRedemption` for this board whose status
   is not `skipped`. `GET /b2b/board/:id` returns `awards[]`: `{ bingoCount, status, prize }`, where `prize` is the
-  promised tier snapshot, or the live tier when the worker has not snapshotted it yet. It is shown once per award
-  (remembered per board and bingo count). A line the evaluator claimed before the worker recorded the award shows as a
-  bingo with no popup until the award exists.
+  promised tier snapshot, or the live tier when the worker has not snapshotted it yet. A line the evaluator claimed
+  before the worker recorded the award shows as a bingo with no popup until the award exists. *Revised 2026-10-03:* the
+  popup is now the prize sheet, shared with trivia. It opens by itself for an award until the fan has seen it, which
+  the server keeps as `seenAt` (read through `GET /b2b/prizes/awards`, set by `POST /b2b/prizes/awards/:awardId/seen`);
+  it was once per award remembered per board and bingo count in the browser, which is gone
+  ([`../../webapp/fan-prize-sheet.spec.md`](../../webapp/fan-prize-sheet.spec.md) `FLOW-31`, `FLOW-51`;
+  [`prize-delivery.spec.md`](prize-delivery.spec.md)).
 - The development-only "Test Bingo", "Prize Modal" and "Clear prize storage" buttons are **removed** (Arthur, 2026-09-27).
   They manufactured exactly the false wins this section forbids. Bingos and prizes are tested for real: by changing prop
   progress in PES on a game no D2C contest uses (the manual recipe), or by the read-only replay tool (the harness).
@@ -226,17 +243,28 @@ The separate *Visibility* switch (`showContest`) and the *Entries* switch (`clos
 | State | Fans | Joining | Console |
 |---|---|---|---|
 | `draft` | Not listed; the contest page and join answer 404, as if it did not exist | No | Everything editable; the default for a new contest |
-| `open` | Listed | Yes, while a game's entry window is open | Editable per the lock |
-| `closed` | Listed under **Past**, so fans can revisit their boards | No; boards already in play keep scoring | Reopen is allowed |
+| `open` | Listed | Yes, while a game's entry window is open (or after a manual open, for games not started) | Editable per the lock |
+| `closed` | Listed under **Past**, so fans can revisit their boards | No; boards already in play keep scoring and paying until Finalize | Reopen is allowed |
 
-**Transitions:**
+The stored state is not the whole answer: the phase (Upcoming, Open, Closed) also reads the times and, since 2026-10-07,
+`stateChangedAt`, the moment an admin last opened or closed the contest by hand. **The last action wins**: a manual close
+stays Closed whatever the schedule says; a manual open ignores the contest's opening time, the 48-hour pre-kickoff
+window and any closing time that had already passed, until someone closes it or a later closing time arrives; a schedule
+edit made after it (a past close, a future open) hands it back to its times. A manual open never lets a fan join a game
+that has started: board generation still draws only from games not started (§3.3).
 
-- Draft → Open is **Publish**.
-- Open ⇄ Closed is **Close entries** and **Reopen entries**.
-- Open or Closed → Draft is allowed **only while the contest is unlocked** (no fan has joined). A contest fans have played
-  cannot be hidden from them.
+**Transitions** (by the phase, from shared `contestTransitions`; 2026-10-07):
+
+- Draft → Open is **Publish**. It clears `stateChangedAt` and keeps the schedule.
+- Upcoming → Open is **Open now**; Upcoming or Open → Closed is **Close entries**; Closed (by hand or by its times) →
+  Open is **Reopen entries**. Each stamps `stateChangedAt`, even when the stored state doesn't change (an Upcoming
+  contest, or one its closing time closed, is stored `open`), and none rewrites the times. Open now and Reopen are not
+  offered on a bingo contest whose games have all started (`manualOpenCanAdmit`).
+- Upcoming, Open or Closed → Draft (**Move to draft**) is allowed **only while the contest is unlocked** (no fan has
+  joined), and clears the stamp. A contest fans have played cannot be hidden from them.
 - A finalized contest refuses every change, as before. *Finalized* is a staff action, not a fourth state; the fan status
-  reads Finished.
+  reads Finished. Finalize is offered only once the contest is Closed (phase), and since 2026-10-07 it also stores
+  `state: "closed"`.
 
 **Storage and compatibility.** `B2BContest.state` is new. Every writer keeps `showContest` and `closed` consistent with it
 (`showContest = state !== "draft"`, `closed = state === "closed"`), so a reader on an older build still behaves. Readers go
@@ -257,11 +285,15 @@ dev-only (the same rails as the other scripts). It is additive: it sets `state` 
 - `adminContestSchema` gains `state`, and keeps `visible` and `closed` as derived read-only values for one release.
 - `POST /admin/contests` takes `state?: "draft" | "open"` (default `draft`) in place of `visible`.
 - `PATCH /admin/contests/:id` takes `state` in place of `visible` and `closed`.
-- The audit records the state change: `contest_update` with `fields: ["state"]` and the new `state`.
+- The audit records the state change: `contest_update` with `fields: ["state"]` and the new `state`. A manual move
+  (2026-10-07) also carries `transition` (`openNow`, `reopen` or `close`), and `fields` includes `state` even when the
+  stored state is unchanged.
+- Contest rows and the contest read carry `transitions`, `stateChangedAt` and `closeTimePassed` (2026-10-07).
 
 **Console (minimal).** The create drawer's *Visibility* becomes **Draft / Open**. The contest drawer's badge shows the state.
 *Close entries* and *Reopen entries* stay where they are, and *Move to draft* appears only while unlocked. The full redesign is
-Wave 4.
+Wave 4, and the state actions as built since 2026-10-07 are [`admin-contests.spec.md`](admin-contests.spec.md)'s
+("Transitions and where they live").
 
 ### 3.2 Deleting a contest
 
@@ -494,3 +526,19 @@ Each fix is proven by a test that failed first.
   finalize (a consumer-side change, not ours to make).
 - **Unders never resolve** in D2C. A board holding an Under cannot complete a line through it. Recorded, not ours.
 - **Personal stacks** get the watcher on their next deploy. Both current stacks predate main.
+
+## Function audit (2026-10-07)
+
+| Where | Reads | Writes |
+|---|---|---|
+| `reconcileBoard` (shared `scoring/evaluate.ts`) and `mongoScoringStore().loadBoard` | the board, its cells and props, and the contest's `finalized` (`ScoringBoard.contestFinalized`, required) | nothing for a finalized or missing contest (outcome `finalized`); otherwise prize messages, then the claim |
+| Board evaluator and prop-update Lambdas, dev watcher and replay, board create and read, the sweep | as above, through `reconcileBoard` | as above |
+| Prize worker | queued prize messages | delivers a message queued before Finalize (unchanged) |
+| Entries gate (`getB2BContestStatus`) and phase (`contestPhase`, shared `ContestPhase.ts`) | `state`, `stateChangedAt`, the contest's and games' times | none |
+| `PATCH /admin/contests/:id` `state` | the stored contest | `state` (+ legacy flags) and `stateChangedAt`; Publish and Move to draft clear the stamp |
+| Finalize (bingo, trivia complete step) | the contest, refused 409 `not_ready` unless Closed | `finalized`, `finalizedAt`, `state: "closed"`, `closed: true`, `showContest: true` |
+
+Cut or changed (2026-10-07): **Finalize after every game ends** became Finalize once Closed, so a closed contest with
+games still being played can be finalized; Finalize therefore stops every award path in the reconciler (before, only
+the sweep skipped finalized contests). **"Close and finalize"** was briefed and dropped by Arthur's correction: closing
+and finalizing stay two steps.

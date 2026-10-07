@@ -4,7 +4,7 @@
 
 **Depends on:** [`admin-surface.spec.md`](admin-surface.spec.md) — scope, the `?tenant=` exception, and **Honesty by omission** (Rule 13) plus **Plain product language**, which bind the resolution notes Overboard writes as much as any screen string. [`admin-game-day.spec.md`](admin-game-day.spec.md) — the failed-delivery rows that carry the highest-value button. [`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md) — the attention queue row and Platform health's anti-rot tile.
 
-**Status:** Draft — built on `arthur-ops` (2026-09-23); revised on `arthur-g1-console` (2026-09-24) and in Wave 4b (2026-09-28) — see "Revision 2026-09-28 — sides" and "Revision 2026-09-24". The newest revision wins wherever it and an older section disagree.
+**Status:** Draft — built on `arthur-ops` (2026-09-23); revised on `arthur-g1-console` (2026-09-24), in Wave 4b (2026-09-28) and on `arthur-fan-support` (2026-10-03) — see "Revision 2026-10-03 — fans' reports", "Revision 2026-09-28 — sides" and "Revision 2026-09-24". The newest revision wins wherever it and an older section disagree.
 
 ## Overview
 
@@ -12,15 +12,56 @@ Errors in the console end in a red card; the workflow after is texting Nick. Eve
 
 Second-order value: every recorded spec gap that confuses a paying customer becomes an evidence-backed report. The inbox doubles as a prioritized list of which gaps hurt customers. Product intelligence disguised as support.
 
-**The whole change, in one line:** one `B2BSupportReport` collection with a closed, PII-free context; a report drawer that shows exactly what will be sent; status chips on the thing reported; and a staff inbox at `/support` with All, Open and Patterns.
+**The whole change, in one line:** one `B2BSupportReport` collection with a closed, PII-free context; a report drawer that shows exactly what will be sent; status chips on the thing reported; and a staff inbox (first at `/support`, now `/inbox`) with All, Open and Patterns.
 
-**In scope:** the model and contract (`obs-b2b-shared/src/{interfaces/b2b/B2BSupportReport,models/support-report,api/admin/support}.ts`); five endpoints; the report drawer and chips; the report action on every console error card, on game day's failed deliveries, on the fan drawer, and as a console-wide **Get help**; `/support` (the inbox for staff, "Your reports" for a workspace); the nav badge; the oldest-unresolved tile on Platform health; two audit actions.
+**In scope:** the model and contract (`obs-b2b-shared/src/{interfaces/b2b/B2BSupportReport,models/support-report,api/admin/support}.ts`); five endpoints; the report drawer and chips; the report action on every console error card, on game day's failed deliveries, on the fan drawer, and as a console-wide **Get help**; the workspace's list (first `/support`, since 2026-10-03 the Support page's **To Overboard** tab at `/support/overboard`) and the staff inbox (`/inbox` since 2026-09-24); the nav badge; the oldest-unresolved tile on Platform health; two audit actions.
+
+**Fans' reports are not Tell Overboard reports.** A fan's own report to their team is a separate collection and conversation ([`fan-support.spec.md`](fan-support.spec.md)). The two meet only by id: "Ask Overboard about this" files an ordinary report here that names the fan report (see "Revision 2026-10-03 — fans' reports").
 
 **Not in scope:**
 
 - **Email or chat notification to Overboard per report.** Deliberately never: a per-report email is how inboxes die. The badge counts unresolved reports, and the OBS overview's attention queue carries them — the places staff already look.
 - **Auto-resolution** (resolve a report when the platform observes the fix — a redemption later fulfilled, tiers later added). Designed for, not built: the subject pair makes it a read-side rule. Recorded.
 - **Report buttons inside screens other slices own this wave** — export refusals (Exports), contest and game rows (Games & Contests), publish rejections (Fields & Opt-ins, Branding), and lifecycle divergence (All tenants). Their *load* failures are covered on day one through the error card; the inline, pre-loaded buttons are recorded for those owners.
+
+## Revision 2026-10-03 — fans' reports
+
+Arthur's fan-support brief: fans report a problem from the fan app and it lands in their team's console ([`fan-support.spec.md`](fan-support.spec.md)). Fans' reports are their own collection, `B2BFanReport`, not Tell Overboard reports, because a fan's words carry PII and this collection promises none. What changes here is where Tell Overboard lives in the console and how it links to a fan's report. This section wins over every older line in this spec.
+
+### The Support page has two tabs
+
+| Route | Tab | What |
+|---|---|---|
+| `/support` | **From fans** (the default) | The workspace's fans' reports ([`fan-support.spec.md`](fan-support.spec.md)). |
+| `/support/overboard` | **To Overboard** | The workspace's Tell Overboard reports: the list that used to be `/support`, unchanged (search, All / Open / Resolved, opening on All). The page's own **Get help** button shows on this tab only; the top bar's Get help is unchanged. |
+| `/support/:reportId` | — | A Tell Overboard report's page, unchanged. Its back link now goes to `/support/overboard`. |
+| `/support/fans/:reportId` | — | A fan's report (fan-support). |
+
+Get help's draft names `/support/overboard` as its route when sent from the Support page. Staff with a workspace chosen see exactly what the workspace sees on both tabs, as before.
+
+### The inbox has two tabs
+
+| Route | Tab | What |
+|---|---|---|
+| `/inbox` | **From workspaces** | The Support inbox as before: every workspace's Tell Overboard reports, Patterns, the metrics. |
+| `/inbox/fans` | **From fans** | Every workspace's fans' reports, **read-only**: a workspace filter, status, category and search; each row opens the report in its workspace (`/support/fans/:reportId?tenant=`), where staff act as the workspace. Nothing here triages a fan's report. |
+| `/inbox/:reportId` | — | A Tell Overboard report on Overboard's side, unchanged. |
+
+### Asking Overboard about a fan's report
+
+- A fan report's page offers **Ask Overboard about this**: an ordinary Tell Overboard report with the new surface **`fan-report`** (kind `question`), the new subject type **`fan-report`** (`{ type: "fan-report", id }`) and the new context key **`fanReportId`**. Once sent, its status chip stands on the fan report's page, read back by subject like every other chip.
+- **`fanReportId` is an id only.** The fan's words are never copied into the report; Overboard reads them by opening the fan report in the workspace. On `POST /admin/support/reports` the id, from the context or the subject, must name one of the target workspace's own fan reports, else 404 — the same probe answer as for a membership or redemption id (`namesOnlyOwnRecords`). **The no-fan-PII rule (Rule 1) still holds**: the context stays a strict, closed key set, and the new key carries a platform id.
+- In the inbox the report reads "About a fan's report"; its context rows show "Fan report: {id}"; its jump link opens `/support/fans/:id` in the workspace.
+
+### Badges
+
+- **Support** (Workspace section) now carries a badge: the **unanswered fan reports** (open and waiting on the workspace's reply) of the workspace in view — a workspace user's own, or the one a staffer has chosen. It reads `GET /admin/support/fan-reports/summary` every 60 seconds while the tab is visible and after a fan report is opened or changed.
+- **Support inbox** (OBS Internal) is unchanged: it counts unresolved **Tell Overboard** reports only. Fans' reports never count in it.
+
+### Shared pieces
+
+- **One set of components.** The list row (`SupportRow`), the conversation (`ConversationCard`) and the reply box (`ReplyCard`) moved into `obs-b2b-admin-frontend/src/components/supportThread.tsx`. The Tell Overboard pages and the fan report pages draw with them, each mapping its own entries and words onto them; nothing a Tell Overboard reader sees changed.
+- **The browser and version helpers moved to `obs-b2b-shared`.** `currentBrowser` (the "Chrome 131 on Windows" summary) is now `obs-b2b-shared/src/ui/browser.ts`, and the pure half of the app version ("0.1.0+33675f1": `appVersionString`, `shortCommit`, `injectedAppVersion`, `APP_VERSION_MAX`) is `obs-b2b-shared/src/ui/app-version.ts`. The console's `vite.config.ts` and `src/lib/appVersion.ts` import them; the fan app's "Report a problem" attaches the same strings. The console's own `src/lib/browser.ts` is removed.
 
 ## Revision 2026-09-28 — staff delete a report from the inbox
 
@@ -67,9 +108,9 @@ Event lines follow the same sides ("Overboard acknowledged this", "You reopened 
 
 | Route | Side | What |
 |---|---|---|
-| `/support` | workspace | The workspace's reports. Staff with a workspace chosen see exactly the workspace's list. Staff with none chosen get "Pick a tenant", pointing at the Support inbox. |
+| `/support` | workspace | The workspace's reports. Staff with a workspace chosen see exactly the workspace's list. Staff with none chosen get "Pick a tenant", pointing at the Support inbox. (Since 2026-10-03 this list is the **To Overboard** tab at `/support/overboard`; `/support` opens on **From fans**.) |
 | `/support/:reportId` | workspace | The report page as the workspace reads it: what was sent, the conversation, the reply box. **No triage panel, no internal notes, no assign.** |
-| `/inbox` | overboard | The Support inbox, unchanged. Rows now open `/inbox/:reportId`. |
+| `/inbox` | overboard | The Support inbox, unchanged. Rows now open `/inbox/:reportId`. (Since 2026-10-03 this is the **From workspaces** tab; **From fans** is `/inbox/fans`.) |
 | `/inbox/:reportId` | overboard | **New.** The report page on Overboard's side: the conversation with internal notes, the reply box with "Internal note — only Overboard sees it", and the triage panel (acknowledge / un-acknowledge, assign, resolve with a reason, merge, reopen). **The only triage surface.** Staff only; a workspace user reaching it sees "Overboard staff only". Merge targets and duplicates link to their `/inbox/` pages. |
 
 A status chip on the thing reported (a failed delivery, a fan, an error card) and the Get help confirmation link to the page on the side the screen is on: `/support/:reportId` from a workspace's screens, `/inbox/:reportId` from the OBS screens. The drawer's Workspace row reads the workspace's name on a workspace's screens and "*Workspace* · internal, only Overboard sees it" (or "None — an Overboard note") on the OBS screens.
@@ -91,9 +132,9 @@ Arthur's walkthrough ruling: a **Support** page in the workspace sidebar that li
 
 | Route | Who | What |
 |---|---|---|
-| `/support` | everyone with a workspace in view | **Support** — the workspace's reports, newest first, endless scroll (admin-lists.spec.md), search on the message, status filter (All / Open / Resolved), opening on All (Walk #3, 2026-09-29: "All" is always the first filter option). In the Workspace sidebar section, last. Staff with a tenant chosen see exactly that tenant's list — no internal reports, no staff actions (superseded 2026-09-28, "sides"). The old "not in the sidebar" decision is reversed. |
+| `/support` | everyone with a workspace in view | **Support** — the workspace's reports (since 2026-10-03 at `/support/overboard`, the **To Overboard** tab; `/support` opens on **From fans**), newest first, endless scroll (admin-lists.spec.md), search on the message, status filter (All / Open / Resolved), opening on All (Walk #3, 2026-09-29: "All" is always the first filter option). In the Workspace sidebar section, last. Staff with a tenant chosen see exactly that tenant's list — no internal reports, no staff actions (superseded 2026-09-28, "sides"). The old "not in the sidebar" decision is reversed. |
 | `/support/:reportId` | the report's workspace, or staff looking at its screens | **The report page**: what was sent, the thread, a reply box, and the status. No triage here (superseded 2026-09-28: triage is on `/inbox/:reportId`). A full page with a URL, so a report can be linked from anywhere. |
-| `/inbox` | staff | **Support inbox** (OBS Internal, badge unchanged): every workspace's reports, paged, with a **workspace filter**, search, status and reason filters, the Patterns view, and the two response-time metrics. Rows open `/inbox/:reportId`, the report page with the triage panel (2026-09-28). `/support` used to be the inbox for staff; it now always means the workspace page. |
+| `/inbox` | staff | **Support inbox** (OBS Internal, badge unchanged): every workspace's reports, paged, with a **workspace filter**, search, status and reason filters, the Patterns view, and the two response-time metrics. Rows open `/inbox/:reportId`, the report page with the triage panel (2026-09-28). `/support` used to be the inbox for staff; it now always means the workspace page. Since 2026-10-03 the inbox has two tabs, **From workspaces** (this) and **From fans** (`/inbox/fans`, read-only). |
 
 Get help stays in the top bar, unchanged in place; after sending, its confirmation links to the new report's page.
 
@@ -150,9 +191,9 @@ Audit: `support_report_update` (new) for acknowledge, un-acknowledge, assign, re
 |---|---|
 | `organizationId?` | The workspace it is about. Absent only for a report an Overboard staffer raised with no tenant in view (the audit log's platform-scoped precedent). |
 | `reporterUserId`, `reporterOrgSlug`, `reporterName?`, `reporterIsObsStaff`, `reporterSide?` | Who raised it, and on which side. The name is snapshotted from the admin sign-in at creation so the inbox never re-queries it. Reports raised on Overboard's side (from the OBS screens) are internal and never appear in a workspace's own list; a staffer filing from a workspace's screens files on the workspace's side. `reporterIsObsStaff` is kept equal to "raised on Overboard's side" (see "Revision 2026-09-28 — sides"). |
-| `surface` | Where it was raised: `load-error`, `failed-delivery`, `fan`, `contest`, `game`, `export`, `sign-in`, `publish`, `workspace`, `general`. |
+| `surface` | Where it was raised: `load-error`, `failed-delivery`, `fan`, `contest`, `game`, `export`, `sign-in`, `publish`, `workspace`, `general`, `fan-report` ("Ask Overboard about this" on a fan's report, 2026-10-03). |
 | `kind` | `error` or `question`. |
-| `subject?` | `{ type, id }` — what it is about (`redemption`, `membership`, `contest`, `game`, `screen`). This is what puts the answer back on the thing reported. |
+| `subject?` | `{ type, id }` — what it is about (`redemption`, `membership`, `contest`, `game`, `screen`, `fan-report`). This is what puts the answer back on the thing reported. |
 | `context` | The auto-attached context, a **closed key set** (below). |
 | `message?` | The reporter's own sentence, ≤2,000 characters. Optional — the context is meant to be enough. |
 | `status` | `open` ⇄ `acknowledged` → `resolved`. Open and acknowledged are both **unresolved**; staff can un-acknowledge. `wont-fix` is a legacy value, read as `resolved` with reason `wont-fix` (see the revision). |
@@ -167,7 +208,7 @@ Audit: `support_report_update` (new) for acknowledge, un-acknowledge, assign, re
 
 ### Context carries no fan PII — structurally
 
-The concept's rule, "the inbox must not become a fourth PII channel", is enforced by the contract rather than by care: `supportContextSchema` is **strict**, over `SUPPORT_CONTEXT_KEYS` — `route`, `errorCode`, `httpStatus`, `errorMessage` (the server's own plain `message`, which by the backend's strings rule never carries PII), and platform ids (`contestId`, `betEventId`, `redemptionId`, `membershipId`, `prizeTierId`, `optInId`), plus `exportKind`, `reasonKind` and `appVersion`. An unknown key is a 400, not a silent drop, so adding "the fan's email, for convenience" requires changing a reviewed list. This is the audit log's Rule-7 posture (ids and counts, never contact fields), applied at the boundary.
+The concept's rule, "the inbox must not become a fourth PII channel", is enforced by the contract rather than by care: `supportContextSchema` is **strict**, over `SUPPORT_CONTEXT_KEYS` — `route`, `errorCode`, `httpStatus`, `errorMessage` (the server's own plain `message`, which by the backend's strings rule never carries PII), and platform ids (`contestId`, `betEventId`, `redemptionId`, `membershipId`, `prizeTierId`, `optInId`), plus `exportKind`, `reasonKind` and `appVersion`, and since 2026-09-24 `pageUrl` and `browser`, and since 2026-10-03 `fanReportId` (a fan report's id, checked to be the workspace's own — never the fan's words). An unknown key is a 400, not a silent drop, so adding "the fan's email, for convenience" requires changing a reviewed list. This is the audit log's Rule-7 posture (ids and counts, never contact fields), applied at the boundary.
 
 The reporter's own `message` is theirs to write; the drawer's field has no copy about what not to type.
 
@@ -194,17 +235,17 @@ Deliberately without it: the shell's "Couldn't load your workspace" (it renders 
 
 **Then a status chip, on the thing reported.** "Reported — Overboard is looking into it" while unresolved; "Resolved: *the note Overboard wrote*" once resolved; "Closed: *the note*" for won't-fix. On a failed delivery row and a fan drawer the chip is durable (it is read back by subject); on an error card it appears in place after sending. **The resolution appearing where the problem was is the premium moment — protect it in any scope cut.**
 
-**Your reports** (`/support`, for a workspace's users) is the secondary path: every report the workspace's own people raised, newest first, with status and resolution. Reached from the Get help drawer. It is not in the sidebar — the chips and the drawer are the primary paths, and a nav entry for a list most teams will rarely open is navigation for its own sake.
+**Your reports** (`/support`, for a workspace's users) is the secondary path: every report the workspace's own people raised, newest first, with status and resolution. Reached from the Get help drawer. It is not in the sidebar — the chips and the drawer are the primary paths, and a nav entry for a list most teams will rarely open is navigation for its own sake. *(Superseded: since 2026-09-24 it is the Support page, in the sidebar; since 2026-10-03 it is that page's **To Overboard** tab, `/support/overboard`.)*
 
 ---
 
-## Overboard's workflow — `/support`
+## Overboard's workflow — `/inbox`
 
-Same route, rendered by identity (admin-surface **Seamlessness**): staff get the inbox, a workspace's users get Your reports.
+Originally the same route as Your reports, rendered by identity (admin-surface **Seamlessness**). *Superseded: since 2026-09-24 the inbox is `/inbox`, and `/support` always means the workspace's page; since 2026-10-03 the inbox's tab for these reports is **From workspaces**, beside the read-only **From fans**.*
 
-- **Nav.** OBS Internal → **Support inbox**, with a badge counting **unresolved** reports (open + acknowledged) — never "unread". Hidden when zero.
+- **Nav.** OBS Internal → **Support inbox**, with a badge counting **unresolved** reports (open + acknowledged) — never "unread". Hidden when zero. It counts Tell Overboard reports only; fans' reports never count in it (2026-10-03).
 - **Views**, in this order, opening on **All** (Walk #3, 2026-09-29): **All** (newest first, with the status and reason filters, each opening on "any"), **Open** (unresolved, oldest first — age is the thing that must not grow), and **Patterns**: clusters of two or more reports sharing a fingerprint — "7 reports, 3 workspaces, the same refusal" is one product bug, not seven tickets.
-- **A report** opens in a drawer: everything the reporter saw and sent, the reporter and workspace, age, a **Go to** link that opens the route in that workspace (jump-to-context), and actions: **Acknowledge**, **Assign to me** / unassign, **Resolve** (outcome resolved or won't-fix, with a required note), **Merge into…** (another open report), **Reopen**.
+- **A report** opens in a drawer (superseded 2026-09-28: a full page at `/inbox/:reportId`): everything the reporter saw and sent, the reporter and workspace, age, a **Go to** link that opens the route in that workspace (jump-to-context), and actions: **Acknowledge**, **Assign to me** / unassign, **Resolve** (outcome resolved or won't-fix, with a required note), **Merge into…** (another open report), **Reopen**.
 - **Merge.** The duplicate records `mergedInto`; reads show a merged report with its target's status and resolution, so the duplicate's reporter gets the same answer on their own chip. Merge is audited as a resolution.
 
 ### Anti-rot, in order of effectiveness
@@ -230,7 +271,7 @@ Same route, rendered by identity (admin-surface **Seamlessness**): staff get the
 | PATCH | `/admin/support/reports/:reportId` | requireAdmin | staff only; acknowledge / resolve / assign / merge / reopen |
 | DELETE | `/admin/support/reports/:reportId` | requireAdmin | staff only; deletes the report, its thread and its merged duplicates, audited first (revision 2026-09-28) |
 
-- **POST** validates the strict context, derives the fingerprint, snapshots the reporter's name, writes `support_report_create` (fire-and-log — the report itself is the durable record), returns 201 with the report. A `membershipId` or `redemptionId` in context or subject must belong to the target workspace, else 404 (the probe answer): a report cannot be used to confirm another tenant's ids exist.
+- **POST** validates the strict context, derives the fingerprint, snapshots the reporter's name, writes `support_report_create` (fire-and-log — the report itself is the durable record), returns 201 with the report. A `membershipId`, `redemptionId` or (since 2026-10-03) `fanReportId` in context or subject must belong to the target workspace, else 404 (the probe answer): a report cannot be used to confirm another tenant's ids exist.
 - **GET reports** returns at most 200, newest first. A merged report reads with its target's status and resolution.
 - **PATCH** returns 404 for an unknown report, 409 for a transition that makes no sense (acknowledging a resolved report, merging into itself, into a merged report, or across workspaces), and writes `support_report_resolve` **before** the state write on resolve, won't-fix and merge (a closure with no record is the one kind the audit exists for).
 
@@ -240,10 +281,11 @@ Nothing here re-authenticates; no console action does (admin-surface, "No re-aut
 
 ## Rules
 
-1. **Report context is a closed key set with no fan contact field.** Enforced by the contract (strict); widening it is a reviewed change to `SUPPORT_CONTEXT_KEYS`.
+1. **Report context is a closed key set with no fan contact field.** Enforced by the contract (strict); widening it is a reviewed change to `SUPPORT_CONTEXT_KEYS`. A fan's report is linked by `fanReportId` only; its words never enter this collection (2026-10-03).
 2. **A workspace sees only its own side's reports.** Reports raised on Overboard's side are internal; cross-workspace reads are refused as everywhere. Staff looking at a workspace's screens read exactly what the workspace reads.
-3. **Only Overboard staff change a report's state, and only from the inbox.** Enforced server-side on every PATCH; the triage panel exists only on `/inbox/:reportId`. The one change the workspace's side makes is implicit: a reply to a resolved report reopens it.4. **A resolution is required to close a report, and it is customer copy.**
-5. **The badge counts unresolved reports.** Never unread.
+3. **Only Overboard staff change a report's state, and only from the inbox.** Enforced server-side on every PATCH; the triage panel exists only on `/inbox/:reportId`. The one change the workspace's side makes is implicit: a reply to a resolved report reopens it. (Fans' reports are the workspace's own desk and are triaged by the workspace — [`fan-support.spec.md`](fan-support.spec.md); this rule is about Tell Overboard reports.)
+4. **A resolution is required to close a report, and it is customer copy.**
+5. **The badge counts unresolved reports.** Never unread. The Support inbox badge counts Tell Overboard reports only; the workspace's Support badge counts its unanswered fans' reports (2026-10-03).
 6. **No per-report notification to Overboard.**
 7. **The drawer attaches nothing it does not show.**
 8. **The side is where it was written.** A staffer on a workspace's screens writes as the workspace; only the OBS screens write as Overboard. Nobody ever reads as talking to themselves.
@@ -260,3 +302,4 @@ Nothing here re-authenticates; no console action does (admin-surface, "No re-aut
 - Vault concept: `cargo/passage-plans/2026-09-21-product-concepts.md` §1b.
 - Contracts: `obs-b2b-shared/src/api/admin/support.ts`; model `src/models/support-report.ts`.
 - Audit actions: `support_report_create`, `support_report_resolve` (`B2BAdminAudit.ts`).
+- Fans' reports: [`fan-support.spec.md`](fan-support.spec.md). Shared console pieces: `obs-b2b-admin-frontend/src/components/supportThread.tsx`. Browser and version helpers: `obs-b2b-shared/src/ui/{browser,app-version}.ts`.

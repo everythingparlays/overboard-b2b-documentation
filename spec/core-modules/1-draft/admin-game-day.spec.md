@@ -62,7 +62,7 @@ The LIVE badge renders only when the feed says `InProgress` **and** the rule sti
 | `contest-visible` | `showContest` is false — fans cannot see it. | blocked |
 | `contest-open` | The contest is closed or finalized. | blocked |
 | `prize-tiers` | No prize tier is attached — fans play for nothing. | blocked |
-| `prize-delivery` | A tier's delivery method is unset, or is not one the Prizes registry can run for this workspace. `count` = how many. | blocked |
+| `prize-delivery` | A tier's delivery method is unset, or is not one the Prizes registry can run. `count` = how many. | blocked |
 | `consent-text` | An opt-in fans are asked to accept has empty wording. `count` = how many. | blocked |
 | `failed-sends` | Prizes from this contest are sitting failed. `count` = how many. | attention |
 
@@ -70,7 +70,7 @@ The level is the worst issue's (`blocked` → red, `attention` → amber, none �
 
 **One evaluator, every screen.** Readiness is computed once, server-side (`node-server/src/util/admin-readiness.ts`), and carried on every read that shows a game: Overview's upcoming games (inside `READINESS_HORIZON_HOURS = 48`, null beyond), `/live`, and the OBS workspace reads ([`admin-obs-workspace.spec.md`](admin-obs-workspace.spec.md)). Screens phrase checks; they never re-derive them. Two screens disagreeing about whether Friday's game is ready is the failure this design exists to prevent.
 
-**Delivery method: set and registered.** `prize-delivery` passes only when each tier's method resolves in the Prizes delivery-method registry for this workspace — `resolveHandler` from `prize-delivery/handler-catalog.ts`, the same catalog the worker runs ([`prize-delivery.spec.md`](prize-delivery.spec.md), "The delivery-method registry"). Unset fails; so do the retired stubs (`email`, `email-test`, `webhook`, `barcode`), an unknown id, and another tenant's custom method. The old aliases (`handler_001`, `handler_002`) pass, because they still deliver. A method the registry cannot run is exactly what the worker fails a send with ("This prize's tier uses a delivery method that isn't available…"), so the check catches it before kickoff instead of at the first win. The row reads "N prizes need a delivery method" ("A prize needs a delivery method" without a count): unset or marked **Won't deliver** on Prizes, the fix is the same — choose one there.
+**Delivery method: set and registered.** `prize-delivery` passes only when each tier's method resolves in the Prizes delivery-method registry — `resolveHandler(handlerId)` from `prize-delivery/handler-catalog.ts`, the same catalog the worker runs and the same for every workspace ([`prize-delivery.spec.md`](prize-delivery.spec.md), "The delivery-method registry"). Unset fails; so do the retired stubs (`email`, `email-test`, `webhook`, `barcode`) and an unknown id. *(Until 2026-10-06 another tenant's custom method failed too; custom methods were removed that day, [`prize-delivery.spec.md`](prize-delivery.spec.md), "Revision 2026-10-06".)* The old aliases (`handler_001`, `handler_002`) pass, because they still deliver. A method the registry cannot run is exactly what the worker fails a send with ("This prize's tier uses a delivery method that isn't available…"), so the check catches it before kickoff instead of at the first win. The row reads "N prizes need a delivery method" ("A prize needs a delivery method" without a count): unset or marked **Won't deliver** on Prizes, the fix is the same — choose one there.
 
 ---
 

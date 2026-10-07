@@ -14,6 +14,8 @@
 
 **Revised 2026-09-27** (Wave 4) — pointers only: contests have a stored state (Draft, Open, Closed; [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §3.1) in place of visibility, so All contests shows State and the attention rows read it; the Delivery queue is now Prize deliveries (all workspaces) at `/obs/prize-deliveries`, and a tenant's prize tiers are on the contest page's Prizes tab.
 
+**Revised 2026-10-07** (Arthur's rulings) — pointer only: the one Finalize rule changed. A contest is ready to finalize when it is not finalized, not a draft, and Closed (by hand, by its closing time, or a bingo contest whose games are over), whatever its times or games say; a bingo contest with no games is still never ready. The `ready-to-finalize` attention row and All contests' Finalize read it; [`admin-contests.spec.md`](admin-contests.spec.md), "Finalize: the one rule", owns it. Edited in place below.
+
 ## Overview
 
 With no tenant chosen, an Overboard operator used to land on a void: "pick a tenant". The operator's real questions are platform-shaped — *what is live, what is about to go wrong, what changed* — and answering them took N tenant switches. This module gives staff a home and the two cross-tenant screens the platform was missing.
@@ -49,7 +51,7 @@ Four bands, top to bottom:
    | `failed-sends` | A workspace with prizes sitting failed | All prizes → Deliveries, filtered to that workspace |
    | `no-prize-tiers` | A contest that isn't a Draft, with games and no prize tier | That contest's Prizes tab (`/contests/:id/prizes`), in that workspace |
    | `no-games-enabled` | An Open contest with no games | That contest's Games tab, in that workspace |
-   | `ready-to-finalize` | A contest **ready to finalize** by the one rule ([`admin-contests.spec.md`](admin-contests.spec.md), "Finalize: the one rule"): not finalized, not a draft, at least one game, every game ended | All contests, where staff Finalize |
+   | `ready-to-finalize` | A contest **ready to finalize** by the one rule ([`admin-contests.spec.md`](admin-contests.spec.md), "Finalize: the one rule"; revised 2026-10-07): not finalized, not a draft, and Closed by hand, by its closing time, or (bingo) with its games over; a bingo contest needs at least one game | All contests, where staff Finalize |
    | `paused-workspace` | A paused workspace, with how long | All tenants |
    | `support-reports` | Unresolved Tell Overboard reports, with the oldest's age | Support inbox (`/inbox`; each report opens at `/inbox/:reportId`, the only triage page) |
 
@@ -60,7 +62,7 @@ Four bands, top to bottom:
 
 "What's running this weekend across all clients" used to take N tenant switches. One row per contest on the platform: contest and workspace, contest type, state (with the Finalized badge), next game with its readiness dot, games, prize tiers, players, delivered / failed, and a Live badge. Filters: **All** (every contest at every workspace, whatever its state — the default, listed first), **This week** (a game live or in the next 7 days), **Active** (not finalized), **Finished**; and a search over contest and workspace names. *(Revised 2026-09-28, Arthur's final walk: the page opened on This week, which hid every contest without a game this week and read as if All contests showed only a couple of one workspace's contests. The server always answered for every workspace; the page now opens on All.)* Row links: the contest → its contest page in that workspace; the next game → game day; the last game → its recap.
 
-**Revised 2026-09-24.** A row now opens the contest page itself, `/contests/:contestId?tenant=<slug>`, which sets the console's acting tenant to that workspace before it reads, so the page, the sidebar and every link on it act as that tenant; its back link returns to All contests. The game-type column reads "Contest type". Each row carries **Finalize** when the row's `readyToFinalize` is true (the one rule: not finalized, not a draft, at least one game, every game ended; the same rule behind the `ready-to-finalize` attention row and the finalize endpoint's 409 `not_ready`), and nothing otherwise. It sits in the row's last column; the row then reads "Finalized." and its status Finished. It opens the same typed-name dialog as everywhere else ([`admin-contests.spec.md`](admin-contests.spec.md), "Finalize, wherever it appears"). The next-game and recap links are unchanged. *(Revised 2026-09-28: no re-authentication. Revised again the same day, Arthur's final walk: staff also finalize from the workspace's own contest cards, list rows and contest page, marked as a staff action; see [`admin-contests.spec.md`](admin-contests.spec.md), "Finalize, wherever it appears".)*
+**Revised 2026-09-24.** A row now opens the contest page itself, `/contests/:contestId?tenant=<slug>`, which sets the console's acting tenant to that workspace before it reads, so the page, the sidebar and every link on it act as that tenant; its back link returns to All contests. The game-type column reads "Contest type". Each row carries **Finalize** when the row's `readyToFinalize` is true (the one rule, revised 2026-10-07: not finalized, not a draft, and Closed, with at least one game for bingo; never on an Open contest; the same rule behind the `ready-to-finalize` attention row and the finalize endpoint's 409 `not_ready`), and nothing otherwise. It sits in the row's last column; the row then reads "Finalized." and its status Finished. It opens the same typed-name dialog as everywhere else ([`admin-contests.spec.md`](admin-contests.spec.md), "Finalize, wherever it appears"). The next-game and recap links are unchanged. *(Revised 2026-09-28: no re-authentication. Revised again the same day, Arthur's final walk: staff also finalize from the workspace's own contest cards, list rows and contest page, marked as a staff action; see [`admin-contests.spec.md`](admin-contests.spec.md), "Finalize, wherever it appears".)*
 
 ## `/schedule` — the season calendar
 
@@ -103,6 +105,15 @@ All three follow the cross-tenant read pattern (admin-obs-internal): structural 
 - **Readiness is checked against today's configuration.** A calendar dot for a game three weeks out answers "if it were today"; it cannot know about changes planned before then.
 - **Activity actor names** depend on the admin sign-in being reachable; an unresolvable operator reads as their workspace ("Overboard staff").
 - **Ended is inferred** for games the feed never marked final: every visible prop resolved, or the sport's usual length since tip-off — the one phase rule (see game day).
+
+## Function audit (2026-10-07)
+
+| Screen | Reads | Writes |
+|---|---|---|
+| Operations, `ready-to-finalize` row | `GET /admin/obs-overview` (the row counts contests by `readyToFinalize`, `util/contest-console.ts`) | none |
+| All contests, Finalize | `GET /admin/all-contests` (`readyToFinalize` per row) | `POST /admin/contests/:contestId/finalize` or `…/trivia/finalize`, 409 `not_ready` ("Close this contest before you finalize it.") unless Closed |
+
+Changed: the rule behind both reads now asks for the Closed phase instead of every game having ended (or, for trivia, the close time having passed). Nothing on these screens changed shape.
 
 ## References
 

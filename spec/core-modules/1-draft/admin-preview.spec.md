@@ -10,6 +10,7 @@
 Revised 2026-09-27 for Wave 4: the frame shows the current fan app with real data and in-frame navigation, the tabs follow it, the fixtures, sample players and PREVIEW chyron are gone, the Brand page leaves the host list on main (Brand page v2 and its preview are Wave 5), and the console builds the render document from one admin read.
 Revised 2026-09-28 for Wave 4b (Arthur's walkthrough): the desktop view and its toggle are removed, a contest's preview offers only its own screens (Contest list, Contest detail, Board, Prize), Brand hosts the frame on main with every screen fed by a built-in sample contest (the current Brand page, not Brand page v2), and Fields & Opt-ins shows its gate in the same phone.
 Revised 2026-09-29 (Arthur's Walk #3): the highlight ring is removed, since switching the preview on hover is the feature; every preview follows what the admin points at or focuses beside it, through one mechanism (below, "The preview follows what you point at"); a prize item opens the popup of its own tier; and a closed or finalized contest still previews Board and Prize, with its real props and their real progress.
+Revised 2026-10-03 (Arthur's rulings, the prize sheet): the Prize screen shows the fan app's one prize sheet ([`../../webapp/fan-prize-sheet.spec.md`](../../webapp/fan-prize-sheet.spec.md) `FLOW-31`) for bingo and trivia; an **Info / Won** control chooses its body (`view.prizeBody`, Won by default); a trivia contest gains a **Prize** tab (one band's prize over its standings) beside a new **Standings** tab (`standings`, the standings with no sheet), and the tier control reads "Band" with the bands' places for trivia. Edited in place: "Where it is used", the address, the chrome, the targets, Copy, Rules and a new function audit.
 
 ## Overview
 
@@ -72,27 +73,28 @@ The phone itself is **`PhonePreview`** (`src/components/preview/PhonePreview.tsx
 
 | Host | Route | Previews | Opens on | Tabs offered |
 |---|---|---|---|---|
-| Contest page, Preview tab | `/contests/:id/preview` | The saved contest | `contests`, or the URL's `?screen=` | `contests`, `contest`, `board`, `prize` |
-| Builder, Review step | `/contests/:id/setup/review` | The draft, with Basics' unsaved edits overlaid | `contests` | `contests`, `contest`, `board`, `prize` |
-| Prize full page | [`admin-prizes.spec.md`](admin-prizes.spec.md) | The prize as typed, on its own (a prize belongs to no contest): `document.prize` with no `contest`, in the tenant's theme, with its "Provided by" credit | `prize` | `prize` only |
+| Contest page, the preview drawer (D-113, 2026-10-01; it was the Preview tab) | `/contests/:id…?preview=<screen>` | The saved contest | `contests`, or the address's screen | Bingo: `contests`, `contest`, `board`, `prize`. Trivia: `contests`, `contest`, `board`, `results`, `standings`, `prize` |
+| Builder, Review step | `/contests/:id/setup/review` | The draft, with Basics' unsaved edits overlaid | `contests` | as the contest page, by contest type |
+| Prize full page | [`admin-prizes.spec.md`](admin-prizes.spec.md) | The prize as typed, on its own (a prize belongs to no contest): `document.prize` with no `contest`, in the tenant's theme, with its "Provided by" credit, in the prize sheet | `prize` | `prize` only |
 | Sponsor page | [`admin-sponsors.spec.md`](admin-sponsors.spec.md) | A contest where the sponsor appears, with its unsaved artwork overlaid in its real spots. A sponsor that appears in no contest gets no frame | `start`; then the screen holding the artwork block pointed at | `start`, `board`, `prize` |
 | Brand | [`admin-branding.spec.md`](admin-branding.spec.md) | The built-in sample contest (below), in the tenant's name, gate and unpublished look | `start` | All seven |
 
-**A contest's preview shows only the screens that are about the contest** (Arthur, 2026-09-28): Contest list, Contest detail, Board and Prize. Start, Sign in and Join are the tenant's, not the contest's, and they are previewed on Brand, the one place every screen matters. A click inside the frame can still reach a screen the host doesn't offer (the start screen after signing out from the menu); no tab is selected then, and the Preview tab's address keeps `?screen=` empty rather than moving the frame back.
+**A contest's preview shows only the screens that are about the contest** (Arthur, 2026-09-28): Contest list, Contest detail, Board and Prize; for a trivia contest, Contest list, Rules, Questions, Results, Standings and Prize (D-113, with Prize added 2026-10-03). `results` and `standings` are trivia's alone: a bingo contest's frame never lists them in `ready.screens`, and the console never offers them for one. Start, Sign in and Join are the tenant's, not the contest's, and they are previewed on Brand, the one place every screen matters. A click inside the frame can still reach a screen the host doesn't offer (the start screen after signing out from the menu); no tab is selected then, and the Preview tab's address keeps `?screen=` empty rather than moving the frame back.
 
 **Fields & Opt-ins** is not a host of the frame: its preview is the in-page gate (`GatePreviewPanel`, [`admin-fields-and-optins.spec.md`](admin-fields-and-optins.spec.md)), which follows every keystroke of the unsaved draft. From Wave 4b it sits in the same `PhonePreview`, with Join and Returning as its screens.
 
 The builder's Basics step has no mini preview any more: its question (how the card reads) is answered on Review, where the whole contest can be clicked through. A host whose spec needs another screen set passes `screens`.
 
-**The Preview tab keeps its selection in the URL:** `?screen=` (one of the contest's four screens), plus `?tier=` on Prize (counted from 1, in tier order: a link to a tier's popup passes its position plus one) and `?game=` for one game's board (sent as `view.gameId`). An old `?sponsor=` or `?slot=` is ignored. When the admin clicks inside the frame and the frame reports a new screen, the URL's `screen` is replaced (not pushed), so Back leaves the Preview tab rather than stepping through the admin's clicks. These are console URLs; the frame's own URL never carries a query.
+**The preview keeps its selection in the URL:** the screen (`?preview=` on the contest page's drawer since D-113; `?screen=` before it), plus `?tier=` on Prize (counted from 1, in tier order, a trivia contest's bands in band order: a link to a tier's prize passes its position plus one) and `?game=` for one game's board (sent as `view.gameId`). An old `?sponsor=` or `?slot=` is ignored. When the admin clicks inside the frame and the frame reports a new screen, the URL's `screen` is replaced (not pushed), so Back leaves the Preview tab rather than stepping through the admin's clicks. These are console URLs; the frame's own URL never carries a query.
 
 ### The chrome
 
 One row of controls above the frame, on the console background:
 
-- **Screen tabs** (left): a segmented control. Before `ready` it shows the host's screens, disabled. After `ready`, the host's screens that `ready.screens` lists, in the frame's order, labelled "Start", "Sign in", "Join", "Contest list", "Contest detail", "Board", "Prize". Choosing one sends `navigate`. **The tabs follow the frame:** on `obs-preview:navigated` the console selects the tab the frame names (none, if it names no screen or one the host doesn't offer) and sends nothing back. Hidden when a host offers one screen. **A screen this contest can't show is disabled, with the reason on the tab** (revised 2026-09-29): only what truly can't exist. A contest whose games have no players yet has no board and so no prize ("This contest has no board to show yet."); one with no prize tiers has no prize. **A closed or finalized contest keeps Board and Prize:** with no game open for entry, the frame builds the board from every one of its games' real props, with their real outcomes and progress, so it shows the hits and bingos fans see ([`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md), "Building the preview board"). A host that asks for a screen it can't show (an item pointed at, below) leaves the phone and the tab where they are and says the reason once beside the tabs; a screen the frame refuses anyway (`error` naming it) is disabled the same way and the tab goes back to the screen the phone shows. The chosen tab always names the phone's screen.
-- **Tier** (on Prize, when the contest has more than one tier, not on the prize page): a segmented control "Tier 1 · Tier 2 · Tier 3", by number. It sends `navigate` with `view.prizeTierIndex`. **Choosing another tier closes the previous tier's popup and opens the new one at once** (revised 2026-09-28, Arthur's final walk): never the old popup left on top with the new one behind it, never a second click. The frame answers the choice with a board that holds only the chosen tier's award, and the fan board's popups follow the awards the board holds ([`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md), "The Prize screen"). The same holds in the builder's Review & preview step, which mounts the same preview.
-- **Every chooser is one line** (revised 2026-09-29, Arthur's Walk #3; this replaces "Brand's seven tabs wrap inside the column"). The screen tabs and the tier control are compact segmented controls (a smaller label and tighter segments than the console's toolbar pills) that never wrap, with the outline hugging the tabs. When a chooser's tabs would not fit the control row (a narrow column, longer labels, more tabs), it becomes one compact dropdown with the same accessible name ("Screen", "Prize tier"), the same options in the same order, and the same unreachable screens disabled with their reason; it goes back to tabs as soon as they fit. The console measures rather than assuming labels or a tab count, so renaming a tab or dropping one needs no layout change. The screen tabs and the tier control share the row when both fit, and the tier control takes its own line when they don't. The same component (`PreviewTabs`, `src/components/preview/PreviewTabs.tsx`) draws the tabs on Brand, the contest's Preview tab, the builder's Review & preview, the sponsor page, the prize page and Fields & Opt-ins (Join / Returning).
+- **Screen tabs** (left): a segmented control. Before `ready` it shows the host's screens, disabled. After `ready`, the host's screens that `ready.screens` lists, in the frame's order, labelled "Start", "Sign in", "Join", "Contest list", "Contest detail", "Board", "Results", "Standings", "Prize"; a trivia contest's own screens are labelled "Rules" (`contest`), "Questions" (`board`), "Results", "Standings" and "Prize". Choosing one sends `navigate`. **The tabs follow the frame:** on `obs-preview:navigated` the console selects the tab the frame names (none, if it names no screen or one the host doesn't offer) and sends nothing back. Hidden when a host offers one screen. **A screen this contest can't show is disabled, with the reason on the tab** (revised 2026-09-29): only what truly can't exist. A contest whose games have no players yet has no board and so no prize ("This contest has no board to show yet."); one with no prize tiers has no prize; a trivia contest with no prize bands has no Prize ("This contest has no prize bands yet."). **A closed or finalized contest keeps Board and Prize:** with no game open for entry, the frame builds the board from every one of its games' real props, with their real outcomes and progress, so it shows the hits and bingos fans see ([`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md), "Building the preview board"). A host that asks for a screen it can't show (an item pointed at, below) leaves the phone and the tab where they are and says the reason once beside the tabs; a screen the frame refuses anyway (`error` naming it) is disabled the same way and the tab goes back to the screen the phone shows. The chosen tab always names the phone's screen.
+- **Prize tier / Band** (on Prize, when the contest has more than one tier or band, not on the prize page): a segmented control. Bingo: "Prize tier", "Tier 1 · Tier 2 · Tier 3", by number in tier order. Trivia: "Band", each band by its places ("1st", "11th–30th"), in band order. It sends `navigate` with `view.prizeTierIndex` (the tier's or band's 0-based position). **Choosing another tier or band closes the previous prize's sheet and opens the new one at once** (revised 2026-09-28, Arthur's final walk): never the old sheet left on top, never a second click. The frame answers the choice with the chosen tier's or band's prize ([`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md), "The Prize screen"). The same holds in the builder's Review & preview step, which mounts the same preview.
+- **Info / Won** (on Prize, every host that offers it, the prize page included; 2026-10-03): two buttons in a group named "Prize view", "Info" and "Won", each with `aria-pressed`. They set `view.prizeBody` and re-open the sheet in that body. **Won is the default everywhere**, as the richer state; a host that opens Prize from an item passes the body that item means: the builder's Review "Prize tiers" row opens **Info** (it reads like a Rules row), the sponsor page's Prize logo opens **Won**. The admin can switch either way.
+- **Every chooser is one line** (revised 2026-09-29, Arthur's Walk #3; this replaces "Brand's seven tabs wrap inside the column"). The screen tabs and the tier (or band) control are compact segmented controls (a smaller label and tighter segments than the console's toolbar pills) that never wrap, with the outline hugging the tabs. When a chooser's tabs would not fit the control row (a narrow column, longer labels, more tabs), it becomes one compact dropdown with the same accessible name ("Screen", "Prize tier", "Band"), the same options in the same order, and the same unreachable screens disabled with their reason; it goes back to tabs as soon as they fit. The console measures rather than assuming labels or a tab count, so renaming a tab or dropping one needs no layout change. The screen tabs and the tier control share the row when both fit, and the tier control takes its own line when they don't. The same component (`PreviewTabs`, `src/components/preview/PreviewTabs.tsx`) draws the tabs on Brand, the contest's Preview tab, the builder's Review & preview, the sponsor page, the prize page and Fields & Opt-ins (Join / Returning).
 - **One phone, no device choice.** The fan app is mobile-only (Nick, 2026-09-27), so the preview is always the phone: 390×844 CSS px in a bezel, shown at 1:1 and never scaled, so artwork in the frame is at its true size; in a column narrower than the phone the frame scrolls sideways inside its container. A host that sticks the preview beside a long editor (Brand) passes `fit`, and the screen's height follows the window (never above 844, never below 560) while the app scrolls inside it, as on a shorter phone. Every render says `device: "phone"`; a mount still passing `device` is ignored.
 
 **The console adds no label** to the frame, and the frame carries none (`PV-08`).
@@ -120,14 +122,14 @@ Revised 2026-09-29 (Arthur's Walk #3). **Wherever a form or list sits beside a p
 **One mechanism** (`src/lib/preview/previewJump.ts`, `src/components/preview/PreviewJumpArea.tsx`):
 
 - The page renders a **`PreviewJumpArea`** in place of the element that already holds the form and its preview. It is a plain `div` that listens for `mouseover` and `focus` and hands jumps to the preview inside it.
-- Each item says what shows it with **`data-preview-target={previewTarget({...})}`**: a fan-app `screen`, a prize `tier` (by position, tier id, prize id or sponsor), a `pane` (the prize page's popup or email), or a gate `mode` and spot (a selector, an opt-in's consent, or an opt-in document). **The innermost marked element wins**, so a section can point at a screen and an item inside it at a spot on that screen.
+- Each item says what shows it with **`data-preview-target={previewTarget({...})}`**: a fan-app `screen`, a prize `tier` (by position, tier id, prize id or sponsor; a trivia contest's band by the same means) and the prize sheet's `body` (`info` or `won`), a `pane` (the prize page's Prize pane or email), or a gate `mode` and spot (a selector, an opt-in's consent, or an opt-in document). **The innermost marked element wins**, so a section can point at a screen and an item inside it at a spot on that screen.
 - The preview listens with **`usePreviewJumpListener`** and applies what it understands: `FanAppPreview` a screen and tier, `GatePreviewPanel` a gate screen, spot or document, the prize page's rail a pane. A screen the host doesn't offer is ignored; one this contest can't show says why beside the tabs instead of moving.
 - **It waits for the pointer or focus to rest** (150 ms), so sweeping the mouse across a list moves the frame once, to where the pointer stops; moving on to unmarked space before then cancels it.
 - **The preview keeps the last state on mouse-out** rather than snapping back, so the admin can move to the phone and look at it, or click through from there. Coming back to an item after the preview was moved by hand jumps again.
 - **Keyboard:** focus triggers the same jump, once per item however focus moves inside it.
 - A page that aims its preview by itself (Fields & Opt-ins, a row it just opened) jumps at once through the same area (`usePreviewJumps`).
 
-**A prize item opens the popup of the tier it belongs to**, counted in tier order (by bingos to win, as the fan app and the Tier control count). A row passes its own position or tier id, so a prize awarded by several tiers opens the hovered row's tier; a sponsor's prize logo opens the first tier that sponsor provides in the contest shown. (Before 2026-09-29 the sponsor page opened tier 1 whatever the sponsor provided, and its "Provides … Preview" link sent a 0-based position where the Preview tab counts from 1; both are fixed.)
+**A prize item opens the prize sheet of the tier it belongs to**, counted in tier order (by bingos to win, as the fan app and the Tier control count; a trivia contest's bands in band order), in the body the item asks for. A row passes its own position or tier id, so a prize awarded by several tiers opens the hovered row's tier; a sponsor's prize logo opens the won sheet of the first tier (or band) that sponsor provides in the contest shown. (Before 2026-09-29 the sponsor page opened tier 1 whatever the sponsor provided, and its "Provides … Preview" link sent a 0-based position where the Preview tab counts from 1; both are fixed.)
 
 **The targets, page by page:**
 
@@ -144,12 +146,12 @@ Revised 2026-09-29 (Arthur's Walk #3). **Wherever a form or list sits beside a p
 | | A line of screen text | The screen it appears on, scrolled to it: the heading, the intro, the Join button, the consents heading or the footer note |
 | Builder, Review | Name | Contest list |
 | | Contest type, Games | Contest detail |
-| | Prize tiers | Prize, tier 1's popup |
+| | Prize tiers | Prize, tier 1 (a trivia contest: the first band) in the **Info** body |
 | | Sponsors | Board |
 | Sponsor page | Start page block | Start |
 | | Board banner | Board |
-| | Prize logo | Prize, the popup of the tier this sponsor provides |
-| Prize page | The prize, Claim, Button, Provided by | The Prize popup pane |
+| | Prize logo | Prize, the **Won** body of the first tier (or band) this sponsor provides |
+| Prize page | The prize, Claim, Button, Provided by | The Prize pane |
 | | Delivery, the code | The Email pane |
 
 The **contest page** has no preview beside its tabs (Preview is a tab of its own), so it has no hover targets; its links to a screen ("Preview" beside a placement or a provided prize) open the Preview tab on that screen and tier. The **Prizes Email tab**'s preview is the email itself, which already follows every field as it is typed.
@@ -239,8 +241,9 @@ The preview has no permission of its own: whoever can view the host page gets th
 
 | Where | String |
 |---|---|
-| Tabs | "Start" · "Sign in" · "Join" · "Contest list" · "Contest detail" · "Board" · "Prize" (accessible name "Screen") |
-| Selectors | "Tier 1", "Tier 2", "Tier 3" (tier, accessible name "Prize tier") |
+| Tabs | "Start" · "Sign in" · "Join" · "Contest list" · "Contest detail" · "Board" · "Results" · "Standings" · "Prize"; a trivia contest's "Rules" · "Questions" · "Results" · "Standings" · "Prize" (accessible name "Screen") |
+| Selectors | "Tier 1", "Tier 2", "Tier 3" (bingo, accessible name "Prize tier"); a trivia contest's bands by their places, "1st", "11th–30th" (accessible name "Band"); "Info" · "Won" (accessible name "Prize view") |
+| Unreachable | "This contest has no board to show yet." · "This contest has no prize bands yet." |
 | Failure card | "The fan app didn't load." · "Retry" · "Tell Overboard" |
 | Assistive | "Fan app preview" (frame title) · "Showing Board" (live region) |
 
@@ -258,7 +261,7 @@ There is no other console copy: no label on the frame, no caption about data, no
 6. **`PV-06` — The tabs follow the frame.** A click inside the frame that changes screen moves the tab; a tab choice moves the frame; neither echoes the other.
 7. **`PV-07` — Messages are accepted only from `fanOrigin` and the frame's own window, and posted only to `fanOrigin`.**
 8. **`PV-08` — No label, inside or around the frame.** Nothing narrates the data or unsaved state (admin-surface Rule 13).
-9. **`PV-09` — A control appears only when the frame can honour it.** Tabs are the host's screens that `ready.screens` lists; the tier control needs more than one tier.
+9. **`PV-09` — A control appears only when the frame can honour it.** Tabs are the host's screens that `ready.screens` lists; the tier (or band) control needs more than one tier (or band); Info / Won shows only on Prize.
 10. **`PV-10` — Every failure is one card**, never a fallback likeness.
 11. **`PV-11` — The phone only, never scaled.** There is no other device; a fitted phone is shorter, never smaller.
 12. **`PV-12` — The preview writes nothing**, so every viewer of the host page gets all of it.
@@ -268,7 +271,29 @@ There is no other console copy: no label on the frame, no caption about data, no
 ## Known gaps (recorded, not blocking)
 
 - **A sponsor with no contest** has no real contest to preview it in, and the sample contest is Brand's alone, so the sponsor page shows no frame for it ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)); its artwork appears in the frame once it is placed on a contest. A sponsor on the Start page but in no contest is seen on Brand's preview instead.
-- **The popup over an unscored board** and the other fan-side gaps are in [`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md).
+- **The prize sheet over an unscored board** and the other fan-side gaps are in [`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md).
+
+## Function audit (the Prize screen's controls, 2026-10-03)
+
+This spec had no function audit before the prize sheet; this one covers what the prize sheet changed.
+
+### 1. Surfaces: data, calls, states
+
+| Surface | Data sources | Server calls on admin action | States covered |
+|---|---|---|---|
+| Prize tab, bingo contest | `GET /admin/contests/:contestId/preview` (`contest.prizeTiers`, each with `hasCode` and `providedBy`) | none from the frame (`PV-02`) | one tier (no tier control), several, Info, Won, no tiers (tab disabled) |
+| Prize tab, trivia contest | the same read's trivia section (bands with their prize cards, `hasCode`, `providedBy`) | none | one band, several (Band control), Info, Won, no bands ("This contest has no prize bands yet.") |
+| Standings tab (trivia) | the same read's trivia section | none | the run played in the preview, or an example run until there is one |
+| Prize page, Prize pane | `GET /admin/preview` + the prize as typed | none | Info, Won |
+| Hover-to-preview targets | `previewTarget({ screen, tier, body })` | none | Review's "Prize tiers" (Info), the sponsor page's Prize logo (Won) |
+
+### 2. Earlier-design elements
+
+| Element | Fate | Reason |
+|---|---|---|
+| A trivia contest's Prize tab showing the standings | Changed | Prize is the prize sheet over the standings; the standings alone are the new Standings tab |
+| "Choosing another tier closes the previous tier's popup", answered with a board holding one award | Changed | The frame answers with that prize's sheet, in the body chosen ([`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md)) |
+| No way to preview what a fan reads before winning | Changed | The Info body |
 
 ## As built (Wave 4)
 

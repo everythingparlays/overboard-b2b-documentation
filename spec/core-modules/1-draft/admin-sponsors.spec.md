@@ -8,6 +8,8 @@
 
 **Status:** Draft, written 2026-09-23 with the build. No open questions.
 
+**Revised 2026-10-03 (the prize sheet):** the fan app shows a prize in one bottom sheet for bingo and trivia ([`../../webapp/fan-prize-sheet.spec.md`](../../webapp/fan-prize-sheet.spec.md) `FLOW-31`). Its credit is the prize's own "Provided by" (D-124), on both the info and the won body, with the prize logo on a white plate in a fixed 4:1 box; the contest's Presented by sponsor never credits a prize. The measured line follows that box. A sponsor whose only prize is on a trivia band counts as in that contest. Edited in place: the asset table, `SP-11`, `SP-13`, the counts, the Prize logo block, the measured line's row and copy, the render rules, Rule 4, a known gap closed and a new function audit.
+
 **Revised 2026-09-30 (ruling, Arthur): a placement is for the whole contest, and the Slider slot is gone.** Dev only;
 production is untouched.
 
@@ -152,7 +154,7 @@ Every image is an https URL, as before. Since 2026-09-27 the console fills it by
 | `startPageTagline` | "Tagline" | Under the Start page logo | One line of small text; ≤80 characters |
 | `boardBanner` | "Banner" | The board, between the header and the squares | The full board column (480px, 358px on a 390px phone); 4:1 until it loads, then the image's own ratio; 13px corners; never cropped |
 | `boardBannerLink` | "Banner link" | Where a tap on the banner goes | — |
-| `prizePopupLogo` | "Prize logo" | Prize popup and prize email, under "Provided by", for a prize this sponsor provides | Popup: on a white plate spanning the popup, as wide as the plate (278px), up to 64px tall. Email: 32px tall, up to 160px wide, on the email's white card |
+| `prizePopupLogo` | "Prize logo" | The prize sheet and the prize email, under "Provided by", for a prize this sponsor provides | Prize sheet (revised 2026-10-03): on a white plate, inside a fixed 4:1 box (224 × 56), contained: as large as fits the box, never cropped or stretched. Email: 32px tall, up to 160px wide, on the email's white card |
 
 ### `B2BSponsorPlacement` — `${prefix}sponsor_placements`
 
@@ -199,11 +201,11 @@ The contract enforces it (`putAdminSponsorPlacementsRequestSchema`: one row per 
 
 A library prize (`B2BPrize`) carries `providedBySponsorId?: TId`, one of the tenant's sponsors (revised 2026-09-27: under the prize library the credit is the prize's, not the tier's). `PRIZE_CONTENT_FIELDS` copies it onto every tier that awards the prize, so a tier awards the provider of the prize it points at. It is edited on the prize page ("A sponsor provides this prize" → "Provided by", [`admin-prizes.spec.md`](admin-prizes.spec.md)); what it means for sponsors is stated here.
 
-**`SP-11` — The prize credit follows the prize.** The prize popup and the prize email credit exactly the sponsor the awarded prize names as its provider, and nobody when it names none. `SP-07` still holds and is why this is safe: the popup and the email agree because they read the same field, not because two pieces of code resolve a slot the same way.
+**`SP-11` — The prize credit follows the prize.** The prize sheet and the prize email credit exactly the sponsor the prize names as its provider, and nobody when it names none: the awarded prize on a win, the tier's or band's prize on info (2026-10-03). Never the contest's Presented by sponsor (D-124). `SP-07` still holds and is why this is safe: the popup and the email agree because they read the same field, not because two pieces of code resolve a slot the same way.
 
-- **The awarded prize is a snapshot.** Every awarded prize snapshots the tier as promised (G2's tier snapshot), and the snapshot copies the provider at award time: `providedBy: { sponsorId, name, logoUrl, websiteUrl }` ([`admin-prizes.spec.md`](admin-prizes.spec.md)). The email reads the snapshot, so a resend credits the sponsor the fan was promised, as it looked then, even if the prize's provider was changed, re-logoed or deleted since. The popup renders at the moment of the win, when tier and snapshot agree.
+- **The awarded prize is a snapshot.** Every awarded prize snapshots the tier as promised (G2's tier snapshot), and the snapshot copies the provider at award time: `providedBy: { sponsorId, name, logoUrl, websiteUrl }` ([`admin-prizes.spec.md`](admin-prizes.spec.md)). The email reads the snapshot, so a resend credits the sponsor the fan was promised, as it looked then, even if the prize's provider was changed, re-logoed or deleted since. The won sheet reads the same snapshot's credit (`GET /b2b/prizes/awards`), so it shows what the winner was promised, whenever the fan opens it.
 - **What the credit shows.** The sponsor's prize logo when it has one; its name as text when it does not. Any of the tenant's sponsors can be named as provider, artwork or not, because providing a prize is a fact about who pays for it, not a place on a screen; `SP-02`'s reasoning (a control that renders nothing) does not apply to a credit that always renders something. The logo links to the sponsor's website when one is set.
-- **One word for one relation.** The credit reads "Provided by" in the popup, the fan app's prize ladder and the email. The prize email's label changes from "Presented by" to "Provided by" with this ruling; "Presented by" stays on the Start page, where a sponsor presents the experience rather than a prize.
+- **One word for one relation.** The credit reads "Provided by" in the prize sheet, the fan app's prize ladder and the email (the trivia sheet's "Sponsored by" and its contest sponsor are gone, 2026-10-03). The prize email's label changes from "Presented by" to "Provided by" with this ruling; "Presented by" stays on the Start page, where a sponsor presents the experience rather than a prize.
 - **Deleting a sponsor clears it as a provider** on every library prize and tier copy (`SP-14`), so a prize credits nobody rather than a missing record; awarded prizes keep their snapshot's credit.
 - **On the fan wire** a tier carries `providedBySponsorId` as an id, and the sponsor reaches the fan app through the public sponsor read, whose `sponsors[]` includes every sponsor a tier fans can see names (below, "The fan wire"). The preview receives the provider the same way and, for the prize page's standalone prize, also as the resolved `providedBy` in the snapshot's shape above ([`admin-preview.spec.md`](admin-preview.spec.md)).
 
@@ -227,7 +229,7 @@ A library prize (`B2BPrize`) carries `providedBySponsorId?: TId`, one of the ten
 
 ### Attribution: which sponsors a game credits
 
-**`SP-13` — A sponsor is attributed to a game by its placements and the prizes it provides; opt-ins are a metric.** A sponsor is attributed to (contest, game) when it holds a placement in a contest that runs the game (every placement is contest-wide since 2026-09-30) or provides one of the contest's tiers. This settles contradiction 6: there is one notion of "this activation's sponsor", and it is the one the fan saw.
+**`SP-13` — A sponsor is attributed to a game by its placements and the prizes it provides; opt-ins are a metric.** A sponsor is attributed to (contest, game) when it holds a placement in a contest that runs the game (every placement is contest-wide since 2026-09-30) or provides one of the contest's tiers, or the prize of one of a trivia contest's bands (2026-10-03: a sponsor whose only prize is on a trivia band is active in that contest). This settles contradiction 6: there is one notion of "this activation's sponsor", and it is the one the fan saw.
 
 **Why opt-ins are not attribution.** A fan accepting a sponsor's opt-in is a result the sponsor bought, not proof the sponsor was on the game. Keying the recap by opt-in meant a sponsor with a consent line but no artwork got an edition, and a sponsor on the board banner with no consent line got none. The opt-in stays exactly where it is useful: as the audience numbers in that sponsor's section of the recap (per agreement, the share of the game's players who accepted it at its current wording, an aggregate under `RPT-05`).
 
@@ -298,7 +300,7 @@ The Sponsors page and every sponsor picker (the Sponsors tab's picker, the prize
 
 - **`slot`** (optional: `boardBanner` or `presentedBy`; with none, as on Brand's Start page card, every sponsor is offered): each row gains `fillsSlot: boolean` (`SP-02`'s test) and the order becomes sponsors that fill the slot first, then name. The Sponsors tab's picker uses it.
 - **Response:** `{ sponsors: SponsorListRow[], page }`, where a row is `{ sponsorId, name, websiteUrl?, markUrl?, startPageLogo?, prizePopupLogo?, counts: { contests, placements, prizes, agreements }, fillsSlot?, updatedAt }`. The card uses `startPageLogo` and `markUrl`; the prize page's "Provided by" picker shows `prizePopupLogo`.
-- **Counts** say where the sponsor is in use now: `contests` is the number of contests that are not finalized in which the sponsor is attributed (`SP-13`); `placements` counts slots (one slot in one contest is one placement) in those contests; `prizes` counts the library prizes it provides; `agreements` counts the opt-ins linked to it. Computed for the page's rows only. (Today's wire carries `placementCount`, placement documents per sponsor, and `linkedOptIn`; both are replaced.)
+- **Counts** say where the sponsor is in use now: `contests` is the number of contests that are not finalized in which the sponsor is attributed (`SP-13`, trivia bands' prizes included, so the sponsor cards' count agrees with the sponsor page's "Active in …"); `placements` counts slots (one slot in one contest is one placement) in those contests; `prizes` counts the library prizes it provides; `agreements` counts the opt-ins linked to it. Computed for the page's rows only. (Today's wire carries `placementCount`, placement documents per sponsor, and `linkedOptIn`; both are replaced.)
 - **Transition:** today's response also carries `contests[]` (every contest with its games and placements) and `featured`. Their only reader is the retired Sponsors & Branding tab; they are dropped when it goes.
 
 ### `GET /admin/sponsors/:sponsorId`
@@ -438,11 +440,11 @@ Two columns at ≥1280px: the slot blocks on the left, and `FanAppPreview` on th
 |---|---|---|
 | "Start page" | "Under “Presented by” on the Start page, when Brand lists this sponsor there." | "Logo" (upload, wide, on the white plate); "Tagline" (≤80, with a counter "32/80") |
 | "Board banner" | "Across the board, between the header and the squares." | "Banner" (upload, wide); "Banner link" (link, hint "Where the banner leads. Leave it blank to use the website.") |
-| "Prize logo" | "With a prize this sponsor provides, in the prize popup and the prize email." | "Logo" (upload) |
+| "Prize logo" | "With a prize this sponsor provides, in the app and the prize email." | "Logo" (upload) |
 
 **Every image field is the console's upload field** ([`admin-uploads.spec.md`](admin-uploads.spec.md)): a box to drop an image on or click to browse, with the accepted types, the 5 MB limit and the fan app's box size as its hint ("PNG, JPG, SVG or WebP · up to 5 MB · shown 40 px tall"). Filled, it shows the image, its file name and size, "Replace" and "Remove"; Remove saves `null`. There is no URL box.
 
-**The frame shows each slot in its real spot.** Pointing at a block, or focusing any field in it, switches the frame to the screen that holds that slot (revised 2026-09-29: nothing is ringed; the switch is the feature): Start page on Start, Board banner on Board, Prize logo on Prize, **opening the popup of the tier this sponsor provides** in the contest shown (the first such tier; tier 1 when it provides none there). The frame waits for the pointer to rest and keeps the last screen when the pointer leaves. What the frame renders is the fan app itself, on the tenant's saved brand, with this sponsor's artwork as saved: an upload saves when it completes, and the frame shows the new image at once. The frame's contest is chosen from a select above it listing the contests in "Where it appears", defaulting to the one with the next game. A sponsor that appears in no contest has no frame (there is no sample contest to show it in): the slot blocks, their measured lines and the prize email's mark stand alone, and "Where it appears" says how to place it. The mechanics (the render document, the contest's placements resolved for the contest shown, the jump to the screen that shows a block) are [`admin-preview.spec.md`](admin-preview.spec.md)'s.
+**The frame shows each slot in its real spot.** Pointing at a block, or focusing any field in it, switches the frame to the screen that holds that slot (revised 2026-09-29: nothing is ringed; the switch is the feature): Start page on Start, Board banner on Board, Prize logo on Prize, **opening the won sheet of the tier this sponsor provides** in the contest shown (the first such tier, or a trivia contest's first such band; the first when it provides none there). The frame waits for the pointer to rest and keeps the last screen when the pointer leaves. What the frame renders is the fan app itself, on the tenant's saved brand, with this sponsor's artwork as saved: an upload saves when it completes, and the frame shows the new image at once. The frame's contest is chosen from a select above it listing the contests in "Where it appears", defaulting to the one with the next game. A sponsor that appears in no contest has no frame (there is no sample contest to show it in): the slot blocks, their measured lines and the prize email's mark stand alone, and "Where it appears" says how to place it. The mechanics (the render document, the contest's placements resolved for the contest shown, the jump to the screen that shows a block) are [`admin-preview.spec.md`](admin-preview.spec.md)'s.
 
 **The prize email's mark** is not a fan-app screen, so the Prize logo block also shows it directly: "In the prize email", the logo at the email's exact box (32px tall, up to 160px wide) on the email card's white. This is the one sample drawn in console markup, and it is narrow by design: the email's card is white by construction ([`prize-delivery.spec.md`](prize-delivery.spec.md), "How it is built"), and the question the admin has is whether the logo survives on white, which a logo at its exact size on that white answers truthfully.
 
@@ -452,7 +454,7 @@ Two columns at ≥1280px: the slot blocks on the left, and `FanAppPreview` on th
 |---|---|---|---|
 | Start page logo | a white plate spanning the column; the logo 310px wide (on a 390px phone), its height following its shape up to 96px | always drawn to the plate: the line gives the size | "1200 × 200 · will show at 310 × 52 on a white plate"; "600 × 400 · will show at 144 × 96 on a white plate" |
 | Board banner | the 480px column, height from the image | the image is 4:1 (within 1%): "1200 × 300 · fits" | "1200 × 600 · will show at 480 × 240" |
-| Prize logo | popup: a white plate spanning the popup, the logo 278px wide up to 64px tall; email 32px tall up to 160px | never "fits": each surface is named | "400 × 200 · will show at 128 × 64 on a white plate in the popup · fits the email"; "1200 × 200 · will show at 278 × 46 on a white plate in the popup · will show at 160 × 27 in the email" |
+| Prize logo | the app (revised 2026-10-03): on a white plate with the prize, the logo fitted whole inside a fixed 224 × 56 box (4:1), never cropped or stretched; email 32px tall up to 160px | never "fits": each surface is named | "400 × 200 · will show at 112 × 56 on a white plate with the prize in the app · fits the email"; "1200 × 200 · will show at 224 × 37 on a white plate with the prize in the app · will show at 160 × 27 in the email" |
 
 Sizes are CSS pixels. The banner's are at the fan app's widest column, 480px; on a 390px phone, as in the frame, the column is 358px and the banner scales with it. While an image is loading the line is empty. An image that does not load reads "This image didn't load." An upload the server refuses (type, size, too small) answers in the upload field, with the upload spec's messages. The measured line uses the natural size the upload returned, so it shows at once.
 
@@ -460,7 +462,7 @@ Sizes are CSS pixels. The banner's are at the fan app's widest column, 480px; on
 
 - **Start page logo:** the sponsor's name, set in a tile the size of the plate (any sponsor can be on the Start page).
 - **Board banner:** nothing; a sponsor without one cannot hold the slot (`SP-02`), and the layout closes around it (`SP-08`).
-- **Prize-popup logo:** the sponsor's initial on a disc beside its name. The "Provided by" credit always shows.
+- **Prize logo:** the sponsor's name in place of the logo. The "Provided by" credit always shows.
 
 #### 2. Where it appears
 
@@ -471,7 +473,7 @@ A flush card, "Where it appears", with a table (endless scroll, `kind=placements
 - **The Start page** (since 2026-09-29): when the tenant's Start page lists the sponsor, the card opens with "On the Start page, under “Presented by”." and "Edit on Brand" (to `/branding`), and the empty line below is not shown.
 - **"Preview"** opens the contest's Preview tab on that slot's screen (`/contests/:id/preview?screen=board` for the board banner).
 
-Under the table, the prizes it provides (endless, `kind=provides`), one line each: "Provides: Free hot dog in Hawks 2026", linking to the contest's Prizes tab (`/contests/:id/prizes`), with a "Preview" link that opens the contest's Preview tab on Prize with that tier's popup (`?screen=prize&tier=<n>`, `n` counted from 1 in tier order: the row's 0-based `tierIndex` plus one).
+Under the table, the prizes it provides (endless, `kind=provides`), one line each: "Provides: Free hot dog in Hawks 2026", linking to the contest's Prizes tab (`/contests/:id/prizes`), with a "Preview" link that opens the contest's preview on Prize with that tier's prize (`/contests/:id/prizes?preview=prize&tier=<n>` since the preview became a drawer, D-113; `n` counted from 1 in tier order: the row's 0-based `tierIndex` plus one).
 
 Empty: "Not placed in any contest. Place sponsors on a contest's Sponsors tab." When it provides prizes but holds no placement, the table is left out and the provides lines stand alone. The empty line and the provides lines sit on the card header's own 18px inset, with no doubled gap under the title (revised 2026-09-28).
 
@@ -564,7 +566,7 @@ Each card holds one row, the contest's holder: its artwork at the slot's shape (
 | Sponsor header | "Sponsors" (back) · "Sponsor" · "Active in 2 contests" / "Active in 1 contest" · "Not in any contest" · "On the Start page" |
 | Saving | "Saved." · "This sponsor changed since you opened it." · "Reload" · "Use a link that starts with https://" (link fields only) |
 | Artwork | "Start page" · "Board banner" · "Prize logo" · the three lines in the block table · "Logo" · "Tagline" · "32/80" · "Banner" · "Banner link" · "Where the banner leads. Leave it blank to use the website." · "In the prize email" · the upload field's strings ([`admin-uploads.spec.md`](admin-uploads.spec.md)): "Drop an image here or browse" · "PNG, JPG, SVG or WebP · up to 5 MB · shown 40 px tall" · "Replace" · "Remove" |
-| Measured line | "1200 × 300 · fits" · "1200 × 200 · will show at 310 × 52 on a white plate" · "400 × 200 · will show at 128 × 64 on a white plate in the popup · fits the email" · "This image didn't load." |
+| Measured line | "1200 × 300 · fits" · "1200 × 200 · will show at 310 × 52 on a white plate" · "400 × 200 · will show at 112 × 56 on a white plate with the prize in the app · fits the email" · "This image didn't load." |
 | Where it appears | "Where it appears" · "Contest" · "Slot" · "Board banner" · "Presented by" · "Preview" · "Provides: Free hot dog in Hawks 2026" · "Not placed in any contest. Place sponsors on a contest's Sponsors tab." · "On the Start page, under “Presented by”." · "Edit on Brand" |
 | Data sharing | "Data sharing" · "Version 3 · Sep 12, 2026" · "Agreed" · "412 of 1,284 fans" · "Shared fields" · "No fields chosen yet" · "Agreement" · "Reference" · "—" · "Export" · "Edit on Exports" · "Link another agreement on Fields & Opt-ins" · "No data-sharing agreement yet." · "Link one on Fields & Opt-ins" |
 | Danger zone | "Danger zone" · "Deleting a sponsor can't be undone." · "Delete sponsor" · "Delete Coca-Cola?" · "This removes it everywhere:" · "3 placements in 2 contests. Those spots show no sponsor." · "It's credited on 2 prizes. They'll show no sponsor." · "It's on the Start page. It comes off, and the others stay in order." · "2 data-sharing agreements are unlinked. The opt-ins stay, and fans' answers are kept." · "Past exports and prize emails keep its name. This can't be undone." · "Type Coca-Cola to confirm" · "Cancel" · "Nothing was deleted." · "Couldn't delete this sponsor. Try again." |
@@ -619,7 +621,7 @@ No re-authentication anywhere (revised 2026-09-28): placing and editing are undo
 | The Start page, beneath the headline | the tenant's Start page list, in order (`startPage`) | "Presented by", then each sponsor: its logo on a white plate spanning the column (linked to the website), or its name in a tile the same size, and its tagline. One sponsor takes the column; several sit two to a row, an odd last one across the row. None: no block |
 | Board, between header and grid (bingo) | the contest's `boardBanner` holder | The banner, full width, as one link |
 | Every trivia screen (trivia) | the contest's `presentedBy` holder | "Presented by", the sponsor's small logo or its name |
-| Prize popup, prize ladder, prize email | the awarded prize's `providedBySponsorId`, as the tier's copy carries it (the snapshot's copied `providedBy`, for the email) | "Provided by", the prize logo or the name, linked to the website |
+| Prize sheet (info and won), prize ladder, prize email | the prize's `providedBySponsorId`, as the tier's copy or the band's prize card carries it resolved (`providedBy`); the snapshot's copied `providedBy` for the won sheet and the email | "Provided by", the prize logo on a white plate in a fixed 4:1 box, or the name; "Visit {name}" to the website |
 
 Every slot resolves against the contest alone; no game is involved (2026-09-30). **No sponsor rides the board's progress slider** (the Slider slot was removed on 2026-09-30): the marker is the contest's Progress marker, else the tenant's Brand marker, else the triangle in the Text colour (`resolveProgressMarker`, [`admin-contests.spec.md`](admin-contests.spec.md), "Progress marker").
 
@@ -630,7 +632,7 @@ Every slot resolves against the contest alone; no game is involved (2026-09-30).
 1. **A sponsor belongs to exactly one tenant** and is only ever read or written through that tenant's scope (`TEN-04`).
 2. **One sponsor per slot, per contest** (`SP-01`): a placement is for the whole contest, for every contest type; there are no per-game placements (2026-09-30). The console adds where a slot has no holder, and nowhere else.
 3. **One placement slot per contest type, each placeable only with its artwork** (`SP-02`): Board banner (bingo), Presented by (trivia, any sponsor). The Slider slot and the sponsor's slider icon are gone (2026-09-30); a contest's own board marker is its Progress marker. The Start page is the tenant's ordered list, set on Brand.
-4. **The prize credit follows the prize's "Provided by"** (`SP-11`). Popup and email read the same field, the email from the snapshot; a provider without a prize logo is credited by name.
+4. **The prize credit follows the prize's "Provided by"** (`SP-11`). The prize sheet and the email read the same field, the won sheet and the email from the snapshot; a provider without a prize logo is credited by name; the contest's Presented by sponsor never credits a prize.
 5. **Retiring `prizePopup` migrates the contest-wide credit, logs the game-level rows, and removes nothing** (`SP-12`). Writes refuse the slot; stored values survive until cleanup; `prizePopup` still names the popup credit the Prize logo block previews.
 6. **A sponsor is attributed to a game by its placements and the prizes it provides; opt-ins are a metric** (`SP-13`). One helper decides it for the recap and for "Where it appears".
 7. **Placements stay editable after the first fan joins**; a finalized contest refuses them.
@@ -655,7 +657,8 @@ Every slot resolves against the contest alone; no game is involved (2026-09-30).
 - **The `prizePopup` cleanup.** Strip `prizePopup` from stored placements, delete placements left with no slots, and drop the value from the stored enum, once every environment has run `prize-type-migration.mjs` and no deployed code reads the slot. `SponsorSlot` keeps the value: it names the popup credit on screen.
 - **No per-game prize credit.** A prize has one provider wherever it is awarded; the game-level `prizePopup` rows the migration logs had no faithful home. If a sponsor ever needs to fund one game's prizes only, that is a separate contest's tiers, or a per-game provider override on the tier.
 - ~~**No image upload.**~~ **Closed 2026-09-27** by [`admin-uploads.spec.md`](admin-uploads.spec.md).
-- **One prize logo for two grounds.** The same image sits on the popup's card (dark or light with the tenant's theme) and on the email's white card. The sponsor page now shows both, which makes the problem visible; a separate email logo is the fix if tenants need it.
+- ~~**The measured line still describes the earlier prize plate**~~ **Closed 2026-10-03**: the console's measured line (`sponsorMeasure`) fits the logo whole inside the fan app's 224 × 56 box. The full sponsor-image rework is still deferred.
+- **One prize logo for two grounds.** The same image sits on a white plate in the prize sheet and on the email's white card. The sponsor page now shows both, which makes the problem visible; a separate email logo is the fix if tenants need it.
 - ~~**The `exportFields` mirror onto opt-ins is temporary.**~~ **Closed 2026-09-27**: the scope lives on each agreement (the opt-in) again, and the sponsor copy is retired.
 - **Several sponsors in one slot.** The fan app renders one sponsor per slot, so the console offers one per slot (`SP-01`). A rotation or a row of logos is a fan-app change for the overhaul, with its own display rule. (The Start page shows several since 2026-09-29, from the tenant's list, not a slot.)
 - **Placements are last-write-wins between two admins** editing one contest's Sponsors tab at once, as the branding module is. Acceptable at V1's operator count; an `expectedUpdatedAt` on the placements PUT is the fix.
@@ -664,6 +667,23 @@ Every slot resolves against the contest alone; no game is involved (2026-09-30).
 - **Consent per game (`OPT-06`) stays unbuilt.** A sponsor placed in a contest does not prompt fans who never answered its opt-in; `activeOptIns(context)` is still the seam.
 - **The free square is not built** (field-split doc). It becomes a bingo placement slot, additively, when the game gains one.
 - ~~**The recap page's sponsor logos**~~ — **closed 2026-09-23** by [`admin-sponsor-recap.spec.md`](admin-sponsor-recap.spec.md): editions take their mark from `sponsorMarkUrl`.
+
+## Function audit (the prize credit, 2026-10-03)
+
+This spec had no function audit before; this covers what the prize sheet changed.
+
+| Surface | Data sources | Server calls | States covered |
+|---|---|---|---|
+| Prize sheet credit, info | the tier's `providedBy` (fan contest reads) or the band's prize card `providedBy` (trivia reads), resolved from `providedBySponsorId` | none | no sponsor, logo, no logo (name), logo fails to load (name), website, no website |
+| Prize sheet credit, won | the award's `prize.providedBy` (`GET /b2b/prizes/awards`, the snapshot's) | none | as above, plus a sponsor renamed, re-logoed or deleted since the win (the snapshot's credit) |
+| Sponsor page, Prize logo block | the sponsor's `assets.prizePopupLogo`; the frame on Prize, Won | none from the frame | logo, none, the jump to the won sheet of the first tier or band this sponsor provides (a sponsor whose only prize is on a trivia band included), the measured line in the 224 × 56 box |
+
+| Earlier-design element | Fate | Reason |
+|---|---|---|
+| The trivia sheet's "Sponsored by" with the contest's sponsor | Changed | "Provided by", the prize's own sponsor (D-124) |
+| The popup's plate spanning the popup, the logo up to 64px tall, and the measured line's "on a white plate in the popup" | Changed | A fixed 4:1 box (224 × 56) on a white plate, the same on every prize; the measured line says "on a white plate with the prize in the app" (2026-10-03) |
+| A sponsor providing only a trivia band's prize counted as in no contest | Changed | It is active in that contest, on the sponsor page and in the sponsor cards' count (`SP-13`) |
+| "in the prize popup" in the Prize logo block's line | Changed | "in the app" |
 
 ## As built (Wave 4)
 

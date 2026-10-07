@@ -4,7 +4,7 @@
 
 **Depends on:** [`../../infra/environments.spec.md`](../../infra/environments.spec.md) — the stage model, the no-hardcoded-names rule, and `lib/config/environments.ts` as the one home of environment config. [`admin-surface.spec.md`](admin-surface.spec.md) — `resolveAdminScope`, the write gate (`refuseReadOnlyWrite`), `?tenant=` targeting. [`admin-sponsors.spec.md`](admin-sponsors.spec.md), [`admin-prizes.spec.md`](admin-prizes.spec.md), [`admin-branding.spec.md`](admin-branding.spec.md) — the screens whose asset fields this replaces, and their saves, which are unchanged.
 
-**Status:** Draft, written 2026-09-27 for Wave 4.
+**Status:** Draft, written 2026-09-27 for Wave 4. Revised 2026-10-03 (the prize sheet): the prize image's minimum is 600 × 300 px, because the fan app draws it in a wide 2:1 box ([`../../webapp/fan-prize-sheet.spec.md`](../../webapp/fan-prize-sheet.spec.md) `FLOW-31`).
 
 ## Overview
 
@@ -37,7 +37,7 @@ Eight fields take an image. There are no others in the console: tenant creation 
 | Sponsor page, Start page | Logo ("Start page logo") | `B2BSponsor.assets.startPageLogo` (stored as `signInLogo` before 2026-09-29) | PNG, JPEG, WebP, SVG | 40 px tall |
 | Sponsor page, Board banner | Banner | `B2BSponsor.assets.boardBanner` | PNG, JPEG, WebP, SVG | 480 px wide |
 | Sponsor page, Prize logo | Logo | `B2BSponsor.assets.prizePopupLogo` | PNG, JPEG, WebP, SVG | 48 px tall |
-| Prize page (library) | Prize image | `B2BPrize.prizeImageUrl` | PNG, JPEG, WebP | 200 px on the shorter side |
+| Prize page (library) | Prize image | `B2BPrize.prizeImageUrl` | PNG, JPEG, WebP | 600 px wide and 300 px tall (revised 2026-10-03; was 200 px on the shorter side) |
 | Brand | Logo | `branding.assets.logo` | PNG, JPEG, WebP, SVG | 64 px on the shorter side |
 | Brand | Progress marker | `branding.assets.sliderTipImageUrl` | PNG, JPEG, WebP, SVG | 36 × 36 px |
 | Contest builder (Basics) and contest page (Overview) | Contest banner | `B2BContest.bannerImageUrl` | PNG, JPEG, WebP | 800 px wide |
@@ -46,6 +46,7 @@ Eight fields take an image. There are no others in the console: tenant creation 
 - **Every field:** at most **5 MB**, at most **4096 px** on either side. The smallest size is the fan app's own box at one pixel per CSS pixel ([`admin-sponsors.spec.md`](admin-sponsors.spec.md), the size table); an SVG has no raster size and is exempt from it.
 - **No GIF.** An animated image in a sponsor slot is a different product decision, and a still GIF has no reason to be one.
 - **The prize image takes no SVG** because the prize email renders it, and email clients drop SVG.
+- **The prize image is wide** (2026-10-03). The prize sheet draws it in a 2:1 box, cover-cropped, as wide as the sheet's column; 600 × 300 covers that box. The minimum is a width and a height together (`UPLOAD_FIELDS`' `{ kind: "size", width: 600, height: 300 }`), and the hint under the box is the shared one: "PNG, JPG or WebP, up to 5 MB, at least 600 × 300 px." The prize page adds what is kept ([`admin-prizes.spec.md`](admin-prizes.spec.md), "The prize page").
 - **The contest banner takes no SVG, and is wide.** It is a photo-like band of about 4:1 across the top of the contest's card and page, drawn cover-cropped; 800 px wide covers a phone card at 2×. The hint adds "A wide image, about 4 to 1, shown across the top of the contest's card and page." Its writers are the contest's writers (tenant `org:admin`, OBS staff: the same `refuseReadOnlyWrite` gate as every field). The contest takes the URL when its form is saved ([`admin-contests.spec.md`](admin-contests.spec.md), "Banner"); Remove clears it back to the banner's default.
 - **One list, one place.** The table is `UPLOAD_FIELDS` in `obs-b2b-shared/src/api/admin/uploads.ts` (`field` id, accepted types, minimum size), read by the console's field and by both endpoints, so the hint under the box and the server's refusal can never disagree.
 
@@ -84,7 +85,7 @@ console                      node-server                        S3 (asset bucket
 
 - **Type** by the file's type and extension against the field's list: "Use a PNG, JPG, WebP or SVG file." (the prize image's list names no SVG).
 - **Size:** "This file is 7.2 MB. The most is 5 MB."
-- **Dimensions**, by decoding the image: "This image is 300 × 20. It needs to be at least 40 pixels tall." / "… at least 480 pixels wide." / "… at least 36 × 36." / "This image is 6000 × 3000. The most is 4096 pixels on a side."
+- **Dimensions**, by decoding the image: "This image is 300 × 20. It needs to be at least 40 pixels tall." / "… at least 480 pixels wide." / "… at least 36 × 36." / "This image is 400 × 400. It needs to be at least 600 pixels wide and 300 pixels tall." (the prize image) / "This image is 6000 × 3000. The most is 4096 pixels on a side."
 
 These are courtesies; the server repeats every check.
 
@@ -125,7 +126,7 @@ A file that fails is **deleted** and the answer is 400 with the same plain messa
 |---|---|---|
 | Wrong type | box | "Use a PNG, JPG, WebP or SVG file." |
 | Too big | box | "This file is 7.2 MB. The most is 5 MB." |
-| Too small | box | "This image is 300 × 20. It needs to be at least 40 pixels tall." |
+| Too small | box | "This image is 300 × 20. It needs to be at least 40 pixels tall." (the prize image: "This image is 400 × 400. It needs to be at least 600 pixels wide and 300 pixels tall.") |
 | Too large in pixels | box | "This image is 6000 × 3000. The most is 4096 pixels on a side." |
 | SVG with scripts | box | "This SVG contains scripts. Export it again without them." |
 | Upload interrupted or expired | box | "The upload didn't finish. Try again." |
@@ -184,6 +185,18 @@ With either variable unset, `POST /admin/uploads` answers 503 and the field says
 5. **`UP-05` — The bucket is private; fans read through CloudFront.** Origin Access Control, strict response headers, no public bucket policy.
 6. **`UP-06` — Stage-aware, nothing named by hand.** The bucket and distribution take CDK-derived names; their names reach the server through environment variables set by the stack.
 7. **`UP-07` — One field list.** `UPLOAD_FIELDS` in the shared package drives the console's hint and checks and the server's.
+
+## Function audit (the prize image, 2026-10-03)
+
+This spec had no function audit before; this row covers the 2026-10-03 change.
+
+| Field | Data sources | Server calls | States covered |
+|---|---|---|---|
+| Prize image (`prize.image`) | `UPLOAD_FIELDS` (`{ kind: "size", width: 600, height: 300 }`, PNG, JPEG, WebP) | `POST /admin/uploads`, `POST /admin/uploads/complete` | 600 × 300 and larger (accepted), too narrow, too short, SVG (refused), stored before 2026-10-03 at a smaller size (kept and shown; only a new upload is checked) |
+
+| Earlier-design element | Fate | Reason |
+|---|---|---|
+| Prize image minimum "200 px on the shorter side", shown square in the popup | Changed | The prize sheet's wide 2:1 box (2026-10-03) |
 
 ## Tests
 
