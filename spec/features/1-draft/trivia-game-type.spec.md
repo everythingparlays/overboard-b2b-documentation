@@ -4,7 +4,7 @@
 
 **Depends on:** [`admin-contests.spec.md`](../../core-modules/1-draft/admin-contests.spec.md) (the contest model, the contest-type registry, the builder's Trivia step, the Trivia tab, publish checks, the lock tables, where Finalize appears), [`contest-safety.spec.md`](../../core-modules/1-draft/contest-safety.spec.md) ("Trivia: what locks"), [`admin-prizes.spec.md`](../../core-modules/1-draft/admin-prizes.spec.md) (the prize library), [`admin-sponsors.spec.md`](../../core-modules/1-draft/admin-sponsors.spec.md) (Presented by), [`prize-delivery.spec.md`](../../core-modules/1-draft/prize-delivery.spec.md) (the prize worker), [`admin-surface.spec.md`](../../core-modules/1-draft/admin-surface.spec.md) (scope, `refuseReadOnlyWrite`).
 
-**Status:** Draft (`1-draft`). Written 2026-09-26 as a mock-era design. **Rewritten 2026-10-03 to describe the trivia that shipped** (Nick's trivia build, merged with the console redesign on `integrate/trivia-overhaul`, now `main`). Decisions: D-107 (Presented by), D-113 (preview), D-114 (Trivia tab), D-118 (phase), D-119 (publishing), D-120 (lock), D-123 (names), D-124/D-125 (prize rows and email), D-126 (duplicate protection), D-127 (plain errors), D-129 (unplayable contests). Where this spec and the code disagree, the code is changed to match the spec; the doubts found on 2026-10-03 are under "Known gaps". The field-level contract is [`trivia-data-api-design.md`](trivia-data-api-design.md). **Revised 2026-10-03 (Arthur's rulings, the prize sheet):** trivia shares bingo's one prize sheet ([`fan-prize-sheet.spec.md`](../../webapp/fan-prize-sheet.spec.md)), its won sheet opens from the fan's awards read after Finalize, and the card shows "Prize won" ("Fan: the prize sheet").
+**Status:** Draft (`1-draft`). Written 2026-09-26 as a mock-era design. **Rewritten 2026-10-03 to describe the trivia that shipped** (Nick's trivia build, merged with the console redesign on `integrate/trivia-overhaul`, now `main`). Decisions: D-107 (Presented by), D-113 (preview), D-114 (Trivia tab), D-118 (phase), D-119 (publishing), D-120 (lock), D-123 (names), D-124/D-125 (prize rows and email), D-126 (duplicate protection), D-127 (plain errors), D-129 (unplayable contests). Where this spec and the code disagree, the code is changed to match the spec; the doubts found on 2026-10-03 are under "Known gaps". The field-level contract is [`trivia-data-api-design.md`](trivia-data-api-design.md). **Revised 2026-10-03 (Arthur's rulings, the prize sheet):** trivia shares bingo's one prize sheet ([`fan-prize-sheet.spec.md`](../../webapp/fan-prize-sheet.spec.md)), its won sheet opens from the fan's awards read after Finalize, and the card shows "Prize won" ("Fan: the prize sheet"). **Revised 2026-10-06:** a locked band's prize can't be changed at all (the value exception is gone), Finalize checks the typed name on the server, the fan contest read sends `description`, and the contest card's accessibility is fixed; three Known gaps are closed.
 
 Repos are named by their roots: shared `obs-b2b-shared/src`, backend `node-server/src` (in `overboard_sports_backend`), console `obs-b2b-admin-frontend/src`, fan app `overboard-b2b-template/src`.
 
@@ -88,7 +88,7 @@ Once a fan starts a run (the start stamps `lockedAt`), D-120's table applies, en
 |---|---|
 | **Locked** | Question slots (count and tags), seconds per question, base points, speed bonus, network allowance, runs per fan, the game and schedule mode, the open time, the contest type (kind `trivia_rules`; `contestType`) |
 | **Close time** | Either direction, never before it opens or in the past (kind `closesAt`) |
-| **Prize bands** | Add a band or widen one; never remove or narrow a saved band (kind `bandRemoved`) or swap its prize (kind `bandPrize`; see Known gaps) |
+| **Prize bands** | Add a band or widen one; never remove or narrow a saved band (kind `bandRemoved`) or change its prize to any other (kind `bandPrize`: "Fans have started playing, so a band's prize can't be swapped for a different one."; no value-based exception since 2026-10-06) |
 | **Free** | Name, description, internal note, banner, Presented by sponsor, reveal mode |
 
 How the console shows it is [`admin-contests.spec.md`](../../core-modules/1-draft/admin-contests.spec.md) ("Trivia tab", "Prizes tab").
@@ -123,13 +123,13 @@ Fan routes under `/b2b/trivia` (`node-server/src/routes/trivia/index.ts`, handle
 - `GET /b2b/trivia/contests/:contestId/standings?top=10&around=1`: `final`, `closesAt`, `players`, `me`, `top`, `aroundMe`, `leader` (rows carry `isMe`, never an account id), and each band with its prize card and the fan's status in it (`in`/`reachable` with points needed, or `won`/`missed` once final).
 - `GET /b2b/trivia/contests/:contestId/me`: runs used of runs per fan, players, best score and run, rank, current band, points to the next band (before final), the open run if any, and once final the band won and the prize row's status.
 - `GET /b2b/trivia/contests/:contestId/runs`: the fan's runs with outcomes and the best flagged.
-- `GET /b2b/trivia/contests/:contestId`: the contest as fans read it (`buildTriviaContestPublic`): name, schedule, question count, timing, scoring, bands with prize cards (never a prize's static code), the Presented by sponsor and the player count (fans with a run).
+- `GET /b2b/trivia/contests/:contestId`: the contest as fans read it (`buildTriviaContestPublic`): name, the fan-facing `description` (never the console's legacy note, `contestDescription`; 2026-10-06), schedule, question count, timing, scoring, bands with prize cards (never a prize's static code), the Presented by sponsor and the player count (fans with a run).
 
 ---
 
 ## 6. Finalize and prizes
 
-**Finalize** `POST /admin/contests/:contestId/trivia/finalize` (`node-server/src/handlers/admin/trivia-finalize.ts`): Overboard staff only (`refuseNonObsStaff`), offered once the contest is published and its close time has passed (`readyToFinalize`, `util/contest-console.ts`; 409 `not_ready` otherwise). Audited `trivia_finalize` before anything is written. Then:
+**Finalize** `POST /admin/contests/:contestId/trivia/finalize` (`node-server/src/handlers/admin/trivia-finalize.ts`): Overboard staff only (`refuseNonObsStaff`), offered once the contest is published and its close time has passed (`readyToFinalize`, `util/contest-console.ts`; 409 `not_ready` otherwise). The body is `{ confirmName }` (shared `postAdminTriviaFinalizeRequestSchema`; since 2026-10-06): the contest's name as typed in the dialog, compared trimmed and ignoring case (`sameContestName`, as bingo's Finalize and contest delete do) before anything is audited or written; a mismatch is 400 `confirm_name_mismatch`, "The contest name you typed doesn't match." Audited `trivia_finalize` before anything is written. Then:
 
 1. **Claim** a five-minute lease and stamp `trivia.finalizedAt`. A second Finalize while the lease is live is 409 `finalize_running` (D-126). From the claim on, fans can't start, serve or answer.
 2. **Stop open runs where they stand**: every unresolved question becomes a timeout worth 0 (`forceCompleted`); what the fan answered counts.
@@ -150,6 +150,8 @@ Routes in the fan app's `AppRoutes.tsx`, all signed in: `/trivia/:contestId` (pl
 ### Fan: contest list
 
 A trivia contest is a card in the one Contests list (`TRV-51`; `components/contests/TriviaContestCard.tsx`), in Live & Upcoming or Past by the shared phase. Its title is the contest's name, its subtitle the matchup and tip-off (none on its own), then the description. The card reads the list row (`GET /b2b/contest/list-contests`) plus the contest and `me` reads, and the fan's awards (`GET /b2b/prizes/awards`, read once for the whole list). States, first match wins: **Prize won** (any delivery status, from the fan's awards read `GET /b2b/prizes/awards`: "You won {prize}", or "You won {n} prizes", with "See your prize", which opens the won prize sheet, and "See results"), **Live** with "Question 3 of 5 · 1,240 pts so far" ("Resume run"), **Final** ("Finished #N", "See results"), **Closed · awaiting results**, entered with no runs left ("Closes {time}", "View Standings"), entered with runs left ("Play Again"), **Open** with "Top prize: {name}" ("Play Now"), **Upcoming** with "Opens {time}" ("View rules", which opens the Rules screen).
+
+**Accessibility (2026-10-06).** A card is a plain container, never a `role="button"` wrapping other buttons. Its own control is its title: a real `<button>` inside the heading, named by the contest's name, whose `::after` stretches over the whole card, so a tap anywhere opens the card and the keyboard focus ring is drawn around the whole card. The card's other buttons (its action and "See your prize") sit above the stretch (`relative z-10`) and keep their own clicks and keys. Look and behaviour are unchanged. The shell is shared with bingo's card (`components/contests/ContestCardShell.tsx`).
 
 ### Fan: trivia play
 
@@ -205,9 +207,9 @@ Where the code differs from the PRD or a decision (found 2026-10-03; for Arthur 
 - **Prizes are sent by Overboard staff, not a tenant admin.** `TRV-32` asks for a tenant admin's "send prizes" action after standings settle at close; the code settles and sends in one staff-only Finalize (merge plan D2). `TRV-45`'s per-band review isn't built.
 - **No starter bank** (`TRV-07`, `TRV-55`): every tenant writes its own questions.
 - **No substitute questions** (`TRV-59`): the network allowance is configurable (default 5 seconds), but a timed-out question isn't replaced.
-- **A locked band's prize swap.** D-120 says it can't be swapped. The shared lock still allows a swap to a prize whose stated value is at least the old one's when both state one, and the server reads the stored values; the console offers no swap. The `bandPrize` sentence still says "only for a prize worth at least as much".
-- **Trivia Finalize doesn't check the typed name on the server**: the console's dialog asks for it, but the endpoint takes no body (bingo's checks `confirmName`).
-- **The fan contest read sends `contestDescription`** (`buildTriviaContestPublic`), the field the console migration moved to `internalNote`; the fan app doesn't read it (cards use the list's `description`), but a contest the migration missed would expose its internal note there. It should send `description`.
+- ~~**A locked band's prize swap.**~~ **Closed 2026-10-06**: the value branch is gone from `triviaBandLockViolations`, so any change of a locked band's prize, or its removal, is `bandPrize`, "Fans have started playing, so a band's prize can't be swapped for a different one." The server's `toLockableBands` no longer reads prize values.
+- ~~**Trivia Finalize doesn't check the typed name on the server**~~ **Closed 2026-10-06**: the endpoint takes `{ confirmName }` and checks it before anything is audited or written ("6. Finalize and prizes").
+- ~~**The fan contest read sends `contestDescription`**~~ **Closed 2026-10-06**: `buildTriviaContestPublic` sends `description`, the fan projection (`FAN_CONTEST_FIELDS`) no longer carries `contestDescription`, and the trivia branch of the contest players read sends `description`.
 - **The dev mock data source remains** (`lib/triviaMock.ts`, `triviaMockSource.ts`, `TRIVIA_MOCK_ENABLED`: dev builds only, never test or production, chosen by `?trivia=` or the DEV panel and remembered in local storage). A developer left in a scenario sees mock contests instead of real ones.
 - **`GET /admin/contests/:contestId/trivia/standings`** exists and no console screen calls it.
 
@@ -217,7 +219,7 @@ Where the code differs from the PRD or a decision (found 2026-10-03; for Arthur 
 |---|---|---|
 | Question bank (console) | `GET /admin/trivia/questions`, `GET /admin/trivia/tags` | `POST`/`PATCH`/`DELETE /admin/trivia/questions…`, `POST`/`PATCH`/`DELETE /admin/trivia/tags…` |
 | Trivia step and tab, trivia Prizes, Sponsors (console) | See [`admin-contests.spec.md`](../../core-modules/1-draft/admin-contests.spec.md), "Function audit" | `PATCH /admin/contests/:contestId` `trivia` |
-| Finalize dialog (console, staff) | the contest read's `readyToFinalize` | `POST /admin/contests/:contestId/trivia/finalize` |
+| Finalize dialog (console, staff) | the contest read's `readyToFinalize` | `POST /admin/contests/:contestId/trivia/finalize` `{ confirmName }` (2026-10-06) |
 | Contest card (fan) | `GET /b2b/contest/list-contests`, `GET /b2b/trivia/contests/:id`, `…/me`; `GET /b2b/prizes/awards` for "Prize won" (2026-10-03) | none ("See your prize" opens the won sheet) |
 | Play (fan) | `GET /b2b/trivia/contests/:id`, `…/me`, the list row (matchup) | `POST …/contests/:id/runs`, `POST /b2b/trivia/runs/:runId/serve`, `…/answer`; `GET /b2b/trivia/runs/:runId`, `…/summary` |
 | Standings (fan) | `GET …/contests/:id`, `…/me`, `…/standings`; `GET /b2b/prizes/awards` for the won prize's button (2026-10-03) | none |

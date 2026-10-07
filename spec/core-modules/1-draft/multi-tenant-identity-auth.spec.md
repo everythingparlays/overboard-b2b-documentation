@@ -8,6 +8,8 @@
 
 **Revised 2026-10-03:** fans can reset a forgotten password from Sign in (section "Password reset (fan, 2026-10-03)"; PRD `AUTH-01`, email sign-up). Fan app only; no server or shared change.
 
+**Revised 2026-10-06:** the reset tells a fan with no password yet (one who joined with Google) that it creates their first one ("An account with no password"), and Sign up's line is game-neutral ("Sign up's line"). Fan app only.
+
 ## Overview
 
 Split identity from membership, move tenant scope to the server, and turn consent from a signup form field into a gate evaluated on every entry.
@@ -266,6 +268,14 @@ A fan who signed up with email and a password can set a new one from Sign in. It
    - **The account asks for a second step** (`needs_second_factor`): Clerk emails a code (`prepareSecondFactor({ strategy: "email_code" })`) and the fan gets Sign in's own email-code step. It reads "Check your email", "Your password is updated. To finish signing in, enter the 6-digit code we sent to {email}", with a "Verification Code" field, "Verify", and "Back to sign in". Then the fan lands on `/contests`.
    - **Anything else** (a finished reset with no session, or a second-step code that can't be sent): the password has changed but this device isn't signed in. A "Password updated" toast ("Sign in with your new password.") sends the fan to Sign in with the email filled in.
 
+**An account with no password** (2026-10-06). Clerk offers the reset to an account that has no password too, for example a fan who joined with Google, and the same code and steps then create the account's first password (seen live on the dev instance, 2026-10-06). The app reads what the account can sign in with from the factors Clerk lists for the email when the reset starts (`supportedFirstFactors`: a `password` factor, an `oauth_google` factor; when Clerk lists none, the usual words stay) and words the steps for it:
+
+- **"Check your email"** reads "This email doesn't have a password yet, so you'll create one. We sent a 6-digit code to {email}".
+- **The password step** is titled **"Create a password"**, with "Add a password to sign in with your email too. Continue with Google still works." when the account has Google, else "Add a password to sign in with your email. If you joined with Google, that still works too."
+- **The toasts** read "Password created" ("You're now signed in." or "Sign in with your new password."), and the second-step screen "Your password is set. To finish signing in, …".
+
+Nothing else changes: the same calls, buttons and errors.
+
 **Errors** show above the button and clear as soon as the fan edits the field. Clerk's codes are worded in `src/lib/errorHandler.ts`:
 
 | Clerk code | The fan reads |
@@ -297,6 +307,11 @@ A fan who signed up with email and a password can set a new one from Sign in. It
 | "Resend code" | Clerk `signIn.prepareFirstFactor` with the offered reset factor | 30-second cooldown added; refuses in plain words when no factor is offered |
 | Set new password, "Update Password" | Clerk `signIn.resetPassword({ password, signOutOfOtherSessions: true })`, then `setActive` | Signs other devices out. A second step now goes to Sign in's email-code step instead of failing with "Could not update password" |
 | Second step, "Verify" | Clerk `signIn.attemptSecondFactor({ strategy: "email_code", code })`, then `setActive` | Shared with Sign in |
+| The words for an account with no password (2026-10-06) | The factors from `signIn.create`'s answer (`supportedFirstFactors`) | New: "Set new password" and "Password updated" were wrong for a Google-only fan creating a first password |
+
+## Sign up's line (fan, 2026-10-06)
+
+Sign up (`src/pages/auth/SignUp.tsx`) reads "Create an Account" over the line **"Join the game. Play along. Win prizes."**, which is true of bingo and trivia alike. It was "Join the game. Pick your squad. Hit bingo.", which spoke only of bingo.
 
 ---
 

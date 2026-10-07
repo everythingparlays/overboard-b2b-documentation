@@ -27,6 +27,8 @@ Revised 2026-10-01 (Arthur's rulings): **one state rule.** The console's state p
 
 Revised 2026-10-03 (brought up to the code): **the trivia contest's own screens are specified here**: the builder's Trivia step and the Trivia tab, the trivia Prizes and Sponsors content, trivia's lock table (D-120) and trivia's Finalize. The lock table drops `tierValue` (prizes state no value since 2026-09-28). Preview is a drawer from the header, not a tab (D-113). A function audit closes the spec. Edited in place below.
 
+Revised 2026-10-06: a locked trivia band's prize can't be changed at all (D-120; the stated-value exception is gone); trivia's Finalize takes and checks `{ confirmName }`, and both Finalizes compare the name trimmed and ignoring case; fan reads never carry `contestDescription`. Two Known gaps are closed. Edited in place below.
+
 ## Overview
 
 Until the redesign a contest lived on a card inside a long `/games` page, was created in a five-field drawer, and was edited in a second drawer that could show its prize tiers and sponsors but not change them. The card listed every game the contest ran at inline, so a season-long contest made a page tens of thousands of pixels tall. Prize tiers were edited on another screen, sponsor placements on a third, and the fan-facing result could not be seen anywhere. The one free-text field was labelled console-only while the fan wire sent it to every fan. Nothing stopped an operator from removing a game or re-counting a prize tier mid-game.
@@ -252,7 +254,7 @@ Wave 3 owns the checks and their codes (§3.1, §3.4): a draft answers 404 to fa
 
 Since 2026-10-01 a bingo contest's own open and close times are part of the same gate (see "Opens and closes"), the fan list filters by phase (`status=`, see "State and status"), and a trivia contest that can't run (a question tag too small, see "Publish checks") is listed to fans nowhere, not on the Contests page and not among the Start screen's sponsors or next game, until it can.
 
-Both fan reads (`GET /b2b/contest/list-contests`, `GET /b2b/contest/:contestId`) return the allowlisted projection only: `contestId`, `contestName`, `description`, `contestType`, `banner` (below), the fan status, games, the fan fields of prize tiers. The contest read also carries `progressMarkerImageUrl` (absent when the contest has none), for the board's progress marker. `internalNote`, `state` internals, `lockedAt`, `testMode` and audit-relevant fields never leave the admin surface.
+Both fan reads (`GET /b2b/contest/list-contests`, `GET /b2b/contest/:contestId`) return the allowlisted projection only: `contestId`, `contestName`, `description`, `contestType`, `banner` (below), the fan status, games, the fan fields of prize tiers. The contest read also carries `progressMarkerImageUrl` (absent when the contest has none), for the board's progress marker. `internalNote`, `state` internals, `lockedAt`, `testMode` and audit-relevant fields never leave the admin surface. The projection's list (`FAN_CONTEST_FIELDS`, `util/fan-contest-projection.ts`) no longer carries the legacy `contestDescription` (2026-10-06), and the trivia fan reads (`buildTriviaContestPublic`; the trivia branch of the contest players read) send `description` as well.
 
 ### Banner
 
@@ -317,7 +319,7 @@ That table is bingo's (`ContestLock.ts`: `gameLockViolations`, `tierLockViolatio
 | Name, description, internal note, banner, Presented by sponsor, reveal mode | Editable |
 | Question slots (count and tags), time per question, right-answer points, speed bonus, network allowance, runs per fan, the game and At a game / On its own, the open time | **Locked** (kind `trivia_rules`) |
 | Close time (`trivia.closesAt`) | Editable in either direction, never before it opens or in the past (kind `closesAt`) |
-| Prize bands | Add a band or widen one. A saved band can't be removed or narrowed (kind `bandRemoved`), and its prize can't be swapped (kind `bandPrize`; see Known gaps) |
+| Prize bands | Add a band or widen one. A saved band can't be removed or narrowed (kind `bandRemoved`), and its prize can't be changed to any other (kind `bandPrize`: "Fans have started playing, so a band's prize can't be swapped for a different one."; the value-based exception was removed on 2026-10-06) |
 | Contest type, Move to draft, Delete, Close and Reopen entries | As bingo |
 
 **Why removing a game locks.** A fan's board holds props from the games the contest ran at when they built it. The evaluator scores a square by its prop, not by whether the contest still lists the prop's game, so squares from a removed game keep scoring and keep paying. Removing a game after fans joined therefore does not remove it from play; it only removes it from the console, which then misreports what fans are playing. Locking is the one option that keeps every promise. Adding a game stays open because it only gives fans more to pick from.
@@ -673,7 +675,7 @@ A contest is **ready to finalize** when it is **not finalized, not a draft, has 
 
 ### Finalize, wherever it appears
 
-Staff only, wherever it appears (revised 2026-09-28, Arthur's final walk): All contests rows, the tenant page's Contests rows, and — marked with an indigo "Staff" tag — the workspace's contest cards, list rows, contest page header and Overview rail. Every one opens the same centred dialog (`FinalizeContestDialog`); the tenant page no longer keeps its own copy. It is offered only when the server's `readyToFinalize` is true, and hidden rather than disabled otherwise, except on the Overview rail, which tells staff why. Tenant admins and members never see it; staff keep it in either point of view. The typed name is checked by the server for bingo; trivia's endpoint takes no body, so for trivia only the dialog checks it (see Known gaps). No re-authentication.
+Staff only, wherever it appears (revised 2026-09-28, Arthur's final walk): All contests rows, the tenant page's Contests rows, and — marked with an indigo "Staff" tag — the workspace's contest cards, list rows, contest page header and Overview rail. Every one opens the same centred dialog (`FinalizeContestDialog`); the tenant page no longer keeps its own copy. It is offered only when the server's `readyToFinalize` is true, and hidden rather than disabled otherwise, except on the Overview rail, which tells staff why. Tenant admins and members never see it; staff keep it in either point of view. The server checks the typed name for both types (trivia's since 2026-10-06, body `{ confirmName }`), trimmed and ignoring case (`sameContestName`), as the dialog and contest delete compare it; bingo's used to be exact. A mismatch is 400, "The contest name you typed doesn't match." (trivia: code `confirm_name_mismatch`). No re-authentication.
 
 | Element | Copy |
 |---|---|
@@ -724,7 +726,7 @@ All under `/admin`, `requireAdmin`. Targeting as everywhere: a tenant caller's t
 | POST | `/admin/contests/:contestId/games` | Tenant `org:admin`, OBS staff |
 | DELETE | `/admin/contests/:contestId/games/:betEventId` | Tenant `org:admin`, OBS staff (lock permitting) |
 | POST | `/admin/contests/:contestId/finalize` | OBS staff only (unchanged) |
-| POST | `/admin/contests/:contestId/trivia/finalize` | OBS staff only; trivia's Finalize ([`trivia-game-type.spec.md`](../../features/1-draft/trivia-game-type.spec.md)) |
+| POST | `/admin/contests/:contestId/trivia/finalize` | OBS staff only; trivia's Finalize, body `{ confirmName }` (2026-10-06) ([`trivia-game-type.spec.md`](../../features/1-draft/trivia-game-type.spec.md)) |
 | GET | `/admin/trivia/tags` | Any resolved admin scope; the Trivia step's and tab's tag lists ([`trivia-game-type.spec.md`](../../features/1-draft/trivia-game-type.spec.md), "Admin: Question bank") |
 | GET | `/admin/contests/:contestId/placements` | Any resolved admin scope ([`admin-sponsors.spec.md`](admin-sponsors.spec.md)); the trivia builder reads its Presented by holder from it |
 | PUT | `/admin/dev/contests/:contestId/test-mode` | Wave 3 §5 (dev only) |
@@ -909,8 +911,8 @@ As [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md), plus the one rule
 - **Player-limit enforcement is count-then-insert.** Two fans at the last place in the same instant can both join.
 - **`numberParticipants` is dead data**, left in place and read by nothing.
 - **Audit coverage.** Games adds and removes and state changes are audited from this spec on; tier writes' audit is [`admin-prizes.spec.md`](admin-prizes.spec.md)'s.
-- **A locked band's prize swap (2026-10-03).** D-120 says a locked band's prize can't be swapped. The shared lock (`triviaBandLockViolations`) still allows a swap to a prize whose stated value (`approximateValueCents`) is at least the old one's when both state one, and the server reads those values (`toLockableBands`). The console never states a value and never offers the swap, so only a direct API call on legacy-valued prizes can reach it; the `bandPrize` sentence still mentions "a prize worth at least as much". Open: drop the value branch, or record it as intended.
-- **Trivia Finalize's typed name (2026-10-03).** The dialog asks for the typed name, but `POST /admin/contests/:contestId/trivia/finalize` takes no body, so the server doesn't check it as bingo's does.
+- ~~**A locked band's prize swap (2026-10-03).**~~ **Closed 2026-10-06**: `triviaBandLockViolations` has no stated-value branch, so any change of a locked band's prize (or removing it) is `bandPrize`, "Fans have started playing, so a band's prize can't be swapped for a different one."; the server's `toLockableBands` reads no prize values (no database read).
+- ~~**Trivia Finalize's typed name (2026-10-03).**~~ **Closed 2026-10-06**: the endpoint takes `{ confirmName }` (shared `postAdminTriviaFinalizeRequestSchema`) and checks it before anything is audited or written; 400 `confirm_name_mismatch`.
 
 ## As built (Wave 4)
 
@@ -955,6 +957,8 @@ Every screen, where its data comes from and what it writes. Paths are in `obs-b2
 - **A player limit on trivia** is not offered and not stored: nothing on the trivia fan path counts against one.
 - **A reveal-mode control** is not offered: the only mode is a reveal after every question, and the console sends `per_question`.
 - **The trivia "Send prizes" section** of the earlier trivia spec was not built: staff Finalize settles and sends in one action.
+- **A locked band's prize swap for one "worth at least as much"** (2026-10-06): cut. D-120 says a locked band's prize can't be swapped, and prizes state no value.
+- **Trivia Finalize without a body** (2026-10-06): changed. It takes `{ confirmName }`, checked on the server as bingo's is; both compare it trimmed and ignoring case.
 
 ## References
 

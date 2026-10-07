@@ -4,7 +4,7 @@
 
 **Depends on:** [`admin-contests.spec.md`](admin-contests.spec.md) (the settings PATCH), [`admin-games-and-prizes.spec.md`](admin-games-and-prizes.spec.md) (the games PUT, the tiers PUT, the `expectedUpdatedAt` precondition), [`prize-delivery.spec.md`](prize-delivery.spec.md) (the worker's claim and attempts).
 
-**Status:** Draft. Written 2026-09-24 (wave G2); revised 2026-09-27 — see "Revision 2026-09-27 — the prize library" note under "What stays editable, and what locks" and under "The prize snapshot". Revised 2026-10-01 (Arthur): a bingo contest's own open and close times join the table, trivia gets its own lock table ("Trivia: what locks"), and the close-time rule replaces "extend only".
+**Status:** Draft. Written 2026-09-24 (wave G2); revised 2026-10-06: a locked trivia band's prize can't be changed at all (see "Trivia: what locks"), the stated-value exception is gone; revised 2026-09-27 — see "Revision 2026-09-27 — the prize library" note under "What stays editable, and what locks" and under "The prize snapshot". Revised 2026-10-01 (Arthur): a bingo contest's own open and close times join the table, trivia gets its own lock table ("Trivia: what locks"), and the close-time rule replaces "extend only".
 
 ## Overview
 
@@ -66,11 +66,11 @@ Arthur's table (2026-10-01), once a fan has started a run:
 |---|---|
 | Question slots (count and tags), seconds per question, base points, speed bonus, network allowance, runs per fan, the game and schedule mode, the open time, the contest type | **Locked** |
 | Close time | **Free** in either direction, never before the open time or in the past |
-| Prize bands | Add a band, widen one, or swap a band's prize for one worth at least as much. Never remove, narrow or downgrade a band, and never swap its prize for a different, unrelated prize. |
+| Prize bands | Add a band or widen one. Never remove or narrow a band, and never change its prize to any other (revised 2026-10-06; until then a swap to a prize stated as worth at least as much was allowed). |
 | Name, description, banner, Presented by sponsor, reveal mode | **Free** |
 
 - **Bands are matched by the ranks they cover, not by their position in the list.**
-- **A band's prize swap needs both values.** Both prizes must state a value, and the new one must be worth at least as much. The console offers no prize value (Arthur's ruling, 2026-09-28), so in practice a locked band keeps its prize.
+- **A locked band keeps its prize** (D-120; revised 2026-10-06). Any change of a locked band's prize is `bandPrize`. Until 2026-10-06 the shared lock allowed a swap to a prize whose stated value was at least the old one's when both stated one; prizes state no value since 2026-09-28 (Arthur's ruling), so `triviaBandLockViolations` dropped that branch and the server's `toLockableBands` reads no prize values.
 - **The close time rule replaces "extend only".** Before 2026-10-01 a locked trivia contest's close time could only move later. It now moves either way, within the rule.
 
 ### Enforcement
@@ -94,7 +94,7 @@ The lock is enforced by the server on every write that could break it, with a pl
 | A close time before the open time, or in the past (kind `closesAt`; bingo and trivia) | "The close time can't be before the contest opens, or in the past." |
 | Changing a locked trivia setting (kind `trivia_rules`) | "Fans have started playing, so the questions, timing, scoring, runs per fan, game and open time are locked. You can still move the close time, and add or widen prize bands." |
 | Removing or narrowing a prize band (kind `bandRemoved`) | "Fans have started playing, so a prize band can't be removed or narrowed. You can still widen a band or add one." |
-| Swapping a band's prize for a different or cheaper one (kind `bandPrize`) | "Fans have started playing, so a band's prize can't be swapped for a different one, only for a prize worth at least as much." |
+| Changing a band's prize (kind `bandPrize`) | "Fans have started playing, so a band's prize can't be swapped for a different one." (revised 2026-10-06; it ended ", only for a prize worth at least as much.") |
 
 What is locked is decided by pure functions in shared (`interfaces/b2b/ContestLock.ts`: `contestIsLocked`, `tierLockViolations`, `gameLockViolations`, and for times `closeTimeViolations`), used by both the server and the console, so the two can never disagree about which change is allowed.
 

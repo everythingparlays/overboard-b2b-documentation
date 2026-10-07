@@ -98,7 +98,7 @@ Finalization lives here, on the tenant drill-in (since 2026-09-24 the tenant pag
 Guardrails:
 
 - **Obs-only, structural**, refused before tenant resolution so a tenant caller learns nothing else.
-- **Typed confirmation, server-checked**: the body carries `confirmName`, which must equal the contest's exact name. The form gates the button on the same match, but the server check is the one that counts — a scripted call cannot skip it.
+- **Typed confirmation, server-checked**: the body carries `confirmName`, which must equal the contest's name, trimmed and ignoring case (`sameContestName`, since 2026-10-06; it was the exact name), as the dialog and contest delete compare it; trivia's Finalize checks it the same way. The form gates the button on the same match, but the server check is the one that counts — a scripted call cannot skip it.
 
 Semantics: 404 for a contest the named tenant does not own (the standard probe answer), 409 when already finalized, **409 `not_ready` when the contest isn't ready to finalize** (Wave 4b: not a draft, at least one game, every game ended, the one rule in [`admin-contests.spec.md`](admin-contests.spec.md); "Only a published contest whose games have all ended can be finalized."), and the audit write (`contest_finalize`, blocking — the `fan_delete` precedent) happens **before** the state write: if the record cannot be made, nothing is finalized. The write sets `finalized: true` and `finalizedAt`; derived status flips to Finished platform-wide, which closes joining and marks the contest finished for fans. No send is dispatched — see Not-in-scope.
 
