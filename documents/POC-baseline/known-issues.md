@@ -73,13 +73,17 @@ Original finding: there was no per-tenant field configuration model anywhere (fr
 
 Original finding: no admin endpoint, script, or seed path created a `B2BOrganization` — provisioning happened via direct database writes outside any application code, with no tooling to measure `TEN-03`'s ≤1–2 hours per onboarding against.
 
-## HTTPS Is Off in the Checked-In Infra Config (`SEC-04`)
+## ~~HTTPS Is Off in the Checked-In Infra Config~~ (`SEC-04`) — Resolved in config (2026-10-07), pending deploy
 
-The CDK code to terminate TLS at the ALB (443 + HTTP→HTTPS redirect) is implemented correctly, but `certificateArn` is commented out in `bin/overboard-sports-backend.ts`, so the stack as checked in deploys HTTP-only. Detail: [`infra.md`](infra.md).
+**Resolved (2026-10-07):** certificates issued in both accounts (`b2b-api.overboardsports.com` in prod; `arthur.b2b-dev` and `nick.b2b-dev` on one cert in dev) and set as `certificateArn` for every stage in `lib/config/environments.ts`, so each stack serves 443 only with 80 redirecting, on the recommended TLS policy. The Route 53 zone is in the organization's management account, so the A-alias record per stack is created by hand from the stack's `ApiLoadBalancerDnsName` output after its first deploy. The production https-only origin rule is back, with loopback exempt for deployed dev stacks called from a laptop. Not yet deployed anywhere as of this note.
+
+Original finding: the CDK code to terminate TLS at the ALB was implemented, but `certificateArn` was unset everywhere, so every stack deployed HTTP-only. Detail: [`infra.md`](infra.md).
 
 ## No Rate Limiting or Bot Protection (`SEC-08`, `SEC-09`)
 
 No `express-rate-limit` or equivalent anywhere; this is ALB+Fargate, not API Gateway, so there's no platform-level throttling either. No CAPTCHA or signup-abuse protection.
+
+Related, changed 2026-10-07: the fan mount's session audience check (`azp` against the tenant origins) moved from Clerk's `authorizedParties` option into `node-server/src/middleware/fan-audience.ts`, so the tenant list can be the wildcard `https://*.overboardsports.com` and onboarding a tenant no longer redeploys the API (`TEN-03`). The admin mount keeps Clerk's exact check.
 
 ## ~~Frontend Exposes a Live Session Token in a Production Route~~ — Resolved (2026-09)
 
@@ -87,9 +91,11 @@ No `express-rate-limit` or equivalent anywhere; this is ALB+Fargate, not API Gat
 
 Original finding: `pages/Test.tsx` was routed at `/test`, gated only by `ProtectedRoute` (requires sign-in) — unlike the app's other dev tooling, it was **not** gated by `import.meta.env.DEV`, so it shipped in the production bundle. It had a "Copy Auth Token" button that copied the live Clerk session JWT and logged it to the console in plaintext. It also hardcoded the backend's internal ELB hostname directly in source. Detail: [`webapp.md`](webapp.md).
 
-## Hardcoded Plaintext-HTTP Backend URL in Frontend Deploy Config
+## ~~Hardcoded Plaintext-HTTP Backend URL in Frontend Deploy Config~~ — Resolved (2026-10-07)
 
-`vercel.json` proxies API calls to a hardcoded AWS ELB DNS name over plain HTTP, not sourced from an env var. Still open as of 2026-09-14. (The same hostname was also duplicated in `pages/Test.tsx` until that page was deleted 2026-09-14 — see the resolved token-exposure entry above.)
+**Resolved (2026-10-07):** both `vercel.json` files lost their API rewrites; the fan app and the console call `VITE_API_BASE_URL` directly, which on a deployed build is the stack's https hostname set in the Vercel project's environment. Vercel is no longer in the path fan data or session tokens take (`SEC-01`).
+
+Original finding: `vercel.json` proxied API calls to a hardcoded AWS ELB DNS name over plain HTTP. (The same hostname was also duplicated in `pages/Test.tsx` until that page was deleted 2026-09-14.)
 
 ## Observability Is Console-Only (`OBS-01`–`OBS-05`)
 
