@@ -213,7 +213,7 @@ Reads: every resolved admin scope — `ADM-01`'s shared-screen model; the roster
 ## Known gaps (recorded, not blocking)
 
 - **SEC-07 propagation**: deletion does not yet reach the fan Clerk instance (the auth record survives; the fan could sign in again and would appear as a brand-new join), nor analytics or the email provider — no such integrations exist in the B2B stack yet to propagate *to*. The endpoint is the platform-side half; the propagation half needs the integrations first.
-- **`SEC-05`**: consent records still lack IP and consent method (pre-existing, flagged by the fields spec) — the drawer shows what exists.
+- **`SEC-05`**: consent records written since 2026-10-07 carry `ipAddress` and `method`; the fan page does not display either (the address is PII with no operator use on this screen). Records from before that date carry neither.
 - **In-memory listing**: search/filter loads the tenant's memberships and filters in process — the same precedent as `computeConfigStats`, fine at V1 tenant sizes; an aggregation pipeline is the scale path.
 - **No rate limiting on search** (`SEC-08` names it for sensitive endpoints) — platform-wide concern, not solved per-module.
 - ~~**Superseded consent wording is not kept.**~~ **Closed 2026-09-27**: every published version's wording and documents are stored at publish (`consent_versions`), and each fan's answers per version (`consentHistory`). Versions replaced before that change stay unrecoverable.

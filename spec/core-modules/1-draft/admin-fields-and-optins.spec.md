@@ -21,7 +21,7 @@ The first real admin feature: the Fields & Opt-ins screen at `/config`, and the 
 - **Export cadence** (`RPT-06`). The mock places a cadence selector on this screen; cadence configures when *exports* are produced, not what signup collects, and no data model for it exists. It belongs to the Exports module — the screen omits it (spec wins over mock).
 - **Sponsor records themselves** — [`admin-sponsors.spec.md`](admin-sponsors.spec.md). *(Superseded 2026-09-23: this screen offered no sponsor picker because no sponsor collection existed. It now does: a `kind: "sponsor"` opt-in's drawer has a **Sponsor** picker listing the tenant's sponsors and "Not linked", which sets `sponsorId` — argued in the sponsor spec, `SP-04`. Since 2026-09-27 every tenant opt-in has the picker and there is no kind.)*
 - **Concurrency control.** Publishing is last-write-wins between two concurrent admins. Acceptable at V1's operator count; revisit if OBS staffing grows.
-- **`SEC-05`'s IP address and consent method** on `ConsentRecord` — a pre-existing gap in the fan-side record, not something an admin write path can close. Flagged, not fixed here.
+- **`SEC-05`'s IP address and consent method** on `ConsentRecord` — closed 2026-10-07: `ipAddress` (Express's `req.ip` behind `trust proxy`) and `method` (`join` at `POST /b2b/join`, `gate` at `POST /b2b/consent`) are stamped server-side on every record, in `consents` and `consentHistory` alike. Both optional, so records written earlier stay valid and read as unknown.
 
 ---
 
@@ -528,7 +528,7 @@ The fan-side machinery (entry-gate spec) already re-prompts on `(optInId, textVe
 ## Known gaps (recorded, not blocking)
 
 - PRD §7 (`OPT-01` "once, at signup", `OPT-06` "do not implement mid-season consent prompting") predates the 2026-09 mid-season decision that §6/`AUTH-02` and `ADM-05` reflect; the shipped per-entry gate and this spec follow the newer text (contradiction rule: more features + postdates).
-- `SEC-05` wants IP + consent method on consent records; `ConsentRecord` has neither. (Since 2026-09-27 each fan's answers are kept per version in `consentHistory`; IP and method are still absent.)
+- ~~`SEC-05` wants IP + consent method on consent records; `ConsentRecord` has neither.~~ Closed 2026-10-07 (see Known gaps above). Records from before that date carry neither field.
 - **Wording from before 2026-09-27 is not recoverable.** The backfill stores each opt-in's version current at migration time; earlier versions were never kept.
 - **Tenant documents are not in the fan app's side menu yet.** They open from the gate. The side menu's Terms, Rules and Privacy read the platform documents; listing each tenant document there is part of the on-hold fan-app overhaul.
 - **The platform documents' text comes from Nick.** Until staff publish them, the platform opt-in has no documents: its three phrases render as plain words, and the side menu shows no Terms, Rules or Privacy entry (nothing is shown that cannot be shown honestly).
