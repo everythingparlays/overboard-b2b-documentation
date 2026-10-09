@@ -131,8 +131,8 @@ Trivia is one prize per fan by construction (a fan finishes in at most one band)
 The trivia screens' own entry points ([`trivia-game-type.spec.md`](../features/1-draft/trivia-game-type.spec.md), "Fan: the prize sheet"):
 
 - **Rules:** each prize row (the band's places and the prize's name, nothing else) opens the info sheet for its band, with the prize's own credit and the fan's progress from `me` when it is known. The row no longer prints value or shipping ("$150 value · Shipped to you").
-- **Standings:** a band opens the info sheet. After Finalize the line "Final. You finished #{rank} and won {prize} — watch your email." stays, and the prize name in it is a button that opens the won sheet for that award (no celebration).
-- **Complete:** "Final when the contest closes." became "Final once results are posted.": a trivia contest's results are final at Finalize, not at close.
+- **Standings (v4, 2026-10-09):** a band row (places as the eyebrow, the prize's name, a chevron; the same rows as Rules, `components/trivia/PrizeBandList.tsx`) opens the info sheet. Once final the screen's status card says "You won a {prize}!" and the band carries "Won"; the won sheet opens from the contest card or on its own, not from Standings.
+- **Complete:** retired 2026-10-09; a finished run lands on Standings.
 
 ---
 
@@ -178,7 +178,7 @@ No board-scoped seen route exists: an earlier design's `POST /b2b/board/:boardId
 | Bingo board's tier labels | the contest's tiers; the board read (`awards` count, bingos, `settled`) | none (a growing `awards` count re-reads the awards) | one tier, several, narrow track (count only), contest still paying / not |
 | Contest cards' "Prize won" | `GET /b2b/prizes/awards`, grouped by `contestId` | none (opens the won sheet) | no award, one, several, any status, bingo while Live ("Live" stays the status), bingo final ("· 3 prizes won"), trivia (beats every other state) |
 | Contest draft page and How to play | the contest's tier thresholds (draft page); static (How to play) | none | one tier (no line on the draft page), several |
-| Trivia Rules, Standings, Complete | as [`trivia-game-type.spec.md`](../features/1-draft/trivia-game-type.spec.md); Standings also the awards read | none | before final, final with a prize (the name a button), final without |
+| Trivia Rules, Standings | as [`trivia-game-type.spec.md`](../features/1-draft/trivia-game-type.spec.md) | none | before final ("You" on the fan's band), final won ("Won"), final missed ("Missed by N") |
 
 ### 2. Earlier elements cut or changed
 

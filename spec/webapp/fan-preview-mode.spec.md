@@ -121,7 +121,7 @@ The screens are the current app's routes and states. `ready.screens` lists them 
 | `contests` | `/contests`: the Upcoming and Past tabs and the contest cards | Submitting the gate; the back arrow on Contest | `member` or `playing` |
 | `contest` | `/contest/:contestId`: "Draft Your Squad", the per-game tabs, the real players with their photos, the drafted-player stack, Generate Bingo Board | Clicking the contest's card | `member` |
 | `board` | `/board/:boardId`: "Your Board", the matchup line, the bingo counter, the prize track with tier labels, the sponsor banner, the nine cells with real player photos and lines | Generate Bingo Board; the card once joined | `playing` |
-| `results` | Trivia only: a run's results, at the preview's own `/trivia/:contestId/results` | Finishing a run | `member` |
+| `results` | Trivia only; retired 2026-10-09 (Standings v4): a finished run lands on Standings, so `navigate('results')` shows `/trivia/:contestId/standings` and the frame reports `standings` | Finishing a run | `member` |
 | `standings` | Trivia only (2026-10-03): `/trivia/:contestId/standings`, the standings with their prize bands and no sheet open | See standings | `member` |
 | `prize` | The prize sheet ([`fan-prize-sheet.spec.md`](fan-prize-sheet.spec.md) `FLOW-31`) for one tier or band, in the body `view.prizeBody` names: over the Board (`/board/preview-board`) for bingo, over the standings (`/trivia/:contestId/standings`) for trivia | — (tab only; a tap on a tier or band inside the frame opens the info sheet as it does for a fan) | `playing` (bingo), `member` (trivia) |
 
