@@ -91,9 +91,9 @@ type RunState = { runId; runIndex; status; cursor; total; runningScore;
 | 3 | `GET /runs/:runId` | → `RunState` | Resume, reload |
 | 4 | `POST /runs/:runId/serve` | `{index}` → `RunState` | Next question |
 | 5 | `POST /runs/:runId/answer` | `{index, selectedOptionIndex}` → `RunState` | Question → Reveal |
-| 6 | `GET /runs/:runId/summary` | → `RunSummary` | Complete, Run review |
+| 6 | `GET /runs/:runId/summary` | → `RunSummary` | Run review |
 | 7 | `GET /contests/:contestId/runs` | → `{runs, bestRunId, runsUsed, runsPerFan}` | Your runs |
-| 8 | `GET /contests/:contestId/standings?top=10&around=1` | → `TriviaStandings` | Standings, PrizeDetail |
+| 8 | `GET /contests/:contestId/standings?top=0&around=0` | → `TriviaStandings` | Standings (polled 6 s while open), prize sheet |
 | 9 | `GET /contests/:contestId` | → `TriviaContestPublic` (config minus answers, bands with `PrizeCard`, contest-level `sponsor?`, players) | Rules, PrizeDetail |
 
 ```ts
@@ -105,10 +105,14 @@ type RunListItem = { runId; runIndex; score; correctCount; avgTimeMs; startedAt;
 type RunSummary = RunListItem & { questions: { index, text, options, correctOptionIndex,
   selectedOptionIndex?, outcome, timeMs?, points }[]; provisionalRank?; pointsToNextBand? };
 type StandingRow = { rank; displayName; score; completedAt; isMe: boolean }; // never clerkUserId
-type TriviaStandings = { final: boolean; closesAt; players; tieBreak: "earliest_completed";
-  me?: {rank, score, bestRunId}; top: StandingRow[]; aroundMe: StandingRow[]; leader?: StandingRow;
+type TriviaStandings = { final: boolean; closesAt; phase?: "upcoming"|"open"|"closed"; finalizedAt?;
+  players; tieBreak: "earliest_completed";
+  me?: {rank?, score?, bestRunId?, runsUsed?, runsPerFan?, currentBand?: {from,to}, finalBand?: {from,to,prizeName}};
+  top: StandingRow[]; aroundMe: StandingRow[]; leader?: StandingRow;
   bands: (Band & {prize: PrizeCard; status: "in"|"reachable"|"won"|"missed";
-  pointsNeeded?: number; missedBy?: number})[] };
+  pointsNeeded?: number; missedBy?: number; cutoffScore?: number})[] };
+// 2026-10-09: phase, finalizedAt, me's tries and bands, cutoffScore added (all optional) so the
+// standings screen renders every state from this one polled payload.
 // Built from B2BPrize / AdminPrize fields verbatim. No sponsor on prizes.
 type PrizeCard = { prizeId; prizeName; prizeDescription; prizeImageUrl?; approximateValueCents?;
   redemptionMethod?; redemptionLocation?; redemptionWindow?; prizeClaimInstructions?;
@@ -125,7 +129,7 @@ type PrizeCard = { prizeId; prizeName; prizeDescription; prizeImageUrl?; approxi
 - **Resume.** Resumable only at reveal. `GET /runs/:id` returns phase `reveal`; Next calls `serve {index:i+1}`, which is idempotent (returns the original clock if already served).
 - **No substitution.** A lost or slow response is covered only by `networkCreditMs` (see F).
 - **Completion.** Answering or timing out the last question sets `status`, `score`, `completedAt`, `correctCount`, `avgTimeMs`; never recomputed.
-- **Standings (8).** Each fan's best completed run; score desc, completedAt asc, runId asc. `final` is true only once `finalizedAt` is set; before that (including after `closesAt`) standings are provisional, from an aggregate cached 15 s per contest. After Finalize, rows come from `settledStandings`. `top` ≤ 25, `around` ≤ 3.
+- **Standings (8).** Each fan's best completed run; score desc, completedAt asc, runId asc. `final` is true only once `finalizedAt` is set; before that (including after `closesAt`) standings are provisional, from an aggregate cached 5 s per contest (15 s before 2026-10-09). `me` is built from the same ranked rows as the list; names are looked up only for the rows returned; the response carries `Cache-Control: private, max-age=3`. After Finalize, rows come from `settledStandings`. `top` ≤ 25, `around` ≤ 3.
 
 ## D. Admin endpoints (`/admin`, `requireAdmin`, `resolveTargetTenant`)
 
@@ -181,6 +185,7 @@ Linear, continuous at ms precision, rounded once at the end. The network credit 
 15. Speed bonus shown on reveal only; linear continuous curve.
 16. displayName rule: first name + last initial, else username, else "Fan ####".
 17. `scheduleMode` persisted alongside optional `betEventId`.
+18. **Standings v4 (2026-10-09).** The Run complete screen is retired: a finished run lands on Standings, which is one polled read (6 s while open and not final; paused while hidden, refetched on focus) carrying everything the screen needs (`phase`, `me` with tries and bands, `cutoffScore`). Server cache 15 s → 5 s so polling cost is bounded per contest per process. No websockets: 5–6 s freshness is the intent. Fan-facing wording never says *won* before Finalize ("You're on track for a Team hat!" / "Not yours until standings lock at 9:40 PM." / "Hold 31st–70th until then."). Decided from fan feedback that Standings was busy and that a leading fan could not tell whether the prize was already theirs.
 
 **Open questions**
 1. **(Defaulted, needs owner confirmation)** Tag exhaustion: create/update requires ≥ runsPerFan questions per slot tag; runtime falls back to a least-recently-served repeat flagged `repeat:true`; start is never refused.
