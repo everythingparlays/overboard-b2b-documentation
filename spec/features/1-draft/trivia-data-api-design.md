@@ -35,7 +35,7 @@ Indexes: `{organizationId:1, tags:1}`, `{organizationId:1, updatedAt:-1}`.
 | forceCompleted? | boolean | set when Finalize closed it |
 | startedAt, completedAt? | Date | |
 
-`TriviaRunQuestion = { slotIndex, questionId, text, options (shuffled copy), correctOptionIndex (in shuffled order), repeat?: true, servedAt?, deadlineAt?, answeredAt?, selectedOptionIndex?, outcome?: "correct"|"wrong"|"timeout", timeMs?, basePoints?, speedBonus?, points? }`. The question is snapshotted so later bank edits don't change history or the review screen.
+`TriviaRunQuestion = { slotIndex, questionId, text, options (shuffled copy), correctOptionIndex (in shuffled order), repeat?: true, servedAt?, deadlineAt?, answeredAt?, selectedOptionIndex?, outcome?: "correct"|"wrong"|"timeout"|"late", timeMs?, clientElapsedMs?, basePoints?, speedBonus?, points? }`. The question is snapshotted so later bank edits don't change history or the review screen.
 
 Indexes: unique `{contestId, clerkUserId, runIndex}`; partial unique `{contestId, clerkUserId}` where `status:"in_progress"`; `{contestId, status, score:-1, completedAt:1}` for standings.
 
@@ -78,7 +78,7 @@ Shared gate on run-starting writes (`refuseTriviaPlay`): contest exists and is v
 type FanQuestion = { index; total; questionId; text; options: string[];
                      servedAt; deadlineAt; secondsPerQuestion; maxSpeedBonus; runningScore };
 // No live "bonus now" value; maxSpeedBonus is for rules copy. The earned bonus appears on Reveal.
-type Reveal = { index; outcome: "correct"|"wrong"|"timeout"; selectedOptionIndex?; correctOptionIndex;
+type Reveal = { index; outcome: "correct"|"wrong"|"timeout"|"late"; selectedOptionIndex?; correctOptionIndex;
                 timeMs?; basePoints; speedBonus; points; runningScore; remaining: number };
 type RunState = { runId; runIndex; status; cursor; total; runningScore;
                   phase: "question"|"reveal"|"complete"; question?: FanQuestion; reveal?: Reveal };
@@ -101,7 +101,7 @@ type TriviaMe = { runsUsed; runsPerFan; bestScore?; bestRunId?; rank?; players; 
   pointsToNextBand?; currentBand?: {from,to}; openRun?: {runId, cursor, total, runningScore, phase};
   finalBand?: {from,to,prizeName}; prizeStatus?: "pending"|"fulfilled"|"failed" };
 type RunListItem = { runId; runIndex; score; correctCount; avgTimeMs; startedAt; completedAt?;
-  status; outcomes: ("correct"|"wrong"|"timeout")[]; isBest: boolean };
+  status; outcomes: ("correct"|"wrong"|"timeout"|"late")[]; isBest: boolean };
 type RunSummary = RunListItem & { questions: { index, text, options, correctOptionIndex,
   selectedOptionIndex?, outcome, timeMs?, points }[]; provisionalRank?; pointsToNextBand? };
 type StandingRow = { rank; displayName; score; completedAt; isMe: boolean }; // never clerkUserId
@@ -119,9 +119,9 @@ type PrizeCard = { prizeId; prizeName; prizeDescription; prizeImageUrl?; approxi
 **Rules**
 - **Start (2).** Returns the open `in_progress` run if one exists. Otherwise refuses with `TRIVIA.NO_RUNS_LEFT` when `runsUsed ≥ runsPerFan`. "Play again" therefore requires the previous run to be complete. It composes all questions at creation: one random question per slot tag, excluding questions this fan has been served in the contest and duplicates within the run, options shuffled. **Tag exhaustion:** if a slot has no unseen question (bank shrank after lock), use the least-recently-served seen question and set `repeat:true`. Start is never refused for exhaustion. Insert is guarded by the partial unique index; sets `lockedAt`; returns phase `question` with Q1 served.
 - **displayName** is snapshotted at start: Clerk first name + last initial ("Nick K.") if a first name exists, else Clerk username, else `"Fan " + last 4 of the user id`.
-- **Server clock.** `servedAt` is stamped once on serve; `deadlineAt = servedAt + secondsPerQuestion`. It never pauses; re-reads return the same values.
-- **Answer (5).** First write wins via `findOneAndUpdate` on `questions.{i}.answeredAt: {$exists:false}` and `cursor: i`. Same answer repeated → stored reveal, 200. Different answer → `409 TRIVIA.ALREADY_ANSWERED` with the stored reveal. `timeMs = now − servedAt`; accepted if `timeMs ≤ seconds*1000 + networkCreditMs`, else `timeout`, 0 points.
-- **Lazy timeout.** Any read/write that finds the current question past `deadlineAt + networkCreditMs` unanswered writes `outcome:"timeout"` first.
+- **Server clock.** `servedAt` is stamped once on serve, immediately before the write that stores it (after the handler's own DB reads, so the server's latency is not charged to the fan); `deadlineAt = servedAt + secondsPerQuestion`. It never pauses; re-reads return the same values. They are still stamped server-side and drive resume and the lazy timeout, but the fan countdown no longer reads them: it is anchored on the device when the question is received and clamped to `secondsPerQuestion` (a resumed question starts from `deadlineAt − now`, clamped to `[0, secondsPerQuestion]`). The answer request carries `clientElapsedMs` (int ms, 0..120000; optional so old clients keep working, in which case server elapsed is used).
+- **Answer (5).** First write wins via `findOneAndUpdate` on `questions.{i}.answeredAt: {$exists:false}` and `cursor: i`. Same answer repeated → stored reveal, 200. Different answer → `409 TRIVIA.ALREADY_ANSWERED` with the stored reveal. Judged in order, with `T = secondsPerQuestion*1000` and `serverElapsed = receivedAt − servedAt`, where `receivedAt` is stamped by the first middleware when the request arrives, before auth/tenant DB reads: (1) `clientElapsedMs > T` → `timeout`, 0 points (the fan ran out of time); (2) `serverElapsed > T + networkCreditMs` → `late`, 0 points (the answer was lost to the network; the fan sees a connection message); (3) not correct → `wrong`; (4) correct → `t = clamp(clientElapsedMs ?? serverElapsed, 0, serverElapsed)`, `points = basePoints + speedBonus × (T − t)/T`. `timeMs` stores `t`; the raw `clientElapsedMs` is stored for audit.
+- **Lazy timeout.** Any read/write that finds the current question past `deadlineAt + networkCreditMs` unanswered writes `outcome:"timeout"` first (unchanged). `timeout` means the fan never answered in time (client clock ran out, or no answer arrived at all); `late` means the fan answered within their own time but the answer reached the server after `T + networkCreditMs`. Neither scores, and `late` never counts as correct in standings, prize eligibility, `correctCount` or `avgTimeMs`.
 - **Resume.** Resumable only at reveal. `GET /runs/:id` returns phase `reveal`; Next calls `serve {index:i+1}`, which is idempotent (returns the original clock if already served).
 - **No substitution.** A lost or slow response is covered only by `networkCreditMs` (see F).
 - **Completion.** Answering or timing out the last question sets `status`, `score`, `completedAt`, `correctCount`, `avgTimeMs`; never recomputed.
@@ -158,7 +158,7 @@ Steps 2–4 are individually idempotent (conditional writes, unique key, SQS ded
 
 For elapsed time `t` in ms (capped at `T = secondsPerQuestion*1000`):
 `points = correct ? basePoints + round(maxPoints * (T − t) / T) : 0`.
-Linear, continuous at ms precision, rounded once at the end. The network credit extends acceptance only, never the bonus. A run's score is the sum of its question points. A fan's contest score is their best completed run; ties go to earlier `completedAt`, then lower runId, so ranks are strict.
+Linear, continuous at ms precision, rounded once at the end. The network credit covers the arrival of the answer only; it no longer eats into the speed bonus for honest fans, because `t` is the fan's own elapsed time bounded by server elapsed. A run's score is the sum of its question points. A fan's contest score is their best completed run; ties go to earlier `completedAt`, then lower runId, so ranks are strict.
 
 ## F. Spec deltas and open questions
 
@@ -175,6 +175,7 @@ Linear, continuous at ms precision, rounded once at the end. The network credit 
 10. Questions snapshotted into the run.
 11. Fan paths are `/b2b/trivia/contests/:id/...` and `/b2b/trivia/runs/:id/...`.
 12. **Substitution (TRV-59) dropped for V1.** Without a client ack the server cannot tell a lost response from a slow fan, and an ack-based scheme is exploitable to skip hard questions. The network credit alone covers lost responses. Possible V2 item.
+    **Amended 2026-10-07 (timer reversal).** The earlier rule rejected any client-supplied timing. Client elapsed is now accepted but bounded by server elapsed, so a tampered client can gain at most the latency it actually had. Rationale: scores were latency-dependent, and the server-anchored countdown displayed wrong values on devices. A distinct `late` outcome (0 points, connection message) replaces folding lost answers into `timeout`. Substitution stays dropped.
 13. **Starter questions removed** (collection, endpoints, copy flow, question `source`).
 14. `opensAt`/`closesAt` gate starts only. Settle and send-prizes collapse into one admin Finalize; no auto-settle at close; standings stay provisional until Finalize.
 15. Speed bonus shown on reveal only; linear continuous curve.
