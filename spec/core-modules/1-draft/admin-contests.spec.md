@@ -244,6 +244,8 @@ Today's "Note" (`contestDescription`) was labelled "Only people in this console 
 
 **The current fan app shows the description.** Today's fan app renders no contest description anywhere. Wave 4 adds it to the current app's contest card (under the date line, two lines, muted, omitted when empty) and under "Draft Your Squad"'s subtitle, so the console's "Fans see this on the contest card." is true and the Preview can show it. This is a one-line addition to existing screens, not part of the parked overhaul.
 
+**Revised 2026-10-11 (owner):** the description came off both contest cards (bingo and trivia), along with the team names on the date line; a card now carries the contest's name, the game's logos and time, the fan's standing and one action. The description still reads under "Draft Your Squad"'s subtitle (bingo) and on the Rules screen (trivia). The console's help text "Fans see this on the contest card." is now wrong and should say where fans read it (follow-up in the console).
+
 ### Contest types: the registry
 
 `contestType` lives on the contest, never on the tenant (`GAME-F1`). The types come from **one registry** in shared, `obs-b2b-shared/src/interfaces/b2b/contestTypes.ts`:
@@ -924,7 +926,7 @@ As [`admin-obs-internal.spec.md`](admin-obs-internal.spec.md), plus the one rule
 2. **`CT-02` — A contest's state is stored: Draft, Open or Closed** (Wave 3 §3.1). Finalized is a badge. The pill shows the phase (Draft, Upcoming, Open, Closed) from one shared rule, `contestPhase`, which the fan app and the server's fan list share. The console never shows a separate visibility or entries control.
 3. **`CT-03` — Publish is gated.** Bingo needs a game that hasn't started and a complete tier with none needing details. Trivia needs its settings, enough questions in every tag for every run, and a complete band; its times never block it. The server checks it on every move into Open from Draft.
 4. **`CT-04` — Each state action appears once, where it belongs,** and only when allowed by the phase (one shared `contestTransitions`, sent by the server): Publish on Review, the others in the contest page header and (Open now, Close and Reopen) the card and row overflow. Revised 2026-10-07: the last manual action wins over the schedule, and a past closing time is allowed.
-5. **`CT-05` — The description is for fans; the internal note never leaves the console.** Fan reads use an allowlisted projection, and the current fan app shows the description on the contest card.
+5. **`CT-05` — The description is for fans; the internal note never leaves the console.** Fan reads use an allowlisted projection, and the fan app shows the description on the contest's own screens (not the card since 2026-10-11).
 6. **`CT-06` — Contest types come from one registry.** Filters, pickers and validation read it; nothing hardcodes a type.
 7. **`CT-07` — A contest locks at its first board and never unlocks.** The lock table above, decided in shared, enforced by the server, shown read-only in the console.
 8. **`CT-08` — Removing a game locks with the contest; adding never does.**
