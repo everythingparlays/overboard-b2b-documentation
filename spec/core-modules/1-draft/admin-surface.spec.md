@@ -96,6 +96,14 @@ Clerk's system roles carry org management; custom permissions carry ours. Naming
 
 A tenant org has two Clerk roles in V1, distinct in what each is *for*: `org:admin` — the person(s) who can invite/remove teammates (see "Provisioning and delegation") — and `org:member`, everyone else. **As of the 2026-09-16 ruling the two also carry the read/write split for that org's own configuration**: `org:admin` writes, `org:member` views. The role arrives in the session token's org-role claim; the console reads it to decide which controls render, and the server reads it to decide which writes it honours.
 
+> **Correction (2026-10-11, Nick):** none of the permissions in this table exist on any Clerk
+> instance, and the code never reads one. Writes are allowed to OBS staff or the tenant's
+> `org:admin` (`refuseReadOnlyWrite`), reads to any member, and the OBS-only actions (finalize,
+> fan-actions export, fan deletion) to members of the `obs` organization. `requirePermission`
+> is unused. The table stays as the intended model should permission-based gating ever be
+> wanted; it is a code change first, then a dashboard one.
+
+
 | Permission | Grants | Held by |
 |---|---|---|
 | `org:tenant_config:read` | View active games, prize tiers, sponsor assets, and contest performance (`ADM-02`) | tenant `org:admin` + `org:member`, obs `org:admin` + `org:member` |

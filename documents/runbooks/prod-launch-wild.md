@@ -16,67 +16,72 @@ Facts that shape the order:
 
 ---
 
-## Phase 1 — Production Clerk (you)
+## Phase 1 — Production Clerk (you) — done 2026-10-11
 
 Two production instances in the Clerk dashboard. Nothing downstream works without them.
 
-- [ ] **Fan instance** (production). Domain `overboardsports.com`. Add the CNAMEs Clerk lists
+- [x] **Fan instance** (production). Domain `overboardsports.com`. Add the CNAMEs Clerk lists
       (`clerk`, `accounts`, mail records) in the management zone; wait for Clerk to show them verified.
       Note its **Frontend API URL** (`https://clerk.overboardsports.com`).
-- [ ] Fan instance settings: email + Google sign-in; Google OAuth with **production** client ID/secret
+- [x] Fan instance settings: email + Google sign-in; Google OAuth with **production** client ID/secret
       (redirect URI from the Clerk dashboard); email verification on; bot protection on.
       Allowed origins: `https://*.overboardsports.com`.
-- [ ] **Admin instance** (production), its own domain, e.g. `clerk-admin.overboardsports.com`, same
+- [x] **Admin instance** (production), its own domain, e.g. `clerk-admin.overboardsports.com`, same
       CNAME dance. Note its Frontend API URL.
-- [ ] Admin instance settings: **Require MFA**; Organizations on; organization creation restricted
-      (only admins); roles/permissions identical to dev (`org:admin`, `org:member`,
-      `org:tenant_config:manage`, `org:contest:finalize`, `org:fan_data:export`); create the `obs`
-      organization and add OBS staff. Allowed origins: `https://admin.overboardsports.com`.
-- [ ] Send the two Frontend API URLs and the two publishable keys to the engineer doing Phase 2.
-- [ ] **Secrets Manager, prod account (189750306402), us-east-2:** `prod/OverBoardB2B/clerkAuth`
+- [x] Admin instance settings: **Require MFA**; Organizations on; organization creation restricted
+      (only admins); create the `obs` organization and add OBS staff. Allowed origins:
+      `https://admin.overboardsports.com`. Google sign-in kept, with its own OAuth client (redirect
+      `https://clerk.admin.overboardsports.com/v1/oauth_callback`). **No custom organization
+      permissions**: the API gates writes on `org:admin` / OBS-staff membership and never reads a
+      permission, so Clerk's default `org:admin` and `org:member` roles are the whole model (the
+      five permissions admin-surface.spec.md lists were never implemented; corrected 2026-10-11).
+- [x] Send the two Frontend API URLs and the two publishable keys to the engineer doing Phase 2.
+- [x] **Secrets Manager, prod account (189750306402), us-east-2:** `prod/OverBoardB2B/clerkAuth`
       with keys `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `ADMIN_CLERK_SECRET_KEY`,
       `ADMIN_CLERK_PUBLISHABLE_KEY` (same key names the dev secret uses); and
       `prod/OverBoardB2B/resend` with `RESEND_API_KEY` (a production Resend key).
 
-## Phase 2 — Backend config and prod stack
+## Phase 2 — Backend config and prod stack — done 2026-10-11
 
-- [ ] (code) Set `clerkIssuer` and `adminClerkIssuer` for `prod` in
+- [x] (code) Set `clerkIssuer` and `adminClerkIssuer` for `prod` in
       `overboard_sports_backend/lib/config/environments.ts`. Set `dlqAlertPhoneNumber` to a real
       number: today the DLQ alarms have no subscriber at all.
-- [ ] (you) **Atlas:** database `obs-b2b-prod` exists with the `readonly_*` replication triggers;
+- [x] (you) **Atlas:** database `obs-b2b-prod` exists with the `readonly_*` replication triggers;
       custom role `b2b-app-prod` per `spec/core-modules/2-approved/mongodb-access-isolation.spec.md`;
-      database users for the prod task-role ARNs (`obs-b2b-prod-*`, printed by the deploy; the
-      names are deterministic so they can be created before the first deploy).
-- [ ] (you) From the backend repo, built first (`npm run build` in node-server, prize-worker, lambdas):
+      database users for the four prod task/Lambda roles (`obs-b2b-prod-main-api-task`,
+      `-prize-evaluator-task`, `-board-evaluator`, `-prop-update-evaluator`) plus Nick's prod SSO
+      role for running maintenance scripts, all `readWrite@obs-b2b-prod` for now.
+- [x] (you) From the backend repo, built first (`npm run build` in node-server, prize-worker, lambdas):
       ```
       npx cdk bootstrap --profile obs-b2b-prod -c stage=prod
       npx cdk deploy --profile obs-b2b-prod -c stage=prod
       ```
-- [ ] (you) Management zone: CNAME `b2b-api` → the `ApiLoadBalancerDnsName` output. Then
+- [x] (you) Management zone: CNAME `b2b-api` → the `ApiLoadBalancerDnsName` output. Then
       `curl -I https://b2b-api.overboardsports.com/health` → 200; `http://` → 301.
-- [ ] (code) Indexes: `autoIndex` is off, so run `mongodb_queries/backfill_org_tenant_config.js` and
-      `node-server/scripts/create-list-indexes.mjs` against `obs-b2b-prod` with prefix `prod_` once.
+- [x] (code) Indexes: `autoIndex` is off, so `node-server/scripts/ensure-indexes.mjs --production --apply`
+      was run once against `obs-b2b-prod` / `prod_` (2026-10-11); dry run now reports nothing missing.
 
-## Phase 3 — Frontends on Vercel (you, values from code)
+## Phase 3 — Frontends on Vercel (you, values from code) — done 2026-10-11
 
 Two **new** Vercel projects building from a `release` branch (dev keeps deploying from `main`).
 
-- [ ] (code) Create and push `release` in `overboard-b2b-template` and `obs-b2b-admin-frontend`.
-- [ ] Fan project `overboard-b2b-prod`, env (all public): `VITE_CLERK_PUBLISHABLE_KEY` = fan `pk_live_…`;
+- [x] (code) Create and push `release` in `overboard-b2b-template` and `obs-b2b-admin-frontend`.
+- [x] Fan project `overboard-b2b-prod`, env (all public): `VITE_CLERK_PUBLISHABLE_KEY` = fan `pk_live_…`;
       `VITE_API_BASE_URL=https://b2b-api.overboardsports.com`;
       `VITE_PREVIEW_PARENT_ORIGINS=https://admin.overboardsports.com`.
       Domain: `wild.overboardsports.com` (+ management-zone CNAME `wild` → `cname.vercel-dns.com`).
-- [ ] Admin project `obs-b2b-admin-prod`, env: `VITE_ADMIN_CLERK_PUBLISHABLE_KEY` = admin `pk_live_…`;
+- [x] Admin project `obs-b2b-admin-prod`, env: `VITE_ADMIN_CLERK_PUBLISHABLE_KEY` = admin `pk_live_…`;
       `VITE_API_BASE_URL=https://b2b-api.overboardsports.com`;
       `VITE_FAN_APP_ORIGIN=https://{slug}.overboardsports.com`.
       Domain: `admin.overboardsports.com` (+ CNAME `admin` → `cname.vercel-dns.com`).
-- [ ] Sign in to `https://admin.overboardsports.com` as OBS staff. This proves the admin instance,
+- [x] Sign in to `https://admin.overboardsports.com` as OBS staff. This proves the admin instance,
       MFA, the `obs` org, CORS and TLS in one go.
 
 ## Phase 4 — Provision the Wild (console, as OBS staff)
 
 - [ ] Tenants → create: slug `wild`, name "Minnesota Wild". (Creates the `B2BOrganization` and the
-      Clerk organization; `wild` is not reserved.)
+      Clerk organization; `wild` is not reserved.) A 409 "could not create" means a Clerk org with
+      that slug already exists without a tenant record: delete it in the Clerk dashboard and retry.
 - [ ] Team: invite the Wild's staff users to their organization (`org:admin` can edit config,
       `org:member` is read-only).
 - [ ] Brand: four colours + logos from the Wild's brand guidelines.
