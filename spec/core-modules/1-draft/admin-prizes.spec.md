@@ -9,6 +9,7 @@
 **Status:** Draft. Written 2026-09-24 for the console redesign.
 Revised 2026-09-28 (Wave 4b, Arthur's walkthrough rulings and his answers of 2026-09-28): **no prize type**. A prize is one flat form of what the prize popup and the prize email use (name, description, image, claim instructions, an optional button, an optional code, Provided by); the stated value, the redemption method, place and window, the shipping time, normalisation on save, the value lock and `reply_to_in_use` are gone; completeness is a description and a delivery method; the email renders by presence; the prize page's sections fold, its preview is the fan app's phone at 1:1, and nothing is autosaved; the email settings move to their own **Email** tab. Where this revision and older text below disagree, this revision wins; the sections below are rewritten to it.
 Revised 2026-10-03 (Arthur's rulings, the prize sheet): the fan app shows a prize in **one prize sheet** for bingo and trivia, with an info body (a tier or band) and a won body (the fan's own award), which replaces the centred `PrizeModal` ([`fan-prize-sheet.spec.md`](../../webapp/fan-prize-sheet.spec.md) `FLOW-31`); **the winner also sees the prize's code in the app**, on their own award (`PZ-05` revised; PRD changes, entry 36); **bingo tiers are cumulative**, and the ladder says so (`PZ-23`; entry 37); the prize image is one 2:1 box with a 600 × 300 minimum; the preview rail's pane is "Prize" with an Info / Won choice. Edited in place: the field table, "The code stays secret", "What the winner sees", the prize page's help ("the app" for "the prize popup"; the Image and Code help rewritten), the preview rail, the ladder's lede, "Trivia readiness", the fan wire, the rules, known gaps and a new function audit.
+Revised 2026-10-11 (barcodes and the test send; [`prize-delivery.spec.md`](prize-delivery.spec.md), "Revision 2026-10-11"; PRD changes, entry 40): a prize's code can be **shown as a UPC-A, Code 128 or QR code** (`codeFormat`), on the winner's own award and in the email only; the prize page's Code field gains **Show the code as** with a live barcode and inline checks; the phone preview carries the code while it is on the staff member's screen, so its Won body shows the barcode; and the Email pane gains **Email me a test**. Edited in place: the field table, "The code stays secret", the prize page's Code field, the preview rail, permissions, endpoints, the fan wire, the rules and a function audit.
 Revised 2026-10-06 (Arthur's ruling): **no custom delivery methods.** Every prize goes out as the standard prize email; the catalog is the same for every tenant ([`prize-delivery.spec.md`](prize-delivery.spec.md), "Revision 2026-10-06"; PRD changes, entry 39). The Delivery section shows only to repair a prize whose stored method no longer resolves, and the view-only presentation lists no delivery method. Edited in place: the field table, completeness, "5. Delivery", `ADM-04`, the function audit and question 1.
 Revised 2026-09-27 (Wave 4, Arthur's rulings of that day): rebuilt on the prize library. A prize is authored once per tenant and a contest's tiers point at it; the prize type and "Provided by" move onto the library prize; each prize opens as its own page; Prizes has two tabs, Library and Deliveries, and the email settings live on Deliveries (there is no Emails page); the contest Prizes tab is a numbered ladder of bingo count plus library prize, capped at three.
 
@@ -29,7 +30,7 @@ This spec builds the console on that model. The Prizes page is the library: ever
 - The Prizes page: **Library**, **Deliveries** and **Email** tabs, and the staff cross-tenant view.
 - The prize page (`/prizes/new`, `/prizes/:prizeId`) with its live previews.
 - The contest Prizes tab ladder, which the builder's Prizes step reuses.
-- Endpoints: the library's extensions, a prize read, code reveal, the ladder read, the deliveries endpoints, and changes to existing routes.
+- Endpoints: the library's extensions, a prize read (with the code for those who may set it, 2026-10-11), the ladder read, the deliveries endpoints, and changes to existing routes.
 - How trivia bands will reuse the picker, without building trivia.
 - A later slice: **Bounced**.
 
@@ -71,7 +72,8 @@ The prize library's structures are the model. Everything below extends them; not
 | `prizeDescription` | string | **Description**, ≤300 | The detail under the name, in the prize sheet and the email | Required for Complete. |
 | `prizeImageUrl` | https URL ≤2000 | **Image**: the upload field, at least 600 × 300 px | The prize sheet's image, in a wide 2:1 box, cover-cropped; email image | Written by the upload route ([`admin-uploads.spec.md`](admin-uploads.spec.md)); never typed. |
 | `prizeClaimInstructions` | string, model ≤5000 | **Claim instructions**, ≤500 | Prize sheet: under the description, for a winner; email: "How to claim" | Optional. |
-| `staticRedemptionCode` | string ≤64, no spaces, `select: false` | **Code** | The email ("Your code"), and the winner's own award in the prize sheet ("Your code", with Copy; revised 2026-10-03). Every other fan read carries only `hasCode` | Optional. Masked after save, with Reveal, Replace and Remove. |
+| `staticRedemptionCode` | string ≤64, no spaces, `select: false` | **Code** | The email ("Your code"), and the winner's own award in the prize sheet ("Your code", with Copy; revised 2026-10-03). Every other fan read carries only `hasCode` | Optional. Shown as typed to those who may set it (2026-10-11; no masking); clearing it removes it. |
+| `codeFormat` | `text` (stored as absence) · `upca` · `code128` · `qr`; checked against the code | **Show the code as** | With the code only: the winner's award and the email draw it as a barcode or QR code (2026-10-11) | Optional; needs a code. Read back on the console's reads (not secret). |
 | `prizeClaimButtonLinkUrl` | https URL ≤2000 | **Button** → **Button link** | The won sheet's button opens it; the email's button | Optional on every prize. |
 | `prizeClaimButtonText` | string ≤200, console ≤40 | **Button** → **Button text** | The button's label, prize sheet and email | Optional; with a link and no text both read "Claim your prize". Stored only with a link. |
 | `providedBySponsorId` | ObjectId → `B2BSponsor` | **Provided by** | The credit in the prize sheet (info and won) and the email | Same tenant only. One prize, one credit, everywhere it is awarded. |
@@ -87,7 +89,7 @@ The prize library's structures are the model. Everything below extends them; not
 **Nothing is normalised on save.** A write stores what it sends, and a PATCH changes only the fields it names; no field is cleared or defaulted on the admin's behalf.
 ### The code stays secret
 
-`staticRedemptionCode` keeps `select: false`, and the console reads stop returning it: the library and prize reads carry `hasCode: boolean`, and only `POST /admin/prize-library/:prizeId/reveal-code` returns the code to the console. On the fan side, the one read that carries it is the winner's own awards, `GET /b2b/prizes/awards` (revised 2026-10-03, PRD changes entry 36), and only from the award's snapshot: it is the fallback when the email fails. Fan reads of tiers and bands carry `hasCode` and never the code. It never reaches the preview frame, an audit row or a log. A PATCH that omits it leaves it unchanged; `null` clears it. `PRIZE-06`'s no-duplicates rule does not apply to a code shared by design: every winner of the prize gets the same code.
+`staticRedemptionCode` keeps `select: false`. Every console read carries `hasCode: boolean`; the one prize's read (`GET /admin/prize-library/:prizeId`) and the create and edit responses also carry the code as `code`, uncached, to those who may set it: OBS staff and the tenant's own `org:admin` (Arthur, 2026-10-11: no reveal step; the code and its barcode always show to them). A view-only member gets `hasCode` only, and the library list never carries the code. The reveal route is gone. On the fan side, the one read that carries it is the winner's own awards, `GET /b2b/prizes/awards` (revised 2026-10-03, PRD changes entry 36), and only from the award's snapshot: it is the fallback when the email fails. Fan reads of tiers and bands carry `hasCode` and never the code. It never reaches an audit row or a log; the preview frame gets it when the staff member has it on screen (always, for those who may set it; 2026-10-11), so the Won body shows its barcode. How the code is shown (`codeFormat`) is not secret and is read back with the prize, but on the fan side it rides only beside the code, on the winner's award. A PATCH that omits it leaves it unchanged; `null` clears it. `PRIZE-06`'s no-duplicates rule does not apply to a code shared by design: every winner of the prize gets the same code.
 
 ### Complete / Needs details
 
@@ -251,7 +253,7 @@ Workspace sidebar: one item, **Prizes** (`/prizes`, hue: prizes). There is no Em
 #### 2. Claim
 
 1. **Claim instructions.** Optional, ≤500. Help: "How a winner claims it. Shown in the app and as How to claim in the email."
-2. **Code.** Optional, ≤64, no spaces ("Codes can't contain spaces."). Help (revised 2026-10-03): "Sent to the winner by email and shown to them in the app on their prize." (It was "Every winner of this prize gets the same code. It appears in the email as Your code, never in the popup.") After save it shows masked with **Reveal** (admins and staff; members see "A code is set") and **Remove**; revealed, it shows in monospace with **Copy** and **Hide**; typing replaces it; Remove reads "The code will be removed when you save." with **Keep it**.
+2. **Code.** Optional, ≤64, no spaces ("Codes can't contain spaces."). Help (revised 2026-10-03): "Sent to the winner by email and shown to them in the app on their prize." (It was "Every winner of this prize gets the same code. It appears in the email as Your code, never in the popup.") It is an ordinary field showing the saved code (revised 2026-10-11: no masking, no Reveal or Hide); clearing it removes the code on save. Members see "A code is set". **Show the code as** (2026-10-11), under the code: a segmented choice of Text only · UPC-A barcode · Code 128 barcode · QR code, the chosen one's help beneath (`PRIZE_CODE_FORMAT_HINTS`), disabled until the prize has a code ("Add a code to choose how winners see it."). With a barcode format, the code is drawn live on a white card with the 12 digits beneath. Nothing on the page moves on hover: hover changes colour or opacity only. The code is checked against the format as it is typed (`prizeCodeFormatError`), Save waits while it is wrong, and the server's refusal lands on the same field. The view-only page shows "Shown as".
 
 #### 3. Button
 
@@ -275,10 +277,10 @@ A "Delete prize" section at the bottom, for admins and staff, never folded. When
 
 #### 8. The preview rail
 
-A segmented **"Prize | Email"** over the preview (the first pane was "Prize popup" until 2026-10-03); both are bound to the unsaved draft and refresh on a ~300ms trailing debounce. **Pointing at or focusing a section shows the pane it sets** (revised 2026-09-29, Arthur's Walk #3; the console's one mechanism, [`admin-preview.spec.md`](admin-preview.spec.md), "The preview follows what you point at"): The prize, Claim, Button and Provided by show the Prize pane; Delivery and the code show the email, because the preview never shows the code (`PZ-05`, `PV-05`). The rail keeps the last pane when the pointer leaves.
+A segmented **"Prize | Email"** over the preview (the first pane was "Prize popup" until 2026-10-03); both are bound to the unsaved draft and refresh on a ~300ms trailing debounce. **Pointing at or focusing a section shows the pane it sets** (revised 2026-09-29, Arthur's Walk #3; the console's one mechanism, [`admin-preview.spec.md`](admin-preview.spec.md), "The preview follows what you point at"): The prize, Claim, Button and Provided by show the Prize pane; Delivery and the code show the email. The rail keeps the last pane when the pointer leaves.
 
-- **Prize.** The console's one fan app preview, `FanAppPreview` ([`admin-preview.spec.md`](admin-preview.spec.md)), the same phone preview used everywhere: phone only, 390px at 1:1, never scaled, on screen `prize` with the tenant's brand, showing the fan app's prize sheet ([`fan-prize-sheet.spec.md`](../../webapp/fan-prize-sheet.spec.md) `FLOW-31`). The render document's `prize` is the draft prize (never the code, only `hasCode`; the resolved `providedBy` beside the id), with no contest, since a library prize belongs to none. An **Info / Won** control above the phone chooses the sheet's body (`view.prizeBody`), Won by default: Won is the winner's sheet ("You won", the claim instructions, the button), Info the sheet a fan reads before winning it; here, with no contest, it has no chip and no progress strip, and its email line is true of both games: "Winners get this by email." or "Winners get this by email, with a code." The won body shows no "Your code" box, because the preview never carries a code. Its buttons work as a winner's do: each shows a press state; "Got it" (or the claim button, the close button, a drag down or a tap outside) dismisses the sheet, and it comes back a moment later, as the next win would ([`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md), "Without a contest"). Links out of the frame stay inert.
-- **Email.** The server's real template from `POST /admin/prizes/email/preview` with the draft, the tenant's saved email settings, and a bingo count: the lowest count among the tiers that award the prize, or 1. Shown in a white letter frame, with "Subject: …" and "From: …" above it and **Open full width** (a centred 600px dialog). For a saved prize the request names `prizeId`, and the server merges the stored code when the draft carries none (unless the code is being removed), so the preview shows what a winner gets. A failed preview keeps the last render with "Couldn't update the preview." and **Try again**.
+- **Prize.** The console's one fan app preview, `FanAppPreview` ([`admin-preview.spec.md`](admin-preview.spec.md)), the same phone preview used everywhere: phone only, 390px at 1:1, never scaled, on screen `prize` with the tenant's brand, showing the fan app's prize sheet ([`fan-prize-sheet.spec.md`](../../webapp/fan-prize-sheet.spec.md) `FLOW-31`). The render document's `prize` is the draft prize (never the code, only `hasCode`; the resolved `providedBy` beside the id), with no contest, since a library prize belongs to none. An **Info / Won** control above the phone chooses the sheet's body (`view.prizeBody`), Won by default: Won is the winner's sheet ("You won", the claim instructions, the button), Info the sheet a fan reads before winning it; here, with no contest, it has no chip and no progress strip, and its email line is true of both games: "Winners get this by email." or "Winners get this by email, with a code." The won body shows "Your code", as text or its barcode, whenever the prize has a code the staff member can see (2026-10-11); for a view-only member it shows none. Its buttons work as a winner's do: each shows a press state; "Got it" (or the claim button, the close button, a drag down or a tap outside) dismisses the sheet, and it comes back a moment later, as the next win would ([`fan-preview-mode.spec.md`](../../webapp/fan-preview-mode.spec.md), "Without a contest"). Links out of the frame stay inert.
+- **Email.** The server's real template from `POST /admin/prizes/email/preview` with the draft, the tenant's saved email settings, and a bingo count: the lowest count among the tiers that award the prize, or 1. Shown in a white letter frame, with "Subject: …" and "From: …" above it and **Open full width** (a centred 600px dialog). For a saved prize the request names `prizeId`, and the server merges the stored code when the draft carries none (unless the code is being removed), so the preview shows what a winner gets. A failed preview keeps the last render with "Couldn't update the preview." and **Try again**. With a barcode format the server draws the barcode into the preview as an inline image. **Email me a test** (2026-10-11) sits above the letter: "Sends this prize's email to {your sign-in email}." It sends the saved prize, so it waits for a save ("Save your changes first — the test sends the saved prize."), and reports in the page's status line: "Test email sent to {address}." or the server's own words. Hidden from view-only members.
 
 #### 9. Saving, leaving, returning
 
@@ -446,7 +448,8 @@ Overview's failed-sends tile → `/prizes/deliveries?status=failed`; the contest
 |---|---|---|---|
 | View the library, prize pages, ladders, deliveries, email settings | Yes | Yes (view-only) | Yes, any tenant |
 | Create, edit, delete a prize; edit a ladder | Yes | No | Yes |
-| Reveal a prize's code | Yes | No | Yes |
+| See a prize's code (the field, its barcode, the previews) | Yes | No | Yes |
+| Email themselves a test of a prize | Yes | No | Yes |
 | Resend a failed row | Yes, own tenant | No | Yes |
 | Send to a different address; Resend selected | No | No | Yes |
 | Send again | No | No | Yes, typed |
@@ -480,7 +483,7 @@ All under `/admin`, `requireAdmin`. Tenant targeting as everywhere: a tenant cal
 | POST | `/admin/prize-library` | write gate | tenant `org:admin`, staff | extended |
 | PATCH | `/admin/prize-library/:prizeId` | write gate | tenant `org:admin`, staff | extended |
 | DELETE | `/admin/prize-library/:prizeId` | write gate | tenant `org:admin`, staff | as fixed (§8.2) |
-| POST | `/admin/prize-library/:prizeId/reveal-code` | write gate | tenant `org:admin`, staff | new |
+| POST | `/admin/prize-library/:prizeId/test-email` | write gate | tenant `org:admin`, staff; rate-limited | new (2026-10-11) |
 | GET | `/admin/contests/:contestId/prize-tiers` | `requireAdmin` | any admin scope | new |
 | PUT | `/admin/contests/:contestId/prize-tiers` | write gate | tenant `org:admin`, staff | extended |
 | POST | `/admin/prize-deliveries/search` | `requireAdmin` | any admin scope | new |
@@ -519,9 +522,9 @@ The library's create: `{ prizeName, prizeDescription?, prizeImageUrl?, prizeClai
 
 As fixed in [`end-to-end-flow.spec.md`](end-to-end-flow.spec.md) §8.2: 409 `prize_in_use` while a held tier names it; clears `prizeId` from detached tiers. Audit `prize_delete` before the write.
 
-### `POST /admin/prize-library/:prizeId/reveal-code`
+### `POST /admin/prize-library/:prizeId/test-email`
 
-`{ code }`, or 404 when the prize has none. `Cache-Control: no-store`. Not audited: a shared promotional code is not fan data, and the admin revealing it set it.
+2026-10-11. Body `{ threeInARows? }` (the bingo line's count; absent, 1). Sends the saved prize's real email, barcode included, to the caller's own admin sign-in address, subject "[Test] …", through the worker's transport. Response `{ success, sentTo }`. Refusals: 403 view-only, 404 another tenant's or unknown prize, 503 `test_email_unavailable` (no sender or provider key), 422 `test_email_no_address`, 429 `test_email_rate_limited` (5 per person per 10 minutes), 502 when the provider refuses. Not audited. Detail: [`prize-delivery.spec.md`](prize-delivery.spec.md), "The test send".
 
 ### `GET /admin/contests/:contestId/prize-tiers`
 
@@ -573,7 +576,7 @@ Takes `{ prize, prizeId?, threeInARows, settings? }`: the draft prize (content f
 
 ### The fan wire
 
-`list-contests` and `/b2b/contest/:id` leave out Needs-details tiers and never carry the code or any dormant field (value, type, redemption terms, shipping time). Each tier carries `hasCode` (whether the prize has a code, never the code) and its resolved `providedBy` (revised 2026-10-03), and so does each trivia band's prize card, which no longer carries the four dormant fields it used to. `GET /b2b/board/:id`'s `awards[].prize` carries `prizeId` and `providedBy` (§1.5's shape, extended), and no type. **`GET /b2b/prizes/awards`** (2026-10-03) is the one fan read that carries the code: the fan's own awards, for both games, each award's prize from its snapshot, with `code` when the snapshot has one ([`prize-delivery.spec.md`](prize-delivery.spec.md), "The fan's awards and the seen marker").
+`list-contests` and `/b2b/contest/:id` leave out Needs-details tiers and never carry the code or any dormant field (value, type, redemption terms, shipping time). Each tier carries `hasCode` (whether the prize has a code, never the code) and its resolved `providedBy` (revised 2026-10-03), and so does each trivia band's prize card, which no longer carries the four dormant fields it used to. `GET /b2b/board/:id`'s `awards[].prize` carries `prizeId` and `providedBy` (§1.5's shape, extended), and no type. **`GET /b2b/prizes/awards`** (2026-10-03) is the one fan read that carries the code: the fan's own awards, for both games, each award's prize from its snapshot, with `code` when the snapshot has one (for UPC-A the full 12 digits) and `codeFormat` beside it when it is a barcode format (2026-10-11; never without the code) ([`prize-delivery.spec.md`](prize-delivery.spec.md), "The fan's awards and the seen marker"). No other fan read carries `codeFormat`.
 
 ---
 
@@ -628,7 +631,7 @@ This spec had no function audit before the prize sheet; this one covers what the
 |---|---|---|---|
 | Prize page, Prize pane | `GET /admin/preview` (tenant sections) + the draft prize as typed: content fields, `hasCode` (never the code), `providedBy` resolved from `providedBySponsorId`; `view.prizeBody` from the Info / Won control | none from the frame (`PV-02`) | Won (default), Info (no chip, no strip, the game-neutral email line, with and without a code), new prize ("Your prize"), no image, image that fails to load, no sponsor, sponsor without a prize logo, with a button, without, code set (not shown) |
 | Prize page, Image | the upload field with `UPLOAD_FIELDS` `prize.image` (PNG, JPEG, WebP; at least 600 × 300) | `POST /admin/uploads`, the S3 POST, `POST /admin/uploads/complete`; then the prize's save | empty, uploading, too small (refused with the upload spec's words), wrong type, set, removed |
-| Prize page, Code | the prize read's `hasCode` | `POST /admin/prize-library/:prizeId/reveal-code` (Reveal); the prize's save | none, set (masked), revealed, being removed, member ("A code is set") |
+| Prize page, Code | the prize read's `code` (writers) and `hasCode` | the prize's save | none, set (shown), cleared, member ("A code is set") |
 | Contest Prizes tab (and the builder's Prizes step) | `GET /admin/contests/:contestId/prize-tiers` | `PUT /admin/contests/:contestId/prize-tiers` | unchanged; only the lede is new (`PZ-23`) |
 
 ### 2. Earlier-design elements
@@ -645,13 +648,19 @@ This spec had no function audit before the prize sheet; this one covers what the
 
 ---
 
+## Function audit (barcodes and the test send, 2026-10-11)
+
+The surfaces, data and states are in [`prize-delivery.spec.md`](prize-delivery.spec.md), "Function audit (2026-10-11)". On this spec's screens: the Code field (format choice, live barcode, inline check), the Prize pane (the code while on screen), the Email pane (the inline barcode, **Email me a test**), and the view-only "Shown as". Nothing from a mock was cut; there was no mock.
+
+---
+
 ## Rules
 
 1. **`PZ-01` — No prize type** (revised 2026-09-28). A prize is one flat form of what the prize sheet and the email use; nothing asks, stores or reads a type.
 2. **`PZ-02` — Nothing is normalised on save** (revised 2026-09-28). A write stores what it sends.
 3. **`PZ-03` — Completeness is one shared function, and it is what delivery needs:** a description and a delivery method that resolves. Incomplete never awards: Publish refuses, the tiers PUT refuses on a fans-visible contest, the worker skips, the fan wire omits.
 4. **`PZ-04` — A prize fans can win never goes back to Needs details** (`prize_would_hide`, across every non-finalized, fans-visible contest that awards it).
-5. **`PZ-05` — The code leaves the server only through Reveal and to its winner** (revised 2026-10-03; PRD changes, entry 36). The console gets it from Reveal; a winner gets it in the email and on their own award in the app (`GET /b2b/prizes/awards`, from the snapshot), as the fallback when the email fails. Never on another read, a tier or band (`hasCode` only), a list, standings, the preview frame, an audit row or a log.
+5. **`PZ-05` — The code leaves the server only to those who may set it and to its winner** (revised 2026-10-03, PRD changes entry 36; and 2026-10-11). The console gets it on the prize's own read and write responses, for OBS staff and the tenant's `org:admin` only; a winner gets it in the email and on their own award in the app (`GET /b2b/prizes/awards`, from the snapshot), as the fallback when the email fails. Never on another read, a tier or band (`hasCode` only), a list, standings, an audit row or a log.
 6. **`PZ-06` — The lock is contest-safety's, shown in place**: bingos to win and removal refuse; the console shows the glyph and the reason under the field. There is no value rule.
 7. **`PZ-07` — "As promised" only from the snapshot.** No snapshot, no promise, never the current prize in its place.
 8. **`PZ-08` — Credit comes from the prize.** `providedBySponsorId` is the only source of "Provided by" in the prize sheet, the email and their previews; one prize, one credit; never the contest's Presented by sponsor (D-124).
@@ -670,6 +679,7 @@ This spec had no function audit before the prize sheet; this one covers what the
 19. **`PZ-19` — The prize side never mentions bingos.** The qualifier belongs to the tier or band.
 22. **`PZ-22` — The prize email's wording is platform data, and only Overboard staff change it** (Walk #3). Stored once, read by the preview and the worker, validated and escaped, audited before it is saved; one template for every workspace, sponsor and prize.
 23. **`PZ-23` — Bingo tiers add up** (2026-10-03; PRD changes, entry 37). A board wins every tier it reaches: tiers at 1, 2 and 3 bingos pay a 3-bingo board three prizes and three emails. Each is sent the moment its tier is reached (`PRIZE-01`), and a sent prize can't be taken back, so paying only the highest tier is not possible. The ladder's lede and the fan app say so in plain words.
+24. **`PZ-24` — A barcode is the code, drawn** (2026-10-11). It appears only where the code does (the winner's award, the email, staff previews), its format is checked against the code before it is saved, and a barcode that can't be drawn or hosted leaves the code as text.
 
 ## Known gaps (recorded, not blocking)
 

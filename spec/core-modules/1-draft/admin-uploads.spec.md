@@ -102,6 +102,8 @@ Body `{ field, contentType, bytes }`. Auth `requireAdmin` plus the write gate: t
 
 **The key is tenant-scoped and unguessable:** `tenants/<organizationId>/<field>/<uuid>.<ext>`, the extension from the content type. The organization id comes from the resolved admin scope, never from the body.
 
+The same bucket also holds the **barcode images** prize emails link to, under `prize-codes/<hash>.png` (2026-10-11). They are not uploads: the server draws and writes them, and no upload key can land there ([`prize-delivery.spec.md`](prize-delivery.spec.md), "The barcode in the email").
+
 ### 3. The browser posts the file to S3
 
 A multipart POST of the returned `fields` plus the file to `uploadUrl`. The field shows a progress bar. S3's own refusals (an expired policy, a body over the limit) show as "The upload didn't finish. Try again."

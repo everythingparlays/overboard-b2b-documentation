@@ -557,3 +557,24 @@ tenant-self-serve rulings — see the "Revised 2026-09" notes)".
 - **Date:** 2026-10-06.
 - **Status:** In effect. Specs: `prize-delivery.spec.md` ("Revision 2026-10-06"), `admin-prizes.spec.md`,
   `admin-game-day.spec.md`, `admin-games-and-prizes.spec.md`.
+
+### 40. `PRIZE-05` / `PZ-05`: a prize's code can be shown as a barcode or QR code, and staff can email themselves a test
+
+- **What:** a prize's static code (the one code every winner gets) can be shown to its winner as a
+  UPC-A barcode, a Code 128 barcode or a QR code as well as text, so a store coupon scans at the
+  register. The barcode appears only where the code already does: the winner's own award in the app
+  and the prize email. It is drawn from the code, checked against the format when it is set (a UPC-A
+  code's check digit is computed or verified), and never shown on a prize anyone can read. Separately,
+  a team admin or Overboard staff member can send a prize's real email to their own sign-in address as
+  a test, marked "[Test]". Per-winner code batches stay deferred (entry 11).
+  - [ ] An admin can choose how a prize's code is shown: text, UPC-A, Code 128 or QR, and sees the
+    barcode before saving.
+  - [ ] A code that can't be shown in the chosen format is refused in plain words.
+  - [ ] The winner sees the barcode on their prize in the app and in the email, with the code printed
+    beneath it; nobody else sees it.
+  - [ ] An admin can email themselves a test of a prize's email, and only to their own address.
+- **Why:** the first sponsor-shaped prizes (Cub store coupons for the Minnesota Wild launch) are UPC-A
+  coupons a cashier scans; a code typed at a register is slow and error-prone. The test send lets a
+  team check a prize's email before a fan wins it.
+- **Date:** 2026-10-11 (on `arthur-barcode-prizes`).
+- **Status:** Proposed. Specs: `prize-delivery.spec.md` ("Revision 2026-10-11"), `admin-prizes.spec.md`.
