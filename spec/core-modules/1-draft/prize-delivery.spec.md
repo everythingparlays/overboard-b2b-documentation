@@ -6,7 +6,7 @@
 
 **Supersedes:** the "visibility-only" posture of the Delivery queue (admin-obs-internal, Not in scope + Known gaps); the free-text `handlerId` field on the Prizes screen (admin-games-and-prizes, `/prizes`); and the per-handler hardcoded HTML templates in `prize-worker/src/email_templates/`.
 
-**Status:** Draft, written 2026-09-23 with the build (Slice 3 of the 2026-09-23 wave); revised 2026-09-27 — see "Revision 2026-09-27 — the prize library" and "Revision 2026-09-27 (Wave 4)", which win wherever they and an older section disagree; revised 2026-10-03 — see "Revision 2026-10-03 — the fan's awards and the seen marker" (cumulative bingo tiers, the fan's awards read, the seen marker); revised 2026-10-06 — see "Revision 2026-10-06 — no custom delivery methods". No open questions.
+**Status:** Draft, written 2026-09-23 with the build (Slice 3 of the 2026-09-23 wave); revised 2026-09-27 — see "Revision 2026-09-27 — the prize library" and "Revision 2026-09-27 (Wave 4)", which win wherever they and an older section disagree; revised 2026-10-03 — see "Revision 2026-10-03 — the fan's awards and the seen marker" (cumulative bingo tiers, the fan's awards read, the seen marker); revised 2026-10-06 — see "Revision 2026-10-06 — no custom delivery methods"; revised 2026-10-11 — see "Revision 2026-10-11 — barcodes and the test send". No open questions.
 
 **Revised 2026-09-24** (ruling, Arthur): the console's prize screens and the email settings live in [`admin-prizes.spec.md`](admin-prizes.spec.md) (rebuilt on the prize library in its Wave 4 revision); this spec keeps the delivery engine, the method registry and the email template.
 
@@ -199,6 +199,58 @@ Edited in place: Implements, "In scope", "Where `PRIZE-04` and D-066 meet", "The
 
 ---
 
+## Revision 2026-10-11 — barcodes and the test send
+
+Two additions, both from the first sponsor-shaped prizes (Cub store coupons for the Minnesota Wild launch: a UPC-A code a register scans), and both backward compatible: every prize stored before them is unchanged and needs no migration. PRD changes, entry 40.
+
+### A code can be shown as a barcode
+
+- **`codeFormat`**, a prize content field: `text` (the default, stored as absence), `upca` (UPC-A), `code128` (Code 128) or `qr` (QR code). It travels with the other content fields (`PRIZE_CONTENT_FIELDS`): refreshed onto the tiers of non-finalized contests on every prize edit, copied into a trivia band's snapshot at Finalize, and frozen into `PrizeRedemption.tierSnapshot` at award, so a later format change never reaches a winner. Shared `src/interfaces/b2b/PrizeCodeFormat.ts` holds the rules; `src/api/admin/prize-library.ts` the wire.
+- **What a format accepts**, refused on the code field in plain words (shared `prizeCodeFormatError`, checked by the contract when both fields are sent and by the server on the prize as it would stand, so a format-only PATCH is checked against the stored code): UPC-A takes 11 digits (the check digit is computed) or 12 (the check digit must be right: "That UPC-A code's last digit should be 7. Check the number, or enter just the first 11 digits."); Code 128 takes letters, numbers and keyboard symbols, at most 32 (past that the bars get too thin to scan from a phone); QR takes any code the code rules allow (no spaces, at most 64). Removing the code removes its format with it; a format sent without a code is not stored.
+- **The code is stored as typed** ("nothing is normalised"); what a winner is given is `prizeCodeValue`: the code, or for UPC-A an 11-digit entry with its check digit, so every surface prints and encodes the same 12 digits. The fan's award read returns that value as `code`.
+- **One drawing everywhere.** `barcodeRenderOptions` is the one bwip-js option set (black on white, no text inside the image, the quiet zone built in: 11 modules each side for the linear codes, 4 for QR) that the fan app and the console draw as SVG and the server draws as PNG. The same library (bwip-js 4.11) runs in all three, so the bars are the same bars. The fan app and the console load it lazily, in its own chunk (about 70 kB gzipped), only when a barcode is shown.
+
+### Winner-only
+
+A barcode is drawn from the code, so it is shown exactly where the code already is, and nowhere else (`PZ-05` unchanged): the winner's Won sheet in the fan app (`GET /b2b/prizes/awards` carries `codeFormat` beside `code`, never without it), the prize email, and the console's staff previews. The format is not secret (the console reads it back), but the fan wire never carries it: `list-contests`, `/b2b/contest/:id`, trivia band cards and the Info sheet have `hasCode` only, and the board read's awards carry neither. The prize image stays a picture.
+
+### The barcode in the email
+
+Mail clients block SVG and most block `data:` images, so a real email links a **hosted PNG** (`node-server/src/prize-delivery/code-image.ts`):
+
+- Drawn at two device pixels per CSS pixel with whole-pixel modules (a UPC-A code is 586 × 286 px, shown at 293 px wide; QR at most 200 px), on the stack's asset bucket under `prize-codes/<hash>.png`, served by its CloudFront like every upload.
+- **Public but unguessable**, the norm for e-ticket and coupon images (Gmail's image proxy must fetch it): the key is a SHA-256 of the delivery (the redemption id, or `test:<prizeId>` for a test send), the format and the code, so the address can't be worked out without already knowing the code. It never contains the code.
+- **Idempotent**: the key is fixed by the delivery, an existing key is not written again (HEAD, then PUT), and a retried or resent delivery reuses the image. Cached for a year (`immutable`).
+- **Never in the way**: drawing and uploading are bounded at 10 s; any failure, or a stack with no asset bucket (`ASSET_BUCKET_NAME` / `ASSET_PUBLIC_BASE_URL` unset), sends the email with the code as text and logs it without the code.
+- **In the email**: "Your code", then the image on a white plate (whatever the theme: scanners need black on white) at its CSS size, `max-width: 100%`, with the 12 digits printed beneath it as text in near-black, so a blocked image still leaves the code. The plain-text part is unchanged: "Your code: 410001058137".
+- **The console's preview** draws the barcode as an inline `data:` PNG: it is staff-only and never sent. Only an `http(s)` address or an inline PNG is ever drawn as the image.
+
+### The test send
+
+**`POST /admin/prize-library/:prizeId/test-email`** sends the **saved** prize's real email (the worker's renderer and transport, now `node-server/src/prize-delivery/transport/` and shared by the API and the worker; the barcode hosted as a delivery hosts it) to **the signed-in staff member's own sign-in address**, read from the admin Clerk instance, never from the request, with "[Test]" before the subject.
+
+- **Who**: the people who may see and set the code (tenant `org:admin` for its own prizes, OBS staff for any), since the email carries it. Not audited: it goes only to the person asking.
+- **Rate limit**: 5 per person per 10 minutes, per API process (a guard against a stuck button, not a quota); past it, 429 `test_email_rate_limited`.
+- **Refusals in plain words**: 503 `test_email_unavailable` when the server has no sending address or no provider key ("The email service isn't connected on this server yet, so the test wasn't sent."); 422 `test_email_no_address` when the sign-in has no email; 502 when the provider refuses, with the transport's sentence minus the provider's internal names ("The test email wasn't sent. The sending account can't send right now."). The full reason is logged.
+- **Infrastructure**: the API task now gets `PRIZE_MAIL_PROVIDER`, `PRIZE_EMAIL_ASSET_BASE` and the Resend key (`resendSecretName`, from Secrets Manager at task start), and both the API and the worker may read and write `prize-codes/*` on the asset bucket; the worker gets `ASSET_BUCKET_NAME` and `ASSET_PUBLIC_BASE_URL`. CDK only, no manual step.
+
+### Function audit (2026-10-11)
+
+| Surface | Data sources | Server calls | States covered |
+|---|---|---|---|
+| Fan app, Won sheet "Your code" | `GET /b2b/prizes/awards`: `prize.code` (the winner's value), `prize.codeFormat` | `POST …/seen` on close (unchanged) | text (unchanged), UPC-A, Code 128, QR, barcode loading (a placeholder of the barcode's size), drawing failed (text), a format that doesn't suit the code (text), several awards |
+| Prize email, "Your code" | the snapshot's code and format; the hosted image | the asset bucket (HEAD, PUT) | text, barcode, image failed or no bucket (text), image blocked by the mail client (digits beneath) |
+| Console, Code section | the prize read's `code` (for writers), `codeFormat` and `hasCode` | the prize's save | no code (format disabled), text, each barcode format with a live barcode, invalid code (inline error, Save blocked; the server's 400 on the field), code cleared |
+| Console, previews | the draft; the code only when it is on screen | `POST /admin/prizes/email/preview` (barcode inline) | as the Won sheet and the email |
+| Console, Test email | the saved prize; the Clerk session's primary email for the label | `POST /admin/prize-library/:prizeId/test-email` | new prize or unsaved changes (disabled with the reason), sending, sent ("Test email sent to …"), each refusal in the server's words, view-only (hidden) |
+
+| Earlier-design element | Fate | Reason |
+|---|---|---|
+| "Whether the sponsor wants a barcode" (Codes, an open question) | Answered | A static code can be shown as a UPC-A, Code 128 or QR code; per-winner batches stay deferred |
+| The console's phone preview "never carries the code" | Changed | It carries the code the staff member can see, so the Won body shows the barcode; nothing new is exposed |
+| Reveal / Hide for a prize's code in the console, and `POST …/reveal-code` | Cut (Arthur, 2026-10-11) | A hidden code hid its barcode and the previews' too; those who may set the code now always see it on the prize's read |
+| A test email to an address typed into the console | Not built | It would make the button a way to mail anyone a prize; the test goes to the sign-in address |
+
 ## Where `PRIZE-04` and D-066 meet
 
 `PRIZE-04` says "one HTML template per prize … template creation and upload is performed by developers". Read literally, every new prize would need an engineer — which contradicts `GAME-04` ("which prizes attach to a game must never require a code change") and `TEN-03` (≤1–2 engineering hours per tenant). D-066 settled the product question: OBS's job is to notify and to guarantee assignment; the sponsor's value lives in the tier's own fields.
@@ -256,7 +308,7 @@ The email is built from real, configured data only. **Anything unconfigured is o
 | Prize image | `prizeImageUrl` (http/https only) | no image block |
 | Description | `prizeDescription` | — (required) |
 | ~~Details list~~ | retired 2026-09-28: a prize has no value, redemption method, place or window | — |
-| Code | the tier's static redemption code, when the tier has one | no code block |
+| Code | the snapshot's static code as the winner is given it (UPC-A with its check digit); with a barcode format, the hosted barcode above it (2026-10-11) | no code block; no image, or a failed one: the code as text |
 | How to claim | `prizeClaimInstructions` | no section |
 | Button | `prizeClaimButtonLinkUrl` (http/https only) + `prizeClaimButtonText` | no button without a link; "Claim your prize" when a link has no text |
 | Presented by | the sponsor holding the prize-popup slot where the prize was won (below, "Presented by") | no mark |
@@ -435,6 +487,7 @@ Supersedes the `/prizes` section of admin-games-and-prizes.spec.md where they di
 | GET | `/admin/prizes/email` | `requireAdmin` | any resolved admin scope |
 | PUT | `/admin/prizes/email` | `requireAdmin` + obs staff or tenant `org:admin` | tier-editing grant |
 | POST | `/admin/prizes/email/preview` | `requireAdmin` | any resolved admin scope (renders; changes nothing) |
+| POST | `/admin/prize-library/:prizeId/test-email` | `requireAdmin` + obs staff or tenant `org:admin` | sends the saved prize's email to the caller's own sign-in address (2026-10-11) |
 | POST | `/admin/delivery-queue/resend` | `requireAdmin` | obs staff only |
 | GET | `/b2b/prizes/awards` | `requireMembership` | the signed-in fan, their own awards (2026-10-03) |
 | POST | `/b2b/prizes/awards/:awardId/seen` | `requireMembership` | the signed-in fan, their own award (2026-10-03) |
@@ -447,11 +500,11 @@ Changed: `GET /admin/prizes` and `PUT …/prize-tiers` return `unawarded` per co
 
 ## Codes — the deliberate seam
 
-`PRIZE-05` says sponsors hand OBS a batch of codes and OBS assigns an unused one per winner; `PRIZE-06` says no code goes to two fans. **The batch model is deferred on purpose**, until the first real sponsor's shape is in hand: single-use vs. shared codes, per-game vs. per-season batches, what exhaustion should do, whether the sponsor wants a barcode, a URL, or a string. Designing it speculatively risks building the wrong constraints into the one table whose correctness is contractual.
+`PRIZE-05` says sponsors hand OBS a batch of codes and OBS assigns an unused one per winner; `PRIZE-06` says no code goes to two fans. **The batch model is deferred on purpose**, until the first real sponsor's shape is in hand: single-use vs. shared codes, per-game vs. per-season batches, what exhaustion should do. *(Whether the sponsor wants a barcode is answered, 2026-10-11: any code can be shown as a UPC-A, Code 128 or QR code, see "Revision 2026-10-11"; a batch-drawn code would carry its prize's format the same way.)* Designing it speculatively risks building the wrong constraints into the one table whose correctness is contractual.
 
 What exists now, and where the batch plugs in later:
 
-- **A static code per tier** (when the shared model carries it): one code every winner of that tier receives — the "use code HAWKS10" promotion. `PRIZE-06`'s no-duplicates rule does not apply to a code that is shared by design.
+- **A static code per prize**, copied to its tiers: one code every winner receives — the "use code HAWKS10" promotion, or a store coupon's UPC-A code shown as a barcode (`codeFormat`). `PRIZE-06`'s no-duplicates rule does not apply to a code that is shared by design.
 - **The seam** is the delivery method. A batch-backed method will, inside its `deliver`, atomically take one unassigned code (`findOneAndUpdate` on a `B2BPrizeCode { batchId, code, assignedTo: null }` → `assignedTo: redemptionId`), render it into the standard email's code block, and record `codeId` on the redemption. The attempt claim above already guarantees one assignment per attempt; a resend reuses the code already recorded on the redemption rather than drawing a second.
 - **Exhaustion** belongs to that method (`PRIZE-05`: "edge-case handling … belongs in that per-sponsor logic"): fail the send with a reason ("This prize's code batch is empty") so it lands on the Delivery queue, resendable after the sponsor tops it up.
 
@@ -462,7 +515,8 @@ What exists now, and where the batch plugs in later:
 Neither SQS nor a mail provider is wanted from a laptop — the dev stacks' evaluator Lambdas do not run (no `MONGODB_SECRET_ARN`), and a developer's test runs should not reach real inboxes. So both ends of the queue and the mail transport have a file-backed development mode, **refused at startup when `NODE_ENV=production`**:
 
 - `PRIZE_LOCAL_QUEUE_DIR` — the API writes resend messages there as JSON files instead of calling SQS; `prize-worker`'s local runner (`npm run local`) consumes that directory in place of the queue.
-- `PRIZE_EMAIL_OUTBOX_DIR` — the worker writes each email as `.html`, `.txt` and a headers `.json` instead of calling SES.
+- `PRIZE_EMAIL_OUTBOX_DIR` — the worker writes each email as `.html`, `.txt` and a headers `.json` instead of calling SES. The API's test send honours it too.
+- A local worker or API given its personal stack's `ASSET_BUCKET_NAME` and `ASSET_PUBLIC_BASE_URL` hosts barcode images on that stack's bucket, as a deployed one does; without them an email with a barcode format shows the code as text.
 
 The local worker authenticates to Mongo with the developer's AWS SSO session through `@aws-sdk/credential-providers` (a dev dependency, as in node-server; the deployed container uses its task role). `prize-worker/.env.example` documents the whole setup. `prize-worker/scripts/enqueue-local.mjs` drops a board-win message into the local queue, so a full win → email → failure → resend loop runs end to end against the developer's own `arthur_`-style collections.
 
@@ -491,6 +545,8 @@ The local worker authenticates to Mongo with the developer's AWS SSO session thr
 10. **The email credits the prize's "Provided by" sponsor, as snapshotted at award time**, or no sponsor at all (Wave 4; previously the prize popup's placement holder, through the one resolver). A failed sponsor lookup drops the mark, never the prize.
 11. **A fan reads only their own awards, and the code only from their own award's snapshot** (2026-10-03). The seen marker is the fan's one write on an award: idempotent, first write wins, and never a delivery state.
 12. **Every bingo tier a board reaches pays**, each when it is reached (2026-10-03; `PRIZE-01`).
+13. **A barcode goes only where its code goes** (2026-10-11): the winner's own award, the email and the console's staff previews. The format never rides on a read without the code, and a barcode never costs a winner their email: without its image, the code is sent as text.
+14. **A test email goes only to the person sending it** (2026-10-11): their own sign-in address, never one in the request, under the gate that lets them see the code.
 
 ---
 
