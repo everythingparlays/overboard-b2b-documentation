@@ -186,6 +186,8 @@ This replaces today's single global `app.use(clerkMiddleware())` in `server.ts`,
 
 New environment: `ADMIN_CLERK_SECRET_KEY`, `ADMIN_CLERK_PUBLISHABLE_KEY`, stored in Secrets Manager alongside the existing pair (`main-api-service.ts` already wires both fan keys; the admin pair follows the same shape).
 
+Also `ADMIN_CLERK_JWT_KEY` (added 2026-10-28), the admin instance's PEM public key (dashboard: Configure -> API keys -> "JWKS Public Key"), passed as `jwtKey` on the admin mount so tokens verify locally with no JWKS fetch. Required in production; at boot the server compares it with the live JWKS and refuses to start on a mismatch. The fan equivalent is `CLERK_JWT_KEY`.
+
 ---
 
 ## Route surface

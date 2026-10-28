@@ -38,7 +38,7 @@ Two production instances in the Clerk dashboard. Nothing downstream works withou
 - [x] Send the two Frontend API URLs and the two publishable keys to the engineer doing Phase 2.
 - [x] **Secrets Manager, prod account (189750306402), us-east-2:** `prod/OverBoardB2B/clerkAuth`
       with keys `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `ADMIN_CLERK_SECRET_KEY`,
-      `ADMIN_CLERK_PUBLISHABLE_KEY` (same key names the dev secret uses); and
+      `ADMIN_CLERK_PUBLISHABLE_KEY`, `CLERK_JWT_KEY` and `ADMIN_CLERK_JWT_KEY` (each instance's public key, dashboard "JWKS Public Key"; the boot refuses without them) — same key names the dev secret uses; and
       `prod/OverBoardB2B/resend` with `RESEND_API_KEY` (a production Resend key).
 
 ## Phase 2 — Backend config and prod stack — done 2026-10-11

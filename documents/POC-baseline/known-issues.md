@@ -85,6 +85,8 @@ No `express-rate-limit` or equivalent anywhere; this is ALB+Fargate, not API Gat
 
 Related, changed 2026-10-07: the fan mount's session audience check (`azp` against the tenant origins) moved from Clerk's `authorizedParties` option into `node-server/src/middleware/fan-audience.ts`, so the tenant list can be the wildcard `https://*.overboardsports.com` and onboarding a tenant no longer redeploys the API (`TEN-03`). The admin mount keeps Clerk's exact check.
 
+Changed 2026-10-28: both mounts verify session tokens with the instance JWT public key (`CLERK_JWT_KEY`, `ADMIN_CLERK_JWT_KEY` as `jwtKey`) instead of fetching JWKS, so a Clerk outage or an unknown-`kid` flood can no longer stall or rate-limit verification.
+
 ## ~~Frontend Exposes a Live Session Token in a Production Route~~ — Resolved (2026-09)
 
 **Resolved (2026-09-14):** `pages/Test.tsx` and its `/test` route are deleted outright ([`overboard-b2b-template#2`](https://github.com/everythingparlays/overboard-b2b-template/pull/2)) — which also removes the dead `B2BTestObject` call noted in the "Removed" entry below.

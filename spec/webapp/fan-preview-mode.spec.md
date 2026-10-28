@@ -306,7 +306,7 @@ The frame is the viewport, as on a real device, and the app lays itself out for 
 
 - [ ] Opening `/preview` with no parent shows "Waiting for preview" and nothing else.
 - [ ] The network panel for a preview session shows no `/b2b/*` request and no Clerk script.
-- [ ] The live app's main bundle contains no preview code; the preview chunk graph contains no `@clerk/clerk-react`.
+- [ ] The live app's main bundle contains no preview code; the preview chunk graph contains no `@clerk/react` (formerly `@clerk/clerk-react`).
 - [ ] A `render` for a Draft contest shows it on Contests (Upcoming) with its real matchup, logos, tip-off, description and top prize, as it will look once published.
 - [ ] Clicking through Start → Continue with Email → Sign in → Join (filled) → the contest card → two players → Generate reaches the Board, and each step posts `navigated` with the right screen.
 - [ ] The Contest screen shows each open game as a tab and the real players with their PES photos; a player with `showPhotoUri: false` shows none.

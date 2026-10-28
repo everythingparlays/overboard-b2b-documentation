@@ -4,7 +4,7 @@
 
 ## Stack
 
-React `19.2.0`, Vite `7.2.4` (SWC plugin), TypeScript `~5.9.3`, Redux Toolkit `2.11.2` + RTK Query, React Router `7.13.0`, `@clerk/clerk-react` `5.60.0`, Tailwind `4.1.18` (CSS-first config, no `tailwind.config.js`), shadcn/ui ("new-york" style) on `radix-ui`, `react-hook-form` + `zod`, `sonner` (toasts), `canvas-confetti`.
+React `19.2.0`, Vite `7.2.4` (SWC plugin), TypeScript `~5.9.3`, Redux Toolkit `2.11.2` + RTK Query, React Router `7.13.0`, `@clerk/clerk-react` `5.60.0` (moved to `@clerk/react` `6.18` on 2026-10-28; custom flows import from `@clerk/react/legacy`), Tailwind `4.1.18` (CSS-first config, no `tailwind.config.js`), shadcn/ui ("new-york" style) on `radix-ui`, `react-hook-form` + `zod`, `sonner` (toasts), `canvas-confetti`.
 
 Two git submodules consumed via TS path aliases: `core` (`overboard-b2b-shared-deps` — shared layout components, contest/event helpers) and `pb-shared-deps` (shared TS interfaces with the backend, consumed only via `import type`).
 

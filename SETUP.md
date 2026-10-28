@@ -183,7 +183,7 @@ npm run dev               # builds, then runs with .env loaded
 
 `npm run dev` and `npm run start:local` read `.env` natively (Node ≥ 20.6 `--env-file`); there is no `dotenv` dependency. Plain `npm start` does **not** read it — that is what deployed environments use, where real environment variables are injected.
 
-Required in `.env`: `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `MONGODB_CONNECTION_STRING`, `MONGODB_DATABASE_NAME`, `B2B_COLLECTION_PREFIX`, `FRONTEND_ORIGIN`. Add `AWS_PROFILE` if your default AWS profile is not the identity you registered in Atlas, and `PORT` if 3000 is taken.
+Required in `.env`: `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `MONGODB_CONNECTION_STRING`, `MONGODB_DATABASE_NAME`, `B2B_COLLECTION_PREFIX`, `FRONTEND_ORIGIN`. `CLERK_JWT_KEY` (fan) and `ADMIN_CLERK_JWT_KEY` (admin) are each instance's PEM public key (dashboard: Configure -> API keys -> "JWKS Public Key"); optional locally, required in production, where they make token verification networkless. Add `AWS_PROFILE` if your default AWS profile is not the identity you registered in Atlas, and `PORT` if 3000 is taken.
 
 Four variables are easy to get wrong:
 
@@ -269,7 +269,7 @@ Use your own name as the stage (e.g. `-c stage=nick`) — this gives you an isol
 **A personal stack works end to end for the main API** (confirmed 2026-09-11: `OverboardSportsBackendStack-arthur` deployed and serves authenticated fan traffic — Atlas ARN registration done beforehand). One prerequisite is still missing:
 - A dev-scoped MongoDB secret in `obs-b2b-dev`. Without it, the async pipeline (board-evaluator / prop-update-evaluator Lambdas) will throw at runtime — they require `MONGODB_SECRET_ARN`, with no IAM fallback. (The main API / node-server doesn't need this — it uses Atlas IAM auth via its task role instead.)
 
-(The non-production Clerk instance, previously also missing, exists and its secret is in Secrets Manager as `dev/OverBoardB2B/clerkAuth` — auth works out of the box.) The Mongo-secret gap is tracked in [`known-issues.md`](documents/POC-baseline/known-issues.md); until it's resolved, board/prop evaluation won't run on a personal stack — check there before assuming something you did wrong.
+(The non-production Clerk instance, previously also missing, exists and its secret is in Secrets Manager as `dev/OverBoardB2B/clerkAuth` — auth works out of the box; the secret also carries the two public JWT keys, `CLERK_JWT_KEY` and `ADMIN_CLERK_JWT_KEY`.) The Mongo-secret gap is tracked in [`known-issues.md`](documents/POC-baseline/known-issues.md); until it's resolved, board/prop evaluation won't run on a personal stack — check there before assuming something you did wrong.
 
 #### Your stack's hostname (one-time, after the first deploy)
 
