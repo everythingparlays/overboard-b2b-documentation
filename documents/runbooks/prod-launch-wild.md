@@ -60,6 +60,18 @@ Two production instances in the Clerk dashboard. Nothing downstream works withou
       `curl -I https://b2b-api.overboardsports.com/health` → 200; `http://` → 301.
 - [x] (code) Indexes: `autoIndex` is off, so `node-server/scripts/ensure-indexes.mjs --production --apply`
       was run once against `obs-b2b-prod` / `prod_` (2026-10-11); dry run now reports nothing missing.
+      **Rerun before the next prod deploy.** Until 2026-11-04 that script registered only five model
+      files by hand and skipped `prize-redemption`, `sponsor`, `platform-settings` and `support-report`,
+      so "nothing missing" did not cover the prize-redemption unique indexes. It now registers every
+      model through the routes, grades an index by key *and* options (a same-key non-unique index is a
+      conflict, not "present"), and exits non-zero on a conflict. Nothing checks indexes at process
+      boot, by decision (2026-11-04): an index edited in the Atlas UI must never stop a task from
+      starting. Instead `overboard_sports_backend/scripts/deploy.sh <stage>` runs the index script
+      with `--apply` before every `cdk deploy` and stops on a conflict, so deploying through the
+      script is the check. Deploy prod with `./scripts/deploy.sh prod` from now on.
+- [ ] (you) Before any **bingo** launch: confirm the prod `PropUpdate` and `BoardEvaluation` Lambdas'
+      `LastModified` is after 2026-10-27 (the `aws4` bundling fix, backend `989debf`), or redeploy.
+      See `documents/POC-baseline/known-issues.md`, "Lambda IAM auth is now in place".
 
 ## Phase 3 — Frontends on Vercel (you, values from code) — done 2026-10-11
 

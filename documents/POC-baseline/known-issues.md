@@ -79,6 +79,20 @@ Original finding: no admin endpoint, script, or seed path created a `B2BOrganiza
 
 Original finding: the CDK code to terminate TLS at the ALB was implemented, but `certificateArn` was unset everywhere, so every stack deployed HTTP-only. Detail: [`infra.md`](infra.md).
 
+## Fan Token Audience Is a Wildcard, Not Bound to the Tenant (`SEC-08`, `IDN-04`, `TEN-C3`) — Deferred 2026-11-04
+
+Clerk's `azp` claim names the origin a fan session was minted for. The API allows `https://*.overboardsports.com` (`lib/config/environments.ts` `fanAuthorizedParties`) and `node-server/src/middleware/fan-audience.ts` only matches that wildcard; it never compares the `azp` host with the `?tenant=` the request names. The production fan Clerk instance sits on the root domain, so one session cookie is shared by every tenant subdomain plus `admin.`, `www.` and any dangling record; the API also accepts the `__session` cookie (not just the Authorization header), and CORS uses the same wildcard with credentials. Reserved labels `admin`/`obs` are refused as tenant slugs but admitted as fan origins.
+
+**Impact:** membership is still checked from the verified user id, so a fan cannot read a tenant they do not belong to. The exposure is a fan in two tenants, or a page on any sibling host, acting on tenant B with a token minted for tenant A (CSRF-shaped), which the azp check was written to stop.
+
+**Decision (Nick, 2026-11-04): deferred; not a kickoff item.** Fix when picked up: require the `azp` hostname's first label to equal the resolved tenant slug (plus a custom-domain map), exclude the reserved labels, accept the Authorization header only, and add a test for a tenant-A token against tenant B. About half a day. Full context in the workspace file `code-review-2026-11-04.md`, finding 5.
+
+## TODO: Index Sprawl on Some Collections — Review Before Scale (Lower Priority)
+
+Noticed 2026-11-04 while running the index check (`overboard_sports_backend/scripts/deploy.sh <stage> --indexes-only --dry-run`): several collections declare more indexes than their query patterns justify. `support_reports` alone declares eight (`organizationId+createdAt`, `status+createdAt`, `subject.type+subject.id`, `fingerprint+createdAt`, `mergedInto`, `firstResponseAt`, `resolvedAt`, `organizationId+status+createdAt`), and `bingo_prize_redemptions` declares seven beyond its two unique guards. Each index costs write throughput and RAM on the shared cluster, and the support collection is tiny and staff-only.
+
+**Nothing is wrong today**: the unique indexes are the correctness guards and must stay; the rest are only cost. **To do:** go collection by collection in `obs-b2b-shared/src/models/*.ts`, keep an index only where a handler issues the query it serves (grep the `find`/`aggregate` call sites), prefer one compound index that covers several sorts over one index per sort, and drop the rest from the model. Indexes are never dropped automatically; after the model change, remove the stale ones in Atlas by hand. `ensure-indexes.mjs` only adds, but it lists every index the database has that no model declares as `EXTRA` (excluding `_id_`), so the dry run is the checklist for that Atlas step. Start with `support_reports`, `prize_redemptions`, `sponsor_placements`. Owner: Nick. Not before the 2026-11-05 kickoff.
+
 ## No Rate Limiting or Bot Protection (`SEC-08`, `SEC-09`)
 
 No `express-rate-limit` or equivalent anywhere; this is ALB+Fargate, not API Gateway, so there's no platform-level throttling either. No CAPTCHA or signup-abuse protection.
@@ -136,7 +150,11 @@ Both auth paths described in [`infra.md`](infra.md) are currently live in produc
 
 **How it is provisioned changed, though.** Atlas IAM database users were being created via `CfnDatabaseUser`, which requires an Atlas API key in the deploying AWS account — and **Atlas API keys cannot be scoped to a database**, only to a project, making such a key a standing escalation path from `obs-b2b-dev` to the source database. The fix: create the database users **by hand in the Atlas console**, bound to deterministic IAM role ARNs. The API key was only ever needed to *create* the user, never to authenticate as it — so removing it costs nothing but a manual onboarding step (registering two ARNs per new developer, documented in [`environments.spec.md`](../../spec/infra/environments.spec.md#onboarding-a-new-developer--required-atlas-step)).
 
-**The Lambda gap below is not closed by this** — `board-evaluator` and `prop-update-evaluator` still cannot use IAM auth at all until their connector supports the `MONGODB-AWS` mechanism.
+**Lambda IAM auth is now in place** (`lambdas/util/db-connector.ts` uses `MONGODB-AWS`), with one lesson worth keeping:
+
+- **The Mongo driver loads `aws4` with a dynamic `require` for `MONGODB-AWS`, which esbuild cannot bundle.** Without `aws4` in the Lambda's `nodeModules` list (`lib/constructs/prize-delivery.ts`) every invocation dies at connect with "Optional module aws4 not found" and every prop-hit message dead-letters. Found 2026-10-27 on a personal stack (43k messages in the DLQ), fixed in backend commit `989debf`.
+- **Why prod and dev can differ on this:** the fix is a *bundling* change, so it exists only in stacks deployed after that commit. A stack is whatever its last `cdk deploy` built. The nick dev stack was redeployed 2026-10-27 and works; the prod stack was created 2026-10-11 and not redeployed since, so as of 2026-11-04 prod still runs the broken bundle. There is no runtime toggle: the only way to tell which build a stack runs is the Lambda's `LastModified` date against the commit date, or a prop-hit message landing in the DLQ. Before any bingo launch, confirm the prod Lambda `LastModified` is after 2026-10-27, or redeploy.
+- The ECS services (main API, prize worker) never had this problem because they run from `node_modules`, not an esbuild bundle. A dependency the driver loads lazily will always bite the Lambdas first.
 
 ## Stale Duplicate Legacy Collections (`test_*`)
 
