@@ -117,6 +117,12 @@ Original finding: `vercel.json` proxied API calls to a hardcoded AWS ELB DNS nam
 
 No error tracking service (Sentry or equivalent) in either repo. No structured logging (raw `console.log`/`console.error` throughout, gated only by always-on debug flags in the Lambdas). The only proactive alerting anywhere in the system is "an SQS dead-letter queue has ≥1 message" — no alarms on ALB error rate, ECS health, Lambda errors, ORmongo connectivity; no per-tenant error attribution; no live-game-window alerting; no pre-game health view. This is essentially the entirety of PRD Section 14 unbuilt.
 
+## Start Screen Title Is Hard-Coded to "Wild Trivia" (Open, added 2026-11-06)
+
+For the Minnesota Wild launch the fan app's Start screen heading (`overboard-b2b-template/src/pages/auth/StartScreen.tsx`) reads "Wild Trivia" for every tenant, in place of the tenant's name. Any other tenant opening the app today sees the Wild's title.
+
+Wanted: a per-tenant Start page title the console can set (Brand page, alongside the logo and colours), with a sensible default such as "{short team name} Trivia" derived from the tenant, and the heading reading that value. Until it lands, the string must be changed by hand before any tenant other than the Wild goes live.
+
 ## Start Screen Layout Does Not Adapt to Screen Height (Open, added 2026-11-06)
 
 The fan app's Start screen (`overboard-b2b-template/src/pages/auth/StartScreen.tsx`) is one column with fixed sizes: brand block, sponsor plate and matchup card on top, sign-in buttons and the Powered by credit at the bottom, with `justify-between` pushing the two apart. On a short phone the top group overflows and the page scrolls; on a tall one the middle is empty. Through 2026-11-06 the fix has been trimming margins and logo sizes by hand, which only moves the problem.
