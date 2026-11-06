@@ -117,6 +117,12 @@ Original finding: `vercel.json` proxied API calls to a hardcoded AWS ELB DNS nam
 
 No error tracking service (Sentry or equivalent) in either repo. No structured logging (raw `console.log`/`console.error` throughout, gated only by always-on debug flags in the Lambdas). The only proactive alerting anywhere in the system is "an SQS dead-letter queue has ≥1 message" — no alarms on ALB error rate, ECS health, Lambda errors, ORmongo connectivity; no per-tenant error attribution; no live-game-window alerting; no pre-game health view. This is essentially the entirety of PRD Section 14 unbuilt.
 
+## Start Screen Layout Does Not Adapt to Screen Height (Open, added 2026-11-06)
+
+The fan app's Start screen (`overboard-b2b-template/src/pages/auth/StartScreen.tsx`) is one column with fixed sizes: brand block, sponsor plate and matchup card on top, sign-in buttons and the Powered by credit at the bottom, with `justify-between` pushing the two apart. On a short phone the top group overflows and the page scrolls; on a tall one the middle is empty. Through 2026-11-06 the fix has been trimming margins and logo sizes by hand, which only moves the problem.
+
+Wanted: treat the screen as two parts that size themselves to the viewport. The top part (logo, name, tagline, sponsor, matchup) should scale its logo and matchup card down on a short screen rather than overflow, and the bottom part (buttons, credit) should keep a fixed height anchored to the bottom safe area. A viewport-height-driven size for the top block (the `fluid()` helper the screen once had, or container queries on the top part) plus a minimum below which the matchup card collapses to its date pill would cover 667px to 932px phones without per-device tuning. Verify on an iPhone SE-class height and a Pro Max, with and without a next game.
+
 ## Fan Account Management Is Not Built (Open, added 2026-11-06)
 
 The fan app has no account management of its own. The side menu's profile card used to open Clerk's stock account modal, which exposes everything Clerk manages for the user — connected accounts, sessions, security settings and the like — far more than a fan should see or change, and in Clerk's look rather than the tenant's. On 2026-11-06 the card was made non-interactive: it shows the fan's name, email and avatar and does nothing when tapped.
