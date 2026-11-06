@@ -117,6 +117,12 @@ Original finding: `vercel.json` proxied API calls to a hardcoded AWS ELB DNS nam
 
 No error tracking service (Sentry or equivalent) in either repo. No structured logging (raw `console.log`/`console.error` throughout, gated only by always-on debug flags in the Lambdas). The only proactive alerting anywhere in the system is "an SQS dead-letter queue has ≥1 message" — no alarms on ALB error rate, ECS health, Lambda errors, ORmongo connectivity; no per-tenant error attribution; no live-game-window alerting; no pre-game health view. This is essentially the entirety of PRD Section 14 unbuilt.
 
+## Fan Account Management Is Not Built (Open, added 2026-11-06)
+
+The fan app has no account management of its own. The side menu's profile card used to open Clerk's stock account modal, which exposes everything Clerk manages for the user — connected accounts, sessions, security settings and the like — far more than a fan should see or change, and in Clerk's look rather than the tenant's. On 2026-11-06 the card was made non-interactive: it shows the fan's name, email and avatar and does nothing when tapped.
+
+Still to build, in the app's own theme and scoped to what a fan should manage: change display name and photo, change or add email, change password, and sign out of other sessions. Clerk's hooks cover all of these without the modal (`user.update`, `user.createEmailAddress`, `user.updatePassword`, `useSessionList`). Account deletion should go through support, not a self-serve button, until the membership and prize records have a defined teardown.
+
 ## Support Tickets Send No Notifications (Open, added 2026-11-06)
 
 A fan's problem report (fan app "Report a problem" → console Support inbox) moves through its states silently. Nobody is told when anything happens:
