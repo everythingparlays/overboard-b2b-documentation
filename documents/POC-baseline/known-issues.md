@@ -117,6 +117,15 @@ Original finding: `vercel.json` proxied API calls to a hardcoded AWS ELB DNS nam
 
 No error tracking service (Sentry or equivalent) in either repo. No structured logging (raw `console.log`/`console.error` throughout, gated only by always-on debug flags in the Lambdas). The only proactive alerting anywhere in the system is "an SQS dead-letter queue has ≥1 message" — no alarms on ALB error rate, ECS health, Lambda errors, ORmongo connectivity; no per-tenant error attribution; no live-game-window alerting; no pre-game health view. This is essentially the entirety of PRD Section 14 unbuilt.
 
+## Support Tickets Send No Notifications (Open, added 2026-11-06)
+
+A fan's problem report (fan app "Report a problem" → console Support inbox) moves through its states silently. Nobody is told when anything happens:
+
+- **The OBS team** gets no notification when a fan files a report or replies on one. Staff only see new work by opening the Support inbox.
+- **The fan** gets no notification when staff reply or resolve their report. They only find out by opening "Your reports" in the fan app (the side menu dot marks an unread reply once they are already in the app).
+
+Wanted: a notification on each side at the moments that matter — new report and fan reply to the OBS team; staff reply and resolution to the fan. Email through the existing Resend setup is the obvious first channel for both (the fan's address is on their membership; the team's is a support alias), with push or SMS a later question. Templates should match the prize emails. Until this lands, support turnaround depends on someone remembering to check the inbox, and a fan whose issue was fixed may never learn it.
+
 ## Dev-Account Access Is Full Admin, Not Scoped to CDK Needs (Lower Priority)
 
 The Identity Center permission set granting `obs-b2b-dev-deployers` access to `obs-b2b-dev` (`AdministratorAccess-for-b2b-dev`) is full administrator access within that account, not narrowed to what a CDK deploy actually needs. The account boundary itself is the real backstop — it's a fully separate account from `obs-b2b-prod`, so this can't reach production — but within `obs-b2b-dev`, nothing currently limits the blast radius of a mistake. Worth replacing with a scoped permission set once there's time; not urgent given the account-level isolation already in place. See [`SETUP.md`](../../SETUP.md#aws-access-setup-identity-center).
