@@ -96,17 +96,39 @@ Dev (`nick_`) has no shared document rows today, so create prod's starting state
 
 ## Prod rollout
 
-No script runs against prod. Nick performs each step.
+No script runs against prod and there is no data migration. Nick performs each step.
 
-1. Merge the shared branch and move all five `obs-b2b-shared` pins together (backend ×3, console,
-   fan app).
-2. Deploy the backend. Nothing changes for fans: every tenant still reads the shared documents.
-3. Deploy the console.
-4. Repeat checks 4 to 6 on prod for Wild and the Hawks.
-5. When a team's own documents are ready, publish them from that team's page. Its fans are re-asked.
+State on 2026-11-27: the change is on `main` in all five repos and all five `obs-b2b-shared` pins
+are on `a71b5eb`. No `release` branch has it. Dev checks passed, including a tenant on shared
+documents publishing its own while a second tenant stayed on the shared ones.
 
-Rollback: before step 5 the old backend and console can be redeployed with no effect on data. After
-a tenant's first own publish, the old backend would show that tenant the old shared text for its new
+### Timing
+
+Do none of the steps below while a contest is live. The change itself alters nothing for fans
+until someone publishes, but a backend deploy replaces every API task and empties the in-memory
+caches, and the publish in step 6 blocks new trivia runs and bingo boards for that team's fans until
+they accept.
+
+### Order (it matters)
+
+The console must not reach prod before the backend. The new console sends `?tenant=` with a
+publish; the old backend ignores it and publishes for every team at once, re-asking every fan.
+
+1. Wait for the contest to end and be finalized.
+2. Backend: fast-forward `release` to `main`, then `./scripts/deploy.sh prod`. Besides this
+   change, `release` picks up two dev-only scaling commits that do not alter prod's configuration.
+3. Check, before anything else: Wild's and the Hawks' `/terms`, `/rules` and `/privacy` show the
+   same text as before; a signed-in fan gets no gate; one fan page's "Show wording" still opens.
+4. Console: fast-forward `release` to `main`. Vercel builds prod from `release`.
+5. Fan app: fast-forward `release` to `main` (the pin only). This can wait for the next fan app
+   release; nothing depends on it.
+6. When a team's own documents are ready, publish them from that team's page, outside a contest.
+   That team's fans are re-asked on their next visit; the other team is not.
+
+### Rollback
+
+Before step 6 the old backend and console can be redeployed with no effect on data. After a
+tenant's first own publish, the old backend would show that tenant the old shared text for its new
 version, so from then on fix forward.
 
 ## Known gaps
