@@ -144,6 +144,30 @@ A fan's problem report (fan app "Report a problem" → console Support inbox) mo
 
 Wanted: a notification on each side at the moments that matter — new report and fan reply to the OBS team; staff reply and resolution to the fan. Email through the existing Resend setup is the obvious first channel for both (the fan's address is on their membership; the team's is a support alias), with push or SMS a later question. Templates should match the prize emails. Until this lands, support turnaround depends on someone remembering to check the inbox, and a fan whose issue was fixed may never learn it.
 
+## Readiness Check Reports "No Prizes Are Attached" on Every Trivia Contest (Open, added 2026-11-06)
+
+Seen in prod on the Wild's Overview the day of the San Jose game: the next-game band showed "Not ready — 1 thing to fix before tip-off — No prizes are attached" although the contest's prize bands were set. Cosmetic: nothing in the fan flow reads readiness, so the game runs and prizes send regardless. The same wrong verdict appears on every screen that shows a trivia game's readiness — Overview, `/live`, the season schedule and the OBS overview's attention queue.
+
+**Cause.** The pre-game readiness evaluator (`overboard_sports_backend/node-server/src/util/admin-readiness.ts`, `evaluateReadiness`) raises `prize-tiers / blocked` when its `tiers` input is empty, and `prize-delivery` for each tier whose `handlerId` the delivery catalog cannot resolve. Every caller fills `tiers` from the contest's bingo `prizeTiers` ids via `contestTiers` in `handlers/admin/game-activity.ts`. A trivia contest stores its prizes elsewhere — `contest.trivia.bands`, each `{ from, to, prizeId }` pointing at a `B2BPrize`, which carries the `handlerId` — so `prizeTiers` is legitimately empty and the check fires every time. The rest of Overview already knows the difference: its "contests with no prizes" attention item goes through `prizeCountOf` in `util/contest-console.ts`, which switches on `contestType` and counts bands for trivia. The readiness path was added in the game-day groundwork commit (`1225851`) before trivia landed and never got the same switch; its tests (`util/__tests__/admin-readiness.test.ts`) have no trivia case.
+
+**Fix (backend only, no console change).**
+
+1. Keep the evaluator's shape and make `ReadinessInput.tiers` mean "deliverable prize references": for bingo the resolved tiers as today; for trivia one entry per band whose `prizeId` resolves, carrying that prize's `handlerId`. The `prize-delivery` check then works for both types unchanged.
+2. Add a `loadPrizes(ids)` helper beside `loadTiers` in `game-activity.ts` (select `prizeName handlerId`), and give `contestReadiness` a `prizesById` map; pick tiers or bands by the same `contestType === "trivia"` rule `prizeCountOf` uses.
+3. Update the four callers to load band `prizeId`s for trivia contests in their existing single read: `handlers/admin/overview.ts` (~line 186), `schedule.ts` (~253), `obs-overview.ts` (~180), `live.ts` (~271). Replace the direct `prizeTiers.length === 0` check at `obs-overview.ts` ~line 334 (the `no-prize-tiers` queue item) with `prizeCountOf`; check `util/admin-overview.ts` ~line 91 for the same pattern.
+4. Tests on the evaluator: trivia with bands → ready; trivia with no bands → `prize-tiers` blocked; trivia band whose prize has no usable handler → counted under `prize-delivery`.
+5. Deploy prod. Before deploying, confirm on the affected contest that `trivia.bands` is non-empty — an empty band list would make the message correct.
+
+## Bingo Open and Close Times: What Fans See Is Not Understood (Open, added 2026-11-20)
+
+To investigate, not yet diagnosed. A bingo contest's window comes from two sources: the event start time is read from the replicated props data (`readonly_props`, which B2B does not own), and the event close time is set by staff in the admin console. How those two values combine, and what the fan app shows as each one changes, has not been traced.
+
+Wanted: follow both times from source to screen for the bingo format and write down the behaviour. Which field each fan surface reads for "opens" and "closes"; what a fan sees before open, while open and after close; what happens when the props start time moves after the contest is set up (a rescheduled or delayed game); what happens when the console close time is edited mid-game or falls before the props start time; and whether board generation and prop evaluation enforce the same window the fan app displays. Fix or spec whatever the trace turns up.
+
+## Contest Should Stay on the Live Page After It Starts (Open, added 2026-11-20)
+
+Wanted: once a contest has started, it stays on the live page until it is finalized, rather than dropping off at start time. The rule is finalization, not a clock: any started contest that is not yet finalized belongs on the live page (Nick, 2026-11-20). Not yet traced: which value the live page uses today to decide what to show (the props event start, the console close time, or contest status) and where the cut-off happens. Related to the open and close times item above; investigate the two together.
+
 ## Dev-Account Access Is Full Admin, Not Scoped to CDK Needs (Lower Priority)
 
 The Identity Center permission set granting `obs-b2b-dev-deployers` access to `obs-b2b-dev` (`AdministratorAccess-for-b2b-dev`) is full administrator access within that account, not narrowed to what a CDK deploy actually needs. The account boundary itself is the real backstop — it's a fully separate account from `obs-b2b-prod`, so this can't reach production — but within `obs-b2b-dev`, nothing currently limits the blast radius of a mistake. Worth replacing with a scoped permission set once there's time; not urgent given the account-level isolation already in place. See [`SETUP.md`](../../SETUP.md#aws-access-setup-identity-center).
